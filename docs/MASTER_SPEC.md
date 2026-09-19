@@ -6,7 +6,8 @@
 
 - **Versión del documento:** 1.15
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-19 (§9.5: las cuentas para recibir pagos admiten **Bre-B** y **Otros** —D-209,
+- **Última actualización:** 2026-09-19, más tarde (§9.5: **Bre-B** y **Otros**, en producción). Antes, ese mismo día
+  (§9.5: las cuentas para recibir pagos admiten **Bre-B** y **Otros** —D-209,
   `0073` y `0074`, **solo en local**—). Antes, el 2026-09-18 (§9.8: la **Etapa 3** del historial —auditoría en local, D-208—: el aviso
   habla de sorteos «sin confirmar o por verificar» y el personal elige también a quien ya no vende; antes, el
   2026-09-17, §9.8: **Premios ganados** en los dos portales —D-208, Etapa 2,
@@ -341,7 +342,7 @@ principal como **resumen ligero**.
 **titular** y el **número** —teléfono, o banco + tipo de cuenta + número—; **no el documento de
 identidad**. Máximo **5 activas**. Se archivan, no se borran.
 
-> **Desde el 2026-09-19, en local (D-209):** también **Bre-B** —el titular y **su llave**— y **Otros** —el titular y
+> **Desde el 2026-09-19 (D-209), en producción desde esa misma tarde:** también **Bre-B** —el titular y **su llave**— y **Otros** —el titular y
 > **un número o identificador**—. La llave se guarda **tal como se escribe**, con letras, números y símbolos, sin «@»
 > añadido ni exigido, y dos cuentas de esas formas son la misma solo si el texto entero coincide (BR-M08, BR-M10).
 > **Todavía no está en producción.**

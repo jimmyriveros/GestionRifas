@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-19 (§2.2: la promoción de `0073` y `0074` **autorizada**, y su reversión **comprobada** en
+**Actualizado:** 2026-09-19, más tarde (§2 y §2.2: `0073` y `0074` **aplicadas** a las 17:53 UTC; §3.2.m: `6401bd0`
+**desplegado** a las 17:57 UTC y comprobado técnicamente; §3.2.l: el CI en rojo era I-140, ya corregida). Antes, ese
+mismo día (§2.2: la promoción de `0073` y `0074` **autorizada**, y su reversión **comprobada** en
 local con el código anterior; §4.1: antes de volver a un despliegue, comprobar que sabe leer los datos nuevos). Antes,
 ese mismo día (§2: `0073` y `0074`, D-209, **solo en local**, con su orden de promoción) y 2026-08-09. Procedimiento de despliegue y reversión. Para el manual de
 operación del negocio ver [`OPERATIONS.md`](OPERATIONS.md); para problemas frecuentes,
@@ -29,10 +31,10 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (**72** aplicadas, hasta `0072`, desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
+| Migraciones (**74** aplicadas, hasta `0074`, desde el 2026-09-19 a las 17:53 UTC; antes, **72** desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
 | **`0050` aplicada el 2026-09-08** (D-176) | La invitación al grupo de WhatsApp. **Aditiva y sin una sola sentencia de datos**: tres columnas nuevas en `memberships` que nacen nulas o en `false`, tres CHECK y una RPC; no toca ninguna tabla, política, función ni restricción existente. Promovida con el procedimiento completo: respaldo en `Rifas-backups/2026-09-08-pre-0050/` (4,1 MB, 19 tablas, **0** identidades de Auth), sonda de solo lectura **antes**, `db push --dry-run` confirmando que **solo** aparecía `0050`, aplicación **antes** del despliegue y la **misma sonda después**. **Las 30 cifras de negocio salieron idénticas** —981 boletas, 540 clientes, 352 pagos, $32.780.000 abonados, 4.816 de bitácora— y lo único que se movió fue el número de migración, las tres columnas y la RPC. Comprobado además que `memberships_update_staff` **sigue siendo la única política de escritura**, que la RPC **no es ejecutable por `anon`** y que **0 filas** tienen algo escrito en las columnas nuevas |
-| **`0073` y `0074`: AUTORIZADAS el 2026-09-19** (D-209) | Bre-B y «Otros» en las cuentas para recibir pagos. **Autorizadas para una sola ejecución** con el procedimiento de §2.2; si se aplicaron y cuándo, en `TEST_RESULTS` y `HANDOFF` —esta fila se escribió antes de aplicarlas—. Van en ese orden y en dos archivos —un valor de enumerado no se usa en la transacción que lo añade (`55P04`)—, **antes** del código: el código desplegado funciona con la base nueva (medido) y el nuevo no funciona con la vieja. La `0074` no escribe datos: una columna nula, dos CHECK, un índice reconstruido, dos funciones y dos RPC con firma nueva, y se comprueba a sí misma. `verify:remote` tendrá **dos comprobaciones en rojo a propósito** hasta aplicarlas. Orden completo en §2.2 |
-| RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones), salvo `0073` y `0074` |
+| **`0073` y `0074`: APLICADAS el 2026-09-19** (D-209), de 17:53:21 a 17:53:39 UTC | Bre-B y «Otros» en las cuentas para recibir pagos, con autorización expresa del dueño y el procedimiento de §2.2; su código, `6401bd0`, desde las 17:57:44 UTC (§3.2.m). Van en ese orden y en dos archivos —un valor de enumerado no se usa en la transacción que lo añade (`55P04`)—, **antes** del código: el código desplegado funciona con la base nueva (medido) y el nuevo no funciona con la vieja. La `0074` no escribe datos: una columna nula, dos CHECK, un índice reconstruido, dos funciones y dos RPC con firma nueva, y se comprueba a sí misma. `verify:remote` tendrá **dos comprobaciones en rojo a propósito** hasta aplicarlas. Orden completo en §2.2 |
+| RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
 ### 2.1 Configuración de Auth que hay que revisar (una sola vez)
@@ -179,7 +181,22 @@ en `TEST_RESULTS` («la promoción en producción»).
 | `npm run verify:remote` | ✅ **44/44**, con las tres del historial que estaban en rojo a propósito |
 | Comparación por fila (`--operation migrations`) | **CONTINUAR**: 0 diferencias con el delta ensayado, `declared_prize_awards` vacía, **ninguna fila de negocio tocada** |
 
-#### `0073` y `0074` — Bre-B y «Otros» (D-209): **AUTORIZADA el 2026-09-19**
+#### `0073` y `0074` — Bre-B y «Otros» (D-209): **EJECUTADA el 2026-09-19**
+
+**Resultado** (detalle, con horas, en `TEST_RESULTS` y en `build/gate/operacion-d209-2026-09-19.md`, que no se
+versiona). La base de producción pasa de **72 a 74** migraciones:
+
+| Qué | Resultado |
+|---|---|
+| Respaldo (17:49:13–17:51:02 UTC) | `Rifas-backups/2026-09-19-antes-0073-0074/`: `roles.sql` 370 B, `schema.sql` 639.640 B y `data.sql` 5.286.451 B (30 tablas con datos). **0** nombres `"auth".` cualificados, **0** `INSERT INTO "auth"`, **0** credenciales. **Validado restaurándolo en la base local**: 31 tablas y **11.231 filas iguales** a la foto tomada justo después |
+| Delta esperado | Ensayado con los privilegios de producción de ese momento (55 sentencias): +1 columna, +1 restricción y 1 modificada, 1 índice modificado, +4 −2 funciones, 1 tipo modificado y +2 migraciones; `verify-remote` contra esa base local **46/46** |
+| `db push --dry-run` | Exactamente `0073` y `0074`, en orden (17:53:07 UTC) |
+| `db push --yes` | Aplicadas de **17:53:21 a 17:53:39 UTC**; la autocomprobación de la `0074` no abortó; `migration list` con `0001`–`0074` iguales en los dos entornos |
+| `npm run verify:remote` | ✅ **46/46**, con las dos de D-209 que estaban en rojo a propósito |
+| Comparación por fila (`--operation migrations`, con `--base`) | **CONTINUAR**: **0** diferencias con el delta ensayado, ninguna tabla nueva y **0 filas tocadas**; la Nequi que ya existía, con `identifier` nulo |
+| Actividad durante la puerta | Tres ventas de boleta (17:47:52, 17:48:27 y 17:49:08) antes de aplicar, y otras dos y un pago antes y durante el despliegue: todas explicadas por la «Opción A» |
+
+La tabla de abajo es el procedimiento tal como se autorizó y se siguió.
 
 **Autorización expresa del dueño, el 2026-09-19, para una sola ejecución** y con las verificaciones previas cumplidas:
 corregir I-140, integrar en `main` el candidato con el CI en verde, respaldo y comprobaciones de producción, aplicar
@@ -757,6 +774,37 @@ en Vercel desde el despliegue.
 
 > **Lo que este release NO verificó:** las pantallas **con sesión** —un agente no introduce contraseñas—. Los
 > recorridos del dueño, el administrador y los vendedores están en `RUNBOOK` §9.9.
+
+> **Nota posterior (2026-09-19, D-209):** el CI en rojo de este release era **I-140**, un defecto de la prueba. Se
+> corrigió en `6401bd0`, y su CI —en el PR y en `main`— está en verde (§3.2.m).
+
+### 3.2.m Release de Bre-B y «Otros» — 2026-09-19
+
+**`0073` y `0074` primero (§2.2) y después el código**, con autorización expresa del dueño para una sola ejecución, e
+**I-140 corregida** antes de publicar.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`6401bd0276ee74094e27634f688bdd9e50d65bea`**, el verificado: el mismo SHA del PR #1 con el CI en verde |
+| Commit anterior en producción | `318357ce0139e93ded27cf23cb8416b75e7f8bcc` |
+| Integración | **Avance rápido** `318357c..6401bd0`, 3 commits —`735eb67` (solo documentación de D-208), `94eaa4d` (D-209) y `6401bd0` (I-140 y documentación)—, sin fusión, sin `force` y sin etiqueta (push de 17:56:48 a 17:56:50 UTC). El PR #1 sirvió para el CI; no se fusionó desde GitHub |
+| Despliegue Vercel | `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y` — creado a las 17:56:52 y **READY a las 17:57:44 UTC**, el único que disparó ese empuje |
+| Despliegue anterior (**punto de reversión del código**) | `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE` (`318357c`): el **inmediatamente anterior** y candidato a *Instant Rollback*, comprobado en solo lectura antes y después con la sesión **OWNER** de la CLI; **no se ejecutó**. Cuándo se puede usar, en §2.2: hoy hay **0** cuentas Bre-B y «Otros» |
+| **Migraciones** | `0073` y `0074`, aplicadas **antes** del código (§2.2) |
+| **Datos** | Ninguno escrito por la promoción: la comparación por fila dio 0 filas tocadas |
+| Variables de entorno, dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `vercel.json`, ni `next.config.ts`, ni `.github/`, ni `.env.example`, ni `tsconfig.json` |
+| CI | En el PR, run `35457272858` sobre `6401bd0`: ✅ 2/2, con `admin-privacy.test.ts` **después** de las cinco suites de premios —el orden que tumbó `318357c`—. En `main`, run **`35459633957`** (17:56:54–18:03:23 UTC): ✅ **2/2** —1.522/1.522 unitarias; migraciones desde cero y 1.402 + 1 omitida, con el mismo orden— |
+
+**Verificación en vivo** (`build/gate/en-vivo-d209.mjs`): identificador **`73db0e617455`** servido (1 de 15 fragmentos) y
+el anterior (`76a253b25ca1`) **desaparecido**; **33/33** rutas —las tres de «Configuración» del vendedor cerradas sin
+sesión— y **ningún 5xx**; las cuatro exportaciones sin CSV sin sesión; **7/7** cabeceras con CSP por nonce; **0 secretos**
+en 950 KB. `verify:remote` **46/46**; la comparación por fila, **CONTINUAR** —un pago de un vendedor, explicado—; **ningún
+error de ejecución** desde el despliegue, y en sus registros ni un 5xx ni una línea de error o aviso.
+
+> **Lo que este release NO verificó:** las pantallas **con sesión**. Las comprobaciones del vendedor —una Bre-B con «@»
+> y otra sin él, una «Otros» con ceros, un duplicado con su frase y el mensaje de un recordatorio— son del dueño (§2.2,
+> paso 8). **El commit de documentación posterior** a esta promoción se queda en la rama y **no** se empuja a `main`:
+> desplegaría otra versión y, en Hobby, movería el punto de reversión lejos de `318357c` (D-209 §7).
 
 ### 3.3 Despliegues futuros
 

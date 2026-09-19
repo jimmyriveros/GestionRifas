@@ -1,6 +1,7 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.36 · **Estado:** normativo · **Actualizado:** 2026-09-19 (§12.d: **Bre-B y «Otros»** —D-209,
+- **Versión:** 1.37 · **Estado:** normativo · **Actualizado:** 2026-09-19, más tarde (vigencia y §12.d: lo que
+  añade D-209 **pasa a producción**, sin cambiar ninguna regla). Antes, ese mismo día (§12.d: **Bre-B y «Otros»** —D-209,
   migraciones `0073` y `0074`, **solo en local**—: **BR-M03, BR-M04 y BR-M08 precisadas** y **BR-M10 nueva**, la
   regla de la llave o el identificador: se guarda tal cual y sin espacios exteriores, de 1 a 100 caracteres, en una
   sola línea y sin caracteres invisibles, y dos cuentas de Bre-B u «Otros» son iguales solo si el identificador
@@ -59,9 +60,9 @@
   **12.d (BR-M)**, **12.e (BR-S)** y **12.f (BR-V)** se construyeron por etapas (D-185) y conservan su
   columna **Estado**, que dice en qué etapa nació cada regla. ✅ **Las veintinueve están implementadas
   y en producción desde el 2026-09-12** (D-193, migraciones `0051`–`0055`): la columna es historia,
-  no una advertencia. ⚠️ **La excepción, desde el 2026-09-19:** lo que D-209 añade a §12.d —Bre-B y
-  «Otros» en BR-M03, BR-M04 y BR-M08, y **BR-M10** entera— vive **solo en local** (`0073` y `0074`)
-  hasta que se autorice promoverlo.
+  no una advertencia. Lo que D-209 añade a §12.d —Bre-B y «Otros» en BR-M03, BR-M04 y BR-M08, y
+  **BR-M10** entera— está **en producción desde el 2026-09-19**: `0073` y `0074` a las 17:53 UTC y su
+  código, `6401bd0`, a las 17:57 UTC. Hasta esa tarde vivió solo en local.
 - La sección **12.i (BR-J)** es la única que describe algo que **todavía no está en el proyecto
   real**: las migraciones `0058` a `0063` —contrato, panel, motor y transición, entregas 1 a 4— viven
   **solo en local**. Promoverlas y convertir la rifa real es la Entrega 5.
@@ -770,7 +771,7 @@ Cada vendedor administra las cuentas donde sus clientes le consignan: Nequi, Dav
 bancarias, con sitio para más formas en el futuro. Son **datos operativos del vendedor**, no parte de
 su perfil personal, y **solo él los ve** (D-185).
 
-> **Desde el 2026-09-19, en local (D-209, `0073` y `0074`): dos formas más, Bre-B y «Otros».** Las
+> **Desde el 2026-09-19 (D-209, `0073` y `0074`; en producción desde esa misma tarde): dos formas más, Bre-B y «Otros».** Las
 > pidió el dueño del producto con sus campos y sus reglas; lo que distingue a esas dos formas es que
 > no se identifican con un teléfono ni con un número de cuenta, sino con **un texto libre** —la
 > llave de Bre-B, o el número o identificador de otra forma de pago—, que tiene su propia regla

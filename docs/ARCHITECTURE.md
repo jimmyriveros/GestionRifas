@@ -1,6 +1,7 @@
 # ARQUITECTURA
 
-- **Versión:** 1.44 · **Estado:** implementado · **Actualizado:** 2026-09-19 (**§8.23**: Bre-B y «Otros» —D-209,
+- **Versión:** 1.45 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (**§8.23**: el código de
+  Bre-B y «Otros» **servido en producción**, `6401bd0`; la arquitectura no cambia). Antes, ese mismo día (**§8.23**: Bre-B y «Otros» —D-209,
   **solo en local**—: `accountShape` decide el campo, la llave va en un `Input` de texto y no en `PhoneInput`, y un
   texto largo dentro de un diálogo lleva `[overflow-wrap:anywhere]`, I-146). Antes, el 2026-09-18 (**§8.28**: la Etapa 3 del historial —el desplegable del personal lee también `admin_prize_award_sellers` (`0070`) y el aviso de cobertura aclara el alcance con cualquier filtro—). Antes, el 2026-09-17 (**§6** y **§8.28**: «Premios
   ganados» en los dos portales y los resúmenes de las fichas —D-208, Etapa 2, migración `0069`, **solo en
@@ -1770,7 +1771,7 @@ cuentas no saben nada de recordatorios. Esa dirección es lo que permite que la 
 accesible —no lo anuncia un lector de pantalla y no lo encuentra `getByRole('combobox', { name })`—.
 Lo encontró una prueba de esta etapa (D-188).
 
-**Bre-B y «Otros» (D-209, solo en local).** Qué campo se pinta lo decide **`accountShape(kind)`**
+**Bre-B y «Otros» (D-209, en producción desde el 2026-09-19).** Qué campo se pinta lo decide **`accountShape(kind)`**
 (`accounts.ts`): `phone` —Nequi y Daviplata, con `PhoneInput`—, `bank` y `identifier` —Bre-B y «Otros»—. Es un
 `switch` **sin `default`**, así que una forma nueva que no decida su rama no compila, igual que en la base cae en
 `else false`. La rama `identifier` es un **`Input` de texto**, nunca `PhoneInput` ni `inputMode="numeric"`, que

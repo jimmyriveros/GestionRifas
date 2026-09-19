@@ -1,6 +1,7 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.28 · **Estado:** implementado · **Actualizado:** 2026-09-19 (§4.15 y §6.g.6: **Bre-B y «Otros»**
+- **Versión:** 2.29 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (§6.g.6: `0073` y `0074`
+  **aplicadas en producción** a las 17:53 UTC; el modelo no cambia). Antes, ese mismo día (§4.15 y §6.g.6: **Bre-B y «Otros»**
   —D-209, migraciones `0073` y `0074`, **solo en local**—: dos valores más en `payment_account_kind`, la columna
   `identifier`, el CHECK de forma con una rama por forma, el CHECK del identificador, el índice de duplicados con una
   rama por forma, dos funciones internas de la regla y las dos RPC que escriben con `p_identifier`). Antes, el
@@ -1763,7 +1764,7 @@ de vendedor **activa** de quien llama, o excepción—, `next_reminder_run_at(we
 **`process_due_payment_reminders(lote)`**, que es el motor: lo llama el cron y ninguna sesión puede
 ejecutarlo (D-189, Decisión 3).
 
-**Desde la `0074` (D-209, solo en local), las dos de la regla del identificador (BR-M10)**, inmutables y
+**Desde la `0074` (D-209, en producción desde el 2026-09-19), las dos de la regla del identificador (BR-M10)**, inmutables y
 con EXECUTE **solo para `service_role`** —los CHECK se evalúan con los privilegios de quien escribe, y la
 service role puede escribir en la tabla—:
 

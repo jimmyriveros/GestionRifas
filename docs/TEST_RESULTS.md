@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Bre-B y «Otros» en las cuentas para recibir pagos, D-209, `0073` y `0074`, solo en local, 2026-09-19)** | **1.522 ✅ en 80 archivos (+25)**: la regla en Zod, cómo se escriben, y la migración leída como texto | **1.402 ✅ y 1 omitida, en 57 archivos (+29)**: `payment-account-identifiers.test.ts`, con la BMP entera y dos transacciones reales | ⚠️ **775/779** en 42,6 min, con las **8 nuevas** en verde. Los 4: **I-090** (`ventas-por-fecha` `:163` y `:247`) e **I-106** (`catalogo-publico-movil:103`), con su firma de siempre, y `premios-ganados:383` (**I-148**). Relanzados sus archivos y los de «Configuración» tras `db:reset` + `seed:local`: **92/93**, y el que falló es otro de «Premios ganados», `:443`, **reproducido en `735eb67` sin D-209** (4 de 5) | ✅ `verify` exit 0 · `verify-remote` **contra la base local**: en la `0072`, 44 OK y **las 2 nuevas en rojo**, lo que dará producción hasta promover; en el escenario B con la `0074`, **46/46**. Contra producción **no se corrió**: el encargo no autoriza leerla | ✅ **Solo local.** Ensayo sobre datos existentes **12/12** (6/6 filas idénticas); escenario B con las 242 funciones idénticas; tres mutaciones detectadas. **I-146** encontrada y corregida; **I-147** registrada. **Nada en producción** |
+| **Post-9 vigente (la promoción de Bre-B y «Otros» e I-140 corregida: EN PRODUCCIÓN, D-209, 2026-09-19)** | **1.522 ✅** sin cambios; CI **2/2** en el PR (`35457272858`) y en `main` (`35459633957`) | **1.402 ✅ y 1 omitida**, también en **dos pasadas seguidas sobre la misma base**; en el CI, con `admin-privacy` después de las suites de premios, ✅. I-140: reproducida, corregida y cuatro mutaciones detectadas | ⚠️ **778/779** en 46,1 min: la fallida es **I-090** (`:163`, recibido 54); las 8 de Bre-B y «Otros», en verde. Las E2E de cuentas y recordatorios, **46/47** con I-150 (3 de 10 también en `318357c`) | ✅ `verify` exit 0 · `verify:remote` **44 + 2 en rojo** antes y **46/46** después, en producción | ✅ **En producción**: `0073` y `0074` a las 17:53 UTC con respaldo validado y CONTINUAR en cada comparación; `6401bd0` servido a las 17:57 UTC, en vivo en verde y sin errores de ejecución. **Pendiente del dueño:** las comprobaciones con sesión |
+| Post-9 anterior (Bre-B y «Otros» en las cuentas para recibir pagos, D-209, `0073` y `0074`, solo en local, 2026-09-19) | **1.522 ✅ en 80 archivos (+25)**: la regla en Zod, cómo se escriben, y la migración leída como texto | **1.402 ✅ y 1 omitida, en 57 archivos (+29)**: `payment-account-identifiers.test.ts`, con la BMP entera y dos transacciones reales | ⚠️ **775/779** en 42,6 min, con las **8 nuevas** en verde. Los 4: **I-090** (`ventas-por-fecha` `:163` y `:247`) e **I-106** (`catalogo-publico-movil:103`), con su firma de siempre, y `premios-ganados:383` (**I-148**). Relanzados sus archivos y los de «Configuración» tras `db:reset` + `seed:local`: **92/93**, y el que falló es otro de «Premios ganados», `:443`, **reproducido en `735eb67` sin D-209** (4 de 5) | ✅ `verify` exit 0 · `verify-remote` **contra la base local**: en la `0072`, 44 OK y **las 2 nuevas en rojo**, lo que dará producción hasta promover; en el escenario B con la `0074`, **46/46**. Contra producción **no se corrió**: el encargo no autoriza leerla | ✅ **Solo local.** Ensayo sobre datos existentes **12/12** (6/6 filas idénticas); escenario B con las 242 funciones idénticas; tres mutaciones detectadas. **I-146** encontrada y corregida; **I-147** registrada. **Nada en producción** |
 | Post-9 anterior (historial de premios ganados EN PRODUCCIÓN: `0067`–`0072`, los dos premios y `318357c`, 2026-09-18/19) | Sin cambios: 1.497 (local, I-145) | **CI #35408036412 sobre `318357c`: 1 fallida (I-140, orden de las suites), 1.372 aprobadas y 1 omitida**; en local, 1.373 + 1 | No se repitió; referencia 768/771 con I-075 e I-090 | CI: verificación ✅, base ❌ (I-140) · `verify:remote` **44/44** en producción | ✅ **Puertas 1 y 2**; puerta 3 **desplegada** (`dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE`, `76a253b25ca1` servido, todo en verde en vivo) y **detenida por el CI**; sin revertir |
 | Post-9 anterior (I-145: la procedencia de las fotos de puerta, corregida en local antes de la puerta 1, sin migración, 2026-09-18) | **1.497 ✅ en 80 archivos (+9)**: T6, de dónde viene una foto y si sirve para una puerta | **1.373 ✅ y 1 omitida, en 56 archivos (+15)**: `gate-provenance.test.ts`, con las herramientas de verdad; **las 15 fallaban antes** de corregir | **No se repitió**: no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · `verify:remote` no se ejecutó: la corrección no lee producción | 🔧 **Solo local**: las dos órdenes del dueño daban CONTINUAR con fotos locales presentadas como de producción; ahora, **sin veredicto**. El ensayo de las seis migraciones, repetido: el mismo delta, byte a byte, y CONTINUAR. **Nada en producción** |
 | Post-9 anterior (Etapa 4 del historial de premios ganados: la preparación de la promoción, D-208, sin migración, 2026-09-18) | **1.488 ✅ en 80 archivos (+66)**: la puerta del cargador y el resolvedor aislado (52) y las herramientas de puerta (14) | **1.358 ✅ y 1 omitida, en 55 archivos (+11)**: el ensayo del cargador con el script de verdad, la sonda y el comparador de la «Opción A» | **No se repitió**: la etapa no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · ⚠️ `verify:remote` **en producción, 41 + 3 en rojo a propósito**: las tres del historial, hasta la puerta 1 | 🔎 **Solo lectura en producción**: el estado real, igual al relevo en lo esencial —el despliegue servido es `6da9bcb`, solo documentación sobre `da81663`—; las dos coincidencias, como las confirmó el dueño; el delta de la puerta 1 ensayado con **todos** los privilegios de producción. **Nada escrito en producción** |
@@ -132,6 +133,59 @@ como está; con alguna, corregir hacia delante y no volver a ciegas.
 | `db:reset` + `seed:local` y las E2E de cuentas y recordatorios —`configuracion-cobro`, `configuracion-cobro-movil` y `push-dispatch`— | ⚠️ **46/47**: falla `configuracion-cobro.spec.ts:744` a **1024 px** («esperado > 608, recibido 591»); la captura enseña la pantalla bien. Las **8** de Bre-B y «Otros», en verde |
 | Esa prueba, **10 veces** con el candidato | ⚠️ **3 de 10**, siempre con la misma cifra |
 | La misma, **10 veces** en un *worktree* de `318357c`, sin D-209, contra la misma base | ⚠️ **3 de 10**, la misma cifra. **Anterior a D-209**: mide mientras la barra lateral anima su ancho (**I-150**, nueva) |
+| `db:reset` + `seed:local` + `npm run test:e2e`, completa | ⚠️ **778/779** en 46,1 min. La única fallida, `ventas-por-fecha.spec.ts:163` con «esperado < 26, recibido **54**»: **I-090**, su firma de siempre. Las **8** de Bre-B y «Otros», en verde. En esta pasada **pasaron** I-090 `:247`, I-106 (`catalogo-publico-movil:103`), las dos de I-148 (`premios-ganados:383` y `:443`) e I-150 (`configuracion-cobro:744`): **no se dan por resueltas** por una pasada buena |
+| `tsc` después de la E2E | ✅ exit 0: `.next/dev/types/routes.d.ts` con sus 123 líneas. **I-149 no se repitió** esta vez; sigue registrada |
+| CI del PR #1, run **`35457272858`** sobre `6401bd0` (17:10:49–17:16:16 UTC) | ✅ **2/2**: «Typecheck, lint, unitarias, build» (**1.522/1.522**) y «Migraciones desde cero + pruebas de base de datos» (57 archivos, **1.402 + 1 omitida**). En el runner corrieron **primero** las cinco suites de premios y `admin-privacy.test.ts` **sexta**: el orden que tumbó `318357c`, ahora en verde. La comprobación «Vercel» del PR falla, como en todas las ramas: la vista previa se detiene en `check:env` porque las variables de Supabase solo existen en producción (D-066) |
+
+### Producción — puerta 0, solo lectura (16:55–17:10 UTC)
+
+| Qué | Resultado |
+|---|---|
+| Proyecto | La CSP servida nombra **un** proyecto (`zqwu…`), el mismo de `.env.local` y del usuario de `SUPABASE_DB_URL` (session pooler, 5432) |
+| Versión servida | `76a253b25ca1` (= `318357c`) en 1 de 15 fragmentos |
+| Migraciones | **72**, con los nombres del repositorio; pendientes por diferencia exacta, **`0073` y `0074`**. `payment_account_kind` con tres valores y sin `identifier`; una cuenta, Nequi |
+| `verify:remote` | **44 OK y 2 FALLA**, exactamente las dos de D-209 |
+| Vercel (CLI de la caché de npx, sin descargar) | Sesión del dueño, rol **OWNER**, plan **hobby**; producción `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE` (`318357c`) READY y candidata; **las 9 variables del proyecto, solo en `production`** |
+| En vivo, línea base | `en-vivo-d209.mjs` contra `318357c`: 33/33 rutas, 0 5xx, 7/7 cabeceras, 0 secretos |
+| Ventana | Candado libre desde las 16:57 (el turno de las 16), 0 corridas sin terminar; el próximo recordatorio, a las **23:50**. Franja para escribir: de 17:00 a 23:20 |
+| Errores de ejecución en Vercel, últimas 6 horas | **Ninguno** |
+
+### Producción — puerta 1: `0073` y `0074` (17:47–17:55 UTC)
+
+| Hora (UTC) | Paso | Resultado |
+|---|---|---|
+| 17:47:00 | Foto `d209-base` (v2) | 72 migraciones; candado libre, 0 corridas sin terminar, los tres `pg_cron` en verde; 2 recordatorios, 0 en las 3 horas siguientes |
+| 17:48 | Escenario B en local | `db reset --version 0072` y **55** sentencias de privilegios de producción; base → local: **solo** Vault (−2) y `supabase_functions` (+3). `migration up`: +1 columna, +1 restricción y 1 modificada, 1 índice modificado, +4 −2 funciones, 1 tipo modificado, +2 migraciones → `delta-esperado-0073-0074.json`. `verify-remote` contra esa base local: **46/46** |
+| 17:48:48 | `d209-antes`; base → antes, `none` | **CONTINUAR, salida 0**: dos ventas explicadas |
+| 17:49:13–17:51:02 | **Respaldo** | `Rifas-backups/2026-09-19-antes-0073-0074/`: 370 B, 639.640 B y 5.286.451 B (30 tablas con datos); **0** `"auth".` cualificados, **0** `INSERT INTO "auth"`, **0** credenciales y **0** contraseñas en los roles |
+| 17:51:16 | `d209-previa`; antes → previa, `none` | **CONTINUAR, salida 0**: una venta explicada |
+| 17:51:40–17:52:14 | **Validación, solo en local** | Solo el error esperado de `roles.sql`; **31 tablas y 11.231 filas iguales a `d209-previa`**. Estructura igual salvo lo del entorno —migraciones locales, Vault, privilegios por defecto de la pila, el esquema `public` recreado, `pg_trgm`, la forma de un ACL y los paréntesis de un CHECK— y **los dos disparadores de `auth.users`**, que una restauración no recrea (`RUNBOOK` §5.2) |
+| 17:53:07 | `db push --dry-run` | Exactamente `0073` y `0074`, en orden; sin semillas ni roles |
+| **17:53:21–17:53:39** | **`db push --yes`** | Salida 0; la autocomprobación de la `0074` no abortó |
+| 17:53:54 | Después | `migration list` `0001`–`0074` iguales; **`verify:remote` 46/46** |
+| 17:54:13 | `d209-despues --base d209-previa`; `--operation migrations 0073,0074` | **CONTINUAR, salida 0**: **0** diferencias con lo ensayado, ninguna tabla nueva, **0 filas tocadas** |
+| 17:55 | Base local | `db reset` + Kong + `seed:local`: ningún dato de producción queda en el equipo |
+| 17:55:38 | Solo lectura | El enumerado con sus cinco valores; la Nequi existente con `identifier` **nulo**; **0** cuentas Bre-B y «Otros» |
+
+### Producción — puerta 2: el despliegue de `6401bd0` (17:56–18:03 UTC)
+
+| Hora (UTC) | Paso | Resultado |
+|---|---|---|
+| 17:56:08 | **Reversión comprobada sin ejecutarla** | Sesión OWNER; producción `dpl_Fn6…` (`318357c`) READY y candidata; ninguna reversión en curso. `origin/main` = `318357c`; `6401bd0`, avance rápido (3 commits) |
+| 17:56:28 | `d209-p2-antes`; después → p2-antes, `none` | **CONTINUAR, salida 0**: dos ventas explicadas |
+| **17:56:48–17:56:50** | **Push** | `318357c..6401bd0` en avance rápido, sin `force`; GitHub da el PR #1 por fusionado con ese mismo SHA |
+| 17:56:52–17:57:44 | Vercel | `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`, **READY**, alias `gestion-rifas.vercel.app`; `dpl_Fn6…` queda como el inmediatamente anterior y candidato |
+| 17:58:04 | En vivo (`build/gate/en-vivo-d209.mjs`) | **Todo en verde**: 33/33 rutas, 0 5xx, exportaciones sin CSV, 7/7 cabeceras con CSP por nonce, **`73db0e617455` (= `6401bd0`) servido** y `76a253b25ca1` desaparecido, 0 secretos en 950 KB |
+| 17:58:25–17:58:36 | `verify:remote`; `d209-p2-despues`, `none` | **46/46**; **CONTINUAR, salida 0**: un pago explicado, ninguna diferencia de estructura |
+| 17:59 | Errores de ejecución | **Ninguno** desde las 17:56; en los registros del despliegue nuevo, ni un 5xx ni una línea de error o aviso |
+| 18:02:23 | Después | Ninguna reversión en curso; el objetivo de producción del proyecto, `dpl_5XSS…` |
+| 17:56:54–18:03:23 | **CI de `main`**, run **`35459633957`** sobre `6401bd0` | ✅ **2/2**: 1.522/1.522 unitarias, y migraciones desde cero con **1.402 + 1 omitida** —`admin-privacy.test.ts` otra vez sexta, después de las suites de premios— |
+
+### Lo que no se comprobó
+
+* **Las pantallas con sesión** en producción: el agente no inicia sesión ni escribe contraseñas. Lo que tiene que ver
+  el dueño con la sesión de un vendedor está en `DEPLOYMENT` §2.2, paso 8.
+* La E2E corre contra la base local, no contra producción.
 
 ## Bre-B y «Otros» en las cuentas para recibir pagos (D-209, `0073` y `0074`, solo en local) — 2026-09-19
 

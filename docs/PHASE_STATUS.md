@@ -3,7 +3,28 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-19, más tarde — **la promoción de D-209 está AUTORIZADA** por el dueño para una sola
+- **Actualizado:** 2026-09-19, al cierre — **D-209 EN PRODUCCIÓN, con I-140 corregida** (mantenimiento posterior a la
+  Fase 9, sin fase ni etiqueta nuevas; con autorización expresa del dueño para una sola ejecución, D-209 §7).
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades implementadas:** Bre-B y «Otros» en «Cuentas para recibir pagos» **ya están en producción**:
+  `0073` y `0074` desde las 17:53 UTC y su código, `6401bd0`, desde las 17:57 UTC. **I-140** corregida en la prueba de
+  la bitácora del personal, que ya no pone en rojo el CI. La reversión, **medida** con el código anterior y escrita en
+  dos escenarios (`DEPLOYMENT` §2.2).
+  **(2) Pruebas ejecutadas:** local, `verify` **1.522/1.522**, `test:db` **1.402 + 1** —también en dos pasadas
+  seguidas—, E2E de cuentas y recordatorios **46/47** (I-150) y completa **778/779** (I-090); I-140 reproducida y cuatro
+  mutaciones detectadas. CI **2/2** en el PR #1 y en `main`. Producción: `verify:remote` 44 + 2 en rojo antes y
+  **46/46** después; cinco comparaciones por fila, **todas CONTINUAR**; en vivo en verde y sin errores de ejecución.
+  **La comprobación del dueño**: una llave con «@» se guardó correctamente (en local). Detalle en `TEST_RESULTS`.
+  **(3) Migraciones:** **74** en local y **74 en producción**: los dos entornos, a la par.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-147** (impacto bajo); **I-150**, nueva y anterior (una E2E que mide durante una
+  animación: impacto, una pasada en rojo que no es del producto); siguen I-090, I-106, I-148 e I-149 en las pruebas, e
+  I-133, I-087, I-136, I-142, I-144 y la auditoría de I-132 e I-137. **El punto de reversión** solo vale mientras no haya
+  cuentas Bre-B ni «Otros».
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; D-209 §7; `DEPLOYMENT` §2.2 y §3.2.m; y que el commit de
+  cierre está en la rama y **no** en `main`. **Siguiente:** las comprobaciones con sesión del dueño.
+
+  Antes, ese mismo día — **la promoción de D-209 está AUTORIZADA** por el dueño para una sola
   ejecución (D-209 §7), con **I-140 corregida en la prueba** antes de publicar; su resultado se registra al cerrarla.
 
   Antes, ese mismo día — **Bre-B y «Otros» en las cuentas para recibir pagos, SOLO EN LOCAL** (D-209,

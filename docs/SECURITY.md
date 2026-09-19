@@ -1,6 +1,7 @@
 # SEGURIDAD
 
-- **Versión:** 2.27 · **Estado:** implementado · **Actualizado:** 2026-09-19 (**§4.15**, Bre-B y «Otros» —D-209,
+- **Versión:** 2.28 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (**§4.15**: `0073` y `0074`
+  **en producción**, con su autocomprobación y `verify:remote` 46/46). Antes, ese mismo día (**§4.15**, Bre-B y «Otros» —D-209,
   `0073` y `0074`, **solo en local**—: las dos RPC de cuentas que escriben cambian de firma y conservan su matriz,
   dos funciones internas de la regla solo para `service_role`, una migración que comprueba sus propios privilegios y
   el ensayo con el privilegio por defecto de producción). Antes, el 2026-09-18 (**§4.24**, Etapa 3 del historial —la auditoría, D-208, **solo en local**—: la matriz de acceso medida por PostgREST con nueve personas, lo ajeno respondiendo como lo inexistente, la `0070` —el personal elige a quien ya no vende, sin cliente— la `0071` —`anon` obtenía el inicio operativo por un plan reutilizado, I-141— y la `0072` —con el privilegio por defecto del proyecto alojado, `current_seller_org_ids()` habría nacido ejecutable por `service_role`, I-143—). Antes, ese mismo día (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
@@ -889,7 +890,11 @@ son tablas nuevas con política propia (BR-M01).
   `authenticated`** — PostgreSQL concede `EXECUTE` a PUBLIC en cada función nueva y las *default
   privileges* de `0015`/`0032` no alcanzan a lo que se cree después (I-020, I-078).
 
-#### Bre-B y «Otros» — **`0073` y `0074`, solo en local** (D-209, BR-M10)
+#### Bre-B y «Otros» — **`0073` y `0074`, en producción desde el 2026-09-19** (D-209, BR-M10)
+
+> **Promovidas el 2026-09-19 a las 17:53 UTC.** La autocomprobación de la `0074` no abortó —la matriz de `EXECUTE`
+> cuadró también con los privilegios del proyecto alojado— y `verify:remote` dio **46/46**, con sus dos comprobaciones
+> en verde (`TEST_RESULTS`, «la promoción de Bre-B y «Otros»»). Lo de abajo describe el diseño y sigue vigente.
 
 Dos formas más, **con el mismo aislamiento y la misma puerta**: la tabla sigue con una sola política —de
 `SELECT`— y `authenticated` sigue con solo `SELECT`; las dos RPC que escriben siguen sin recibir
