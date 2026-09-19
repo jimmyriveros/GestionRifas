@@ -306,8 +306,14 @@ function PaymentReminderForm({
             `whitespace-pre-wrap` conserva los saltos de linea tal como se
             escribieron. Es un nodo de TEXTO: lo que se escriba arriba no se
             interpreta como HTML aqui ni en ningun otro sitio.
+
+            `[overflow-wrap:anywhere]` parte una palabra que no quepa —una
+            llave de Bre-B o un identificador de cien caracteres sin espacios
+            (BR-M10)—. `break-words` no bastaba: no reduce el ancho minimo, y
+            el diálogo es una rejilla que se ensanchaba hasta sacar todo el
+            formulario de la pantalla (medido a 320 px: 317 px de mas, D-209).
           */}
-          <div className="bg-muted/50 text-body-small rounded-md border px-3 py-2 whitespace-pre-wrap">
+          <div className="bg-muted/50 text-body-small rounded-md border px-3 py-2 [overflow-wrap:anywhere] whitespace-pre-wrap">
             {preview}
           </div>
 

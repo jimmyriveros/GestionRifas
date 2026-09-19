@@ -1,6 +1,10 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.35 · **Estado:** normativo · **Actualizado:** 2026-09-18 (§12.i: **BR-J21 y BR-J22 precisadas**
+- **Versión:** 1.36 · **Estado:** normativo · **Actualizado:** 2026-09-19 (§12.d: **Bre-B y «Otros»** —D-209,
+  migraciones `0073` y `0074`, **solo en local**—: **BR-M03, BR-M04 y BR-M08 precisadas** y **BR-M10 nueva**, la
+  regla de la llave o el identificador: se guarda tal cual y sin espacios exteriores, de 1 a 100 caracteres, en una
+  sola línea y sin caracteres invisibles, y dos cuentas de Bre-B u «Otros» son iguales solo si el identificador
+  entero coincide, con mayúsculas). Antes, el 2026-09-18 (§12.i: **BR-J21 y BR-J22 precisadas**
   en la Etapa 3 del historial —auditoría en local, migración `0070`—: el personal elige desde su pantalla a
   quien vendió y hoy tiene otro rol, y el aviso de cobertura dice «sin confirmar o por verificar», que puede
   haber premios que no aparecen y, con cualquier filtro, que la cuenta es de la organización). Antes, el
@@ -55,7 +59,9 @@
   **12.d (BR-M)**, **12.e (BR-S)** y **12.f (BR-V)** se construyeron por etapas (D-185) y conservan su
   columna **Estado**, que dice en qué etapa nació cada regla. ✅ **Las veintinueve están implementadas
   y en producción desde el 2026-09-12** (D-193, migraciones `0051`–`0055`): la columna es historia,
-  no una advertencia.
+  no una advertencia. ⚠️ **La excepción, desde el 2026-09-19:** lo que D-209 añade a §12.d —Bre-B y
+  «Otros» en BR-M03, BR-M04 y BR-M08, y **BR-M10** entera— vive **solo en local** (`0073` y `0074`)
+  hasta que se autorice promoverlo.
 - La sección **12.i (BR-J)** es la única que describe algo que **todavía no está en el proyecto
   real**: las migraciones `0058` a `0063` —contrato, panel, motor y transición, entregas 1 a 4— viven
   **solo en local**. Promoverlas y convertir la rifa real es la Entrega 5.
@@ -764,6 +770,13 @@ Cada vendedor administra las cuentas donde sus clientes le consignan: Nequi, Dav
 bancarias, con sitio para más formas en el futuro. Son **datos operativos del vendedor**, no parte de
 su perfil personal, y **solo él los ve** (D-185).
 
+> **Desde el 2026-09-19, en local (D-209, `0073` y `0074`): dos formas más, Bre-B y «Otros».** Las
+> pidió el dueño del producto con sus campos y sus reglas; lo que distingue a esas dos formas es que
+> no se identifican con un teléfono ni con un número de cuenta, sino con **un texto libre** —la
+> llave de Bre-B, o el número o identificador de otra forma de pago—, que tiene su propia regla
+> (BR-M10) y su propia forma de comparar duplicados (BR-M08). **Nada cambia para Nequi, Daviplata ni
+> banco.** **Todavía no está en producción.**
+
 **La letra es `M` de «medios de cobro»**, porque `C` ya nombra a los clientes y `P` al precio; no hay
 más significado.
 
@@ -771,13 +784,14 @@ más significado.
 |----|-------|-------|--------|
 | BR-M01 | Las cuentas viven en una **tabla propia** (`seller_payment_accounts`), con RLS forzada y política propia, **nunca** en columnas de `memberships`. `memberships_select` deja leer esa fila al personal de la organización y al vendedor padre, así que una columna más publicaría el dato a quien el contrato excluye. La tabla cuelga de la membresía por la FK compuesta `(seller_id, organization_id)`, igual que `tickets` y `clients`: se separa el dato, no la identidad del vendedor. | D | ✅ `0051` |
 | BR-M02 | Una cuenta pertenece a **un vendedor**, que es el único usuario humano que puede leerla, crearla, editarla y archivarla. **Ni el Dueño, ni el Administrador, ni el vendedor padre** acceden —ni por pantalla, ni por reporte, ni por exportación, ni por PostgREST—. La escritura pasa por una RPC `SECURITY DEFINER` que **no recibe identificador de vendedor**: sale de `auth.uid()`, el mismo patrón que BR-W07. Cambiarlo exige una decisión explícita y posterior del dueño del producto. | C, S, D | ✅ `0051` |
-| BR-M03 | El tipo de cuenta es un **enumerado**: `nequi`, `daviplata`, `bank`. Añadir una forma futura es `alter type … add value` más su CHECK, en una migración nueva; nunca un texto libre. | D | ✅ `0051` |
-| BR-M04 | Qué se guarda, según el tipo, y **un CHECK lo impone**: Nequi y Daviplata piden **titular y teléfono**; una cuenta bancaria pide **banco, tipo de cuenta (ahorros o corriente), número y titular**. Los campos que no corresponden al tipo quedan nulos: no existe una cuenta de Nequi con número de cuenta bancaria. **No se guarda el documento de identidad del titular** (D-185, Decisión 2). | C, S, D | ✅ `0051` |
+| BR-M03 | El tipo de cuenta es un **enumerado**: `nequi`, `daviplata`, `bank` y, desde D-209, **`breb` (Bre-B)** y **`other` («Otros»)**. Añadir una forma futura es `alter type … add value` más su CHECK, en una migración nueva; nunca un texto libre. **El valor nuevo y lo que lo usa van en dos migraciones**: PostgreSQL no deja usar un valor de enumerado en la transacción que lo añade (`55P04`, medido), y el CLI aplica cada archivo en la suya (`0073` y `0074`). | D | ✅ `0051` · Bre-B y «Otros»: `0073` (solo local) |
+| BR-M04 | Qué se guarda, según el tipo, y **un CHECK lo impone**: Nequi y Daviplata piden **titular y teléfono**; una cuenta bancaria pide **banco, tipo de cuenta (ahorros o corriente), número y titular**; **Bre-B pide su llave y titular, y «Otros» su número o identificador y titular** (D-209), los dos en la columna `identifier`. Los campos que no corresponden al tipo quedan nulos: no existe una cuenta de Nequi con número de cuenta bancaria ni con llave. El CHECK tiene **una rama por forma y `else false`**: una forma nueva que no decida su rama se rechaza. **No se guarda el documento de identidad del titular** (D-185, Decisión 2). | C, S, D | ✅ `0051` · Bre-B y «Otros»: `0074` (solo local) |
 | BR-M05 | Cada cuenta lleva una **etiqueta opcional** que escribe el vendedor y un **orden**, que es el orden en que aparece en el mensaje. El orden lo decide el vendedor; si no lo toca, es el de creación. | C, S, D | ✅ Etapa 2 |
 | BR-M06 | **Tope duro de 5 cuentas sin archivar por vendedor**, comprobado en la base y no solo en la pantalla. La sexta se rechaza con un mensaje que dice qué hacer. Subir la cifra es una migración. | S, D | ✅ `0051` |
 | BR-M07 | Una cuenta **se archiva, nunca se borra**: no hay `DELETE` en este producto (D-038). Archivar la saca del listado y del mensaje y conserva la fila. Una cuenta archivada no cuenta para el tope y se puede volver a activar, sujeta al tope. | C, S, D | ✅ `0051` |
-| BR-M08 | **No se permiten dos cuentas iguales sin archivar** del mismo vendedor: mismo tipo y mismo número —teléfono o número de cuenta, comparado solo por sus dígitos—. Dos filas idénticas en el mensaje son un error de dedo, no una configuración. | S, D | ✅ `0051` |
+| BR-M08 | **No se permiten dos cuentas iguales sin archivar** del mismo vendedor: mismo tipo y mismo número —teléfono o número de cuenta, comparado solo por sus dígitos—. Dos filas idénticas en el mensaje son un error de dedo, no una configuración. **Bre-B y «Otros» comparan el identificador ENTERO** (D-209), ya guardado sin espacios exteriores (BR-M10) y **distinguiendo mayúsculas**: «@maria» y «@pedro» no son la misma cuenta aunque ninguna tenga dígitos, ni «@maria123» y «@pedro123» aunque compartan los mismos, ni «@Maria» y «@maria». Siempre dentro del mismo vendedor y del mismo tipo. Lo impone un **índice único** —no una comprobación de la RPC—, así que vale igual al agregar, al editar, al volver a usar una archivada y con dos peticiones a la vez. | S, D | ✅ `0051` · Bre-B y «Otros»: `0074` (solo local) |
 | BR-M09 | Las cuentas **no viajan a ninguna superficie pública**. No salen en el catálogo público (BR-K07 fija su proyección y no se amplía), no salen en un push (BR-V05), no salen en un reporte ni en un CSV, y no se consultan desde ningún layout ni panel. El único sitio donde se leen es la pantalla del propio vendedor y la composición de su mensaje. | C, S, D | ✅ Etapa 2 |
+| BR-M10 | **La llave de Bre-B y el número o identificador de «Otros» se guardan TAL COMO SE ESCRIBEN**: letras, números, símbolos, ceros iniciales y mayúsculas. **No se les añade ni se les exige un «@»**, no se convierten a número y no se les quita nada **salvo los espacios exteriores** —exactamente los que quita `String.prototype.trim()`, en las tres capas—. Tienen que tener **de 1 a 100 caracteres** (puntos de código) y **una sola línea**: se rechazan los caracteres de control (U+0000–U+001F, U+007F–U+009F), los separadores de línea y párrafo (U+2028, U+2029) y los de formato invisibles que se cuelan al copiar y pegar (U+00AD, U+200B–U+200F, U+202A–U+202E, U+2060–U+206F, U+FEFF). **La misma regla y las mismas frases** en el formulario, la Server Action, la RPC y el CHECK. Es un dato para recibir pagos: la aplicación **no comprueba con ningún banco que la llave exista**. El límite de 100 y la lista de invisibles son decisiones técnicas de D-209, no del dueño. | C, S, D | ✅ `0074` (solo local) |
 
 ---
 

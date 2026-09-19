@@ -4,7 +4,11 @@ Bitácora de decisiones técnicas y de producto. Formato: contexto → decisión
 descartadas → consecuencia. Cada decisión tiene un identificador estable citado desde otros
 documentos.
 
-- **Versión:** 1.71 · **Actualizado:** 2026-09-18 (D-001 a **D-208**; **D-208, «Etapa 4», decisión 13 —I-145,
+- **Versión:** 1.72 · **Actualizado:** 2026-09-19 (D-001 a **D-209**; **D-209 — Bre-B y «Otros» en las cuentas para
+  recibir pagos, solo en local** (`0073` y `0074`): una columna `identifier` de texto, guardada tal cual y sin espacios
+  exteriores, de 1 a 100 caracteres, en una línea y sin invisibles; duplicados por el identificador entero y por
+  dígitos en las formas de siempre; separa lo que decidió el dueño de lo que decidió el agente y deja escrito, sin
+  ejecutar, el orden de una promoción. Antes, el 2026-09-18, **D-208, «Etapa 4», decisión 13 —I-145,
   corregido en local antes de la puerta 1—**: las fotos de puerta registran de qué proyecto son y ningún veredicto
   sale sin comprobarlo, también cuando no hay diferencias; y el dueño decidió aceptar que una puerta se detenga por
   actividad fuera de lo permitido. Antes, ese mismo día, **D-208 con la Etapa 4 —la preparación de la
@@ -8815,6 +8819,10 @@ Confirmado por el usuario el 2026-09-11.
 | Nequi · Daviplata | Titular y teléfono |
 | Cuenta bancaria | Banco, tipo de cuenta (ahorros o corriente), número y titular |
 
+> **Ampliada el 2026-09-19 (D-209, solo en local):** **Bre-B** pide titular y **su llave**, y **«Otros»** titular y
+> **un número o identificador**, los dos en la columna `identifier`, con la regla de BR-M10. El enumerado creció
+> exactamente como preveía esta decisión: `alter type … add value` y su rama en el CHECK, en migraciones nuevas.
+
 **No se guarda el documento de identidad del titular**, aunque algunos bancos lo pidan al confirmar
 una transferencia. Es un dato personal con valor para quien lo robe, no aporta a que el cliente
 consigne, y guardarlo obligaría a protegerlo en la base, en el mensaje de WhatsApp y en cualquier
@@ -9274,6 +9282,10 @@ la lista de la pantalla y el mensaje de WhatsApp no pueden divergir.
 **El «nombre para reconocerla» no viaja al mensaje.** Es del vendedor, para distinguir «el Nequi de mi
 esposa» del suyo en una lista de cinco; ponerlo en el mensaje sería contarle al cliente algo que no le
 importa. Se ve en la lista, en gris, y hay una prueba de que **no** aparece en la vista previa.
+
+> **Desde D-209 (2026-09-19, solo en local):** **Bre-B · @maria · Ana Torres** y **Otros · 0012-AbC/# · Ana
+> Torres**, en la misma función y con el mismo orden. La llave y el identificador salen **tal cual se guardaron**, sin
+> «@» añadido ni formato, porque son lo que el cliente va a copiar.
 
 ### Decisión 3 — el tipo de cuenta no se cambia al editar
 
@@ -12897,3 +12909,101 @@ producción), `scripts/supabase-target.ts` (inyectable), `scripts/gate-db.ts`, `
 11 de base. **I-144** nueva; notas en **I-087**, **I-132** e **I-142**. `RUNBOOK` §9 rehecho, `DEPLOYMENT` §3.2.k,
 `SECURITY` §4.24, `TESTING` §4.12, `UX_COPY_GUIDELINES` (Anexo B), `TEST_RESULTS`, `KNOWN_ISSUES`, `PHASE_STATUS` y
 `HANDOFF`. **Nada se escribió en producción.**
+
+---
+
+## D-209 — Bre-B y «Otros»: una llave o un identificador de texto, guardado tal cual y comparado entero
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-19). **No es una Fase 10** y no lleva
+etiqueta `fase-*`.
+
+> **ESTADO: IMPLEMENTADA EN LOCAL** (migraciones `0073` y `0074`, 2026-09-19). **No está en producción** ni se ha
+> leído producción para hacerla: el encargo autorizó implementación, migraciones y pruebas locales, documentación y un
+> commit local, y **no** autorizó push, despliegue ni cambios en Supabase de producción. El orden para una futura
+> promoción está al final de esta entrada, **sin ejecutar**.
+
+**Alcance.** Dos formas nuevas en «Configuración» → «Cuentas para recibir pagos», dentro del modelo de D-185 y de la
+pantalla de D-188: **Bre-B** y **«Otros»**. Crear, editar, listar, ordenar, archivar, volver a usar y aparecer en el
+mensaje de los recordatorios. **Nada más**: ni pagos, ni abonos, ni saldos, ni premios, ni otra pantalla del producto.
+
+### 1 — Lo que decidió el dueño (reglas aprobadas en el encargo)
+
+| Regla | Dónde queda |
+|---|---|
+| El selector «¿Dónde recibes el pago?» **conserva** Nequi, Daviplata y Cuenta bancaria y **añade** Bre-B y Otros | BR-M03; `PAYMENT_ACCOUNT_KINDS` |
+| **Bre-B** pide «Tu llave» (obligatoria; letras, números y símbolos como `@`), Titular (reglas de siempre) y Nombre para reconocerla (opcional, como siempre) | BR-M04 |
+| **Otros** pide «Número o identificador» (obligatorio; letras, números y símbolos), Titular y Nombre para reconocerla | BR-M04 |
+| Una llave **no siempre empieza por `@`**: no se añade ni se exige | BR-M10 |
+| Se conserva lo escrito —símbolos, ceros iniciales, mayúsculas y minúsculas—; se pueden quitar los espacios exteriores; no se convierte a número ni pierde letras o símbolos | BR-M10 |
+| Contenido **no vacío**, **longitud máxima razonable** (documentada), **una sola línea** y **sin caracteres de control** | BR-M10 |
+| Un campo de texto con un teclado que permita símbolos; **nunca** el componente de teléfono | `ARCHITECTURE` §8.23 |
+| Duplicados: los tres tipos de siempre **siguen comparando dígitos**; Bre-B y Otros comparan **el identificador completo tras quitar los espacios exteriores**, en el mismo vendedor y tipo, **conservando mayúsculas**, **sin equivalencias** no documentadas; se rechazan al crear, editar y volver a usar, **también ante operaciones simultáneas** | BR-M08 |
+| No cambian permisos, aislamiento, bitácora, tope de cinco, orden, tipo inmutable al editar ni la privacidad del nombre para reconocerla; **no se lleva a ninguna otra superficie** | BR-M02, BR-M05..BR-M07, BR-M09 |
+| No se conecta con bancos ni certifica que una llave exista | BR-M10 |
+
+### 2 — Lo que decidió el agente dentro de esas reglas
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 1 | **Una columna nueva, `identifier`**, para las dos formas; `phone` y `account_number` no se tocan | Sus CHECK son de dígitos (`phone`, I-108; `account_number` empieza por un dígito). Relajarlos debilitaría las otras formas; relajarlos por tipo escondería dos significados en una columna. Las dos formas nuevas comparten la misma regla de texto, así que una columna basta: el tipo dice qué es |
+| 2 | **Dos migraciones**: la `0073` solo añade `breb` y `other` al enumerado; la `0074` hace todo lo que los usa | **Medido** antes de escribirlas: usar un valor recién añadido en su misma transacción —en un `SELECT` o en un CHECK— falla con `55P04`. Y **medido** que el CLI aplica cada archivo en su propia transacción: el primer intento de la `0074` falló (decisión 3) y la `0073` quedó aplicada sola, sin nada de la otra |
+| 3 | **La regla se escribe en SQL con escapes `\x`**, nunca con literales invisibles | El primer intento de la `0074` llevaba la clase con otra sintaxis de escape y la herramienta de edición la convirtió en caracteres reales —uno de ellos un NUL—: `08P01 invalid message format` al aplicarla. `\x` es un punto de código en una expresión regular de PostgreSQL, se escribe sin riesgo y una prueba comprueba que la migración no contiene ni un carácter invisible |
+| 4 | **Límite: 100 caracteres**, contados como puntos de código en las dos capas (`char_length` y `[...texto].length`) | Cabe cualquier llave de Bre-B —teléfono, documento, correo o una como «@maria»— y los identificadores largos de otras formas, y la línea del mensaje sigue leyéndose en un teléfono. Contar unidades de UTF-16 en TypeScript haría que un emoji contara dos en una capa y uno en la otra |
+| 5 | **Espacios exteriores = exactamente los que quita `String.prototype.trim()`**, escritos uno a uno en SQL | Es lo que ya quita `.trim()` de Zod en el formulario y en la Server Action. `btrim` solo quita el espacio y la base diría otra cosa de un tabulador o de un espacio duro. Comprobado sobre la BMP entera: el mismo conjunto |
+| 6 | Además de los de control, se rechazan **U+2028 y U+2029** —parten la línea— y una **lista fija** de invisibles de formato: U+00AD, U+200B–U+200F, U+202A–U+202E, U+2060–U+206F y U+FEFF | No se ven, se cuelan al copiar y pegar, harían dos llaves iguales a la vista y distintas para el índice, y romperían la llave que el cliente copia. **No se rechaza la categoría Unicode entera** (Cf): su lista cambia con cada versión de Unicode y las dos capas dejarían de coincidir |
+| 7 | **La regla vive una vez por capa**: en SQL, dos funciones inmutables e internas —`payment_account_identifier_trim` y `payment_account_identifier_problem`— que usan los CHECK y las dos RPC; en TypeScript, `identifierProblem` e `IDENTIFIER_FORBIDDEN_RANGES` (`accounts.ts`) | Las frases son **las mismas, letra por letra**, y las pruebas lo comprueban leyendo la migración; otra prueba recorre la BMP comparando el veredicto de las dos capas |
+| 8 | **El índice de duplicados se reconstruye con una rama por forma** y el mismo nombre | Nequi, Daviplata y banco, con la misma expresión de la `0051`; Bre-B y Otros, con el identificador guardado. Un índice único —no una comprobación en la RPC— es lo que resiste dos peticiones a la vez, y el mismo nombre permite traducirlo |
+| 9 | El duplicado se explica: **«Ya tienes una cuenta igual en tu lista.»** (`CONSTRAINT_MESSAGES`) | Antes salía «Ya existe un registro con estos datos.». La frase vale para las tres puertas —agregar, editar, volver a usar— y para las cinco formas |
+| 10 | Las dos RPC que escriben cambian de firma —**`p_identifier` opcional, al final**— y se **borran y se crean** en la misma transacción, con la misma matriz de EXECUTE de la `0051` y una **autocomprobación** como la de la `0066` y la `0072` | `create or replace` dejaría dos sobrecargas y PostgREST no sabría a cuál llamar. Siendo opcional, **la llamada del código desplegado sigue funcionando** (medido sobre datos existentes) |
+| 11 | Las dos funciones de la regla: **EXECUTE solo para `service_role`**, revocado por nombre a PUBLIC, `anon` y `authenticated` | Ninguna sesión las necesita: las RPC corren como su dueño. Pero un CHECK se evalúa con los privilegios de quien escribe, y la service role tiene `grant all` sobre la tabla desde la `0051`: sin EXECUTE, cualquier escritura suya fallaría. Con el privilegio por defecto del proyecto alojado (I-132) el resultado es **el mismo** —ensayado en el escenario B— |
+| 12 | En la pantalla: `accountShape` exhaustivo **sin `default`**; el campo es un `Input` de `type="text"` e `inputMode="text"`, con `autoCapitalize="none"`, `autoCorrect="off"` y `spellCheck={false}` | Una forma que alguien añada sin decidir su rama no compila, igual que en la base cae en `else false`. El teclado de texto tiene todos los símbolos; sin mayúscula automática ni corrector, el teléfono no cambia «@maria» por «@Maria» |
+| 13 | **«Otros» se escribe también en la lista y en el mensaje**: «Otros · 0012-AbC/# · Ana Torres» | Es el nombre de la opción que pidió el dueño —un término, un nombre— y el nombre para reconocerla sigue sin viajar. La ayuda del campo pide escribirlo «tal como lo deben usar tus clientes» |
+| 14 | La vista previa del recordatorio **parte las palabras largas** (`[overflow-wrap:anywhere]`) | Medido a 320 px: con un identificador de cien caracteres sin espacios el diálogo desbordaba 317 px. Era anterior (I-146) |
+| 15 | En Zod, **`identifier` es opcional** con `''` por defecto | Como `p_identifier` en la RPC: una cuenta de Nequi, Daviplata o banco se sigue validando igual aunque no lo mande |
+| 16 | Los textos de ayuda: Bre-B, «Cópiala tal como aparece en tu banco: puede ser tu teléfono, tu correo o una llave como @maria.»; Otros, «Escríbelo tal como lo deben usar tus clientes para pagarte.» | «Llave» es nueva para mucha gente (§4 de la guía: no asumir conocimientos); los tres ejemplos muestran que el «@» no es obligatorio |
+
+### 3 — Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Guardar la llave en `account_number` o en `phone`, relajando su CHECK por tipo | Dos significados por columna, y la comparación por dígitos alcanzaría a las llaves: es exactamente el riesgo que señaló el encargo. **Reproducido** con una mutación temporal del índice: con la extensión ingenua, «@maria123» y «@pedro123» chocan, y «maria» y «@maria» también |
+| Una columna por forma (`breb_key`, `other_identifier`) | La misma regla dos veces, y un CHECK y un índice más largos sin ganar nada |
+| Comprobar duplicados en la RPC en vez del índice | No resiste dos peticiones simultáneas y no cubre volver a usar una archivada sin repetir la lógica |
+| Comparar sin mayúsculas, normalizar Unicode o quitar el «@» | El dueño pidió no introducir equivalencias sin una regla documentada |
+| `btrim` en la base | La base y el formulario dirían cosas distintas de un tabulador o de un espacio duro en un borde |
+| Rechazar la categoría Unicode Cf completa | Cambia con cada versión de Unicode: las dos capas acabarían diciendo cosas distintas |
+| `inputMode="email"` | Sugiere un correo, y una llave también es un teléfono o un documento; el teclado de texto ya tiene el «@» |
+| `break-words` en la vista previa | No reduce el ancho mínimo: medido, el diálogo seguía desbordando |
+| Recibir el tipo en la RPC de editar | Contradice D-188, decisión 3: el tipo no se cambia, y es el de la fila el que dice qué se valida |
+
+### 4 — Qué se comprobó
+
+Detalle y cifras en `TEST_RESULTS` (2026-09-19). En resumen: la suite nueva de base (**29**), **tres mutaciones**
+temporales del índice y del recorte que la suite detecta (5, 3 y 5 fallos) y restauradas; el **ensayo sobre datos
+existentes** —base en la `0072`, cuentas creadas con la firma de la `0051`, `migration up`— con **6/6 filas idénticas**
+en todas sus columnas; el **escenario B** —privilegio por defecto de producción— con las **242 funciones idénticas** al
+de la reconstrucción desde cero y `verify-remote` contra esa base local **44/44** —con sus dos comprobaciones nuevas,
+**46/46** ahí y **44 más las 2 nuevas en rojo** en la `0072`—; la concurrencia con dos transacciones reales; E2E de
+escritorio y de teléfono, y la suite completa en **775/779** con las 8 nuevas en verde (los 4 fallos son ajenos: I-090,
+I-106 e I-148); y la revisión visual a 320, 390, 1280 y 1440 px.
+
+### 5 — Pendiente del dueño
+
+| Qué | Por qué es suyo |
+|---|---|
+| **Autorizar la promoción** de `0073`, `0074` y el código | Escribe en producción |
+| **I-147** —dos altas simultáneas eligen la misma posición— | Es anterior a este encargo y cambiarlo toca cómo se asigna la posición, que D-209 no toca |
+
+### 6 — Orden para una futura promoción (NO ejecutado, NO autorizado)
+
+El procedimiento vive en **`DEPLOYMENT` §2.2** («`0073` y `0074` — Bre-B y «Otros»»), que es su documento propietario.
+Lo que no se puede perder: **autorización expresa**; **la base antes que el código** —el código desplegado hoy funciona
+con la base nueva (medido) y el nuevo con la vieja dejaría vacía la lista de cuentas—; respaldo validado; el delta
+ensayado con los privilegios de producción; `db push` de **exactamente** `0073` y `0074`; `verify:remote`, con las dos
+comprobaciones de D-209 **en rojo a propósito** hasta ese paso; la comparación por fila **con `--base`**, porque la
+`0074` añade una columna a una tabla congelada para las puertas; y la comprobación en vivo **con la sesión del
+vendedor**.
+
+**Consecuencia.** BR-M03, BR-M04 y BR-M08 precisadas; **BR-M10** nueva. Migraciones `0073` y `0074`. `DATA_MODEL`
+§4.15 y §6.g.6, `SECURITY` §4.15, `ARCHITECTURE` §8.23, `MASTER_SPEC` §9.5, `UX_COPY_GUIDELINES` (Anexo A y B),
+`TESTING` §4.8, `TEST_RESULTS`, `KNOWN_ISSUES` (**I-146** e **I-147**), `PHASE_STATUS` y `HANDOFF`.

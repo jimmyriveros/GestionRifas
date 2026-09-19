@@ -431,7 +431,11 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | La pantalla del vendedor donde vive todo eso | **Configuración** | Ajustes, preferencias, settings |
 | Dónde le consignan sus clientes a un vendedor | **Cuenta para recibir pagos**, y **cuenta** a secas cuando ya se está dentro de esa sección (D-188) | Cuenta de cobro, medio de pago, método de pago, datos bancarios |
 | La pregunta que elige entre las tres formas | **¿Dónde recibes el pago?** | «Tipo de cuenta», que en Colombia significa otra cosa: ahorros o corriente |
-| Las tres formas que existen hoy | **Nequi** · **Daviplata** · **Cuenta bancaria** | Billetera, transferencia, banco a secas, plataforma |
+| Las cinco formas que existen hoy, en este orden | **Nequi** · **Daviplata** · **Cuenta bancaria** · **Bre-B** · **Otros** (las dos últimas, D-209) | Billetera, transferencia, banco a secas, plataforma |
+| El sistema de pagos inmediatos del Banco de la República | **Bre-B**, con su guion y esas mayúsculas | BreB, Bre B, BRE-B, Transfiya |
+| El dato con el que se le paga a alguien por Bre-B, y la etiqueta de su campo | **Llave**; el campo dice **«Tu llave»** (D-209) | Alias, clave, código, usuario, «tu @» |
+| La forma para cualquier otra manera de recibir pagos | **Otros** —también en la lista y en el mensaje: «Otros · 0012-AbC · Ana Torres»— (D-209) | Otro medio, otra plataforma, varios |
+| Lo que se escribe en esa forma, y la etiqueta de su campo | **Número o identificador** (D-209) | Código, referencia, dato, cuenta |
 | Ahorros o corriente | **Tipo de cuenta** | Clase, modalidad, naturaleza |
 | A nombre de quién está la cuenta | **Titular** | Propietario, beneficiario, «Dueño», que es un rol |
 | El nombre que el vendedor le pone para distinguirla de otra suya | **Nombre para reconocerla** | Etiqueta, alias, apodo, descripción |
@@ -1228,6 +1232,29 @@ reconocerla** es del vendedor y **no viaja al mensaje**: sirve para distinguir �
 esposa» del suyo en una lista de cinco, y ponerlo en el mensaje del cliente sería contarle algo que
 no le importa.
 
+**Bre-B y «Otros» se escriben igual, y su dato sale tal cual** (D-209, BR-M10): **Bre-B · @maria · Ana
+Torres** y **Otros · 0012-AbC/# · Ana Torres**. La llave y el identificador **no se formatean**: sin «@»
+añadido, sin cambiar una mayúscula y sin quitar un cero, porque es lo que el cliente va a copiar en su
+banco. Por eso sus campos son de texto y no el de teléfono, y por eso su ayuda dice lo único que la
+pantalla no enseña:
+
+* **Bre-B**: «Cópiala tal como aparece en tu banco: puede ser tu teléfono, tu correo o una llave como
+  @maria.» «Llave» es una palabra nueva para mucha gente, así que se explica con los tres casos que más
+  se ven; y ninguno obliga al «@», porque no todas las llaves lo llevan.
+* **Otros**: «Escríbelo tal como lo deben usar tus clientes para pagarte.» Lo que lee el cliente es
+  «Otros», ese texto y el titular: el nombre para reconocerla tampoco viaja aquí.
+
+**Los tres errores de esos campos dicen qué pasó y cómo salir, y son LOS MISMOS en el formulario y en la
+base** —una prueba los compara letra por letra—: «Escribe tu llave.» / «Escribe el número o
+identificador.»; «La llave es demasiado larga. Usa 100 caracteres como máximo.»; y «La llave tiene saltos
+de línea o caracteres invisibles. Escríbela de nuevo en una sola línea.». «Caracteres invisibles» y no
+«caracteres de control»: la persona no sabe qué es lo segundo, y lo que suele pasar es que pegó algo con
+un salto de línea o un carácter que no se ve.
+
+**Una cuenta repetida se dice con una frase, en las cinco formas**: «Ya tienes una cuenta igual en tu
+lista.» Vale al agregar, al editar y al volver a usar una archivada, que es donde puede aparecer; antes
+salía «Ya existe un registro con estos datos.», que no decía de qué registro se trataba.
+
 **El recordatorio NO nombra a ningún cliente, no dice ningún saldo y no dice ningún importe**
 (BR-S09). Va a un grupo donde están **todos** los clientes del vendedor: escribir ahí quién debe
 cuánto es publicar la deuda de una persona delante de las demás. Es el mismo cuidado que impide
@@ -1729,6 +1756,9 @@ castigo donde solo había una espera.
 | Nombres de las tres formas de recibir un pago, del tipo de cuenta bancaria y de los estados de un recordatorio | `src/lib/constants.ts` (`PAYMENT_ACCOUNT_KIND_LABELS`, `BANK_ACCOUNT_TYPE_LABELS`, `PAYMENT_REMINDER_STATUS_LABELS`, D-188) |
 | Nombres de los días de la semana | `src/lib/constants.ts` (`WEEKDAY_LABELS`, D-188). **Una sola lista**: `notifications/text.ts` la usa en minúsculas en vez de tener la suya |
 | Todos los textos de las cuentas para recibir pagos: título, campos, ayudas, botones, avisos del tope y cómo se escribe una cuenta en el mensaje | `src/features/payment-accounts/accounts.ts` (`ACCOUNT_COPY`), **todos juntos** (D-188) |
+| Las etiquetas, ayudas y errores de la llave de Bre-B y del identificador de «Otros» | `ACCOUNT_COPY.form.identifier`, en ese mismo archivo (D-209). **Las tres frases de error viven también en SQL**, en `payment_account_identifier_problem` de la `0074`, y una prueba unitaria compara las dos letra por letra: cambiar una es cambiar las dos, con una migración nueva |
+| «Bre-B» y «Otros», los nombres de las dos formas | `src/lib/constants.ts` (`PAYMENT_ACCOUNT_KIND_LABELS`, D-209) |
+| «Ya tienes una cuenta igual en tu lista.», el duplicado de una cuenta | `src/lib/errors.ts` (`CONSTRAINT_MESSAGES`, por el índice `seller_payment_accounts_no_duplicates`, D-209) |
 | Todos los textos de los recordatorios: título, campos, la línea de «se agregan al final», la vista previa, el aviso sin cuentas y los botones | `src/features/payment-reminders/reminders.ts` (`REMINDER_COPY`), **todos juntos** (D-188) |
 | Los del flujo copiar → abrir → atender: «Para enviar ahora», «Era para el …», los tres botones, los dos fallos y el aviso sin grupo | `REMINDER_COPY.due`, en ese mismo archivo (D-189) |
 | «N para enviar», la línea que el resumen añade cuando hay algo esperando | `REMINDER_COPY.summary.pending` (D-189) |

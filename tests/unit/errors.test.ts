@@ -89,6 +89,16 @@ describe('mapPgError', () => {
       ).toBe('Ya existe una rifa con ese nombre en la organización.')
     })
 
+    it('traduce la cuenta para recibir pagos repetida (BR-M08, D-209)', () => {
+      expect(
+        mapPgError({
+          code: '23505',
+          message:
+            'duplicate key value violates unique constraint "seller_payment_accounts_no_duplicates"',
+        }),
+      ).toBe('Ya tienes una cuenta igual en tu lista.')
+    })
+
     it('cae al mensaje generico si la restriccion no esta traducida', () => {
       const message = mapPgError({
         code: '23505',

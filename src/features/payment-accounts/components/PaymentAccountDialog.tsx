@@ -37,14 +37,20 @@ import { BANK_ACCOUNT_TYPE_LABELS, PAYMENT_ACCOUNT_KIND_LABELS } from '@/lib/con
 import { createPaymentAccount, updatePaymentAccount } from '../actions'
 import {
   ACCOUNT_COPY,
+  accountShape,
   BANK_ACCOUNT_TYPES,
+  isIdentifierKind,
   PAYMENT_ACCOUNT_KINDS,
   type PaymentAccount,
 } from '../accounts'
 import { paymentAccountDefaults, paymentAccountSchema, type PaymentAccountInput } from '../schemas'
 
 /**
- * Agregar o corregir una cuenta para recibir pagos (BR-M04, D-188).
+ * Agregar o corregir una cuenta para recibir pagos (BR-M04, BR-M10, D-188, D-209).
+ *
+ * Los campos cambian con la forma (`accountShape`): Nequi y Daviplata piden un
+ * telefono, la cuenta bancaria banco, tipo y numero, y Bre-B y «Otros» un texto
+ * libre de una linea. Titular y nombre para reconocerla, en las cinco.
  *
  * UN formulario para las dos cosas, parametrizado por `account`, como
  * `UserDialog` hace con el alta y la edicion: los campos, sus mensajes y su
@@ -107,6 +113,7 @@ function PaymentAccountForm({
           bankName: account.bankName ?? '',
           accountType: account.accountType,
           accountNumber: account.accountNumber ?? '',
+          identifier: account.identifier ?? '',
           label: account.label ?? '',
         }
       : paymentAccountDefaults,
@@ -115,7 +122,8 @@ function PaymentAccountForm({
   // `useWatch` y no `form.watch()`: el segundo devuelve una funcion que el
   // compilador de React no puede memorizar (la lección de `UserDialog`).
   const kind = useWatch({ control: form.control, name: 'kind' })
-  const isBank = kind === 'bank'
+  const shape = accountShape(kind)
+  const identifierCopy = isIdentifierKind(kind) ? ACCOUNT_COPY.form.identifier[kind] : null
 
   function onSubmit(values: PaymentAccountInput) {
     setServerError(null)
@@ -187,7 +195,7 @@ function PaymentAccountForm({
         )}
 
         {/* ------------------------------------------ Nequi o Daviplata ------ */}
-        {isBank ? null : (
+        {shape !== 'phone' ? null : (
           <FormField
             control={form.control}
             name="phone"
@@ -222,8 +230,48 @@ function PaymentAccountForm({
           />
         )}
 
+        {/* ------------------------------------------------ Bre-B u «Otros» -- */}
+        {identifierCopy ? (
+          <FormField
+            control={form.control}
+            name="identifier"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{identifierCopy.label}</FormLabel>
+                <FormControl>
+                  {/*
+                    Texto libre de UNA linea (BR-M10): una llave de Bre-B puede
+                    ser un correo, un telefono o «@maria», y otra forma de pago
+                    puede llevar letras y simbolos. Por eso NI `PhoneInput` NI
+                    `inputMode="numeric"`: los dos esconden el «@» y las letras.
+                    El teclado es el de texto, que tiene todos los simbolos.
+                    `autoCapitalize`, `autoCorrect` y `spellCheck` apagados
+                    porque el telefono cambiaria «@maria» por «@Maria» o por
+                    una palabra del diccionario, y se guarda exactamente lo
+                    escrito. `autoComplete="off"`: no es un dato de quien
+                    rellena el formulario, igual que el telefono de una cuenta.
+                  */}
+                  <Input
+                    {...field}
+                    type="text"
+                    inputMode="text"
+                    size="touch"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    disabled={isPending}
+                  />
+                </FormControl>
+                <FormDescription>{identifierCopy.help}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+
         {/* ----------------------------------------------- Cuenta bancaria --- */}
-        {isBank ? (
+        {shape === 'bank' ? (
           <>
             <FormField
               control={form.control}

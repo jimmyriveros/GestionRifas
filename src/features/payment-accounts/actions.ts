@@ -7,15 +7,17 @@ import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 
+import { accountShape } from './accounts'
 import {
   accountIdSchema,
   paymentAccountSchema,
   reorderAccountsSchema,
   updateAccountSchema,
+  type PaymentAccountValues,
 } from './schemas'
 
 /**
- * Las cinco escrituras de las cuentas para recibir pagos (BR-M02..BR-M08).
+ * Las cinco escrituras de las cuentas para recibir pagos (BR-M02..BR-M08, BR-M10).
  *
  * SOLO EL PROPIO VENDEDOR, Y SOBRE LO SUYO. Ninguna accion recibe identificador
  * de vendedor, y las RPC de la `0051` tampoco: las dos sacan a la persona de la
@@ -41,18 +43,15 @@ function revalidateSettings() {
 /**
  * Los argumentos de tipo se OMITEN cuando no corresponden, en vez de mandarse
  * `null`: los tipos generados los declaran opcionales (`string | undefined`) y
- * la RPC los normaliza con `nullif(btrim(...), '')`. Una cuenta de Nequi no
- * manda banco, y el CHECK de la base lo exigiria igual.
+ * la RPC los normaliza. Una cuenta de Nequi no manda banco ni llave, y una de
+ * Bre-B no manda telefono: el CHECK de la base lo exigiria igual.
+ *
+ * La llave o el identificador viajan como salieron de Zod —recortados y nada
+ * mas (BR-M10)—, y la RPC los vuelve a recortar con el mismo conjunto de
+ * espacios, asi que el resultado es el mismo venga la llamada de aqui o de
+ * donde sea.
  */
-function accountArgs(values: {
-  kind: 'nequi' | 'daviplata' | 'bank'
-  holderName: string
-  phone: string
-  bankName: string
-  accountType: 'savings' | 'checking' | null
-  accountNumber: string
-  label: string
-}) {
+function accountArgs(values: PaymentAccountValues) {
   const label = values.label.trim()
   const common = {
     p_kind: values.kind,
@@ -60,15 +59,19 @@ function accountArgs(values: {
     ...(label === '' ? {} : { p_label: label }),
   }
 
-  if (values.kind === 'bank') {
-    return {
-      ...common,
-      p_bank_name: values.bankName,
-      ...(values.accountType === null ? {} : { p_account_type: values.accountType }),
-      p_account_number: values.accountNumber,
-    }
+  switch (accountShape(values.kind)) {
+    case 'bank':
+      return {
+        ...common,
+        p_bank_name: values.bankName,
+        ...(values.accountType === null ? {} : { p_account_type: values.accountType }),
+        p_account_number: values.accountNumber,
+      }
+    case 'identifier':
+      return { ...common, p_identifier: values.identifier }
+    case 'phone':
+      return { ...common, p_phone: values.phone }
   }
-  return { ...common, p_phone: values.phone }
 }
 
 export async function createPaymentAccount(input: unknown): Promise<ActionResult> {

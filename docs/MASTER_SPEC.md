@@ -4,9 +4,10 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.14
+- **Versión del documento:** 1.15
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-18 (§9.8: la **Etapa 3** del historial —auditoría en local, D-208—: el aviso
+- **Última actualización:** 2026-09-19 (§9.5: las cuentas para recibir pagos admiten **Bre-B** y **Otros** —D-209,
+  `0073` y `0074`, **solo en local**—). Antes, el 2026-09-18 (§9.8: la **Etapa 3** del historial —auditoría en local, D-208—: el aviso
   habla de sorteos «sin confirmar o por verificar» y el personal elige también a quien ya no vende; antes, el
   2026-09-17, §9.8: **Premios ganados** en los dos portales —D-208, Etapa 2,
   migraciones `0067`–`0069`, **solo en local**—). Antes, ese mismo día (§9.7: **premios configurables EN PRODUCCIÓN** —`0058`–`0066`
@@ -340,6 +341,11 @@ principal como **resumen ligero**.
 **titular** y el **número** —teléfono, o banco + tipo de cuenta + número—; **no el documento de
 identidad**. Máximo **5 activas**. Se archivan, no se borran.
 
+> **Desde el 2026-09-19, en local (D-209):** también **Bre-B** —el titular y **su llave**— y **Otros** —el titular y
+> **un número o identificador**—. La llave se guarda **tal como se escribe**, con letras, números y símbolos, sin «@»
+> añadido ni exigido, y dos cuentas de esas formas son la misma solo si el texto entero coincide (BR-M08, BR-M10).
+> **Todavía no está en producción.**
+
 **Recordatorios de pago.** El vendedor programa mensajes semanales de cobro: **cualquier día y hora,
 con precisión de minuto**, varios el mismo día y ninguno repetido a la misma hora. Puede pausarlos,
 reactivarlos, editarlos y archivarlos. Máximo **14 activos**. Cada uno usa el mensaje predeterminado
@@ -550,7 +556,8 @@ probadas; su regla vive en BR-G01..BR-G12.
 ⚠️ **Las cuentas para recibir pagos y los recordatorios de pago del vendedor se autorizaron el
 2026-09-11** (D-185) y **no** sacan nada de esta lista: **siguen sin existir pagos en línea**. La
 aplicación guarda dónde le consignan a un vendedor y le prepara un mensaje; **no cobra, no mueve
-dinero, no se conecta a Nequi, a Daviplata ni a ningún banco, y no envía nada a WhatsApp** (§9.5).
+dinero, no se conecta a Nequi, a Daviplata, a Bre-B ni a ningún banco —ni comprueba que una llave exista—, y no
+envía nada a WhatsApp** (§9.5).
 Las notificaciones que añade son **Web Push estándar**, sin Firebase y sin servicio de terceros
 (D-187).
 

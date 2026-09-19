@@ -1,6 +1,9 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.30 · **Actualizado:** 2026-09-18 (**§4.12**, Etapa 3 del historial de premios —la auditoría, D-208, `0070`, `0071` y `0072`—: `prize-award-history.test.ts` pasa a **70** —H5-04 y H8-08 observan el bloqueo, H7-05, H9-07, H12-03 y la matriz **H13** por PostgREST—, nace `prize-award-volume.test.ts` (**8**, con un modelo del motor en TypeScript y la medición de rendimiento a petición), las expectativas del aviso de cobertura se escriben a mano, y la E2E gana el punto A, el punto B, lo ajeno frente a lo inexistente, los parámetros manipulados, la combinación de filtros y los 375 px). Antes, el 2026-09-17 (**§4.12**, Etapa 2 del historial de premios —D-208, `0069`—: H10-01 sin espera fija, **H12** para la cobertura, `prize-awards-history.test.ts` (22), `prize-awards-view.test.tsx` (9), cuatro invariantes nuevas en `admin-privacy.test.ts` y **17** pruebas E2E en `premios-ganados.spec.ts` y `premios-ganados-movil.spec.ts`). Antes, ese mismo día (**§4.11**: D-207, `0066` —quién ejecuta cada función de premios—: `prize-function-privileges.test.ts` nueva (**15**) con la lista exacta de las 62 funciones, las comprobaciones de `verify:remote` y su fallo si reaparece cualquiera de los 35 permisos del preflight; el motor pasa a interno y `lottery-results` y `raffle-prize-matching` lo corren con `runLotteryEngine`; M8-05 exige que la service role no lo ejecute). Antes, el 2026-09-16 (**§4.11**: la corrección de D-206, `0065` —el aviso de fechas llega también a quien las cambia—: `raffle-date-notices.test.ts` pasa a **12** con R1-02 reescrita y R1-04 nueva, `rifa-fechas-aviso.spec.ts` a **4**, con la comprobación en la base después de guardar como Dueño, y F7 exige «todas las personas, también a ti»; volver a excluir al actor lo detectan las dos). Antes, ese mismo día (**§4.11**: la corrección local de la Entrega 5, D-206 —`raffle-prize-transition.test.ts` pasa a **51** con la frontera del instante efectivo en 2066, el reloj real y la carrera con el motor; `raffle-date-notices.test.ts` (**11**) y `rifa-fechas-aviso.spec.ts` (**3**) nuevas; cinco mutaciones detectadas—). Antes, ese mismo día (**§4.11**: la Entrega 4 —`raffle-prize-transition.test.ts` de base (38) y unitaria (30), `premios-transicion.spec.ts` (4), J13 con los seis premios confirmados y J3-03 como ejemplo genérico, D-204—). Antes, ese mismo día (**§4.11**: la corrección de la Entrega 3 —M12 y
+- **Versión:** 2.31 · **Actualizado:** 2026-09-19 (**§4.8**, Bre-B y «Otros» —D-209, **solo en local**—:
+  `payment-account-identifiers.test.ts` con **29** pruebas —entre ellas la BMP recorrida entera y la concurrencia con
+  dos transacciones reales—, +25 unitarias que leen la migración para comparar frases, tope y clases de caracteres, y
+  +8 E2E de escritorio y teléfono). Antes, el 2026-09-18 (**§4.12**, Etapa 3 del historial de premios —la auditoría, D-208, `0070`, `0071` y `0072`—: `prize-award-history.test.ts` pasa a **70** —H5-04 y H8-08 observan el bloqueo, H7-05, H9-07, H12-03 y la matriz **H13** por PostgREST—, nace `prize-award-volume.test.ts` (**8**, con un modelo del motor en TypeScript y la medición de rendimiento a petición), las expectativas del aviso de cobertura se escriben a mano, y la E2E gana el punto A, el punto B, lo ajeno frente a lo inexistente, los parámetros manipulados, la combinación de filtros y los 375 px). Antes, el 2026-09-17 (**§4.12**, Etapa 2 del historial de premios —D-208, `0069`—: H10-01 sin espera fija, **H12** para la cobertura, `prize-awards-history.test.ts` (22), `prize-awards-view.test.tsx` (9), cuatro invariantes nuevas en `admin-privacy.test.ts` y **17** pruebas E2E en `premios-ganados.spec.ts` y `premios-ganados-movil.spec.ts`). Antes, ese mismo día (**§4.11**: D-207, `0066` —quién ejecuta cada función de premios—: `prize-function-privileges.test.ts` nueva (**15**) con la lista exacta de las 62 funciones, las comprobaciones de `verify:remote` y su fallo si reaparece cualquiera de los 35 permisos del preflight; el motor pasa a interno y `lottery-results` y `raffle-prize-matching` lo corren con `runLotteryEngine`; M8-05 exige que la service role no lo ejecute). Antes, el 2026-09-16 (**§4.11**: la corrección de D-206, `0065` —el aviso de fechas llega también a quien las cambia—: `raffle-date-notices.test.ts` pasa a **12** con R1-02 reescrita y R1-04 nueva, `rifa-fechas-aviso.spec.ts` a **4**, con la comprobación en la base después de guardar como Dueño, y F7 exige «todas las personas, también a ti»; volver a excluir al actor lo detectan las dos). Antes, ese mismo día (**§4.11**: la corrección local de la Entrega 5, D-206 —`raffle-prize-transition.test.ts` pasa a **51** con la frontera del instante efectivo en 2066, el reloj real y la carrera con el motor; `raffle-date-notices.test.ts` (**11**) y `rifa-fechas-aviso.spec.ts` (**3**) nuevas; cinco mutaciones detectadas—). Antes, ese mismo día (**§4.11**: la Entrega 4 —`raffle-prize-transition.test.ts` de base (38) y unitaria (30), `premios-transicion.spec.ts` (4), J13 con los seis premios confirmados y J3-03 como ejemplo genérico, D-204—). Antes, ese mismo día (**§4.11**: la corrección de la Entrega 3 —M12 y
   J8-03 para el corte efectivo de I-125, `prizeDrawCutoff`, y los textos de I-126 en
   `lottery-notifications.test.ts`, `lottery-dashboard.test.ts` y `loterias-panel.spec.ts`—). Antes,
   ese mismo día (**§4.11**: el motor de premios configurables,
@@ -868,6 +871,40 @@ pinta sin clave VAPID** (D-190), y la suite corre sin ella. Su sitio —columna 
 final en el teléfono— se comprobó con un servidor levantado con una **clave pública de verificación**
 y sus estados forzados en el navegador (`TEST_RESULTS`, misma fecha). Tampoco es infraestructura de
 interfaz compartida (`HANDOFF` §1.b): no se tocó ningún primitivo.
+
+#### Bre-B y «Otros» ✅ (D-209, BR-M10; `payment-account-identifiers.test.ts`, 29 · unitarias +25 · `configuracion-cobro.spec.ts`, +6 · `configuracion-cobro-movil.spec.ts`, +2)
+
+**Base de datos** (`tests/db/payment-account-identifiers.test.ts`, prefijo **MI**, vendedores propios de la suite):
+
+| Qué se demuestra | Cómo |
+|---|---|
+| Se guarda **tal cual**: letras, símbolos, ceros, mayúsculas; sin «@» añadido | MI-01..MI-03: lo que devuelve la RPC y lo que se vuelve a leer |
+| Solo se quitan los **espacios exteriores de `trim()`** | MI-04: espacio, tabulador, espacio duro, U+FEFF, salto de línea y U+3000 en los bordes; los de dentro se quedan |
+| **Distintas con los mismos dígitos conviven**; la misma, dos veces, **no** —al crear, al editar y al volver a usar— | MI-06..MI-10, y `mapPgError` da «Ya tienes una cuenta igual en tu lista.» |
+| Otra forma, otro vendedor y el mismo número en Nequi **conviven** | MI-08 |
+| Vacía, larga, multilínea o con invisibles: **la frase de cada forma**, y nada guardado | MI-11..MI-13; MI-14 con la service role contra los CHECK (y una bien escrita **sí** entra: la service role ejecuta las funciones de la regla) |
+| **La misma regla en las tres capas** | MI-15 recorre **la BMP entera** —63.487 puntos de código— comparando el veredicto de las dos funciones de la base con el de TypeScript; MI-16 pasa un corpus por Zod y por la RPC y compara aceptación, rechazo, frase y valor guardado |
+| Nequi, Daviplata y banco **como estaban**, incluida **la llamada del código desplegado** (sin `p_identifier`) | MI-17..MI-19 |
+| Tope, orden, archivo y **aislamiento** con las formas nuevas; la bitácora sin la llave | MI-20..MI-24 |
+| **Concurrencia**: la segunda espera y falla; si la primera se deshace, entra | MI-25 y MI-26 con **dos transacciones reales** como `authenticated`, observando la espera en `pg_stat_activity` |
+| La **matriz de EXECUTE** de las siete funciones de cuentas y que la `0073`/`0074` no crean nada sin clasificar | MI-27..MI-29 |
+
+**Unitarias** (`payment-accounts.test.ts`, `payment-reminders.test.ts`, `errors.test.ts`): el orden y los nombres de
+las cinco formas, `accountShape`, cómo se escribe una Bre-B y una «Otros», la regla entera en Zod —dieciséis
+invisibles uno a uno, el emoji que cuenta como uno—, y **la migración leída como texto**: las seis frases están en
+ella letra por letra, el tope es el mismo número, la clase prohibida son los mismos rangos, el recorte de la base quita
+exactamente lo que quita `String.prototype.trim()` y la migración **no contiene ni un carácter invisible**. En el
+mensaje del recordatorio, la llave y el identificador salen tal cual y **sin** el nombre para reconocerla.
+
+**Navegador**: el campo es de **texto** —`type`, `inputmode`, `autocapitalize`, `autocorrect` y `spellcheck`—, **no**
+el de teléfono; la llave se guarda y se enseña tal cual; editar enseña el tipo como dato; el duplicado deja el diálogo
+abierto con su frase; vacía y larga se explican antes de ir al servidor; el recordatorio las lleva sin la etiqueta
+privada, **también en lo que se copia**; y en el teléfono, la llave se escribe **tecla a tecla con el «@»**, el campo
+llega a 44 px y una llave de cien caracteres sin espacios **no desborda** ni la lista, ni la vista previa, ni «Para
+enviar ahora» —la prueba que encontró **I-146**—.
+
+**Cómo se supo que la suite no es vacía:** tres mutaciones temporales en la base local, restauradas después —el índice
+de la `0051`, el índice «extendido por dígitos» y el recorte con `btrim`— hacen fallar 5, 3 y 5 pruebas.
 
 ### 4.9 Resultados de la semana (BR-H01..BR-H10; D-194, D-195, D-197)
 

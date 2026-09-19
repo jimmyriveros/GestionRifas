@@ -276,6 +276,40 @@ const CHECKS: Check[] = [
     esperado: 8,
   },
   {
+    // 0073 y 0074 (D-209): Bre-B y «Otros» existen, con su columna y con las
+    // firmas nuevas de crear y editar. Con la firma de la 0051 como sobrecarga
+    // sobrante, la comprobacion anterior daria 10 y no 8.
+    nombre: 'Cuentas de cobro: Bre-B, «Otros», la columna identifier y sus dos RPC (0073, 0074)',
+    sql: `select 'breb, other, identifier' as x
+          where exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                         where t.typname = 'payment_account_kind' and e.enumlabel = 'breb')
+            and exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                         where t.typname = 'payment_account_kind' and e.enumlabel = 'other')
+            and exists (select 1 from information_schema.columns
+                         where table_schema = 'public' and table_name = 'seller_payment_accounts'
+                           and column_name = 'identifier')
+            and to_regprocedure('public.create_seller_payment_account(payment_account_kind,text,text,text,bank_account_type,text,text,text)') is not null
+            and to_regprocedure('public.update_seller_payment_account(uuid,text,text,text,bank_account_type,text,text,text)') is not null`,
+    esperado: 1,
+  },
+  {
+    // Las dos funciones de la regla del identificador (D-209): SOLO la service
+    // role, que las necesita porque los CHECK se evaluan con los privilegios de
+    // quien escribe. Ni PUBLIC, ni anon, ni una sesion. El proyecto alojado da
+    // EXECUTE a service_role en toda funcion nueva (I-132); lo que se exige aqui
+    // es que no lo tenga NADIE MAS.
+    nombre: 'Funciones de la regla del identificador con EXECUTE solo para service_role (0074)',
+    sql: `select p.proname as x from pg_proc p
+          where p.pronamespace = 'public'::regnamespace
+            and p.proname in ('payment_account_identifier_trim', 'payment_account_identifier_problem')
+            and has_function_privilege('service_role', p.oid, 'EXECUTE')
+            and not has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')
+            and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                             where a.grantee = 0 and a.privilege_type = 'EXECUTE')`,
+    esperado: 2,
+  },
+  {
     // El motor procesa los recordatorios de TODA la base. Si esto dejara de
     // ser 0, cualquiera con una cuenta podria dispararlo desde el navegador
     // tantas veces como quisiera (0052, D-189).

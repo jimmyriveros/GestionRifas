@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.26 · **Estado:** implementado · **Actualizado:** 2026-09-18 (**§4.24**, Etapa 3 del historial —la auditoría, D-208, **solo en local**—: la matriz de acceso medida por PostgREST con nueve personas, lo ajeno respondiendo como lo inexistente, la `0070` —el personal elige a quien ya no vende, sin cliente— la `0071` —`anon` obtenía el inicio operativo por un plan reutilizado, I-141— y la `0072` —con el privilegio por defecto del proyecto alojado, `current_seller_org_ids()` habría nacido ejecutable por `service_role`, I-143—). Antes, ese mismo día (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
+- **Versión:** 2.27 · **Estado:** implementado · **Actualizado:** 2026-09-19 (**§4.15**, Bre-B y «Otros» —D-209,
+  `0073` y `0074`, **solo en local**—: las dos RPC de cuentas que escriben cambian de firma y conservan su matriz,
+  dos funciones internas de la regla solo para `service_role`, una migración que comprueba sus propios privilegios y
+  el ensayo con el privilegio por defecto de producción). Antes, el 2026-09-18 (**§4.24**, Etapa 3 del historial —la auditoría, D-208, **solo en local**—: la matriz de acceso medida por PostgREST con nueve personas, lo ajeno respondiendo como lo inexistente, la `0070` —el personal elige a quien ya no vende, sin cliente— la `0071` —`anon` obtenía el inicio operativo por un plan reutilizado, I-141— y la `0072` —con el privilegio por defecto del proyecto alojado, `current_seller_org_ids()` habría nacido ejecutable por `service_role`, I-143—). Antes, ese mismo día (**§4.24**, Etapa 2 del historial —D-208, `0069`, **solo en local**—: las pantallas leen con la sesión por las cuatro funciones, el personal no recibe ni envía un dato de cliente y la `0069` no cambia ningún privilegio). Antes, ese mismo día (**§4.24**: el **historial de premios ganados** —`0067`, D-208, **solo en local**—: ninguna lectura recibe alcance, el personal no ve datos de cliente ni toca `clients`, el vendedor solo ve lo suyo **sin equipo**, la tabla nueva concede solo `SELECT` y su única puerta es de la service role, las 10 funciones están clasificadas con su matriz exacta (I-132), y los números de una boleta con coincidencias no cambian por ninguna vía (BR-I16). Antes, ese mismo día, **§4.23**: la `0066` —D-207,
   I-132— fija quién ejecuta cada una de las 62 funciones de premios configurables: el proyecto alojado concede
   EXECUTE a `service_role` en toda función nueva y la pila local no, y el preflight de la Puerta 1 lo vio antes
   de escribir nada. Solo dos entradas de la service role —`transition_raffle_prize_mode` y
@@ -885,6 +888,30 @@ son tablas nuevas con política propia (BR-M01).
   `max_active_payment_reminders()` y, desde `0052`, `payment_reminder_grace()` y el propio motor. `REVOKE` explícito de `public` y `anon`, y **sin `GRANT` a
   `authenticated`** — PostgreSQL concede `EXECUTE` a PUBLIC en cada función nueva y las *default
   privileges* de `0015`/`0032` no alcanzan a lo que se cree después (I-020, I-078).
+
+#### Bre-B y «Otros» — **`0073` y `0074`, solo en local** (D-209, BR-M10)
+
+Dos formas más, **con el mismo aislamiento y la misma puerta**: la tabla sigue con una sola política —de
+`SELECT`— y `authenticated` sigue con solo `SELECT`; las dos RPC que escriben siguen sin recibir
+identificador de vendedor. Lo nuevo, y lo que hay que saber antes de tocarlo:
+
+* **Las dos RPC cambian de firma** (`p_identifier`, opcional y al final) y se **borran y se crean** en la
+  misma transacción. Conservan su matriz —`authenticated` y `service_role`, nunca PUBLIC ni `anon`— y la
+  `0074` **se comprueba a sí misma** al aplicarse: si el EXECUTE efectivo de las cinco RPC de cuentas o de
+  las dos funciones nuevas no es el de la lista, o si queda la firma antigua como sobrecarga, falla y no deja
+  nada (el patrón de la `0066` y la `0072`).
+* **Las dos funciones de la regla** —`payment_account_identifier_trim` y
+  `payment_account_identifier_problem`— son internas: **solo `service_role`** las ejecuta, revocadas por
+  nombre a PUBLIC, `anon` y `authenticated`. La service role sí, y no por comodidad: los CHECK las llaman y
+  se evalúan con los privilegios de quien escribe, y la service role tiene `grant all` sobre la tabla desde
+  la `0051`. No le dan ningún poder que no tuviera. Una sesión no puede llamarlas ni por PostgREST (MI-29).
+* **Ensayado con el privilegio por defecto del proyecto alojado** (I-132, I-143; «escenario B»): las 242
+  funciones del esquema salen con los mismos permisos que en la reconstrucción desde cero, y
+  `verify-remote` contra esa base local da 44/44. No depende del privilegio por defecto de ningún entorno.
+* **La bitácora sigue sin guardar el dato**: ni la llave, ni el identificador, ni el titular (prueba
+  MI-24).
+* **Duplicados y concurrencia**: el índice único decide. Dos peticiones simultáneas con la misma llave no
+  pueden entrar las dos —la segunda espera y falla con `23505`—, comprobado con dos transacciones reales.
 
 #### Lo que toca el proceso del cron — **`0052`, comprobado** (D-189)
 

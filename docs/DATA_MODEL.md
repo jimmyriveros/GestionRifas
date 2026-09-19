@@ -1,6 +1,10 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.27 · **Estado:** implementado · **Actualizado:** 2026-09-18 (§6.g.10: la Etapa 3 de D-208,
+- **Versión:** 2.28 · **Estado:** implementado · **Actualizado:** 2026-09-19 (§4.15 y §6.g.6: **Bre-B y «Otros»**
+  —D-209, migraciones `0073` y `0074`, **solo en local**—: dos valores más en `payment_account_kind`, la columna
+  `identifier`, el CHECK de forma con una rama por forma, el CHECK del identificador, el índice de duplicados con una
+  rama por forma, dos funciones internas de la regla y las dos RPC que escriben con `p_identifier`). Antes, el
+  2026-09-18 (§6.g.10: la Etapa 3 de D-208,
   **solo en local** —la `0070` añade `admin_prize_award_sellers()`, quién aparece como vendedor en el
   historial, la `0071` hace `prize_award_history_start()` `stable security definer` para que un plan
   reutilizado no se la entregue a `anon`, y la `0072` repite el permiso de `current_seller_org_ids()`
@@ -880,10 +884,11 @@ membresía por la FK compuesta `(seller_id, organization_id)`, igual que `ticket
 |---|---|---|
 | `id` | `uuid` PK | |
 | `organization_id` · `seller_id` | `uuid` NOT NULL | FK compuesta → `memberships`, `on delete restrict` |
-| `kind` | `payment_account_kind` | `nequi` · `daviplata` · `bank` |
-| `holder_name` | `text` NOT NULL | Titular. En los **tres** tipos |
+| `kind` | `payment_account_kind` | `nequi` · `daviplata` · `bank` · **`breb`** · **`other`** (los dos últimos, `0073`, D-209) |
+| `holder_name` | `text` NOT NULL | Titular. En **todos** los tipos |
 | `phone` | `text` | Nequi y Daviplata |
 | `bank_name` · `account_type` · `account_number` | `text` · `bank_account_type` · `text` | Solo `bank` |
+| `identifier` | `text` | **Solo `breb` y `other`** (`0074`): la llave o el número o identificador, **tal cual se escribió** y sin espacios exteriores (BR-M10) |
 | `label` | `text` | Etiqueta opcional del vendedor |
 | `sort_order` | `smallint` | **1..5 mientras está activa, NULL al archivarla** |
 | `created_at` · `updated_at` · `archived_at` | `timestamptz` | `archived_at` NULL = activa |
@@ -896,13 +901,14 @@ dejar pasar dos inserciones simultáneas; un índice único, no).
 
 | Restricción | Qué impide |
 |---|---|
-| `seller_payment_accounts_shape_by_kind` | Una cuenta de Nequi con número bancario, o una bancaria sin banco. Escrito con `CASE` para que añadir una forma de pago obligue a decidir su rama |
+| `seller_payment_accounts_shape_by_kind` | Una cuenta de Nequi con número bancario, o una bancaria sin banco. Escrito con `CASE` para que añadir una forma de pago obligue a decidir su rama. **Rehecho en la `0074`**: una rama por forma —Nequi y Daviplata, banco, Bre-B y «Otros»— y **`else false`**, así que una forma sin rama se rechaza; `identifier` solo en las dos últimas |
+| `seller_payment_accounts_identifier_format` (`0074`) | Un identificador **sin recortar**, **vacío**, de **más de 100 caracteres** o con **saltos de línea o invisibles**. Llama a `payment_account_identifier_trim` y `payment_account_identifier_problem`, así que la regla se escribe una vez en SQL |
 | `..._slot_presence` | Una activa sin posición o una archivada ocupando cupo: `(archived_at is null) = (sort_order is not null)` |
 | `..._slot_range` | La sexta: `sort_order between 1 and 5` |
 | `..._slot_unique` | Dos cuentas en el mismo sitio. **`DEFERRABLE INITIALLY DEFERRED`**, porque reordenar es permutar y el estado intermedio existe dentro de la transacción |
 | `..._phone_format` | El mismo patrón que `clients.phone`. ⚠️ Cuenta **caracteres**, no dígitos: es **I-108**, heredada a propósito |
 | `..._holder_length` · `..._bank_length` · `..._number_format` · `..._label_length` | Longitudes y forma |
-| `seller_payment_accounts_no_duplicates` (índice único parcial) | BR-M08: la misma cuenta dos veces sin archivar, comparando **solo dígitos** — `regexp_replace(coalesce(phone, account_number), '[^0-9]', '', 'g')`, para que «300 123 4567» y «3001234567» sean la misma (D-184) |
+| `seller_payment_accounts_no_duplicates` (índice único parcial) | BR-M08: la misma cuenta dos veces sin archivar, comparando **solo dígitos** — `regexp_replace(coalesce(phone, account_number), '[^0-9]', '', 'g')`, para que «300 123 4567» y «3001234567» sean la misma (D-184). **Reconstruido en la `0074`, con el mismo nombre**: `case when kind in ('breb', 'other') then identifier else <la expresión de siempre> end` — Bre-B y «Otros» comparan el **identificador entero**, con mayúsculas, así que «@maria123» y «@pedro123» son dos cuentas |
 
 **Sin `DELETE`**: ni política ni privilegio. Se archiva (BR-M07, D-038).
 
@@ -1741,8 +1747,8 @@ como allí, **lo que las hace seguras no es una comprobación: es la firma**.
 
 | Función | Devuelve | Qué hace |
 |---|---|---|
-| `create_seller_payment_account(kind, titular, telefono, banco, tipo, numero, etiqueta)` | la fila | Crea una cuenta en la **menor posición libre**. Sin sitio, lo dice con una frase |
-| `update_seller_payment_account(id, titular, telefono, banco, tipo, numero, etiqueta)` | la fila | Corrige una cuenta **activa**. **El tipo no se cambia**: un Nequi que pasa a ser bancaria es otra cuenta |
+| `create_seller_payment_account(kind, titular, telefono, banco, tipo, numero, etiqueta, identificador)` | la fila | Crea una cuenta en la **menor posición libre**. Sin sitio, lo dice con una frase. **Desde la `0074`** recibe `p_identifier` —opcional y al final—, lo recorta y, en Bre-B y «Otros», lo valida con la frase de BR-M10 **antes** de escribir |
+| `update_seller_payment_account(id, titular, telefono, banco, tipo, numero, etiqueta, identificador)` | la fila | Corrige una cuenta **activa**. **El tipo no se cambia**: un Nequi que pasa a ser bancaria es otra cuenta. **Desde la `0074`** lee antes el tipo de la fila, que es el que dice qué se valida |
 | `archive_seller_payment_account(id)` | la fila | Archiva y **libera la posición** |
 | `restore_seller_payment_account(id)` | la fila | La devuelve al listado, sujeta al tope |
 | `reorder_seller_payment_accounts(ids[])` | las activas, ordenadas | Exige el conjunto **completo**, sin repetidos y sin ajenos |
@@ -1756,6 +1762,18 @@ de vendedor **activa** de quien llama, o excepción—, `next_reminder_run_at(we
 `max_active_payment_reminders()` y, desde `0052`, `payment_reminder_grace()` y
 **`process_due_payment_reminders(lote)`**, que es el motor: lo llama el cron y ninguna sesión puede
 ejecutarlo (D-189, Decisión 3).
+
+**Desde la `0074` (D-209, solo en local), las dos de la regla del identificador (BR-M10)**, inmutables y
+con EXECUTE **solo para `service_role`** —los CHECK se evalúan con los privilegios de quien escribe, y la
+service role puede escribir en la tabla—:
+
+| Función | Devuelve |
+|---|---|
+| `payment_account_identifier_trim(texto)` | El texto sin los espacios exteriores que quita `String.prototype.trim()`; vacío si no quedaba nada; `NULL` solo con `NULL` |
+| `payment_account_identifier_problem(tipo, texto)` | La frase de BR-M10 —vacía, demasiado larga, con saltos de línea o invisibles—, o `NULL` si vale. `NULL` también en Nequi, Daviplata y banco |
+
+Las cinco RPC de cuentas y estas dos tienen su matriz de EXECUTE **comprobada por la propia `0074`** al
+aplicarse, como la `0066` y la `0072`.
 
 Las ocho cumplen §4.5 de `SECURITY`: `SECURITY DEFINER`, `search_path` fijo, `REVOKE` explícito de
 `public` y `anon`, y `GRANT` nominal a `authenticated` **y** `service_role` (D-128, I-078). Entran en

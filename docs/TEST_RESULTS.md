@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (historial de premios ganados EN PRODUCCIÓN: `0067`–`0072`, los dos premios y `318357c`, 2026-09-18/19)** | Sin cambios: 1.497 (local, I-145) | **CI #35408036412 sobre `318357c`: 1 fallida (I-140, orden de las suites), 1.372 aprobadas y 1 omitida**; en local, 1.373 + 1 | No se repitió; referencia 768/771 con I-075 e I-090 | CI: verificación ✅, base ❌ (I-140) · `verify:remote` **44/44** en producción | ✅ **Puertas 1 y 2**; puerta 3 **desplegada** (`dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE`, `76a253b25ca1` servido, todo en verde en vivo) y **detenida por el CI**; sin revertir |
+| **Post-9 vigente (Bre-B y «Otros» en las cuentas para recibir pagos, D-209, `0073` y `0074`, solo en local, 2026-09-19)** | **1.522 ✅ en 80 archivos (+25)**: la regla en Zod, cómo se escriben, y la migración leída como texto | **1.402 ✅ y 1 omitida, en 57 archivos (+29)**: `payment-account-identifiers.test.ts`, con la BMP entera y dos transacciones reales | ⚠️ **775/779** en 42,6 min, con las **8 nuevas** en verde. Los 4: **I-090** (`ventas-por-fecha` `:163` y `:247`) e **I-106** (`catalogo-publico-movil:103`), con su firma de siempre, y `premios-ganados:383` (**I-148**). Relanzados sus archivos y los de «Configuración» tras `db:reset` + `seed:local`: **92/93**, y el que falló es otro de «Premios ganados», `:443`, **reproducido en `735eb67` sin D-209** (4 de 5) | ✅ `verify` exit 0 · `verify-remote` **contra la base local**: en la `0072`, 44 OK y **las 2 nuevas en rojo**, lo que dará producción hasta promover; en el escenario B con la `0074`, **46/46**. Contra producción **no se corrió**: el encargo no autoriza leerla | ✅ **Solo local.** Ensayo sobre datos existentes **12/12** (6/6 filas idénticas); escenario B con las 242 funciones idénticas; tres mutaciones detectadas. **I-146** encontrada y corregida; **I-147** registrada. **Nada en producción** |
+| Post-9 anterior (historial de premios ganados EN PRODUCCIÓN: `0067`–`0072`, los dos premios y `318357c`, 2026-09-18/19) | Sin cambios: 1.497 (local, I-145) | **CI #35408036412 sobre `318357c`: 1 fallida (I-140, orden de las suites), 1.372 aprobadas y 1 omitida**; en local, 1.373 + 1 | No se repitió; referencia 768/771 con I-075 e I-090 | CI: verificación ✅, base ❌ (I-140) · `verify:remote` **44/44** en producción | ✅ **Puertas 1 y 2**; puerta 3 **desplegada** (`dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE`, `76a253b25ca1` servido, todo en verde en vivo) y **detenida por el CI**; sin revertir |
 | Post-9 anterior (I-145: la procedencia de las fotos de puerta, corregida en local antes de la puerta 1, sin migración, 2026-09-18) | **1.497 ✅ en 80 archivos (+9)**: T6, de dónde viene una foto y si sirve para una puerta | **1.373 ✅ y 1 omitida, en 56 archivos (+15)**: `gate-provenance.test.ts`, con las herramientas de verdad; **las 15 fallaban antes** de corregir | **No se repitió**: no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · `verify:remote` no se ejecutó: la corrección no lee producción | 🔧 **Solo local**: las dos órdenes del dueño daban CONTINUAR con fotos locales presentadas como de producción; ahora, **sin veredicto**. El ensayo de las seis migraciones, repetido: el mismo delta, byte a byte, y CONTINUAR. **Nada en producción** |
 | Post-9 anterior (Etapa 4 del historial de premios ganados: la preparación de la promoción, D-208, sin migración, 2026-09-18) | **1.488 ✅ en 80 archivos (+66)**: la puerta del cargador y el resolvedor aislado (52) y las herramientas de puerta (14) | **1.358 ✅ y 1 omitida, en 55 archivos (+11)**: el ensayo del cargador con el script de verdad, la sonda y el comparador de la «Opción A» | **No se repitió**: la etapa no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · ⚠️ `verify:remote` **en producción, 41 + 3 en rojo a propósito**: las tres del historial, hasta la puerta 1 | 🔎 **Solo lectura en producción**: el estado real, igual al relevo en lo esencial —el despliegue servido es `6da9bcb`, solo documentación sobre `da81663`—; las dos coincidencias, como las confirmó el dueño; el delta de la puerta 1 ensayado con **todos** los privilegios de producción. **Nada escrito en producción** |
 | Post-9 anterior (Etapa 3 del historial de premios ganados: la auditoría, D-208, `0070`, `0071` y `0072`, solo en local, 2026-09-18) | **1.422 ✅ en 78 archivos (+4)** | **1.347 ✅ y 1 omitida a propósito, en 54 archivos (+17; migraciones `0070`, `0071` y `0072`)**: la suite del historial pasa de 61 a **70** y nace la de volumen (**8**, la medición solo a petición) | **768/771** en 45,2 min, sobre base recién sembrada y servidor recién arrancado: los 3 son **I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`), ajenos al historial, y sus dos archivos solos dan **27/27**; las **23** del historial, en verde. La completa del primer cierre también dio 768/771 (I-090 e I-106) | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe cualquier lectura de producción | ✅ **Siete hallazgos** demostrados antes de corregirlos —el aviso que desmentía un premio conservado, el antiguo vendedor que no se podía elegir, una expectativa que se comparaba consigo misma, dos pruebas de concurrencia que no observaban el bloqueo, el inicio operativo al alcance de `anon` y, **ensayando con el privilegio por defecto de producción**, `current_seller_org_ids()` ejecutable por `service_role` (I-143)— y **I-140** e **I-142** registradas. **Nada en producción**; el procedimiento de la Etapa 4, en `RUNBOOK` §9 |
@@ -77,6 +78,123 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+## Bre-B y «Otros» en las cuentas para recibir pagos (D-209, `0073` y `0074`, solo en local) — 2026-09-19
+
+Rama `feature/premios-configurables`, sobre `735eb67`. Todo contra la base **local** (`127.0.0.1:54322`) y el
+servidor `dev:local`, que se anuncia «next dev contra LOCAL». **No se leyó ni se escribió producción.**
+`CorrecionesLoterias.txt` y `prueba-abono.csv` no se tocaron.
+
+### Línea base, antes de tocar nada
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase status` | ✅ Pila local arriba (imgproxy, edge runtime y pooler parados, como siempre) |
+| `npm run db:reset` | ✅ 72 migraciones desde cero |
+| `npm run seed:local` | ✅ 2 organizaciones, 2 rifas, 6 perfiles, 33 boletas |
+| `npm run test:db` | ✅ **1.373 + 1 omitida** en 56 archivos, 135,9 s — la cifra del relevo |
+| `npm run verify` | ✅ exit 0: lint **0 errores y los 2 avisos de siempre**, **1.497/1.497** unitarias en 80 archivos, `next build` |
+
+### Lo que PostgreSQL permite, medido antes de escribir (transacciones deshechas)
+
+| Sonda | Resultado |
+|---|---|
+| `alter type payment_account_kind add value` y usar el valor en la misma transacción | ❌ `55P04 unsafe use of new value` |
+| Lo mismo, dentro de un CHECK que lo nombra | ❌ `55P04` |
+| Escapes de punto de código en una clase de expresión regular, `\x0` incluido | ✅ Válidos; el NUL escapado no da error |
+| `[[:cntrl:]]` con U+0085 | Coincide **en esta base** (`en_US.UTF-8`), pero depende de la configuración regional: se descarta y se escriben rangos explícitos |
+| `btrim` con un tabulador en el borde | Lo deja: solo quita el espacio |
+| `char_length` de «a» + un emoji | 2: puntos de código |
+
+### Errores propios, en orden
+
+| # | Qué pasó | Cómo se vio | Corrección |
+|---|---|---|---|
+| 1 | La primera `0074` escribía la clase de caracteres con escapes de cuatro cifras hexadecimales, y **la herramienta de edición los convirtió en los caracteres reales** —uno de ellos un NUL— | `migration up`: `08P01 invalid message format`. La `0073` quedó aplicada y **nada** de la `0074`, ni la columna: la prueba de que el CLI aplica un archivo por transacción | Reescrita con escapes `\x`, que la herramienta respeta; comprobado con un recorrido de la BMP que las dos clases son exactamente las previstas, y una prueba unitaria que falla si la migración contiene un solo carácter invisible |
+| 2 | El esquema de Zod exigía `identifier` y **tres pruebas de siempre** —un Nequi, una cuenta bancaria y los separadores de `PhoneInput`— fallaron porque sus datos no lo traen | `vitest`: 3 fallos en `payment-accounts.test.ts` | `identifier` opcional con `''` por defecto, como `p_identifier` en la RPC: una cuenta de las formas de siempre se valida igual sin él. No se tocaron las pruebas |
+| 3 | E2E: la edición de «Otros» se quedó en «Guardando…» más de 15 s en la primera corrida, con el servidor recién arrancado | 5/6 en el bloque nuevo | **No se reprodujo**: aislada, **1/1** en 5,2 s, y el bloque entero con el servidor caliente, **6/6**. Es la compilación en frío de `next dev` (la familia de I-075). No se tocó nada |
+| 4 | **I-146**: a 320 px, con un identificador de cien caracteres sin espacios, el diálogo «Crear recordatorio» desbordaba **317 px** | La prueba móvil nueva, midiendo el diálogo | `[overflow-wrap:anywhere]` en la vista previa; `break-words` no bastaba. «Para enviar ahora», medido, no desborda: no se tocó |
+| 5 | La revisión visual capturó dos estados a mitad de una animación (un desplegable cerrándose y un diálogo abriéndose) | Las propias capturas | El guion espera a que no quede ninguna animación en curso; repetido |
+| 6 | En `acl-snapshot`, las dos RPC salían «distintas» entre el escenario A y el B | El comparador | Solo cambiaba el **orden** de las entradas del ACL —en B, `service_role` llega primero por el privilegio por defecto—: se comparan como conjunto, y son iguales |
+
+### Las pruebas nuevas, y cómo se supo que no son vacías
+
+| Suite | Resultado |
+|---|---|
+| `tests/db/payment-account-identifiers.test.ts` | ✅ **29/29** a la primera |
+| Mutación 1 — el índice de la `0051` (solo dígitos): para Bre-B la clave es nula y nada choca | ❌ **5** fallan: MI-07, MI-09, MI-10, MI-25 y MI-26 |
+| Mutación 2 — la extensión ingenua, `regexp_replace(coalesce(phone, account_number, identifier), '[^0-9]', '', 'g')` | ❌ **3** fallan: MI-03 («maria» y «@maria» chocan), MI-06 («@maria123» y «@pedro123» chocan) y MI-09 |
+| Mutación 3 — el recorte con `btrim` | ❌ **5** fallan, entre ellas **MI-15**, el recorrido de la BMP |
+| Las tres restauradas desde el texto de la `0074` | ✅ 29/29 |
+| Suites existentes: `payment-accounts-reminders`, `payment-reminder-engine` y `catalog` | ✅ **117/117** |
+| Unitarias de los tres archivos tocados | ✅ **77/77** (+25) |
+| E2E dirigidas: `configuracion-cobro.spec.ts` y `configuracion-cobro-movil.spec.ts` | ✅ **42/42** (31 de escritorio, 11 de teléfono; +8) |
+
+### La migración sobre datos que ya existían
+
+`db reset --local --version 0072 --no-seed`, `seed:local`, seis cuentas creadas **con la firma de la `0051`** —Nequi,
+Daviplata, banco, una archivada y dos de otro vendedor—, foto de cada fila entera, `migration up --local`:
+
+| Comprobación | Resultado |
+|---|---|
+| `0072 → 0074`, sin una fila de bitácora escrita por la migración (75 → 75) | ✅ |
+| **6/6 filas idénticas en todas sus columnas**, `updated_at` incluido, con `identifier` nulo | ✅ |
+| Todas las restricciones validadas sobre esos datos | ✅ |
+| Alta y edición con la llamada de hoy, sin `p_identifier` | ✅ |
+| Un Nequi repetido por dígitos contra una cuenta **anterior** a la migración | ✅ `23505` |
+| Volver a usar una archivada anterior, el tope con cinco activas, una Bre-B encima y reordenar viejas y nuevas | ✅ |
+| Catálogo resultante frente a la reconstrucción desde cero | ✅ **242 funciones idénticas**, mismas restricciones e índices |
+
+### El escenario B: el privilegio por defecto del proyecto alojado (I-132, I-143)
+
+`db reset --local --version 0072 --no-seed`, `alter default privileges for role postgres in schema public grant
+execute on functions to service_role` —por defecto de funciones `{postgres=X, service_role=X}`, el de producción— y
+`migration up --local`:
+
+| Comprobación | Resultado |
+|---|---|
+| Las 242 funciones frente al escenario A, como conjunto de permisos | ✅ **Idénticas** (solo cambia el orden de dos ACL) |
+| La autocomprobación de la `0074` | ✅ No abortó |
+| `verify-remote` contra esa base **local** (`SUPABASE_DB_URL` a `127.0.0.1` con `sslmode=disable`; `dotenv` no la sobrescribe, comprobado imprimiendo solo el host) | ✅ **44/44** |
+
+### Observación anterior a este encargo (I-147)
+
+Dos altas **simultáneas** del mismo vendedor con datos **distintos**, con dos transacciones reales: las dos eligen la
+posición 1; la primera confirma y la segunda falla **al confirmar** con `23505` en
+`seller_payment_accounts_slot_unique`. Estado final: una cuenta. **No se corrigió**: existe desde la `0051`.
+
+### Revisión visual
+
+Guion de Playwright fuera del repositorio, contra `dev:local` y con la cuenta del seed, sin escribir ninguna contraseña
+en el navegador integrado: cuatro cuentas —Nequi, banco, Bre-B con etiqueta y una «Otros» de cien caracteres sin
+espacios— y cinco estados —lista, alta de Bre-B, alta de «Otros» con error, edición de Bre-B y vista previa del
+recordatorio— a **320, 390, 1280 y 1440 px**: **desbordamiento 0 en los veinte**. La llave larga se parte dentro de
+su tarjeta y de la vista previa, y ninguna etiqueta privada aparece en el mensaje. **El portal no tiene tema oscuro**
+(`.dark` no se activa por la preferencia del sistema): la variante oscura salió en claro y no aporta nada.
+
+### Verificación final, en el orden en que se hizo
+
+Las cuatro primeras filas son **anteriores a la E2E**. Después cambiaron `scripts/verify-remote.ts` —sus dos
+comprobaciones nuevas—, el formato de cinco archivos y la documentación; por eso `verify` y `test:db` se repitieron al
+final y `verify-remote` se ejecutó después, en las dos bases que importan.
+
+| Verificación | Resultado |
+|---|---|
+| `npm run verify`, antes de la E2E | ✅ exit 0: lint **0 errores y los mismos 2 avisos** que la línea base (comparados), **1.522/1.522** unitarias en 80 archivos (+25), `next build` |
+| `db:reset` + Kong + `seed:local` | ✅ 74 migraciones desde cero. **I-028, variante**: el primer `seed:local` tras un reset dio **502**; reiniciar Kong y volver a sembrar bastó |
+| `npm run test:db`, antes de la E2E | ✅ **1.402 + 1 omitida** en 57 archivos (+29), 131,7 s |
+| `db:reset` + `seed:local` y servidor recién arrancado por Playwright | ✅ |
+| `npm run test:e2e` | ⚠️ **775/779** en 42,6 min. Las **8 nuevas**, en verde. Fallos: `ventas-por-fecha.spec.ts:163` —«esperado < 26, recibido **54**», la cifra de siempre de **I-090**—, `:247` —«Las fechas están al revés» resuelve a dos elementos, la otra cara de **I-090**—, `catalogo-publico-movil.spec.ts:103` —la dirección no llega a `q=0` en 15 s, **I-106**— y `premios-ganados.spec.ts:383` —el `innerText` de dos páginas difiere solo en «Todas las rifas» del desplegable, **I-148**— |
+| Formato | Durante la E2E, dos pruebas que no sirve el servidor —la nueva de base y una línea de `payment-accounts.test.ts`—; al terminar, los tres ajustes que se dejaron para después —para no recargar el servidor a mitad—: el orden de clases de `PaymentReminderDialog` y dos líneas de las E2E. **Todo lo que cumplía Prettier en `HEAD` sigue cumpliendo**, y en los cinco que no cumplían **ninguna línea nueva**, comparado línea a línea con lo que Prettier cambiaría en `HEAD`: las únicas «nuevas» son de `database.types.ts`, que el generador escribe con comillas dobles como sus otras 1.800 líneas |
+| `npm run verify`, primera vez tras la E2E | ❌ **exit 2** en `tsc`: `.next/dev/types/routes.d.ts` —generado por el `next dev` de la E2E— tenía **132 líneas en vez de 123**, una escritura más corta sin truncar (**I-149**). Arrancar `dev:local` y pedir una página lo reescribió: `tsc` exit 0 |
+| `npm run verify`, otra vez | ✅ **exit 0**: lint 0 errores y los 2 avisos de siempre, **1.522/1.522**, `next build` |
+| `verify-remote` contra local con la base en la **`0072`** | ✅ **44 OK y exactamente 2 FALLA**, las dos nuevas —«Cuentas de cobro: Bre-B, «Otros»…» (0 de 1) y «Funciones de la regla del identificador…» (0 de 2)—: es lo que dará producción hasta promover |
+| Y sobre esa base, con el privilegio por defecto de producción y `migration up` | ✅ **46/46** |
+| `db:reset` + `seed:local` y relanzados solos `premios-ganados`, `ventas-por-fecha`, `catalogo-publico-movil` y las dos de «Configuración» | ⚠️ **92/93**: pasan I-090, I-106 y `:383`; falla `premios-ganados.spec.ts:443` —tras recargar, Atrás deja la dirección en `dateFrom=…`— |
+| Las dos de «Premios ganados», repetidas con D-209 | `:383` **3/3** y `:443` **1/3** en el repositorio; las mismas cifras en un *worktree* de `735eb67` **con el parche de D-209 aplicado** |
+| **Las mismas, en un *worktree* de `735eb67` SIN D-209**, con `node_modules` copiado en local y la misma base | En frío, **6/6**. Con el servidor ya caliente, `:443` **falla 4 de 5** y `:383` pasa **5/5**. **La `:443` es anterior a D-209.** La `:383` no se reprodujo en `HEAD` (1 de 8 con D-209, 0 de 8 sin él) y ninguna ruta de D-209 llega a esa pantalla: queda registrada en **I-148** con las dos cifras. El *worktree* se retiró; la *junction* que se probó primero —Turbopack la rechaza: «points out of the filesystem root»— se quitó con `rmdir` antes, y el `node_modules` real conservó sus 400 carpetas |
+| `db:reset` + `seed:local` + `npm run test:db`, sobre el código definitivo | ✅ **1.402 + 1 omitida** en 57 archivos, 128,8 s |
+| Al terminar | ✅ `db:reset` + `seed:local`: 74 migraciones, 2 organizaciones, 6 perfiles, 33 boletas y 0 cuentas; ningún servidor en marcha |
 
 ## Historial de premios ganados: la promoción en producción (D-208, `RUNBOOK` §9) — 2026-09-18/19
 

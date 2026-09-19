@@ -49,6 +49,7 @@ function account(overrides: Partial<PaymentAccount> = {}): PaymentAccount {
     bankName: null,
     accountType: null,
     accountNumber: null,
+    identifier: null,
     label: null,
     sortOrder: 1,
     archivedAt: null,
@@ -145,6 +146,54 @@ describe('el mensaje completo (BR-S07)', () => {
 
     expect(antes).not.toBe(despues)
     expect(despues).toContain('Ana María Torres')
+  })
+})
+
+describe('Bre-B y «Otros» en el mensaje (BR-M10, BR-S07, D-209)', () => {
+  const breb = account({
+    id: 'k',
+    kind: 'breb',
+    phone: null,
+    identifier: '@Maria_07.x',
+    label: 'La llave del negocio',
+    sortOrder: 2,
+  })
+  const otros = account({
+    id: 'o',
+    kind: 'other',
+    phone: null,
+    identifier: '0012-AbC/#',
+    label: 'Mi Movii',
+    sortOrder: 3,
+  })
+
+  it('salen al final, en su orden, con la llave y el identificador tal cual', () => {
+    const message = buildReminderMessage(reminder(), [otros, account(), breb])
+    const block = message.slice(message.indexOf('Puedes pagar aquí:')).split('\n')
+
+    expect(block).toEqual([
+      'Puedes pagar aquí:',
+      '• Nequi · 300 123 4567 · Ana Torres',
+      '• Bre-B · @Maria_07.x · Ana Torres',
+      '• Otros · 0012-AbC/# · Ana Torres',
+    ])
+  })
+
+  it('el nombre para reconocerla NO viaja: es del vendedor', () => {
+    const message = buildReminderMessage(reminder(), [breb, otros])
+    expect(message).not.toContain('La llave del negocio')
+    expect(message).not.toContain('Mi Movii')
+  })
+
+  it('una llave sin «@» no gana ninguno, y una con mayúsculas no las pierde', () => {
+    const sinArroba = account({ kind: 'breb', phone: null, identifier: 'MariaG' })
+    expect(accountsBlock([sinArroba])).toContain('• Bre-B · MariaG · Ana Torres')
+    expect(accountsBlock([sinArroba])).not.toContain('@MariaG')
+  })
+
+  it('archivadas, tampoco entran', () => {
+    const archivada = { ...breb, archivedAt: '2026-09-01T00:00:00Z', sortOrder: null }
+    expect(accountsBlock([archivada])).toBe('')
   })
 })
 

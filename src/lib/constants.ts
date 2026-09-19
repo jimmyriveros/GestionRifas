@@ -199,15 +199,19 @@ export const RAFFLE_STATUS_LABELS: Record<RaffleStatus, string> = {
 }
 
 /**
- * Donde un vendedor recibe los pagos de sus clientes (BR-M03, D-188).
+ * Donde un vendedor recibe los pagos de sus clientes (BR-M03, D-188, D-209).
  *
- * Son nombres propios y por eso se escriben como los escribe su dueño: «Nequi»
- * y «Daviplata» con mayuscula inicial, y «Cuenta bancaria» como categoria.
+ * Son nombres propios y por eso se escriben como los escribe su dueño: «Nequi»,
+ * «Daviplata» y «Bre-B» —el del Banco de la República, con su guion—, y
+ * «Cuenta bancaria» como categoria. «Otros» es el nombre de la opcion que pidio
+ * el dueño del producto, y es tambien lo que lee el cliente en el mensaje.
  */
 export const PAYMENT_ACCOUNT_KIND_LABELS: Record<PaymentAccountKind, string> = {
   nequi: 'Nequi',
   daviplata: 'Daviplata',
   bank: 'Cuenta bancaria',
+  breb: 'Bre-B',
+  other: 'Otros',
 }
 
 /**

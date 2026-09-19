@@ -29,7 +29,7 @@ export async function listPaymentAccounts(): Promise<PaymentAccount[]> {
   const { data, error } = await supabase
     .from('seller_payment_accounts')
     .select(
-      'id, kind, holder_name, phone, bank_name, account_type, account_number, label, sort_order, archived_at',
+      'id, kind, holder_name, phone, bank_name, account_type, account_number, identifier, label, sort_order, archived_at',
     )
     .order('sort_order', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
@@ -44,6 +44,7 @@ export async function listPaymentAccounts(): Promise<PaymentAccount[]> {
     bankName: row.bank_name,
     accountType: row.account_type,
     accountNumber: row.account_number,
+    identifier: row.identifier,
     label: row.label,
     sortOrder: row.sort_order,
     archivedAt: row.archived_at,

@@ -49,6 +49,10 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   clients_seller_org_fk: 'El vendedor indicado no pertenece a la organización.',
   profiles_phone_check: 'El teléfono no tiene un formato válido.',
   clients_phone_check: 'El teléfono no tiene un formato válido.',
+  // BR-M08 (0074, D-209): la misma cuenta dos veces sin archivar. Vale para las
+  // tres puertas por donde se llega —agregar, editar y volver a usar— y para
+  // dos peticiones simultaneas, porque lo dice el indice y no la RPC.
+  seller_payment_accounts_no_duplicates: 'Ya tienes una cuenta igual en tu lista.',
 }
 
 const GENERIC_MESSAGE = 'Ocurrió un error. Intenta de nuevo.'

@@ -167,6 +167,96 @@ test('el dialogo se completa entero, y la cuenta queda en la lista', async ({ pa
   await expectNoHorizontalOverflow(page)
 })
 
+/*
+ * BRE-B Y «OTROS» EN EL TELÉFONO (BR-M10, D-209). Lo que importa aquí es lo que
+ * decide el teclado: un campo de TEXTO —no el de teléfono, que no tiene «@»—,
+ * sin mayúscula automática ni corrector, y que la llave se pueda escribir
+ * tecla a tecla, con el «@» incluido.
+ */
+test('Bre-B: su etiqueta, un teclado con símbolos y el «@» escrito tecla a tecla', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await loginAs(page, ACCOUNTS.seller)
+  await page.goto('/seller/settings/accounts')
+
+  await page.getByRole('button', { name: 'Agregar cuenta' }).click()
+  await page.getByRole('combobox', { name: '¿Dónde recibes el pago?' }).click()
+  await page.getByRole('option', { name: 'Bre-B', exact: true }).click()
+
+  // La etiqueta nombra al campo, y el campo no es el de teléfono.
+  await expect(page.getByLabel('Teléfono')).toHaveCount(0)
+  const llave = page.getByLabel('Tu llave')
+  await expect(llave).toBeVisible()
+  await expect(llave).toHaveAttribute('type', 'text')
+  await expect(llave).toHaveAttribute('inputmode', 'text')
+  await expect(llave).toHaveAttribute('autocapitalize', 'none')
+  await expect(llave).toHaveAttribute('autocorrect', 'off')
+
+  // En la diana táctil, como el resto del diálogo (`getComputedStyle`, D-177).
+  const alto = await llave.evaluate((el) => parseFloat(getComputedStyle(el).height))
+  expect(alto).toBeGreaterThanOrEqual(44)
+
+  // Tecla a tecla, como la escribe un dedo: el «@» llega y nada se transforma.
+  await llave.pressSequentially('@Maria.Gomez_7')
+  await expect(llave).toHaveValue('@Maria.Gomez_7')
+  await page.getByLabel('Titular').fill('Ana Torres')
+
+  const submit = page.getByRole('button', { name: 'Guardar cuenta' })
+  await submit.scrollIntoViewIfNeeded()
+  await submit.click()
+
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByText('Bre-B · @Maria.Gomez_7 · Ana Torres')).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})
+
+test('«Otros» a 320 px: su etiqueta y una llave larga que no desborda nada', async ({ page }) => {
+  // Cien caracteres sin un solo espacio: el peor caso para partir una línea.
+  const larga = `${'ana.maria.torres.gonzalez'.repeat(3)}@correo-de-la-empresa.com.co`.slice(0, 100)
+  expect(larga).toHaveLength(100)
+
+  await page.setViewportSize({ width: 320, height: 720 })
+  await loginAs(page, ACCOUNTS.seller)
+  await page.goto('/seller/settings/accounts')
+
+  await page.getByRole('button', { name: 'Agregar cuenta' }).click()
+  await page.getByRole('combobox', { name: '¿Dónde recibes el pago?' }).click()
+  await page.getByRole('option', { name: 'Otros', exact: true }).click()
+  await page.getByLabel('Número o identificador').fill(larga)
+  await page.getByLabel('Titular').fill('Ana Torres')
+  const submit = page.getByRole('button', { name: 'Guardar cuenta' })
+  await submit.scrollIntoViewIfNeeded()
+  await submit.click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // La lista la parte en varias líneas en vez de empujar la página.
+  await expect(page.getByText(larga, { exact: false })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+
+  // Y la vista previa del recordatorio tampoco se sale de su recuadro.
+  await page.goto('/seller/settings/reminders')
+  await page.getByRole('button', { name: 'Crear recordatorio' }).click()
+  const vista = page.getByRole('dialog').getByText('Puedes pagar aquí:', { exact: false })
+  await expect(vista).toBeVisible()
+  const desborde = await vista.evaluate((el) => el.scrollWidth - el.clientWidth)
+  expect(desborde).toBeLessThanOrEqual(0)
+  const dialogo = await page.getByRole('dialog').evaluate((el) => el.scrollWidth - el.clientWidth)
+  expect(dialogo).toBeLessThanOrEqual(0)
+  await page.getByRole('button', { name: 'Cancelar' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // «Para enviar ahora» pinta el mismo mensaje fuera de un diálogo: tampoco.
+  await pendienteDeEnviar()
+  await page.goto('/seller/settings/reminders')
+  const seccion = page.getByRole('region', { name: 'Para enviar ahora' })
+  const mensaje = seccion.getByText('Puedes pagar aquí:', { exact: false })
+  await expect(mensaje).toBeVisible()
+  expect(await mensaje.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  expect(await seccion.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('el recordatorio y su vista previa caben en el telefono', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 })
   await loginAs(page, ACCOUNTS.seller)

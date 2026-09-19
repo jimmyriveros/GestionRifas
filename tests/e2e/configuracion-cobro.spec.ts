@@ -242,6 +242,198 @@ test.describe('cuentas para recibir pagos', () => {
   })
 })
 
+/*
+ * =============================================================================
+ * BRE-B Y «OTROS» (BR-M03, BR-M04, BR-M08, BR-M10; D-209)
+ *
+ * Lo que solo se ve en un navegador: que la llave se escribe en un campo de
+ * TEXTO —no en el de teléfono, que esconde el «@»—, que se guarda y se enseña
+ * tal cual, que los duplicados se explican con una frase y que el mensaje del
+ * recordatorio la lleva sin el nombre para reconocerla. La regla completa
+ * (recorte, largo, invisibles, concurrencia) vive en
+ * `tests/db/payment-account-identifiers.test.ts`.
+ * =============================================================================
+ */
+
+/** Elige una forma en el desplegable del diálogo de alta. */
+async function chooseKind(page: Page, kind: 'Bre-B' | 'Otros' | 'Cuenta bancaria' | 'Nequi') {
+  await page.getByRole('combobox', { name: '¿Dónde recibes el pago?' }).click()
+  await page.getByRole('option', { name: kind, exact: true }).click()
+}
+
+/** Agrega una Bre-B o una «Otros» por la interfaz y espera a que el diálogo se cierre. */
+async function addIdentifierAccount(
+  page: Page,
+  kind: 'Bre-B' | 'Otros',
+  identifier: string,
+  options: { holder?: string; label?: string } = {},
+) {
+  await page.getByRole('button', { name: 'Agregar cuenta' }).click()
+  await chooseKind(page, kind)
+  await page.getByLabel(kind === 'Bre-B' ? 'Tu llave' : 'Número o identificador').fill(identifier)
+  await page.getByLabel('Titular').fill(options.holder ?? 'Ana Torres')
+  if (options.label) await page.getByLabel('Nombre para reconocerla').fill(options.label)
+  await page.getByRole('button', { name: 'Guardar cuenta' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+}
+
+test.describe('Bre-B y «Otros»', () => {
+  test('Bre-B: la llave va en un campo de texto y se guarda tal cual, sin «@» añadido', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/accounts')
+
+    await page.getByRole('button', { name: 'Agregar cuenta' }).click()
+    await chooseKind(page, 'Bre-B')
+
+    // Sin teléfono ni banco: un solo campo, de texto, con su etiqueta.
+    await expect(page.getByLabel('Teléfono')).toHaveCount(0)
+    await expect(page.getByLabel('Banco')).toHaveCount(0)
+    const llave = page.getByLabel('Tu llave')
+    await expect(llave).toHaveAttribute('type', 'text')
+    await expect(llave).toHaveAttribute('inputmode', 'text')
+    await expect(llave).toHaveAttribute('autocapitalize', 'none')
+    await expect(llave).toHaveAttribute('autocorrect', 'off')
+    await expect(llave).toHaveAttribute('spellcheck', 'false')
+    await expect(
+      page.getByText(
+        'Cópiala tal como aparece en tu banco: puede ser tu teléfono, tu correo o una llave como @maria.',
+      ),
+    ).toBeVisible()
+
+    // Espacios alrededor, que se van; mayúsculas, guion bajo y punto, que se quedan.
+    await llave.fill('  @Maria_07.x  ')
+    await page.getByLabel('Titular').fill('Ana Torres')
+    await page.getByRole('button', { name: 'Guardar cuenta' }).click()
+    await expectToast(page, 'La cuenta fue agregada.')
+    await expect(page.getByText('Bre-B · @Maria_07.x · Ana Torres')).toBeVisible()
+
+    // Una llave sin «@» se queda sin él.
+    await addIdentifierAccount(page, 'Bre-B', 'mariagomez')
+    await expect(page.getByText('Bre-B · mariagomez · Ana Torres')).toBeVisible()
+  })
+
+  test('«Otros»: letras, ceros y símbolos se conservan, y al editar el tipo no cambia', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/accounts')
+
+    await addIdentifierAccount(page, 'Otros', '0012-AbC/#')
+    await expect(page.getByText('Otros · 0012-AbC/# · Ana Torres')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Editar' }).click()
+    // El tipo es un dato, no una decisión (D-188).
+    await expect(page.getByRole('combobox', { name: '¿Dónde recibes el pago?' })).toHaveCount(0)
+    await expect(page.getByRole('dialog').getByText('Otros', { exact: true })).toBeVisible()
+    const campo = page.getByLabel('Número o identificador')
+    await expect(campo).toHaveValue('0012-AbC/#')
+
+    await campo.fill('0012-AbD/#')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expectToast(page, 'Los cambios fueron guardados.')
+    await expect(page.getByText('Otros · 0012-AbD/# · Ana Torres')).toBeVisible()
+  })
+
+  test('los mismos dígitos no hacen dos llaves iguales; la misma, dos veces, se explica', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/accounts')
+
+    await addIdentifierAccount(page, 'Bre-B', '@maria123')
+    await addIdentifierAccount(page, 'Bre-B', '@pedro123')
+    await expect(page.getByText('Bre-B · @maria123 · Ana Torres')).toBeVisible()
+    await expect(page.getByText('Bre-B · @pedro123 · Ana Torres')).toBeVisible()
+
+    // La misma otra vez: el diálogo se queda abierto y lo dice con una frase.
+    await page.getByRole('button', { name: 'Agregar cuenta' }).click()
+    await chooseKind(page, 'Bre-B')
+    await page.getByLabel('Tu llave').fill(' @maria123 ')
+    await page.getByLabel('Titular').fill('Ana Torres')
+    await page.getByRole('button', { name: 'Guardar cuenta' }).click()
+    await expect(page.getByRole('dialog').getByRole('alert')).toHaveText(
+      'Ya tienes una cuenta igual en tu lista.',
+    )
+    await expect(page.getByLabel('Tu llave')).toHaveValue(' @maria123 ')
+  })
+
+  test('vacía o demasiado larga, lo dice antes de ir al servidor', async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/accounts')
+
+    await page.getByRole('button', { name: 'Agregar cuenta' }).click()
+    await chooseKind(page, 'Bre-B')
+    await page.getByLabel('Titular').fill('Ana Torres')
+    await page.getByRole('button', { name: 'Guardar cuenta' }).click()
+    await expect(page.getByText('Escribe tu llave.')).toBeVisible()
+
+    await page.getByLabel('Tu llave').fill('a'.repeat(101))
+    await page.getByRole('button', { name: 'Guardar cuenta' }).click()
+    await expect(
+      page.getByText('La llave es demasiado larga. Usa 100 caracteres como máximo.'),
+    ).toBeVisible()
+
+    await chooseKind(page, 'Otros')
+    await page.getByLabel('Número o identificador').fill('   ')
+    await page.getByRole('button', { name: 'Guardar cuenta' }).click()
+    await expect(page.getByText('Escribe el número o identificador.')).toBeVisible()
+  })
+
+  test('el recordatorio las lleva al final, sin el nombre para reconocerlas', async ({ page }) => {
+    await stubShareAndClipboard(page, { share: 'unsupported', clipboard: 'ok' })
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/accounts')
+    await addIdentifierAccount(page, 'Bre-B', '@maria', { label: 'La del negocio' })
+    await addIdentifierAccount(page, 'Otros', 'Movii 300 123 4567', { label: 'Mi Movii' })
+
+    // La vista previa del formulario de recordatorio.
+    await page.goto('/seller/settings/reminders')
+    await page.getByRole('button', { name: 'Crear recordatorio' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByText('Puedes pagar aquí:')).toBeVisible()
+    await expect(dialog.getByText('• Bre-B · @maria · Ana Torres')).toBeVisible()
+    await expect(dialog.getByText('• Otros · Movii 300 123 4567 · Ana Torres')).toBeVisible()
+    await expect(dialog).not.toContainText('La del negocio')
+    await expect(dialog).not.toContainText('Mi Movii')
+    await page.getByRole('button', { name: 'Cancelar' }).click()
+
+    // Y lo que se copia de verdad cuando el recordatorio vence.
+    await pendienteDeEnviar(refs)
+    await page.goto('/seller/settings/reminders')
+    await page.getByRole('button', { name: 'Copiar mensaje' }).click()
+    await expectToast(page, 'Mensaje copiado')
+    const copiado = await clipboardWrites(page)
+    expect(copiado).toHaveLength(1)
+    expect(copiado[0]).toContain(
+      '• Bre-B · @maria · Ana Torres\n• Otros · Movii 300 123 4567 · Ana Torres',
+    )
+    expect(copiado[0]).not.toContain('La del negocio')
+    expect(copiado[0]).not.toContain('Mi Movii')
+  })
+
+  test('archivar una llave la libera, y volver a usarla con la misma activa se explica', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto('/seller/settings/accounts')
+    await addIdentifierAccount(page, 'Bre-B', '@maria')
+
+    await page.getByRole('button', { name: 'Archivar', exact: true }).click()
+    await page.getByRole('button', { name: 'Archivar cuenta' }).click()
+    await expectToast(page, 'La cuenta fue archivada.')
+
+    // Archivada, no impide agregar la misma.
+    await addIdentifierAccount(page, 'Bre-B', '@maria')
+    await expect(page.getByText('Bre-B · @maria · Ana Torres')).toHaveCount(2) // activa y archivada
+
+    await page.getByRole('button', { name: 'Volver a usar' }).click()
+    await expectToast(page, 'Ya tienes una cuenta igual en tu lista.')
+    await expect(page.getByText('Cuentas archivadas')).toBeVisible()
+  })
+})
+
 test.describe('recordatorios de pago', () => {
   test('crea uno y lo dice como se dice en voz alta', async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)

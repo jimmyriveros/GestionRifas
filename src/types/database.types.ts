@@ -1938,6 +1938,7 @@ export type Database = {
           created_at: string
           holder_name: string
           id: string
+          identifier: string | null
           kind: Database["public"]["Enums"]["payment_account_kind"]
           label: string | null
           organization_id: string
@@ -1954,6 +1955,7 @@ export type Database = {
           created_at?: string
           holder_name: string
           id?: string
+          identifier?: string | null
           kind: Database["public"]["Enums"]["payment_account_kind"]
           label?: string | null
           organization_id: string
@@ -1970,6 +1972,7 @@ export type Database = {
           created_at?: string
           holder_name?: string
           id?: string
+          identifier?: string | null
           kind?: Database["public"]["Enums"]["payment_account_kind"]
           label?: string | null
           organization_id?: string
@@ -2744,6 +2747,7 @@ export type Database = {
           created_at: string
           holder_name: string
           id: string
+          identifier: string | null
           kind: Database["public"]["Enums"]["payment_account_kind"]
           label: string | null
           organization_id: string
@@ -2944,6 +2948,7 @@ export type Database = {
           p_account_type?: Database["public"]["Enums"]["bank_account_type"]
           p_bank_name?: string
           p_holder_name: string
+          p_identifier?: string
           p_kind: Database["public"]["Enums"]["payment_account_kind"]
           p_label?: string
           p_phone?: string
@@ -2956,6 +2961,7 @@ export type Database = {
           created_at: string
           holder_name: string
           id: string
+          identifier: string | null
           kind: Database["public"]["Enums"]["payment_account_kind"]
           label: string | null
           organization_id: string
@@ -3080,6 +3086,17 @@ export type Database = {
         Returns: undefined
       }
       org_staff_profile_ids: { Args: { p_org: string }; Returns: string[] }
+      payment_account_identifier_problem: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["payment_account_kind"]
+          p_value: string
+        }
+        Returns: string
+      }
+      payment_account_identifier_trim: {
+        Args: { p_value: string }
+        Returns: string
+      }
       payment_reminder_grace: { Args: never; Returns: string }
       process_due_payment_reminders: {
         Args: { p_limit?: number }
@@ -3531,6 +3548,7 @@ export type Database = {
           created_at: string
           holder_name: string
           id: string
+          identifier: string | null
           kind: Database["public"]["Enums"]["payment_account_kind"]
           label: string | null
           organization_id: string
@@ -3611,6 +3629,7 @@ export type Database = {
           created_at: string
           holder_name: string
           id: string
+          identifier: string | null
           kind: Database["public"]["Enums"]["payment_account_kind"]
           label: string | null
           organization_id: string
@@ -3938,6 +3957,7 @@ export type Database = {
           p_bank_name?: string
           p_holder_name: string
           p_id: string
+          p_identifier?: string
           p_label?: string
           p_phone?: string
         }
@@ -3949,6 +3969,7 @@ export type Database = {
           created_at: string
           holder_name: string
           id: string
+          identifier: string | null
           kind: Database["public"]["Enums"]["payment_account_kind"]
           label: string | null
           organization_id: string
@@ -4060,7 +4081,7 @@ export type Database = {
         | "schedule_conflict"
       lottery_sync_kind: "schedule" | "results"
       lottery_sync_outcome: "success" | "partial" | "failed" | "skipped"
-      payment_account_kind: "nequi" | "daviplata" | "bank"
+      payment_account_kind: "nequi" | "daviplata" | "bank" | "breb" | "other"
       payment_method: "cash" | "transfer" | "other"
       payment_reminder_status: "active" | "paused" | "archived"
       push_outbox_status: "queued" | "sending" | "sent" | "failed"
@@ -4254,7 +4275,7 @@ export const Constants = {
       ],
       lottery_sync_kind: ["schedule", "results"],
       lottery_sync_outcome: ["success", "partial", "failed", "skipped"],
-      payment_account_kind: ["nequi", "daviplata", "bank"],
+      payment_account_kind: ["nequi", "daviplata", "bank", "breb", "other"],
       payment_method: ["cash", "transfer", "other"],
       payment_reminder_status: ["active", "paused", "archived"],
       push_outbox_status: ["queued", "sending", "sent", "failed"],

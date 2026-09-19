@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.43 · **Estado:** implementado · **Actualizado:** 2026-09-18 (**§8.28**: la Etapa 3 del historial —el desplegable del personal lee también `admin_prize_award_sellers` (`0070`) y el aviso de cobertura aclara el alcance con cualquier filtro—). Antes, el 2026-09-17 (**§6** y **§8.28**: «Premios
+- **Versión:** 1.44 · **Estado:** implementado · **Actualizado:** 2026-09-19 (**§8.23**: Bre-B y «Otros» —D-209,
+  **solo en local**—: `accountShape` decide el campo, la llave va en un `Input` de texto y no en `PhoneInput`, y un
+  texto largo dentro de un diálogo lleva `[overflow-wrap:anywhere]`, I-146). Antes, el 2026-09-18 (**§8.28**: la Etapa 3 del historial —el desplegable del personal lee también `admin_prize_award_sellers` (`0070`) y el aviso de cobertura aclara el alcance con cualquier filtro—). Antes, el 2026-09-17 (**§6** y **§8.28**: «Premios
   ganados» en los dos portales y los resúmenes de las fichas —D-208, Etapa 2, migración `0069`, **solo en
   local**—). Antes, ese mismo día (**§8.27.a** y **§8.27.b**:
   premios configurables **en producción** —`0058`–`0066` aplicadas, `da81663` desplegado y la rifa real
@@ -1767,6 +1769,20 @@ cuentas no saben nada de recordatorios. Esa dirección es lo que permite que la 
 `FormControl`, y con él se va el `htmlFor` de la etiqueta: el desplegable deja de tener nombre
 accesible —no lo anuncia un lector de pantalla y no lo encuentra `getByRole('combobox', { name })`—.
 Lo encontró una prueba de esta etapa (D-188).
+
+**Bre-B y «Otros» (D-209, solo en local).** Qué campo se pinta lo decide **`accountShape(kind)`**
+(`accounts.ts`): `phone` —Nequi y Daviplata, con `PhoneInput`—, `bank` y `identifier` —Bre-B y «Otros»—. Es un
+`switch` **sin `default`**, así que una forma nueva que no decida su rama no compila, igual que en la base cae en
+`else false`. La rama `identifier` es un **`Input` de texto**, nunca `PhoneInput` ni `inputMode="numeric"`, que
+esconden el «@» y las letras: `type="text"`, `inputMode="text"`, y `autoCapitalize="none"`, `autoCorrect="off"` y
+`spellCheck={false}` para que el teléfono no cambie lo escrito. La regla del texto está **una vez por capa**:
+`identifierProblem` e `IDENTIFIER_FORBIDDEN_RANGES` en TypeScript —rangos numéricos, sin un carácter invisible en el
+archivo— y dos funciones inmutables en SQL; las pruebas comparan las dos.
+
+⚠️ **Un texto que puede traer una palabra larga, dentro de un diálogo, lleva `[overflow-wrap:anywhere]`, no
+`break-words`.** `DialogContent` es una rejilla y sus filas no bajan de su ancho mínimo: `break-words` no lo reduce, y
+un identificador de cien caracteres sin espacios ensanchaba «Crear recordatorio» 317 px a 320 (I-146). Fuera de una
+rejilla —«Para enviar ahora»— `break-words` basta, y se midió.
 
 **La pantalla de recordatorios, en dos columnas** (mantenimiento solo de presentación, 2026-09-12).
 Ningún texto, dato, consulta ni regla cambió. Lo que conviene saber antes de moverla:
