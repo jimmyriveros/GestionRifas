@@ -27,7 +27,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (**50** aplicadas, hasta `0050`) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
+| Migraciones (**72** aplicadas, hasta `0072`, desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
 | **`0050` aplicada el 2026-09-08** (D-176) | La invitación al grupo de WhatsApp. **Aditiva y sin una sola sentencia de datos**: tres columnas nuevas en `memberships` que nacen nulas o en `false`, tres CHECK y una RPC; no toca ninguna tabla, política, función ni restricción existente. Promovida con el procedimiento completo: respaldo en `Rifas-backups/2026-09-08-pre-0050/` (4,1 MB, 19 tablas, **0** identidades de Auth), sonda de solo lectura **antes**, `db push --dry-run` confirmando que **solo** aparecía `0050`, aplicación **antes** del despliegue y la **misma sonda después**. **Las 30 cifras de negocio salieron idénticas** —981 boletas, 540 clientes, 352 pagos, $32.780.000 abonados, 4.816 de bitácora— y lo único que se movió fue el número de migración, las tres columnas y la RPC. Comprobado además que `memberships_update_staff` **sigue siendo la única política de escritura**, que la RPC **no es ejecutable por `anon`** y que **0 filas** tienen algo escrito en las columnas nuevas |
 | RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
@@ -159,6 +159,22 @@ local** (RUNBOOK §5.2): mismas cifras que la línea base.
 | Delta de estructura | **Idéntico al ensayado en local con los privilegios del proyecto alojado**: +6 tablas (vacías), +67 columnas, +67 restricciones (y 1 modificada), +20 índices, +15 disparadores, +5 políticas, +58 funciones (y 4 redefinidas) y +6 tipos |
 | Datos | **Ninguna fila de negocio cambió**: las dos rifas quedaron en `legacy` con sus fechas, sin premios, sin transición y sin avisos nuevos |
 | CI | ✅ 2/2 (run `35231507321`), incluido el job que aplica las 66 migraciones desde cero |
+
+#### Promoción de `0067`–`0072` — 2026-09-18 (historial de premios ganados, puerta 1 de `RUNBOOK` §9)
+
+**La base de producción pasa de 66 a 72 migraciones**, con autorización expresa del dueño —adelantada por él de la
+franja de madrugada a ejecución inmediata—. Respaldo previo en `Rifas-backups/2026-09-18-antes-0067-0072/`,
+**validado restaurándolo en la base local**: 30 tablas y 11.207 filas iguales a la foto `p1-antes`. Evidencia completa
+en `TEST_RESULTS` («la promoción en producción»).
+
+| Qué | Resultado |
+|---|---|
+| Respaldo (23:54:08–23:55:42 UTC) | `roles.sql` (370 B), `schema.sql` (594 KB) y `data.sql` (5,3 MB, 29 tablas con datos). **0** nombres `"auth".` cualificados, **0** `INSERT INTO "auth"` y **0** credenciales |
+| Delta esperado | Regenerado con los privilegios de producción de ese momento: **idéntico byte a byte** al aprobado en la Etapa 4 |
+| `db push --dry-run` | Exactamente `0067`–`0072`, en orden (23:57:36 UTC) |
+| `db push --yes` | Aplicadas de **23:57:52 a 23:58:31 UTC**; `migration list` con `0001`–`0072` iguales en los dos entornos |
+| `npm run verify:remote` | ✅ **44/44**, con las tres del historial que estaban en rojo a propósito |
+| Comparación por fila (`--operation migrations`) | **CONTINUAR**: 0 diferencias con el delta ensayado, `declared_prize_awards` vacía, **ninguna fila de negocio tocada** |
 
 ---
 
@@ -669,6 +685,36 @@ protegidas redirigidas y el Auth de Supabase respondiendo. **Errores de ejecuci�
 > —`git diff da81663 6da9bcb` fuera de `docs/`, vacío—, y el dominio sirve su identificador, **`c3d720898c56`**
 > (el de `da81663`, `9c2d9748c2e7`, ya no aparece). El código servido es el mismo; lo que cambia es el **punto de
 > reversión** de la próxima promoción, que pasa a ser `dpl_CE4VvypDjs3nueph1g39Je9Lsya1` (`RUNBOOK` §9.8).
+
+### 3.2.l Release del historial de premios ganados — 2026-09-19
+
+**Las seis migraciones (§2.2), los dos premios reconocidos por el dueño y el código de las pantallas, en tres
+puertas** (`RUNBOOK` §9). La tercera quedó **desplegada y en verde en vivo, con el CI en rojo por I-140**.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`318357ce0139e93ded27cf23cb8416b75e7f8bcc`**, el autorizado —no el HEAD posterior de la rama— |
+| Commit anterior en producción | `6da9bcbc9c42e17bc142adbf41c84ecfba9d0efd` |
+| Integración | **fast-forward** `6da9bcb..318357c`, 9 commits, sin merge, sin force y sin etiqueta (push de 00:03:51 a 00:03:58 UTC) |
+| Despliegue Vercel | `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE` — READY a las **00:04:55 UTC**, alias `gestion-rifas.vercel.app`, sin error de alias |
+| Despliegue anterior (**punto de reversión del código**) | `dpl_CE4VvypDjs3nueph1g39Je9Lsya1` (`6da9bcb`): el **inmediatamente anterior** y candidato a *Instant Rollback* —en Hobby solo se puede volver a ese—. Comprobado en solo lectura con la cuenta **OWNER** de la CLI; **no se ejecutó** |
+| **Migraciones** | `0067`–`0072`, aplicadas **antes** del código (§2.2) |
+| **Datos** | Dos reconocimientos en `declared_prize_awards` —Bogotá 2862 y Cundinamarca 4820, «Premio diario», $500.000 cada uno, sin actor— y una fila `prize_award.record` de bitácora, por el cargador y con la huella de su vista previa |
+| Variables de entorno, dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `vercel.json`, ni `next.config.ts`, ni `.github/`, ni `.env.example` |
+
+**Verificación en vivo** (`build/gate/en-vivo-p3.mjs`): identificador **`76a253b25ca1`** servido (1 de 15 fragmentos) y
+el anterior (`c3d720898c56`) **desaparecido**; **30/30** rutas —`/owner/prizes` y `/seller/prizes` cerradas sin
+sesión— y **ningún 5xx**; las cuatro exportaciones sin CSV sin sesión; **7/7** cabeceras con CSP por nonce; **0
+secretos** en 950 KB. `verify:remote` **44/44**, la comparación por fila **CONTINUAR** y **ningún error de ejecución**
+en Vercel desde el despliegue.
+
+> ⚠️ **El CI de `318357c` terminó en rojo** (run `35408036412`): «Typecheck, lint, unitarias, build» en verde y, en el
+> job de base, **1 prueba fallida de 1.374** —`admin-privacy.test.ts`, la de I-140—, porque en el runner corrieron
+> antes cinco suites que crean premios. Las migraciones desde cero entraron. La puerta 3 **no se dio por cerrada** y
+> **no se revirtió**: no hay un fallo atribuible al despliegue. Qué hacer, en `KNOWN_ISSUES` I-140.
+
+> **Lo que este release NO verificó:** las pantallas **con sesión** —un agente no introduce contraseñas—. Los
+> recorridos del dueño, el administrador y los vendedores están en `RUNBOOK` §9.9.
 
 ### 3.3 Despliegues futuros
 

@@ -626,7 +626,8 @@ select raffle_prize_draw_mode('<RIFA>', s), raffle_prize_draw_cutoff(s)
 
 ## 9. Promoción del historial de premios ganados (Etapa 4 de D-208)
 
-> ⚠️ **PREPARADO Y COMPROBADO EN SOLO LECTURA (Etapa 4, 2026-09-18), NO EJECUTADO.** Nada de esta sección que
+> ⚠️ **EJECUTADO EL 2026-09-18/19, CON LA PUERTA 3 DETENIDA POR EL CI (I-140)** —ver la última nota de este aviso—.
+> Se preparó y comprobó en solo lectura en la Etapa 4. Nada de esta sección que
 > escriba se ejecuta sin autorización expresa, y **cada puerta se autoriza por separado**. El estado real de
 > producción se leyó el 2026-09-18 entre las 19:14 y las 19:31 UTC (§9.1): **no** es el que decía el relevo en
 > un punto —el despliegue servido es `6da9bcb`, no `da81663`— y la diferencia está explicada. La primera versión
@@ -637,6 +638,13 @@ select raffle_prize_draw_mode('<RIFA>', s), raffle_prize_draw_cutoff(s)
 > locales presentadas como de producción y con la misma foto en los dos extremos. Las fotos son ahora
 > `gate-snapshot/v2` y ningún veredicto sale sin comprobar su **procedencia** (§9.0). **Las fotos de la Etapa 4 no
 > sirven para un veredicto:** son evidencia histórica, y en cada puerta se toman de nuevo.
+>
+> **Ejecutado el 2026-09-18/19**, con autorización expresa del dueño —adelantada por él de la franja de madrugada a
+> ejecución inmediata, con todas las demás condiciones—: **puerta 1** ✅ (`0067`–`0072`, 23:57:52–23:58:31 UTC, respaldo
+> validado, 44/44, CONTINUAR); **puerta 2** ✅ (los dos premios, 00:01:02–00:01:05 UTC, $1.000.000, conciliado); **puerta
+> 3** ⚠️ **desplegada** (`318357c`, `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE`) y en verde en vivo, en `verify:remote` y en la
+> comparación, pero con el **CI en rojo por I-140**: no se dio por cerrada y **no se revirtió** (§9.8). Evidencia en
+> `TEST_RESULTS` y `DEPLOYMENT` §2.2 y §3.2.l. Queda: la decisión del dueño sobre I-140 y los recorridos de §9.9.
 
 Lo que se promueve: las migraciones **`0067`–`0072`** —el historial, sus correcciones, la cobertura, quién aparece
 como vendedor para el personal, el inicio operativo que no se pliega y el permiso de `current_seller_org_ids()`
@@ -657,9 +665,9 @@ vendedor puede tenerlos. Los totales se **concilian**: los de antes, más el cam
 | # | Puerta —se pregunta tal cual y se espera un «sí»— | Qué escribe | Estado |
 |---|---|---|---|
 | 0 | Comprobaciones de solo lectura del proyecto real | Nada | ✅ **Hecha el 2026-09-18** (§9.1). Se repite, como línea base, justo antes de cada puerta que escribe |
-| 1 | «¿Autorizas aplicar en producción las migraciones `0067`–`0072`, con respaldo nuevo inmediatamente antes?» | Respaldo (§5.1), `db push` | Pendiente de autorización |
-| 2 | «¿Autorizas reconocer en producción los dos premios confirmados, $1.000.000, con el cargador: vista previa y, si coincide, aplicar con su huella?» | 2 filas en `declared_prize_awards` y 1 en `audit_logs` | Pendiente; exige la puerta 1 |
-| 3 | «¿Autorizas desplegar en producción el commit <SHA>?» | El despliegue | Pendiente; exige la puerta 1 |
+| 1 | «¿Autorizas aplicar en producción las migraciones `0067`–`0072`, con respaldo nuevo inmediatamente antes?» | Respaldo (§5.1), `db push` | ✅ **Hecha el 2026-09-18**, 23:57:52–23:58:31 UTC: respaldo validado en local, `verify:remote` 44/44, comparación CONTINUAR |
+| 2 | «¿Autorizas reconocer en producción los dos premios confirmados, $1.000.000, con el cargador: vista previa y, si coincide, aplicar con su huella?» | 2 filas en `declared_prize_awards` y 1 en `audit_logs` | ✅ **Hecha el 2026-09-19**, 00:01:02–00:01:05 UTC: 2 reconocidos, $1.000.000, T1 conciliado |
+| 3 | «¿Autorizas desplegar en producción el commit <SHA>?» | El despliegue | ⚠️ **Desplegada el 2026-09-19** (`318357ce…`, READY 00:04:55 UTC): en verde en vivo, 44/44 y CONTINUAR; **CI en rojo por I-140** → no cerrada, sin revertir |
 
 **Por qué en este orden.** Las migraciones **antes que el código**: las pantallas llaman a funciones que solo
 existen desde `0067`–`0072`, y con el código primero las cuatro superficies dirían «No pudimos cargar los premios

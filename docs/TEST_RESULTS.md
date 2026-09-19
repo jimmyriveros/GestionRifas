@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-145: la procedencia de las fotos de puerta, corregida en local antes de la puerta 1, sin migración, 2026-09-18)** | **1.497 ✅ en 80 archivos (+9)**: T6, de dónde viene una foto y si sirve para una puerta | **1.373 ✅ y 1 omitida, en 56 archivos (+15)**: `gate-provenance.test.ts`, con las herramientas de verdad; **las 15 fallaban antes** de corregir | **No se repitió**: no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · `verify:remote` no se ejecutó: la corrección no lee producción | 🔧 **Solo local**: las dos órdenes del dueño daban CONTINUAR con fotos locales presentadas como de producción; ahora, **sin veredicto**. El ensayo de las seis migraciones, repetido: el mismo delta, byte a byte, y CONTINUAR. **Nada en producción** |
+| **Post-9 vigente (historial de premios ganados EN PRODUCCIÓN: `0067`–`0072`, los dos premios y `318357c`, 2026-09-18/19)** | Sin cambios: 1.497 (local, I-145) | **CI #35408036412 sobre `318357c`: 1 fallida (I-140, orden de las suites), 1.372 aprobadas y 1 omitida**; en local, 1.373 + 1 | No se repitió; referencia 768/771 con I-075 e I-090 | CI: verificación ✅, base ❌ (I-140) · `verify:remote` **44/44** en producción | ✅ **Puertas 1 y 2**; puerta 3 **desplegada** (`dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE`, `76a253b25ca1` servido, todo en verde en vivo) y **detenida por el CI**; sin revertir |
+| Post-9 anterior (I-145: la procedencia de las fotos de puerta, corregida en local antes de la puerta 1, sin migración, 2026-09-18) | **1.497 ✅ en 80 archivos (+9)**: T6, de dónde viene una foto y si sirve para una puerta | **1.373 ✅ y 1 omitida, en 56 archivos (+15)**: `gate-provenance.test.ts`, con las herramientas de verdad; **las 15 fallaban antes** de corregir | **No se repitió**: no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · `verify:remote` no se ejecutó: la corrección no lee producción | 🔧 **Solo local**: las dos órdenes del dueño daban CONTINUAR con fotos locales presentadas como de producción; ahora, **sin veredicto**. El ensayo de las seis migraciones, repetido: el mismo delta, byte a byte, y CONTINUAR. **Nada en producción** |
 | Post-9 anterior (Etapa 4 del historial de premios ganados: la preparación de la promoción, D-208, sin migración, 2026-09-18) | **1.488 ✅ en 80 archivos (+66)**: la puerta del cargador y el resolvedor aislado (52) y las herramientas de puerta (14) | **1.358 ✅ y 1 omitida, en 55 archivos (+11)**: el ensayo del cargador con el script de verdad, la sonda y el comparador de la «Opción A» | **No se repitió**: la etapa no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · ⚠️ `verify:remote` **en producción, 41 + 3 en rojo a propósito**: las tres del historial, hasta la puerta 1 | 🔎 **Solo lectura en producción**: el estado real, igual al relevo en lo esencial —el despliegue servido es `6da9bcb`, solo documentación sobre `da81663`—; las dos coincidencias, como las confirmó el dueño; el delta de la puerta 1 ensayado con **todos** los privilegios de producción. **Nada escrito en producción** |
 | Post-9 anterior (Etapa 3 del historial de premios ganados: la auditoría, D-208, `0070`, `0071` y `0072`, solo en local, 2026-09-18) | **1.422 ✅ en 78 archivos (+4)** | **1.347 ✅ y 1 omitida a propósito, en 54 archivos (+17; migraciones `0070`, `0071` y `0072`)**: la suite del historial pasa de 61 a **70** y nace la de volumen (**8**, la medición solo a petición) | **768/771** en 45,2 min, sobre base recién sembrada y servidor recién arrancado: los 3 son **I-075** (`back-navigation` `:25` y `:127`) e **I-090** (`ventas-por-fecha:163`), ajenos al historial, y sus dos archivos solos dan **27/27**; las **23** del historial, en verde. La completa del primer cierre también dio 768/771 (I-090 e I-106) | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe cualquier lectura de producción | ✅ **Siete hallazgos** demostrados antes de corregirlos —el aviso que desmentía un premio conservado, el antiguo vendedor que no se podía elegir, una expectativa que se comparaba consigo misma, dos pruebas de concurrencia que no observaban el bloqueo, el inicio operativo al alcance de `anon` y, **ensayando con el privilegio por defecto de producción**, `current_seller_org_ids()` ejecutable por `service_role` (I-143)— y **I-140** e **I-142** registradas. **Nada en producción**; el procedimiento de la Etapa 4, en `RUNBOOK` §9 |
 | Post-9 anterior (Etapa 2 del historial de premios ganados: las pantallas, D-208, `0069`, solo en local, 2026-09-17) | **1.418 ✅ en 78 archivos (+37)** | **1.331 ✅ en 53 archivos (+2; migración `0069`)**: la suite del historial pasa de 59 a **61** | Completa **764/765** en 42,6 min: el fallo era `equipo.spec.ts:89`, una prueba existente que buscaba «ganados» en toda la página y encontró el menú y la sección nueva; corregida sin aflojarla, **1/1**, y el archivo **14/14**. Las **17** nuevas, a la primera | ✅ `verify` exit 0 · `verify:remote` **no se corrió**: el encargo prohíbe pruebas contra producción | ✅ **Las cuatro superficies, en local**, y el personal sin un solo dato de cliente. **I-138** —la cobertura contaba sorteos que no podían dar premio— reproducida con la `0068` y corregida con la `0069`; **I-139** —9 px de desplazamiento lateral a 320 px en la barra de filtros compartida— corregida. **Nada en producción** |
@@ -76,6 +77,78 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+## Historial de premios ganados: la promoción en producción (D-208, `RUNBOOK` §9) — 2026-09-18/19
+
+**Con autorización expresa del dueño**, una por puerta y después para las tres con condiciones; adelantada por él de
+la franja 07:00–10:59 UTC a **ejecución inmediata**, conservando todas las demás condiciones. Una sola ejecución
+responsable: la espera programada `ba4yjxjnx` se canceló antes de empezar. Commit desplegado:
+**`318357ce0139e93ded27cf23cb8416b75e7f8bcc`**. Bitácora minuto a minuto: `build/gate/operacion-2026-09-19.md` (no se
+versiona). Ningún dato de cliente salió de las lecturas.
+
+**Resultado:** puerta 1 ✅ · puerta 2 ✅ · puerta 3 **desplegada y en verde en vivo, pero con el CI en rojo por
+I-140**: se detuvo en esa comprobación, **sin revertir** —no hay un fallo atribuible al despliegue—.
+
+### Puerta 1 — `0067`–`0072` (2026-09-18, 23:50–23:59 UTC)
+
+| Hora (UTC) | Paso | Resultado |
+|---|---|---|
+| 23:50 | Proyecto y migraciones | La CSP servida nombra **un** proyecto (`zqwu…`), el mismo de `.env.local` y del usuario de `SUPABASE_DB_URL`; el dominio sirve `c3d720898c56` (= `6da9bcb`); `migration list`: remoto `0001`–`0066`, pendientes **exactamente `0067`–`0072`** |
+| 23:50:52 | Foto `p1-base` (v2) | 66 migraciones; candado libre, 0 corridas sin terminar, cron en verde; recordatorios: 2 activos, el próximo el 19/09 a las 23:50 UTC, 0 en 3 horas; 23:51 UTC, fuera de las horas del sincronizador |
+| 23:51–23:53 | Escenario B en local | 55 sentencias de privilegios; `p1-base`→`p1-l0` solo estructura: **solo** Vault (−2) y `supabase_functions` (+3); delta regenerado **idéntico byte a byte** al aprobado (`936c0f45…`) |
+| 23:52:53 | `p1-antes`; `p1-base`→`p1-antes` `none` | **CONTINUAR, salida 0**, 0 filas |
+| 23:53:22 | Sonda `p1-antes` | Las dos coincidencias como las confirmó el dueño; un único «Premio diario» vigente ($500.000); vendidas del sistema de siempre: **solo esas dos**; historial 0; esperados 2 · 2 · $1.000.000 · 0; actividad desde 19:30: ninguna venta, pago ni cliente |
+| 23:54:08–23:55:42 | **Respaldo** | `Rifas-backups/2026-09-18-antes-0067-0072/`: `roles.sql` 370 B, `schema.sql` 593.882 B, `data.sql` 5.276.571 B; **0** `"auth".` cualificados, **0** `INSERT INTO "auth"`, **0** credenciales, **0** contraseñas en los roles |
+| 23:55:55–23:55:59 | **Validación, solo en local** | Solo el error esperado de `roles.sql`; `schema.sql` y `data.sql` sin errores; estructura = `p1-antes` (36 relaciones, 40 políticas, 225 funciones, 62 disparadores de `public`); **30 tablas y 11.207 filas iguales** a `p1-antes`. Base local devuelta a su estado |
+| 23:57:13 | `p1-previa`; `p1-antes`→`p1-previa` `none` | **CONTINUAR, salida 0**, 0 filas; condiciones iguales |
+| 23:57:36 | `db push --dry-run` | Exactamente las seis, en orden; sin semillas ni roles |
+| **23:57:52–23:58:31** | **`db push --yes`** | Salida 0: `0067`…`0072` en orden |
+| 23:58–23:59 | Después | `migration list` `0001`–`0072` iguales; **`verify:remote` 44/44** |
+| 23:59:12 | `p1-despues --base p1-previa`; `--operation migrations` | **CONTINUAR, salida 0**: 0 diferencias con lo ensayado; `declared_prize_awards` nace vacía; **0 filas tocadas** |
+| 23:59:40 | Sonda `p1-despues` | Objetos presentes; inicio operativo 09/08; **T0 = 0 · 0 · $0 · 0** con `prize_award_rows`; cifras de control sin cambios |
+
+### Puerta 2 — los dos premios (2026-09-19, 00:00–00:02 UTC)
+
+| Hora (UTC) | Paso | Resultado |
+|---|---|---|
+| 00:00:09 | `p2-antes`; `p1-despues`→`p2-antes` `none` | **CONTINUAR, salida 0**; condiciones iguales |
+| 00:00:2x | Sonda `p2-antes` | T0 0 · 0 · $0 · 0; esperados 2 · 2 · $1.000.000 · 0; las dos coincidencias sin reconocer |
+| 00:00:40 | Vista previa | Exactamente «se reconocería» 3427/7702 bogota 2026-09-03 y 9019/3294 cundinamarca 2026-09-14, «Premio diario» $500.000 cada una; **2 · 0 · 0**; $1.000.000; huella `f9f7caa6…e343` |
+| **00:01:02–00:01:05** | **Aplicar con esa huella** | Salida 0: dos «reconocido»; «Conciliación: 2 de 2 entradas almacenadas con su importe · $1.000.000» |
+| 00:01:24 | `p2-despues --base p2-antes`; `--operation awards` | **CONTINUAR, salida 0**: `declared_prize_awards` +2 y `audit_logs` +1 (6198), las 3 explicadas por la carga; nada más |
+| 00:01:5x | Sonda y lectura de solo lectura (§9.6) | Cada coincidencia con 1 vigente; los dos: «Premio diario», $500.000, sin especie, vigentes, **sin actor**, con el respaldo del dueño; una sola `prize_award.record`; **T1 = T0 + 2 premios + $1.000.000**, pendientes iguales, **clientes recalculados 2** |
+
+### Puerta 3 — el despliegue de `318357c` (2026-09-19, 00:02–00:10 UTC)
+
+| Hora (UTC) | Paso | Resultado |
+|---|---|---|
+| 00:02:56 | **Reversión comprobada sin ejecutarla** | Token válido, rol **OWNER** de `jimmyriveros-projects` (Hobby), proyecto `gestion-rifas` con producción `dpl_CE4…`, candidato, ninguna reversión en curso |
+| 00:03:23 | `p3-antes`; `p2-despues`→`p3-antes` `none` | **CONTINUAR**; `origin/main` = `6da9bcb`; `318357c` avance rápido (9 commits) |
+| **00:03:51–00:03:58** | **Push** | `6da9bcb..318357c` en avance rápido, sin force |
+| 00:04:02–00:04:55 | Vercel | `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE`, **READY**, alias `gestion-rifas.vercel.app`, sin error de alias. `dpl_CE4…` queda como el inmediatamente anterior y candidato |
+| 00:05:39 | En vivo (`build/gate/en-vivo-p3.mjs`) | **Todo en verde**: 30/30 rutas —las dos de premios cerradas sin sesión—, 0 5xx, exportaciones sin CSV, 7/7 cabeceras con CSP por nonce, **`76a253b25ca1` (= `318357c`) servido** y `c3d720898c56` desaparecido, 0 secretos en 950 KB |
+| 00:06 | `verify:remote`; `p3-despues --base p3-antes` `none` | **44/44**; **CONTINUAR, salida 0**, 0 filas |
+| 00:04:05–00:10:03 | **CI #35408036412** | «Typecheck, lint, unitarias, build» ✅; «Migraciones desde cero + pruebas de base de datos» ❌: `test:db` **1 fallida, 1.372 aprobadas, 1 omitida**. La fallida: `admin-privacy.test.ts` «la bitácora que ve el personal no trae ni un dato de la venta», `expected [ 'ticket', 'raffle', …(2) ] to include 'raffle_prize'` |
+| 00:10 | Errores de ejecución en Vercel desde 00:04 | **Ninguno** |
+
+**Por qué falló el CI, con evidencia.** Es **I-140**: la lista blanca de esa prueba no admite las entradas
+`raffle_prize` que la bitácora del personal devuelve **desde la `0058`** (en producción desde el 17/09), y solo pasa si
+corre antes que las suites que crean premios. En el CI corrieron **antes** cinco de ellas —`prize-award-history`,
+`raffle-prize-matching`, `raffle-prize-transition`, `raffle-prizes` y `prize-award-volume`—. En local, con la caché de
+Vitest, el orden era otro y la suite completa pasó (1.373 + 1 omitida, 2026-09-18). La prueba corre contra la base
+temporal del runner, no contra producción.
+
+**Decisión de detención.** El CI no es satisfactorio, así que la puerta 3 **no se da por cerrada**. **No se revirtió**:
+la autorización exige un fallo **confirmado y atribuible** al despliegue, y todo lo que mira producción está en verde.
+Tampoco se relanzó el CI ni se tocó la prueba. Queda para el dueño.
+
+### Lo que no se comprobó
+
+* **Las pantallas con sesión** con las cuentas reales: un agente no introduce contraseñas (`RUNBOOK` §9.9).
+* La E2E no se repitió: la referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090.
+
+---
+
 
 ## I-145: la procedencia de las fotos de puerta, corregida en local — 2026-09-18
 
