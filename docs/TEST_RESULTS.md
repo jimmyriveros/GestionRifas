@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (la promoción de Bre-B y «Otros» e I-140 corregida: EN PRODUCCIÓN, D-209, 2026-09-19)** | **1.522 ✅** sin cambios; CI **2/2** en el PR (`35457272858`) y en `main` (`35459633957`) | **1.402 ✅ y 1 omitida**, también en **dos pasadas seguidas sobre la misma base**; en el CI, con `admin-privacy` después de las suites de premios, ✅. I-140: reproducida, corregida y cuatro mutaciones detectadas | ⚠️ **778/779** en 46,1 min: la fallida es **I-090** (`:163`, recibido 54); las 8 de Bre-B y «Otros», en verde. Las E2E de cuentas y recordatorios, **46/47** con I-150 (3 de 10 también en `318357c`) | ✅ `verify` exit 0 · `verify:remote` **44 + 2 en rojo** antes y **46/46** después, en producción | ✅ **En producción**: `0073` y `0074` a las 17:53 UTC con respaldo validado y CONTINUAR en cada comparación; `6401bd0` servido a las 17:57 UTC, en vivo en verde y sin errores de ejecución. **Pendiente del dueño:** las comprobaciones con sesión |
+| **Post-9 vigente (alineación de campos en la misma fila, D-210, solo en local, 2026-09-19)** | **1.522 ✅** en 80 archivos (sin cambio de número) | **1.402 ✅ y 1 omitida** en 57 archivos (sin cambio de esquema) | **18/18** nuevas (`formularios-alineacion` 15, `formularios-alineacion-movil` 3). La de Día/Hora **falló con 14 px** antes de `content-start` y pasó después. Relacionadas: crear recordatorio ✅, crear rifa configurable ✅ | ✅ `verify` exit 0 · lint 0 errores y los 2 avisos de siempre | ✅ **Solo local.** Causa corroborada: `FormItem` en `grid` repartía el hueco extra. Figma no se tocó |
+| Post-9 anterior (la promoción de Bre-B y «Otros» e I-140 corregida: EN PRODUCCIÓN, D-209, 2026-09-19) | **1.522 ✅** sin cambios; CI **2/2** en el PR (`35457272858`) y en `main` (`35459633957`) | **1.402 ✅ y 1 omitida**, también en **dos pasadas seguidas sobre la misma base**; en el CI, con `admin-privacy` después de las suites de premios, ✅. I-140: reproducida, corregida y cuatro mutaciones detectadas | ⚠️ **778/779** en 46,1 min: la fallida es **I-090** (`:163`, recibido 54); las 8 de Bre-B y «Otros», en verde. Las E2E de cuentas y recordatorios, **46/47** con I-150 (3 de 10 también en `318357c`) | ✅ `verify` exit 0 · `verify:remote` **44 + 2 en rojo** antes y **46/46** después, en producción | ✅ **En producción**: `0073` y `0074` a las 17:53 UTC con respaldo validado y CONTINUAR en cada comparación; `6401bd0` servido a las 17:57 UTC, en vivo en verde y sin errores de ejecución. **Pendiente del dueño:** las comprobaciones con sesión |
 | Post-9 anterior (Bre-B y «Otros» en las cuentas para recibir pagos, D-209, `0073` y `0074`, solo en local, 2026-09-19) | **1.522 ✅ en 80 archivos (+25)**: la regla en Zod, cómo se escriben, y la migración leída como texto | **1.402 ✅ y 1 omitida, en 57 archivos (+29)**: `payment-account-identifiers.test.ts`, con la BMP entera y dos transacciones reales | ⚠️ **775/779** en 42,6 min, con las **8 nuevas** en verde. Los 4: **I-090** (`ventas-por-fecha` `:163` y `:247`) e **I-106** (`catalogo-publico-movil:103`), con su firma de siempre, y `premios-ganados:383` (**I-148**). Relanzados sus archivos y los de «Configuración» tras `db:reset` + `seed:local`: **92/93**, y el que falló es otro de «Premios ganados», `:443`, **reproducido en `735eb67` sin D-209** (4 de 5) | ✅ `verify` exit 0 · `verify-remote` **contra la base local**: en la `0072`, 44 OK y **las 2 nuevas en rojo**, lo que dará producción hasta promover; en el escenario B con la `0074`, **46/46**. Contra producción **no se corrió**: el encargo no autoriza leerla | ✅ **Solo local.** Ensayo sobre datos existentes **12/12** (6/6 filas idénticas); escenario B con las 242 funciones idénticas; tres mutaciones detectadas. **I-146** encontrada y corregida; **I-147** registrada. **Nada en producción** |
 | Post-9 anterior (historial de premios ganados EN PRODUCCIÓN: `0067`–`0072`, los dos premios y `318357c`, 2026-09-18/19) | Sin cambios: 1.497 (local, I-145) | **CI #35408036412 sobre `318357c`: 1 fallida (I-140, orden de las suites), 1.372 aprobadas y 1 omitida**; en local, 1.373 + 1 | No se repitió; referencia 768/771 con I-075 e I-090 | CI: verificación ✅, base ❌ (I-140) · `verify:remote` **44/44** en producción | ✅ **Puertas 1 y 2**; puerta 3 **desplegada** (`dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE`, `76a253b25ca1` servido, todo en verde en vivo) y **detenida por el CI**; sin revertir |
 | Post-9 anterior (I-145: la procedencia de las fotos de puerta, corregida en local antes de la puerta 1, sin migración, 2026-09-18) | **1.497 ✅ en 80 archivos (+9)**: T6, de dónde viene una foto y si sirve para una puerta | **1.373 ✅ y 1 omitida, en 56 archivos (+15)**: `gate-provenance.test.ts`, con las herramientas de verdad; **las 15 fallaban antes** de corregir | **No se repitió**: no cambia ninguna pantalla. La referencia sigue siendo la de la Etapa 3, **768/771**, con I-075 e I-090 | ✅ `verify` exit 0 · `verify:remote` no se ejecutó: la corrección no lee producción | 🔧 **Solo local**: las dos órdenes del dueño daban CONTINUAR con fotos locales presentadas como de producción; ahora, **sin veredicto**. El ensayo de las seis migraciones, repetido: el mismo delta, byte a byte, y CONTINUAR. **Nada en producción** |
@@ -79,6 +80,24 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Fotografía anterior (D-168, 2026-09-03) | 749 ✅ | 754 ✅ | 514/516 | ✅ | ✅ |
 
 Reejecución rápida: `npm run verify`, `npm run test:db` y `npm run test:e2e`.
+
+## Alineación de campos en la misma fila (D-210) — 2026-09-19, solo en local
+
+Sin migración. Causa corroborada en la pantalla real **antes** de tocar código: Día y Hora, **14 px** de desnivel.
+
+| Verificación | Resultado |
+|---|---|
+| E2E Día/Hora **antes** de `content-start` | ❌ **14 px** (`Expected: <= 1, Received: 14`) |
+| E2E escritorio `formularios-alineacion.spec.ts` **después** | ✅ **15/15** |
+| E2E teléfono `formularios-alineacion-movil.spec.ts` | ✅ **3/3** (390, 320, abono a 360) |
+| Oscuro, 640 px (`sm`), teclado Día → Hora, interruptores | ✅ |
+| Premios (título/categoría, cifras, alternativas, calendario), rifas, boletas, abono, cliente, login, cuenta, invitar, masiva | ✅ alineados; las composiciones `space-y-*` no se tocaron |
+| `npm run verify` | ✅ exit 0: lint **0 errores y los 2 avisos** de siempre, **1.522/1.522**, `next build` |
+| `npm run test:db` | ✅ **1.402 + 1 omitida**, 57 archivos |
+
+El `top` absoluto del control vecino **sí** cambia cuando el diálogo se recentra o se desplaza hasta el campo inválido
+(74 px de viewport). Eso no es el defecto: el hueco etiqueta–control del vecino y la alineación entre hermanos se
+conservan.
 
 ## La promoción de Bre-B y «Otros» (D-209, `0073` y `0074`) e I-140 — 2026-09-19
 

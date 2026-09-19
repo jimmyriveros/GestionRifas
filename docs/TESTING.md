@@ -1,6 +1,8 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.32 · **Actualizado:** 2026-09-19 (**§4.10**, I-140: la prueba de la bitácora del personal trae su
+- **Versión:** 2.33 · **Actualizado:** 2026-09-19, más tarde (**alineación de campos**, D-210: `formularios-alineacion.spec.ts`
+  y `formularios-alineacion-movil.spec.ts` miden el `top` de controles hermanos, no la presencia de una clase). Antes,
+  ese mismo día (**§4.10**, I-140: la prueba de la bitácora del personal trae su
   propio premio y ya no depende del orden de las suites; y **I-150**, una E2E de la disposición de «Recordatorios» que
   mide durante la animación de la barra lateral —anterior, sin corregir—). Antes, ese mismo día (**§4.8**, Bre-B y «Otros» —D-209, **solo en local**—:
   `payment-account-identifiers.test.ts` con **29** pruebas —entre ellas la BMP recorrida entera y la concurrencia con
@@ -873,6 +875,21 @@ pinta sin clave VAPID** (D-190), y la suite corre sin ella. Su sitio —columna 
 final en el teléfono— se comprobó con un servidor levantado con una **clave pública de verificación**
 y sus estados forzados en el navegador (`TEST_RESULTS`, misma fecha). Tampoco es infraestructura de
 interfaz compartida (`HANDOFF` §1.b): no se tocó ningún primitivo.
+
+#### Alineación de campos en la misma fila ✅ (D-210; `formularios-alineacion.spec.ts`, 15 · `formularios-alineacion-movil.spec.ts`, 3)
+
+Mantenimiento **solo de presentación**. Mide geometría real, no que exista `content-start`.
+
+| Qué se demuestra | Cómo |
+|---|---|
+| Día y Hora alinean aunque solo Hora tenga ayuda | `top` de los controles ±1 px, después de `zoom-in-95` |
+| Un error en un campo no desnivela al vecino | Hueco etiqueta–control del vecino, no el `top` de viewport (el diálogo se recentra) |
+| La ayuda y el error quedan debajo de su campo | `top` de la frase > `bottom` del control |
+| Interruptores horizontales | Etiqueta a la izquierda, control a la derecha, misma franja |
+| Teléfono: las filas se apilan y no se recortan | A 390 y 320 px, Hora debajo de Día; `scrollWidth − clientWidth ≤ 0`; diana 44 px |
+| Desde `sm`, dos columnas | A 640 px, Hora a la derecha de Día y el mismo `top` |
+
+La prueba de Día/Hora **tiene que fallar** si se quita `content-start`: antes medía **14 px**.
 
 #### Bre-B y «Otros» ✅ (D-209, BR-M10; `payment-account-identifiers.test.ts`, 29 · unitarias +25 · `configuracion-cobro.spec.ts`, +6 · `configuracion-cobro-movil.spec.ts`, +2)
 

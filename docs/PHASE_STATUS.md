@@ -3,7 +3,21 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-19, al cierre — **D-209 EN PRODUCCIÓN, con I-140 corregida** (mantenimiento posterior a la
+- **Actualizado:** 2026-09-19, más tarde — **alineación de campos en la misma fila, SOLO EN LOCAL** (D-210,
+  mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas).
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades implementadas:** cuando dos campos comparten fila, sus controles quedan alineados por arriba;
+  la ayuda y el error siguen debajo de su campo. Una sola clase en `FormItem`: `content-start`.
+  **(2) Pruebas ejecutadas:** la E2E de Día/Hora **falló con 14 px** antes y pasó después; escritorio **15/15**,
+  teléfono **3/3**. `verify` **1.522/1.522**; `test:db` **1.402 + 1**. Detalle en `TEST_RESULTS`.
+  **(3) Migraciones:** ninguna. Siguen **74** en local y en producción.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** Figma `Pattern / Form` aún no declara la regla entre campos contiguos; el contrato
+  técnico está en `ARCHITECTURE` §8.2.c. Siguen I-147, I-150, I-090, I-106, I-148 e I-149.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; D-210; no quitar `content-start` de `FormItem`. **Siguiente:**
+  nada de esta corrección; el dueño sigue con las comprobaciones de D-209.
+
+  Antes, ese mismo día — **D-209 EN PRODUCCIÓN, con I-140 corregida** (mantenimiento posterior a la
   Fase 9, sin fase ni etiqueta nuevas; con autorización expresa del dueño para una sola ejecución, D-209 §7).
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades implementadas:** Bre-B y «Otros» en «Cuentas para recibir pagos» **ya están en producción**:

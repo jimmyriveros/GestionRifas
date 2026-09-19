@@ -1,6 +1,7 @@
 # ARQUITECTURA
 
-- **Versión:** 1.45 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (**§8.23**: el código de
+- **Versión:** 1.46 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (**§8.2.c**: campos
+  que comparten fila, `FormItem` con `content-start`, D-210). Antes, ese mismo día (**§8.23**: el código de
   Bre-B y «Otros» **servido en producción**, `6401bd0`; la arquitectura no cambia). Antes, ese mismo día (**§8.23**: Bre-B y «Otros» —D-209,
   **solo en local**—: `accountShape` decide el campo, la llave va en un `Input` de texto y no en `PhoneInput`, y un
   texto largo dentro de un diálogo lleva `[overflow-wrap:anywhere]`, I-146). Antes, el 2026-09-18 (**§8.28**: la Etapa 3 del historial —el desplegable del personal lee también `admin_prize_award_sellers` (`0070`) y el aviso de cobertura aclara el alcance con cualquier filtro—). Antes, el 2026-09-17 (**§6** y **§8.28**: «Premios
@@ -414,6 +415,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `useRemoteSearch` | Búsqueda híbrida para diálogos y selectores, contra una Server Action, con testigo de secuencia |
 | `lib/search.ts` | Normalización del término y valores por defecto (pausa, mínimos). Lo usan navegador y servidor |
 | Filtros de cada dominio | Controles en URL, paginación y acción «Limpiar filtros» |
+| `FormItem` | Contenedor de un campo (`src/components/ui/form.tsx`): etiqueta, control, ayuda y error en una pila. **`grid content-start gap-2`** para que, en una fila de dos, una ayuda o un error no desnivelen el control vecino (§8.2.c, D-210) |
 | `MoneyInput` / `formatCOP` | Entrada y presentación de enteros COP |
 | `TicketNumberInput` | Solo dígitos, máx. 4, preserva ceros, `inputMode="numeric"` |
 | `PhoneInput` / `lib/phone.ts` | El **único** campo de teléfono (§8.22, D-184): «300 123 4567» y «+57 300 123 4567» mientras se escribe, `type`/`inputMode` `tel`, cursor recolocado a mano. Lo que se ve se deriva de `value`; **formatear no guarda nada** |
@@ -497,6 +499,30 @@ TicketSelectionProvider          contexto: ids marcados, modo, «ver seleccionad
 
 `TicketsTable` funciona **con y sin** proveedor: la usan también las fichas de cliente, donde no hay
 selección múltiple y por tanto no aparece la columna de casillas.
+
+### 8.2.c Campos que comparten una fila (D-210)
+
+Cuando dos `FormItem` van en una rejilla de columnas, el ítem más bajo **se estira** hasta la altura
+del que tiene ayuda o error. `FormItem` es `display: grid`. Sin `align-content: start`, ese hueco extra
+se reparte entre etiqueta y control, y el control vecino baja. Medido: **14 px** con «Hora de
+Colombia.» y más con una ayuda larga.
+
+La corrección vive **una sola vez** en `FormItem`: `grid content-start gap-2`. Las ayudas y los
+errores siguen en el flujo, debajo de su campo. No hay alturas rígidas, textos invisibles ni
+posicionamiento absoluto.
+
+Los interruptores que le pasan `flex` (recordatorios, rifas) siguen en horizontal: `cn` sustituye
+`grid` por `flex` y `content-start` no cambia `items-center` / `items-start`. Las composiciones
+propias con `space-y-*` —`PaymentForm`, `PrizeScheduleField`, `SellerTicketForm`,
+`BulkTicketCreator`— ya empaquetan hacia arriba y no se tocaron.
+
+Si las etiquetas de una misma fila tuvieran alturas distintas, `content-start` no bastaría: los
+controles quedarían a distinta altura. En las pantallas reales las etiquetas de cada pareja caben en
+una línea; no se recortan.
+
+Figma (`Pattern / Form`, nodo `130:6282`) apila etiqueta, control y ayuda hacia abajo, y no declara
+aún la alineación entre campos contiguos. El contrato técnico es este apartado; reflejarlo en Figma
+queda pendiente y no se abre otra fuente.
 
 ### 8.3 Etiquetas en español (fuente única: `lib/constants.ts`)
 

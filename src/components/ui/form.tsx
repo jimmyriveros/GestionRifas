@@ -74,7 +74,13 @@ function FormItem({ className, ...props }: React.ComponentProps<'div'>) {
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div data-slot="form-item" className={cn('grid gap-2', className)} {...props} />
+      {/*
+        `content-start`: en una fila de dos campos, la rejilla exterior estira
+        el más bajo hasta la altura del que tiene ayuda o error. Sin esto, el
+        hueco extra se reparte entre etiqueta y control y desnivela al vecino
+        (D-210).
+      */}
+      <div data-slot="form-item" className={cn('grid content-start gap-2', className)} {...props} />
     </FormItemContext.Provider>
   )
 }

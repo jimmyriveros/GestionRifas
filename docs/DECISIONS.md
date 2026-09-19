@@ -13051,3 +13051,29 @@ en `DEPLOYMENT` §2.2 y §3.2.m y en `TEST_RESULTS`.
 
 **Pendiente del dueño:** las comprobaciones con sesión de `DEPLOYMENT` §2.2, paso 8; decidir sobre **I-147** e
 **I-150**; y fusionar en `main`, cuando le convenga, el commit de documentación que queda en la rama.
+
+---
+
+## D-210 — Los controles de una misma fila se alinean por arriba
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-19). **No es una Fase 10** y no lleva
+etiqueta `fase-*`. **Solo en local.** No autoriza push ni despliegue.
+
+**Problema.** En una rejilla de dos columnas, `FormItem` (`grid gap-2`) se estira hasta el vecino más alto. El
+espacio sobrante se reparte entre etiqueta y control, así que el campo **sin** ayuda queda más bajo que el que la
+tiene. Medido en «Crear recordatorio»: **14 px** entre Día y Hora. Lo mismo en premios (Categoría, Cifras) y al
+mostrar un error en un solo lado.
+
+**Decisión.** Añadir `content-start` al `FormItem` compartido. Una sola clase, la API y las clases de los
+consumidores intactas. Descarta: ayudas vacías, alturas fijas, `position: absolute`, márgenes por pantalla y una
+segunda abstracción de formulario.
+
+Los interruptores horizontales (`flex` en recordatorios y rifas) se conservan: `cn` sustituye `grid`. Las
+composiciones con `space-y-*` ya empaquetaban hacia arriba y no se cambiaron. Las etiquetas de las parejas reales
+caben en una línea; no se recortan.
+
+El contrato técnico está en `ARCHITECTURE` §8.2.c. Figma `Pattern / Form` (nodo `130:6282`) no declara aún esta
+regla entre campos contiguos; queda pendiente reflejarla ahí, sin otra fuente.
+
+**Pruebas.** `formularios-alineacion.spec.ts` y `formularios-alineacion-movil.spec.ts` miden `getBoundingClientRect`
+después de `zoom-in-95`. La de Día/Hora **falló con 14 px** antes de la clase y pasa después.
