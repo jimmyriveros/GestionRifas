@@ -291,8 +291,14 @@ function SellerCardBody({
       <div className="flex items-baseline justify-between gap-2">
         {/* El enlace se conserva aunque la tarjeta entera sea pulsable: da el
             menu contextual, «abrir en otra pestana» y una parada de teclado
-            con nombre. */}
-        <TicketNumbersLink ticket={ticket} href={`${basePath}/${ticket.id}`} />
+            con nombre. EN MODO SELECCION no: ahi la tarjeta marca en vez de
+            abrir, y un enlace vivo se llevaba el toque y de paso la seleccion
+            entera (P1-A). */}
+        <TicketNumbersLink
+          ticket={ticket}
+          href={`${basePath}/${ticket.id}`}
+          interactive={!selecting}
+        />
         <div className="flex shrink-0 items-center gap-1.5">
           {/* Una boleta sin vender no tiene precio, y una raya en el sitio mas
               visible de la tarjeta no dice nada: se calla. La insignia
@@ -365,7 +371,13 @@ function StaffCardBody({
   return (
     <>
       <div className="flex items-baseline justify-between gap-2">
-        <TicketNumbersLink ticket={ticket} href={`${basePath}/${ticket.id}`} />
+        {/* Igual que en la tarjeta del vendedor: en modo seleccion los numeros
+            no son enlace, porque la tarjeta ya no abre nada (P1-A). */}
+        <TicketNumbersLink
+          ticket={ticket}
+          href={`${basePath}/${ticket.id}`}
+          interactive={!selecting}
+        />
         {selecting ? null : <RowChevron />}
       </div>
 

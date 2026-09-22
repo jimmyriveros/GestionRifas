@@ -47,10 +47,21 @@ function lista(page: Page) {
   return page.getByRole('list', { name: 'Boletas' })
 }
 
-function filaDe(page: Page, ticketId: string) {
+/**
+ * La tarjeta de una boleta, buscada POR SUS DOS NUMEROS y no por su enlace.
+ *
+ * Antes filtraba por `a[href$="<id>"]`, y eso dejo de servir en modo seleccion:
+ * ahi los numeros ya no son un enlace (P1-A). No es una limitacion del arnes,
+ * es el arreglo — mientras se selecciona, la tarjeta marca y no abre nada, asi
+ * que no puede haber un `href` que se lleve el toque.
+ *
+ * Los dos numeros juntos son ademas como se nombra una boleta (BR-N11), y estan
+ * a la vista en los dos modos, que es justo lo que necesita este localizador.
+ */
+function filaDe(page: Page, boleta: { daily: string; weekly: string }) {
   return lista(page)
     .getByRole('listitem')
-    .filter({ has: page.locator(`a[href$="${ticketId}"]`) })
+    .filter({ hasText: `${boleta.daily} / ${boleta.weekly}` })
 }
 
 /**
@@ -120,7 +131,7 @@ test.describe('Modo normal en el teléfono', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/tickets?q=${boleta.daily}`)
-    const fila = filaDe(page, boleta.id)
+    const fila = filaDe(page, boleta)
     await expect(fila).toBeVisible()
 
     // Las tarjetas no llevan casilla hasta que se entra en modo selección. La
@@ -139,12 +150,12 @@ test.describe('Modo selección en el teléfono', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/tickets?q=${boleta.daily}`)
-    await expect(filaDe(page, boleta.id)).toBeVisible()
+    await expect(filaDe(page, boleta)).toBeVisible()
 
     await activarModoSeleccion(page)
     await expect(page.getByRole('checkbox').first()).toBeVisible()
 
-    const fila = filaDe(page, boleta.id)
+    const fila = filaDe(page, boleta)
     await tocarFila(fila)
     await expect(recuento(page)).toHaveText('1 seleccionada')
     // No abrió el detalle.
@@ -185,7 +196,7 @@ test.describe('Modo selección en el teléfono', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/tickets?q=${boleta.daily}`)
-    const fila = filaDe(page, boleta.id)
+    const fila = filaDe(page, boleta)
     await expect(fila).toBeVisible()
 
     await pulsacionLarga(page, fila)
@@ -199,18 +210,18 @@ test.describe('Modo selección en el teléfono', () => {
     const b = await nuevaBoleta()
 
     await loginAs(page, ACCOUNTS.seller)
-    await page.goto(`/seller/tickets?q=${a.daily}`)
-    await expect(filaDe(page, a.id)).toBeVisible()
+    await page.goto(`/seller/tickets\?q=${a.daily}`)
+    await expect(filaDe(page, a)).toBeVisible()
 
     await activarModoSeleccion(page)
-    await tocarFila(filaDe(page, a.id))
+    await tocarFila(filaDe(page, a))
     await expect(recuento(page)).toHaveText('1 seleccionada')
 
     const barra = page.getByRole('button', { name: 'Asignar a un cliente' })
     await expect(barra).toBeVisible()
 
     // Buscar otra cosa: la anterior sigue contando (sección 11).
-    await page.goto(`/seller/tickets?q=${b.daily}`)
+    await page.goto(`/seller/tickets\?q=${b.daily}`)
     await expect(recuento(page)).toHaveText('1 seleccionada')
     await expect(page.getByRole('button', { name: 'Asignar a un cliente' })).toBeVisible()
 
@@ -238,7 +249,7 @@ test.describe('Modo selección en el teléfono', () => {
     await expect(lista(page)).toBeVisible()
 
     await activarModoSeleccion(page)
-    await tocarFila(filaDe(page, boleta.id))
+    await tocarFila(filaDe(page, boleta))
     await expect(recuento(page)).toHaveText('1 seleccionada')
 
     // Entre el recuento y lo que sigue solo cabe la separación normal de la
@@ -261,17 +272,17 @@ test.describe('Modo selección en el teléfono', () => {
 
     await loginAs(page, ACCOUNTS.seller)
     await page.goto(`/seller/tickets?q=${boleta.daily}`)
-    await expect(filaDe(page, boleta.id)).toBeVisible()
+    await expect(filaDe(page, boleta)).toBeVisible()
 
     await activarModoSeleccion(page)
-    await tocarFila(filaDe(page, boleta.id))
+    await tocarFila(filaDe(page, boleta))
     await expect(recuento(page)).toHaveText('1 seleccionada')
 
     await page.getByRole('button', { name: 'Cancelar' }).tap()
     await expect(recuento(page)).toHaveText('')
     await expect(page.getByRole('checkbox')).toHaveCount(0)
     // Y la fila vuelve a abrir el detalle.
-    await tocarFila(filaDe(page, boleta.id))
+    await tocarFila(filaDe(page, boleta))
     await page.waitForURL(`**/seller/tickets/${boleta.id}`)
   })
 
@@ -284,15 +295,144 @@ test.describe('Modo selección en el teléfono', () => {
     await expect(lista(page)).toBeVisible()
 
     await activarModoSeleccion(page)
-    await tocarFila(filaDe(page, a.id))
-    await tocarFila(filaDe(page, b.id))
+    await tocarFila(filaDe(page, a))
+    await tocarFila(filaDe(page, b))
     await expect(recuento(page)).toHaveText('2 seleccionadas')
 
     await page.getByRole('button', { name: 'Ver seleccionadas' }).tap()
     await expect(page.getByText('Estás viendo solo las boletas seleccionadas.')).toBeVisible()
-    await expect(page.getByRole('link', { name: /Ver la boleta/ })).toHaveCount(2)
+    // Se cuentan TARJETAS y no enlaces: seguimos en modo seleccion, donde los
+    // numeros no son enlace (P1-A). Lo que esta prueba comprueba es que la
+    // lista se quedo con las dos marcadas, y eso no depende de como se pinten.
+    await expect(lista(page).getByRole('listitem')).toHaveCount(2)
 
     await page.getByRole('button', { name: 'Volver a los resultados' }).tap()
     await expect(recuento(page)).toHaveText('2 seleccionadas')
+  })
+})
+
+/**
+ * P1-A — El número de la boleta deja de abrir el detalle mientras se selecciona.
+ *
+ * Reproducido en el navegador sobre la instancia local antes de corregirlo: en
+ * modo selección, tocar los dos números —el objetivo más grande de la tarjeta—
+ * navegaba al detalle en vez de marcar la boleta.
+ *
+ * LO QUE SE PERDÍA ERA EL MODO, NO LO MARCADO. La selección vive en
+ * `sessionStorage` y sobrevive a la navegación (ver `selection-store.ts`); lo
+ * que se queda atrás es `selectionMode`, que es estado de React de la pantalla
+ * abandonada. Al volver, las casillas ya no están y hay que entrar otra vez en
+ * «Seleccionar varias». Sigue siendo el toque más probable haciendo lo que
+ * nadie pidió, pero no se pierde trabajo: conviene no exagerarlo.
+ *
+ * Se busca SIEMPRE con `?q=`, nunca sobre la lista completa: con miles de
+ * boletas, una recién creada no cae en la primera página. Dos pruebas de esta
+ * misma suite ya fallan por eso, de antes de este cambio.
+ */
+test.describe('Modo selección: los números no abren el detalle (P1-A)', () => {
+  /** Los dos números dentro de la tarjeta, que es lo que se toca. */
+  function numerosDe(fila: Locator, boleta: { daily: string; weekly: string }) {
+    return fila.getByText(`${boleta.daily} / ${boleta.weekly}`, { exact: true })
+  }
+
+  /**
+   * Vuelve a encender el modo CON una selección ya en marcha.
+   *
+   * `activarModoSeleccion` espera «Toca las boletas que quieras seleccionar.»,
+   * que solo se lee con cero marcadas. Aquí se espera a que aparezcan las
+   * casillas, que es la señal de que el modo está encendido sea cual sea el
+   * recuento. El reintento es por lo mismo de siempre: la hidratación.
+   */
+  async function reentrarEnModoSeleccion(page: Page) {
+    const boton = page.getByRole('button', { name: 'Seleccionar varias', exact: true })
+    await expect(async () => {
+      await boton.tap()
+      await expect(page.getByRole('checkbox').first()).toBeVisible({ timeout: 1500 })
+    }).toPass({ timeout: 20_000 })
+  }
+
+  test('tocar los números marca la boleta y no abre su detalle', async ({ page }) => {
+    const boleta = await nuevaBoleta()
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/tickets?q=${boleta.daily}`)
+    await expect(filaDe(page, boleta)).toBeVisible()
+
+    await activarModoSeleccion(page)
+    await numerosDe(filaDe(page, boleta), boleta).tap()
+
+    // Marca, que es lo que la pantalla promete: «Toca las boletas que quieras
+    // seleccionar».
+    await expect(recuento(page)).toHaveText('1 seleccionada')
+    // Y no se fue a ninguna parte.
+    await expect(page).toHaveURL(new RegExp(`/seller/tickets\\?q=${boleta.daily}`))
+    await expect(page.getByRole('heading', { name: 'Detalle boleta' })).toBeHidden()
+
+    // Volver a tocarlos la desmarca, igual que cualquier zona libre.
+    await numerosDe(filaDe(page, boleta), boleta).tap()
+    await expect(recuento(page)).toHaveText('Toca las boletas que quieras seleccionar.')
+  })
+
+  test('lo que ya estaba marcado sigue contando al marcar por los números', async ({ page }) => {
+    const a = await nuevaBoleta()
+    const b = await nuevaBoleta()
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/tickets?q=${a.daily}`)
+    await activarModoSeleccion(page)
+    await tocarFila(filaDe(page, a))
+    await expect(recuento(page)).toHaveText('1 seleccionada')
+
+    // La selección sobrevive a la búsqueda (sección 11); el modo hay que
+    // volver a encenderlo, porque es estado de la pantalla.
+    await page.goto(`/seller/tickets?q=${b.daily}`)
+    await expect(recuento(page)).toHaveText('1 seleccionada')
+    // `activarModoSeleccion` no sirve aquí: espera el texto de «sin nada
+    // marcado», y aquí ya hay una boleta contando.
+    await reentrarEnModoSeleccion(page)
+
+    await numerosDe(filaDe(page, b), b).tap()
+    await expect(recuento(page)).toHaveText('2 seleccionadas')
+    await expect(page).toHaveURL(new RegExp(`/seller/tickets\\?q=${b.daily}`))
+  })
+
+  test('mientras se selecciona, los números no son un enlace', async ({ page }) => {
+    const boleta = await nuevaBoleta()
+    const nombre = `${boleta.daily} / ${boleta.weekly}`
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/tickets?q=${boleta.daily}`)
+    const fila = filaDe(page, boleta)
+    await expect(fila).toBeVisible()
+
+    // Fuera del modo, el enlace es el de siempre: da menú contextual, «abrir en
+    // otra pestaña» y una parada de teclado con nombre.
+    await expect(fila.getByRole('link', { name: `Ver la boleta ${nombre}` })).toBeVisible()
+
+    await activarModoSeleccion(page)
+
+    // Dentro del modo no queda ningún enlace que se lleve el toque.
+    await expect(fila.getByRole('link')).toHaveCount(0)
+    // Pero los números siguen a la vista: es como se nombra una boleta (BR-N11).
+    await expect(numerosDe(fila, boleta)).toBeVisible()
+    // Y la casilla conserva el nombre accesible con los dos números.
+    await expect(
+      fila.getByRole('checkbox', { name: `Seleccionar la boleta ${nombre}` }),
+    ).toBeVisible()
+  })
+
+  test('al salir del modo, los números vuelven a abrir el detalle', async ({ page }) => {
+    const boleta = await nuevaBoleta()
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/tickets?q=${boleta.daily}`)
+    await expect(filaDe(page, boleta)).toBeVisible()
+
+    await activarModoSeleccion(page)
+    await page.getByRole('button', { name: 'Cancelar' }).tap()
+    await expect(page.getByRole('checkbox')).toHaveCount(0)
+
+    await numerosDe(filaDe(page, boleta), boleta).tap()
+    await page.waitForURL(`**/seller/tickets/${boleta.id}`)
   })
 })

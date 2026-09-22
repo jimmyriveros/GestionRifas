@@ -7,6 +7,7 @@ import { useCallback, useMemo, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { LinearProgress } from '@/components/data/LinearProgress'
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { TicketNumberInput } from '@/components/form/TicketNumberInput'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ import { TicketImportDialog } from '../../import/components/TicketImportDialog'
 import type { BulkTicketRow } from '../../schemas'
 import { bulkCreateTickets, findExistingCombinations } from '../actions'
 import { comboKey, countErrors, selectSendableRows, validateBulkRows } from '../duplicates'
+import { BULK_GRID_COPY, checkBulkQuantity, countFilledRows, regenerateWarning } from '../grid'
 
 type Option = { id: string; label: string }
 
@@ -60,7 +62,10 @@ export function BulkTicketCreator({
   const router = useRouter()
   const [raffleId, setRaffleId] = useState(defaultRaffleId ?? raffles[0]?.id ?? '')
   const [sellerId, setSellerId] = useState(defaultSellerId ?? sellers[0]?.id ?? '')
-  const [quantity, setQuantity] = useState(50)
+  // El TEXTO tal como se escribio, no un numero ya corregido (P2-3): asi el
+  // campo conserva lo que la persona tecleo aunque no se pueda generar.
+  const [quantityText, setQuantityText] = useState('50')
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false)
   const [rows, setRows] = useState<BulkTicketRow[]>([])
   const [existingCombos, setExistingCombos] = useState<ReadonlySet<string>>(new Set())
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
@@ -73,6 +78,11 @@ export function BulkTicketCreator({
     [rows, existingCombos],
   )
   const errorCount = countErrors(validations)
+
+  // Las dos preguntas del boton «Generar filas»: si la cantidad se puede
+  // generar tal cual, y cuanto trabajo se perderia al regenerar.
+  const quantityCheck = checkBulkQuantity(quantityText)
+  const filledRows = countFilledRows(rows)
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -87,11 +97,37 @@ export function BulkTicketCreator({
     )
   }, [])
 
-  function generate() {
-    const safeQuantity = Math.min(Math.max(quantity, BULK_TICKET_MIN), BULK_TICKET_MAX)
-    setRows(emptyRows(safeQuantity))
+  /**
+   * Genera de verdad. Solo se llega aqui con una cantidad valida y, si habia
+   * numeros escritos, con la confirmacion ya dada.
+   */
+  function runGenerate(quantity: number) {
+    setRows(emptyRows(quantity))
     setExistingCombos(new Set())
     setProgress(null)
+    setConfirmRegenerate(false)
+  }
+
+  /**
+   * Lo que hace el boton «Generar filas».
+   *
+   * DOS PUERTAS, y ninguna existia antes:
+   *   1. La cantidad tiene que poder generarse tal cual (P2-3). Si no, el boton
+   *      esta desactivado y el motivo se lee bajo el campo; no se recorta en
+   *      silencio.
+   *   2. Si ya hay numeros escritos, se pregunta (P1-C). Antes se borraban de
+   *      golpe hasta 1.000 filas sin confirmacion y sin deshacer.
+   *
+   * Sin nada escrito no se pregunta nada: no hay trabajo que perder y un
+   * dialogo ahi solo estorba.
+   */
+  function requestGenerate() {
+    if (!quantityCheck.ok) return
+    if (filledRows > 0) {
+      setConfirmRegenerate(true)
+      return
+    }
+    runGenerate(quantityCheck.quantity)
   }
 
   async function checkAgainstDatabase(): Promise<ReadonlySet<string>> {
@@ -231,17 +267,32 @@ export function BulkTicketCreator({
             inputMode="numeric"
             min={BULK_TICKET_MIN}
             max={BULK_TICKET_MAX}
-            value={quantity}
-            onChange={(event) => setQuantity(Number.parseInt(event.target.value, 10) || 0)}
+            // El texto crudo: escribir 5000 deja 5000 a la vista, y el motivo
+            // por el que no se puede generar se lee justo debajo (P2-3).
+            value={quantityText}
+            onChange={(event) => setQuantityText(event.target.value)}
+            aria-invalid={quantityCheck.ok ? undefined : true}
+            aria-describedby={quantityCheck.ok ? undefined : 'bulk-quantity-error'}
             disabled={isPending}
           />
+          {/*
+            El hueco NO se reserva y el aviso solo aparece cuando hay algo que
+            decir: el campo vacio no es un error, es alguien a mitad de escribir
+            (ver `BulkQuantityCheck`). `role="alert"` no —interrumpiria en cada
+            tecla—; basta con que el campo lo declare como su descripcion.
+          */}
+          {quantityCheck.ok || quantityCheck.message === null ? null : (
+            <p id="bulk-quantity-error" className="text-destructive text-body-small">
+              {quantityCheck.message}
+            </p>
+          )}
         </div>
 
         <div className="flex items-end">
           <Button
             type="button"
-            onClick={generate}
-            disabled={isPending || !raffleId || !sellerId}
+            onClick={requestGenerate}
+            disabled={isPending || !raffleId || !sellerId || !quantityCheck.ok}
             className="w-full"
           >
             Generar filas
@@ -372,6 +423,29 @@ export function BulkTicketCreator({
           </div>
         </>
       )}
+
+      {/*
+        Volver a generar borra lo escrito (P1-C). Se reutiliza `ConfirmDialog`,
+        el mismo de anular o desactivar, en vez de inventar un dialogo para esta
+        pantalla.
+
+        NO es `destructive`: el rojo de este proyecto esta reservado a lo que
+        toca un registro del negocio —anular una boleta, anular un pago,
+        desactivar a una persona—. Aqui no se pierde nada guardado, se pierde lo
+        tecleado; el aviso lo dice con palabras y el boton nombra la accion.
+      */}
+      <ConfirmDialog
+        open={confirmRegenerate}
+        onOpenChange={setConfirmRegenerate}
+        title={BULK_GRID_COPY.regenerateTitle}
+        description={regenerateWarning(filledRows)}
+        confirmLabel={BULK_GRID_COPY.regenerateConfirm}
+        cancelLabel={BULK_GRID_COPY.regenerateCancel}
+        onConfirm={() => {
+          // Cancelar no hace nada: las filas se quedan como estaban.
+          if (quantityCheck.ok) runGenerate(quantityCheck.quantity)
+        }}
+      />
     </div>
   )
 }

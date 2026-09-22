@@ -13077,3 +13077,70 @@ regla entre campos contiguos; queda pendiente reflejarla ahí, sin otra fuente.
 
 **Pruebas.** `formularios-alineacion.spec.ts` y `formularios-alineacion-movil.spec.ts` miden `getBoundingClientRect`
 después de `zoom-in-95`. La de Día/Hora **falló con 14 px** antes de la clase y pasa después.
+
+---
+
+## D-211 — Tres correcciones de la auditoría visual: el número no abre el detalle mientras se selecciona, la rejilla no se borra sin preguntar y la cantidad no se recorta en silencio
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-21). **No es una Fase 10** y no lleva
+etiqueta `fase-*`. **Solo en local.** No autoriza push ni despliegue.
+
+**Origen.** Primer bloque autorizado de la auditoría de diseño con inspección visual. Los tres problemas se
+**reprodujeron en el navegador** contra la instancia local antes de tocar nada, y los tres ocurrían **en silencio**.
+
+### P1-A — En modo selección, los dos números abrían el detalle
+
+**Problema.** `TicketNumbersLink` seguía siendo un `a[href]` con la selección activa. `shouldActivateRow` hace bien
+su trabajo —un clic dentro de un enlace no activa la fila, porque ese enlace ya atiende su propio clic—, así que
+tocar el objetivo **más grande** de la tarjeta navegaba al detalle en vez de marcar la boleta.
+
+**Decisión.** `interactive` en `TicketNumbersLink` y `TicketNumbersCell`: con `false` los números se pintan como
+texto, sin `href`, sin `aria-label` y **sin `hover:underline`**. Lo pasan las dos tarjetas desde el `selecting` que
+ya recibían. Es la misma decisión que ya tomó `RowChevron`, que desaparece en este modo porque «prometería algo que
+ya no ocurre» (D-108).
+
+Descartadas: dejar el enlace y `preventDefault` —un enlace que no navega es una promesa falsa, y el proyecto ya
+resolvió el caso gemelo quitando la flecha—; y un `button role="option"`, que añade una parada de teclado donde la
+tarjeta entera ya es la diana.
+
+**Corrección a la auditoría.** El informe dijo que se perdía **todo lo marcado**. Es falso y conviene dejarlo
+escrito: la selección vive en `sessionStorage` (`selection-store.ts`) y **sobrevive** a la navegación. Lo que se
+pierde es `selectionMode`, que es estado de React de la pantalla abandonada: al volver hay que entrar otra vez en
+«Seleccionar varias». Sigue siendo el toque más probable haciendo lo que nadie pidió, pero **no se pierde trabajo**.
+
+### P1-C — «Generar filas» borraba hasta 1.000 filas escritas sin preguntar
+
+**Problema.** `generate()` hacía `setRows(emptyRows(...))` directamente. Reproducido: con `1234` en la fila 1, un
+segundo toque lo borró sin diálogo, sin toast y sin deshacer.
+
+**Decisión.** Se pregunta **solo si hay algo que perder** (`countFilledRows > 0`), reutilizando `ConfirmDialog` —el
+mismo de anular o desactivar— en vez de inventar un diálogo. Cancelar no toca la rejilla.
+
+**No es `destructive`.** El rojo de este proyecto está reservado a lo que toca un registro del negocio: anular una
+boleta, anular un pago, desactivar a una persona. Aquí no se pierde nada guardado, se pierde lo tecleado; el aviso
+lo dice con palabras —«Escribiste números en N filas. Al generar de nuevo se borran y las filas quedan vacías.»— y
+el botón nombra la acción, «Generar de nuevo».
+
+### P2-3 — La cantidad se recortaba en silencio
+
+**Problema.** `quantity` era un `number` y `generate()` hacía `Math.min(Math.max(...))`. Reproducido: escribiendo
+**5000**, el campo seguía mostrando 5000, el resultado decía «1000 fila(s)» y el botón «Guardar 1000 boleta(s)».
+
+**Decisión.** El estado pasa a ser **el texto tal como se escribió**, y `checkBulkQuantity` decide si se puede
+generar. Fuera de rango o no numérico: **no se genera**, el botón se desactiva y el motivo se lee bajo el campo.
+El campo **no se corrige solo** — la guía prohíbe mover en silencio un dato recién tecleado.
+
+Con el campo **vacío** no hay mensaje: quien borra para reescribir no ha cometido ningún error, y un aviso
+parpadeando entre teclas es ruido. El botón se desactiva igual y la etiqueta ya dice el rango.
+
+**Módulo nuevo:** `src/features/tickets/bulk/grid.ts`, puro y con sus textos juntos, al lado de `duplicates.ts`.
+
+### Fuera de alcance, por decisión del usuario
+
+La protección al **recargar o abandonar** la pantalla (`beforeunload`) **no entra en este bloque**. Sigue sin
+existir en todo el repositorio. Propuesta aparte en `KNOWN_ISSUES` I-151.
+
+**Pruebas.** 17 unitarias nuevas (`ticket-numbers.test.tsx`, `bulk-grid.test.ts`) y 9 E2E nuevas —4 en
+`seleccion-movil` (Pixel 7) y 5 en `owner-bulk` (Desktop Chrome)—. La unitaria de P1-A **falló antes** del arreglo
+y pasa después. `filaDe` de `seleccion-movil` pasó a buscar por los **dos números** en vez de por el enlace: es
+consecuencia directa del arreglo, no una limitación del arnés.

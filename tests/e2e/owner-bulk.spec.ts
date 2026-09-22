@@ -156,3 +156,105 @@ test.describe('Creación masiva', () => {
     await page.waitForURL(/\/owner\/tickets\?/)
   })
 })
+
+/**
+ * Las dos protecciones de la rejilla que faltaban (auditoria visual, P1-C y P2-3).
+ *
+ * Las dos se reprodujeron en el navegador sobre la instancia local antes de
+ * corregirlas, y las dos ocurrian en silencio: ni dialogo, ni aviso, ni toast.
+ *
+ * Ninguna de estas pruebas GUARDA nada: generan filas, escriben en una y
+ * comprueban la pantalla. No crean boletas.
+ */
+test.describe('Creación masiva: cantidad y regeneración', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/tickets/bulk')
+    await page.getByLabel('Rifa').click()
+    await page.getByRole('option', { name: /Rifa Navidad 2026/ }).click()
+  })
+
+  test('pedir 5000 no genera 1000 en silencio: lo dice y conserva lo escrito (P2-3)', async ({
+    page,
+  }) => {
+    const cantidad = page.getByLabel(/Cantidad/)
+    await cantidad.fill('5000')
+
+    // 1. El limite se explica, en vez de aplicarse por detras.
+    await expect(page.getByText('Puedes generar hasta 1000 boletas por lote.')).toBeVisible()
+
+    // 2. No se genera nada: antes aparecian 1000 filas sin avisar.
+    await expect(page.getByRole('button', { name: 'Generar filas' })).toBeDisabled()
+    await expect(page.getByText('1000 fila(s).')).toBeHidden()
+
+    // 3. Lo escrito se queda: el campo NO se corrige solo.
+    await expect(cantidad).toHaveValue('5000')
+
+    // 4. Y se sale escribiendo una cantidad posible.
+    await cantidad.fill('3')
+    await expect(page.getByText('Puedes generar hasta 1000 boletas por lote.')).toBeHidden()
+    await page.getByRole('button', { name: 'Generar filas' }).click()
+    await expect(page.getByText('3 fila(s).')).toBeVisible()
+  })
+
+  test('el campo vacío no regaña, pero tampoco genera (P2-3)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('')
+
+    await expect(page.getByRole('button', { name: 'Generar filas' })).toBeDisabled()
+    await expect(page.getByText('Escribe la cantidad en números.')).toBeHidden()
+    await expect(page.getByText('Necesitas al menos 1 boleta.')).toBeHidden()
+  })
+
+  test('sin nada escrito, volver a generar no pregunta nada (P1-C)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    await page.getByRole('button', { name: 'Generar filas' }).click()
+    await expect(page.getByText('3 fila(s).')).toBeVisible()
+
+    // Las tres filas estan vacias: no hay trabajo que perder.
+    await page.getByLabel(/Cantidad/).fill('5')
+    await page.getByRole('button', { name: 'Generar filas' }).click()
+
+    await expect(page.getByRole('alertdialog')).toBeHidden()
+    await expect(page.getByText('5 fila(s).')).toBeVisible()
+  })
+
+  test('con números escritos, regenerar pregunta y «Cancelar» los conserva (P1-C)', async ({
+    page,
+  }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    await page.getByRole('button', { name: 'Generar filas' }).click()
+
+    const primera = page.getByLabel('Número diario de la fila 1', { exact: true })
+    await primera.fill('1234')
+    await expect(primera).toHaveValue('1234')
+
+    await page.getByRole('button', { name: 'Generar filas' }).click()
+
+    // Pregunta, dice cuanto se pierde y nombra la accion.
+    const dialogo = page.getByRole('alertdialog')
+    await expect(dialogo).toBeVisible()
+    await expect(dialogo).toContainText('Volver a generar las filas')
+    await expect(dialogo).toContainText('Escribiste números en 1 fila.')
+
+    await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+
+    // Lo escrito sigue ahi: cancelar no toca la rejilla.
+    await expect(dialogo).toBeHidden()
+    await expect(primera).toHaveValue('1234')
+    await expect(page.getByText('3 fila(s).')).toBeVisible()
+  })
+
+  test('confirmar la regeneración sí vacía las filas (P1-C)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    await page.getByRole('button', { name: 'Generar filas' }).click()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+
+    await page.getByLabel(/Cantidad/).fill('4')
+    await page.getByRole('button', { name: 'Generar filas' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Generar de nuevo' }).click()
+
+    await expect(page.getByRole('alertdialog')).toBeHidden()
+    await expect(page.getByText('4 fila(s).')).toBeVisible()
+    await expect(page.getByLabel('Número diario de la fila 1', { exact: true })).toHaveValue('')
+  })
+})

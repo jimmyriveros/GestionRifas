@@ -46,19 +46,46 @@ export function TicketNumbersLink({
   ticket,
   href,
   className,
+  interactive = true,
 }: {
   ticket: TicketNumbersSource
   href: string
   className?: string
+  /**
+   * `false` en MODO SELECCION: los numeros se escriben como texto, no como
+   * enlace (P1-A).
+   *
+   * Mientras se esta seleccionando, la tarjeta no abre nada —marca—, asi que un
+   * enlace aqui hacia dos cosas malas a la vez. La primera se veia: tocar los
+   * numeros, que son el objetivo mas grande de la tarjeta, abria el detalle en
+   * lugar de marcar la boleta. `shouldActivateRow` hace bien su trabajo al no
+   * activar la fila desde dentro de un `a[href]` —ese enlace ya atiende su
+   * propio clic—, de modo que la regla no estaba mal: sobraba el enlace. La
+   * segunda no se veia hasta volver: el modo seleccion vive en el estado de la
+   * pantalla, asi que al navegar se perdia TODO lo marcado, sin aviso.
+   *
+   * Es la misma decision que ya tomo `RowChevron`, que desaparece en este modo
+   * porque «prometeria algo que ya no ocurre» (D-108). Aqui se aplica al
+   * enlace: sin `href` que seguir, el toque llega a la tarjeta y la marca.
+   *
+   * Quien escucha la pantalla no pierde nada: la casilla de la misma tarjeta ya
+   * se llama «Seleccionar la boleta 1234 / 5678», y la tarjeta sigue siendo una
+   * parada de teclado que marca con Enter.
+   */
+  interactive?: boolean
 }) {
   const label = ticketLabel(ticket)
+  const shared = cn('truncate font-mono text-base font-medium tabular-nums', className)
+
+  if (!interactive) {
+    // Sin `hover:underline`: nada debe sugerir que esto lleva a otra pantalla.
+    return <span className={shared}>{label}</span>
+  }
+
   return (
     <RowLink
       href={href}
-      className={cn(
-        'truncate font-mono text-base font-medium tabular-nums hover:underline',
-        className,
-      )}
+      className={cn(shared, 'hover:underline')}
       aria-label={`Ver la boleta ${label}`}
     >
       {label}
@@ -75,14 +102,17 @@ export function TicketNumbersCell({
   ticket,
   href,
   children,
+  interactive = true,
 }: {
   ticket: TicketNumbersSource
   href: string
   children?: ReactNode
+  /** Ver `TicketNumbersLink`: `false` mientras se seleccionan boletas. */
+  interactive?: boolean
 }) {
   return (
     <div className="min-w-0 space-y-0.5">
-      <TicketNumbersLink ticket={ticket} href={href} />
+      <TicketNumbersLink ticket={ticket} href={href} interactive={interactive} />
       {hasBothNumbers(ticket) ? (
         <p className="text-muted-foreground text-xs">{TICKET_NUMBERS_LEGEND}</p>
       ) : null}

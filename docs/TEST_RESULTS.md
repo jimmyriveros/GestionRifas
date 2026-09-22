@@ -13816,3 +13816,44 @@ PostgreSQL.
 
 > **A7 se respondió el mismo día.** El dueño dijo que **no se acumulan**, y la corrección está en la
 > entrada de arriba (`0059`, D-201). Lo que esta sección decía era cierto cuando se escribió.
+
+---
+
+## D-211 — Primer bloque de correcciones de la auditoría visual (2026-09-21, solo en local)
+
+### a. Reproducción antes de tocar nada
+
+| Problema | Cómo se reprodujo | Qué se midió |
+|---|---|---|
+| **P1-A** | Navegador, instancia local, 375 × 812, sesión de vendedor | En modo selección, tocar los dos números navegó a `/seller/tickets/4ffd1ae8-…`. Después, `selectionModeStillOn: false`. **Lo marcado NO se pierde**: vive en `sessionStorage` |
+| **P1-A** (unitaria) | `ticket-numbers.test.tsx` contra el código de entonces | **2 de 4 en rojo**: el `a[href]` se pintaba siempre, ignorando el modo |
+| **P1-C** | Navegador, `/owner/tickets/bulk`, sesión de Dueño | Con `1234` en la fila 1, segundo toque en «Generar filas»: `confirmDialogAppeared: false`, `anyToast: false`, valor borrado |
+| **P2-3** | Ídem | Escrito **5000** en «Cantidad (1 a 1000)»: el campo siguió mostrando `5000`, el resultado dijo «1000 fila(s)» y el botón «Guardar 1000 boleta(s)». Sin toast |
+
+### b. Después del arreglo
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ **exit 0** — tipos limpios, lint **0 errores** (2 avisos preexistentes de `react-hooks/incompatible-library` en TanStack), **1.539** unitarias en 82 archivos, build de producción compilado |
+| `npm run test:db` | ✅ **1.402 pasadas + 1 omitida**, 57 archivos |
+| `playwright owner-bulk --project=escritorio -g "P2-3\|P1-C"` | ✅ **5/5** |
+| `playwright seleccion-movil --project=movil -g "P1-A"` | ✅ **4/4** |
+| `playwright seleccion-movil + seleccion-multiple` (completas) | **24 pasadas, 7 fallos** — los 7, **preexistentes**: ver abajo |
+
+### c. Los siete fallos, atribuidos
+
+No son una regresión, y se comprobó en vez de suponerlo: con los cambios de D-211 en `git stash`, la misma pasada
+da **los mismos 7 fallos** (5 de 19 en `seleccion-multiple`, 2 en `seleccion-movil`). Registrados en **I-151**.
+
+Las dos de móvil tienen causa caracterizada: cargan `/seller/tickets` **sin `?q=`** y esperan una boleta recién
+creada en la primera página, con 5.390 boletas en la base local. Las cinco de escritorio **no se investigaron**:
+se comprobó que son anteriores y ahí se paró, por alcance.
+
+### d. Lo que NO se comprobó
+
+* **A mano en el navegador, después del arreglo:** la sesión del navegador caducó al correr la E2E, que cierra
+  sesión. La comprobación visual la cubren las **9 E2E nuevas**, que corren en Chromium real —Pixel 7 y Desktop
+  Chrome— contra este mismo servidor.
+* **Teclado con lector de pantalla real**: la tarjeta sigue siendo parada de teclado y la casilla conserva su
+  nombre accesible con los dos números, comprobado por E2E; no se probó con VoiceOver ni TalkBack.
+* **Producción**: no se tocó ni se leyó. Sin migración: los tres arreglos son de interfaz.
