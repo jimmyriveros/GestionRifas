@@ -61,8 +61,11 @@ export function TicketNumbersLink({
    * lugar de marcar la boleta. `shouldActivateRow` hace bien su trabajo al no
    * activar la fila desde dentro de un `a[href]` —ese enlace ya atiende su
    * propio clic—, de modo que la regla no estaba mal: sobraba el enlace. La
-   * segunda no se veia hasta volver: el modo seleccion vive en el estado de la
-   * pantalla, asi que al navegar se perdia TODO lo marcado, sin aviso.
+   * segunda no se veia hasta volver: `selectionMode` es estado de React de la
+   * pantalla que se abandona, asi que al regresar las casillas ya no estaban y
+   * habia que entrar otra vez en «Seleccionar varias». LO MARCADO NO SE PERDIA:
+   * vive en `sessionStorage` (`selection-store.ts`) y sobrevive a la
+   * navegacion. El informe de la auditoria dijo lo contrario y se corrigio.
    *
    * Es la misma decision que ya tomo `RowChevron`, que desaparece en este modo
    * porque «prometeria algo que ya no ocurre» (D-108). Aqui se aplica al

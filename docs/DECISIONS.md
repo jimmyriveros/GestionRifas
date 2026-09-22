@@ -13144,3 +13144,44 @@ existir en todo el repositorio. Propuesta aparte en `KNOWN_ISSUES` I-151.
 `seleccion-movil` (Pixel 7) y 5 en `owner-bulk` (Desktop Chrome)—. La unitaria de P1-A **falló antes** del arreglo
 y pasa después. `filaDe` de `seleccion-movil` pasó a buscar por los **dos números** en vez de por el enlace: es
 consecuencia directa del arreglo, no una limitación del arnés.
+
+### Cierre del bloque (2026-09-21)
+
+**La base local explicaba los siete fallos, y ahora está comprobado.** El primer informe atribuyó **dos** de
+ellos al estado de la base y dejó los **cinco de escritorio sin investigar**. Tres pasadas lo cierran: con la base
+acumulada (**11.918 boletas**) fallan 7 de 31; con los cambios en `git stash` y **esa misma base**, fallan los
+mismos 7; tras `db:reset` + `seed:local` (**33 boletas**) pasan **31 de 31**. Registrado en **I-151**, que sigue
+abierta porque las pruebas siguen siendo frágiles: el seed no corre entre suites.
+
+**Un defecto propio del bloque, corregido.** Con el campo «Cantidad» **vacío**, `aria-invalid` valía `true` y
+`aria-describedby` apuntaba a `bulk-quantity-error`, **un elemento que no se renderiza**. Se separaba la validez
+del mensaje; ahora hay un solo `quantityError` y los dos atributos van con él. Un campo vacío no se pinta como
+error, no se anuncia como error y no describe nada; lo que sigue pasando es que no se puede generar, y de eso se
+encarga el botón.
+
+**Dos defectos ajenos, documentados y no corregidos.** **I-152:** `ConfirmDialog` no devuelve el foco al botón que
+lo abrió —medido: queda en `body`—, porque se usa controlado y sin `AlertDialogTrigger`; afecta a sus **once** usos
+y arreglarlo cambia once pantallas. La prueba está escrita y marcada `test.fixme`. **I-151**, arriba.
+
+**Dos falsas alarmas que no llegaron a informe.** Los botones de la confirmación miden **42,29 px** si se miden a
+mitad de `zoom-in-95`, y **44** cuando termina: la prueba espera a las animaciones, como ya hacía
+`formularios-alineacion`. Y las dos pruebas de teclado que fallaron lo hacían por un `\?` mal escapado en su propia
+expresión regular.
+
+**Comentarios corregidos.** Los de `TicketNumbers`, `TicketCardList` y la prueba unitaria seguían diciendo que se
+perdía toda la selección. Ya dicen lo comprobado: se pierde el **modo**, no lo marcado.
+
+### Rectificación de la propuesta de persistencia (sigue fuera de alcance)
+
+Lo que propuse al cerrar el bloque anterior estaba mal en dos puntos, y conviene que no quede escrito como bueno:
+
+* **`sessionStorage` no recupera el trabajo tras cerrar la pestaña.** Vive **en la pestaña**: sobrevive a una
+  recarga y a la navegación dentro de ella, y se borra al cerrarla. Dije que cubriría «recarga, cierre y navegación
+  interna»; cubre la primera y la tercera. Para el cierre haría falta otro almacén, con sus propias preguntas —
+  cuánto dura, quién lo limpia y qué pasa si dos pestañas editan lotes distintos—.
+* **El efecto de `beforeunload` sobre la caché de navegación depende del navegador.** No es el hecho establecido que
+  di por sentado: el listener que históricamente descalifica esa caché es `unload`, y el trato que cada motor da a
+  `beforeunload` no es el mismo. Afirmarlo como un coste seguro fue ir más lejos de lo medido.
+
+Con las dos correcciones, **la comparación que hice ya no se sostiene** y habría que rehacerla midiendo, no
+razonando. **Ninguna de las dos opciones se implementa**, y la protección al salir sigue fuera de alcance.

@@ -326,8 +326,10 @@ test.describe('Modo selección en el teléfono', () => {
  * nadie pidió, pero no se pierde trabajo: conviene no exagerarlo.
  *
  * Se busca SIEMPRE con `?q=`, nunca sobre la lista completa: con miles de
- * boletas, una recién creada no cae en la primera página. Dos pruebas de esta
- * misma suite ya fallan por eso, de antes de este cambio.
+ * boletas acumuladas, una recién creada no cae en la primera página. Con la
+ * base recién sembrada toda la suite pasa, pero `?q=` no depende de eso: es la
+ * diferencia entre una prueba que falla cuando la base crece y una que no
+ * (I-151).
  */
 test.describe('Modo selección: los números no abren el detalle (P1-A)', () => {
   /** Los dos números dentro de la tarjeta, que es lo que se toca. */
@@ -434,5 +436,36 @@ test.describe('Modo selección: los números no abren el detalle (P1-A)', () => 
 
     await numerosDe(filaDe(page, boleta), boleta).tap()
     await page.waitForURL(`**/seller/tickets/${boleta.id}`)
+  })
+
+  /**
+   * PRUEBA FUNCIONAL, no revisión visual: quitar el enlace quita una parada de
+   * teclado, así que hay que demostrar que la tarjeta sigue siendo operable sin
+   * dedo. `Enter` y `Space` los atiende `handleKeyDown` del `li`, y solo cuando
+   * el foco está en la tarjeta misma.
+   */
+  test('con el teclado, la tarjeta se marca y se desmarca sin abrir el detalle', async ({
+    page,
+  }) => {
+    const boleta = await nuevaBoleta()
+
+    await loginAs(page, ACCOUNTS.seller)
+    await page.goto(`/seller/tickets?q=${boleta.daily}`)
+    const fila = filaDe(page, boleta)
+    await expect(fila).toBeVisible()
+
+    await activarModoSeleccion(page)
+
+    await fila.focus()
+    await expect(fila).toBeFocused()
+
+    await page.keyboard.press('Enter')
+    await expect(recuento(page)).toHaveText('1 seleccionada')
+    await expect(page).toHaveURL(new RegExp(`/seller/tickets\\?q=${boleta.daily}`))
+
+    // `Space` hace lo mismo y no desplaza la página: `handleKeyDown` lo evita.
+    await page.keyboard.press(' ')
+    await expect(recuento(page)).toHaveText('Toca las boletas que quieras seleccionar.')
+    await expect(page).toHaveURL(new RegExp(`/seller/tickets\\?q=${boleta.daily}`))
   })
 })

@@ -4,8 +4,12 @@
  * Lo que se comprueba aqui es el DEFECTO P1-A de la auditoria visual: en modo
  * seleccion, el numero seguia siendo un enlace vivo. Tocarlo —el objetivo mas
  * grande de la tarjeta— abria el detalle en vez de marcar la boleta, y al
- * volver la seleccion entera se habia perdido, porque el modo vive en el estado
- * de la pantalla que se acaba de abandonar.
+ * volver habia que entrar otra vez en «Seleccionar varias», porque
+ * `selectionMode` es estado de React de la pantalla abandonada.
+ *
+ * LO MARCADO NO SE PERDIA. Vive en `sessionStorage` (`selection-store.ts`) y
+ * sobrevive a la navegacion. El informe de la auditoria afirmo lo contrario;
+ * queda corregido aqui y en D-211.
  *
  * `shouldActivateRow` hace bien su trabajo: un clic dentro de un `a[href]` no
  * activa la fila, porque ese enlace ya atiende su propio clic. El problema no

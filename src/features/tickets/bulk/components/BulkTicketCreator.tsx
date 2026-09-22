@@ -84,6 +84,21 @@ export function BulkTicketCreator({
   const quantityCheck = checkBulkQuantity(quantityText)
   const filledRows = countFilledRows(rows)
 
+  /**
+   * El mensaje que SE PINTA, o `null`.
+   *
+   * Es una sola verdad para las tres cosas que dependen de el —el texto,
+   * `aria-invalid` y `aria-describedby`— y existe porque separarlas fue un
+   * defecto real: con el campo vacio, `quantityCheck.ok` es `false` pero no hay
+   * mensaje, asi que el campo se anunciaba invalido y apuntaba con
+   * `aria-describedby` a un elemento que no estaba en la pagina.
+   *
+   * Un campo vacio no es un error (ver `BulkQuantityCheck`): no se pinta, no se
+   * anuncia y no se describe. Lo que si sigue pasando es que no se puede
+   * generar, y de eso se encarga el boton, que lee `quantityCheck.ok`.
+   */
+  const quantityError = quantityCheck.ok ? null : quantityCheck.message
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
@@ -271,8 +286,10 @@ export function BulkTicketCreator({
             // por el que no se puede generar se lee justo debajo (P2-3).
             value={quantityText}
             onChange={(event) => setQuantityText(event.target.value)}
-            aria-invalid={quantityCheck.ok ? undefined : true}
-            aria-describedby={quantityCheck.ok ? undefined : 'bulk-quantity-error'}
+            // Los dos atributos van con el MENSAJE, no con la validez: sin
+            // mensaje no hay nada que describir ni que anunciar como error.
+            aria-invalid={quantityError === null ? undefined : true}
+            aria-describedby={quantityError === null ? undefined : 'bulk-quantity-error'}
             disabled={isPending}
           />
           {/*
@@ -281,9 +298,9 @@ export function BulkTicketCreator({
             (ver `BulkQuantityCheck`). `role="alert"` no —interrumpiria en cada
             tecla—; basta con que el campo lo declare como su descripcion.
           */}
-          {quantityCheck.ok || quantityCheck.message === null ? null : (
+          {quantityError === null ? null : (
             <p id="bulk-quantity-error" className="text-destructive text-body-small">
-              {quantityCheck.message}
+              {quantityError}
             </p>
           )}
         </div>

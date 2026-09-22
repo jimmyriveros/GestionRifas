@@ -86,3 +86,79 @@ test.describe('Portal administrativo en movil', () => {
     await expect(daily).toHaveValue('0007')
   })
 })
+
+/**
+ * La rejilla de creación masiva EN EL TELÉFONO (cierre de D-211).
+ *
+ * El bloque 1 tocó dos cosas de esta pantalla —el aviso de la cantidad y la
+ * confirmación al regenerar— y las dos se habían comprobado solo en escritorio.
+ * Aquí se comprueba que en un teléfono se ven, caben y se pueden usar.
+ *
+ * No guarda nada: genera filas, escribe en una y mira la pantalla.
+ */
+test.describe('Creación masiva en el teléfono', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.owner)
+    await page.goto('/owner/tickets/bulk')
+    await page.getByLabel('Rifa').tap()
+    await page.getByRole('option', { name: /Rifa Navidad 2026/ }).tap()
+  })
+
+  test('el aviso de la cantidad se lee y la pantalla no desborda', async ({ page }) => {
+    const cantidad = page.getByLabel(/Cantidad/)
+    await cantidad.fill('5000')
+
+    const aviso = page.getByText('Puedes generar hasta 1000 boletas por lote.')
+    await expect(aviso).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Generar filas' })).toBeDisabled()
+    await expect(cantidad).toHaveValue('5000')
+
+    // El aviso entra en el ancho del teléfono y la página no se va de lado.
+    const caja = await aviso.boundingBox()
+    const ancho = page.viewportSize()!.width
+    expect(caja!.x).toBeGreaterThanOrEqual(0)
+    expect(caja!.x + caja!.width).toBeLessThanOrEqual(ancho)
+    const desborde = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    )
+    expect(desborde).toBe(false)
+  })
+
+  test('la confirmación de regenerar cabe en la pantalla y sus botones se tocan', async ({
+    page,
+  }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    await page.getByRole('button', { name: 'Generar filas' }).tap()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+
+    await page.getByRole('button', { name: 'Generar filas' }).tap()
+
+    const dialogo = page.getByRole('alertdialog')
+    await expect(dialogo).toBeVisible()
+    await expect(dialogo).toContainText('Escribiste números en 1 fila.')
+
+    /*
+      MEDIR DESPUÉS DE `zoom-in-95`, como ya hace `formularios-alineacion`.
+      Sin esperar a que termine la animación de apertura, el botón se mide
+      escalado y da 42,29 px en vez de 44: no es un defecto del producto, es la
+      medida tomada a mitad del zoom. Misma trampa que I-150.
+    */
+    await dialogo.evaluate((element) =>
+      Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => {}))),
+    )
+
+    // Los dos botones caben dentro del viewport y llegan a los 44 px de alto.
+    const alto = page.viewportSize()!.height
+    for (const nombre of ['Cancelar', 'Generar de nuevo']) {
+      const caja = await dialogo.getByRole('button', { name: nombre }).boundingBox()
+      expect(caja!.y).toBeGreaterThanOrEqual(0)
+      expect(caja!.y + caja!.height).toBeLessThanOrEqual(alto)
+      expect(caja!.height).toBeGreaterThanOrEqual(44)
+    }
+
+    // Cancelar con el dedo conserva lo escrito.
+    await dialogo.getByRole('button', { name: 'Cancelar' }).tap()
+    await expect(dialogo).toBeHidden()
+    await expect(page.getByLabel('Número diario de la fila 1', { exact: true })).toHaveValue('1234')
+  })
+})

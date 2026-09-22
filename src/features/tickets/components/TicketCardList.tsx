@@ -292,8 +292,9 @@ function SellerCardBody({
         {/* El enlace se conserva aunque la tarjeta entera sea pulsable: da el
             menu contextual, «abrir en otra pestana» y una parada de teclado
             con nombre. EN MODO SELECCION no: ahi la tarjeta marca en vez de
-            abrir, y un enlace vivo se llevaba el toque y de paso la seleccion
-            entera (P1-A). */}
+            abrir, y un enlace vivo se llevaba el toque y sacaba de la lista
+            (P1-A). Lo marcado sobrevive —vive en `sessionStorage`—; lo que
+            habia que volver a encender era el modo. */}
         <TicketNumbersLink
           ticket={ticket}
           href={`${basePath}/${ticket.id}`}

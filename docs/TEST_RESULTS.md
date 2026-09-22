@@ -13857,3 +13857,55 @@ se comprobó que son anteriores y ahí se paró, por alcance.
 * **Teclado con lector de pantalla real**: la tarjeta sigue siendo parada de teclado y la casilla conserva su
   nombre accesible con los dos números, comprobado por E2E; no se probó con VoiceOver ni TalkBack.
 * **Producción**: no se tocó ni se leyó. Sin migración: los tres arreglos son de interfaz.
+
+---
+
+## D-211 — Cierre del bloque: base sembrada, teclado y móvil (2026-09-21, solo en local)
+
+> **Corrige la sección «c. Los siete fallos, atribuidos» de la entrada anterior.** Allí se dijo que las cinco de
+> escritorio «no se investigaron»; aquí quedan explicadas por la misma causa, medida.
+
+### a. Los siete fallos, ahora con causa comprobada
+
+Tres pasadas, con condiciones iniciales declaradas en cada una:
+
+| Pasada | Base de partida | Resultado |
+|---|---|---|
+| 1 · candidato | acumulada: **11.918** boletas, 47 clientes, 164 pagos | **7 fallos / 31** |
+| 2 · candidato en `git stash` | **la misma** base acumulada | **los mismos 7** → no es regresión |
+| 3 · candidato | `db:reset` + `seed:local`: **33** boletas | **31 de 31 en verde** |
+
+La base local se **respaldó** antes del primer `db:reset` (`pg_dump`, 36 MB, fuera del repositorio). **I-151** queda
+abierta: la causa está clara pero las pruebas siguen siendo frágiles, porque el seed no corre entre suites y varias
+crean boletas que no borran (I-035).
+
+⚠️ **Trampa del entorno:** tras `supabase db reset`, **Kong sirve 502 en `/auth/v1/…`** hasta que se reinicia
+(`docker restart supabase_kong_Rifas`). El contenedor de auth está sano; el que se queda con el destino viejo es el
+portero. Sin ese reinicio, `seed:local` falla con `AuthRetryableFetchError` y `status: 502`.
+
+### b. Verificación final, con la base recién sembrada antes de cada grupo
+
+| Comando | Resultado |
+|---|---|
+| `seleccion-movil` + `seleccion-multiple` + `owner-responsive` | ✅ **38/38** |
+| `owner-bulk` (grupo propio, por las pruebas de 1.000 filas) | ✅ **16 pasadas, 1 omitida** (la de I-152, `test.fixme`) |
+| `npm run verify` | ✅ **exit 0** — 1.539 unitarias, lint 0 errores, build de producción |
+| `npm run test:db` | ✅ **1.402 + 1 omitida** |
+
+### c. Pruebas funcionales de teclado y móvil, separadas de la revisión visual
+
+**Funcionales (automáticas, sin ojo humano):** la tarjeta se marca y se desmarca con `Enter` y `Space` sin abrir el
+detalle —importa porque quitar el enlace quitó una parada de teclado—; `Escape` cancela la confirmación y conserva
+lo escrito; el diálogo se recorre con `Tab` y se acepta con `Enter`; en el teléfono, el aviso de la cantidad cabe
+en el ancho sin desbordar la página y los dos botones del diálogo miden **≥ 44 px** y quedan dentro del viewport;
+y el campo declara `aria-invalid`/`aria-describedby` **solo cuando hay mensaje**.
+
+**Revisión visual (mirada, no automática):** ninguna en este cierre. La sesión del navegador caduca al correr la
+E2E y un agente no puede volver a entrar. Lo que se afirma arriba sale de aserciones, no de capturas.
+
+### d. Lo que NO se comprobó
+
+* **Lectores de pantalla reales** (VoiceOver, TalkBack): las aserciones miran el DOM y el foco, no lo que se oye.
+* **Los cinco fallos de escritorio, uno por uno**: se demostró que dependen del estado de la base, no el mecanismo
+  concreto de cada prueba.
+* **Producción**: no se tocó ni se leyó. Sin migración.

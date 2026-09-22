@@ -198,11 +198,32 @@ test.describe('Creación masiva: cantidad y regeneración', () => {
   })
 
   test('el campo vacío no regaña, pero tampoco genera (P2-3)', async ({ page }) => {
-    await page.getByLabel(/Cantidad/).fill('')
+    const cantidad = page.getByLabel(/Cantidad/)
+    await cantidad.fill('')
 
     await expect(page.getByRole('button', { name: 'Generar filas' })).toBeDisabled()
     await expect(page.getByText('Escribe la cantidad en números.')).toBeHidden()
     await expect(page.getByText('Necesitas al menos 1 boleta.')).toBeHidden()
+
+    // Y no se anuncia un error que la pantalla no enseña: sin mensaje no hay
+    // `aria-invalid` ni una descripción que apunte a un elemento inexistente.
+    await expect(cantidad).not.toHaveAttribute('aria-invalid', /.*/)
+    await expect(cantidad).not.toHaveAttribute('aria-describedby', /.*/)
+  })
+
+  test('cuando SÍ hay mensaje, el campo lo declara como su descripción (P2-3)', async ({
+    page,
+  }) => {
+    const cantidad = page.getByLabel(/Cantidad/)
+    await cantidad.fill('5000')
+
+    await expect(cantidad).toHaveAttribute('aria-invalid', 'true')
+    await expect(cantidad).toHaveAttribute('aria-describedby', 'bulk-quantity-error')
+
+    // La descripción existe de verdad y dice el límite.
+    await expect(page.locator('#bulk-quantity-error')).toHaveText(
+      'Puedes generar hasta 1000 boletas por lote.',
+    )
   })
 
   test('sin nada escrito, volver a generar no pregunta nada (P1-C)', async ({ page }) => {
@@ -254,6 +275,82 @@ test.describe('Creación masiva: cantidad y regeneración', () => {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Generar de nuevo' }).click()
 
     await expect(page.getByRole('alertdialog')).toBeHidden()
+    await expect(page.getByText('4 fila(s).')).toBeVisible()
+    await expect(page.getByLabel('Número diario de la fila 1', { exact: true })).toHaveValue('')
+  })
+
+  /**
+   * PRUEBA FUNCIONAL de teclado, no revisión visual.
+   *
+   * La confirmación es nueva en este bloque, así que hay que demostrar que se
+   * puede cancelar sin ratón y que el foco vuelve donde estaba. Si el foco se
+   * perdiera en el `body`, quien navega con teclado tendría que recorrer la
+   * página entera para volver al botón que acaba de pulsar.
+   */
+  test('Escape cancela la confirmación y conserva lo escrito (P1-C)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    const generar = page.getByRole('button', { name: 'Generar filas' })
+    await generar.click()
+
+    const primera = page.getByLabel('Número diario de la fila 1', { exact: true })
+    await primera.fill('1234')
+
+    await generar.click()
+    const dialogo = page.getByRole('alertdialog')
+    await expect(dialogo).toBeVisible()
+
+    await page.keyboard.press('Escape')
+
+    await expect(dialogo).toBeHidden()
+    // Escape equivale a cancelar: la rejilla no se toca.
+    await expect(primera).toHaveValue('1234')
+    await expect(page.getByText('3 fila(s).')).toBeVisible()
+  })
+
+  /**
+   * El foco NO vuelve al botón: se queda en `body`. Medido al cerrar D-211.
+   *
+   * No es de este bloque y no se corrige aquí: `ConfirmDialog` se usa
+   * controlado (`open`/`onOpenChange`) y sin `AlertDialogTrigger`, así que
+   * Radix no tiene a quién devolverlo, y eso vale para sus **once** usos —
+   * anular, desactivar, eliminar, liberar—. Arreglarlo cambia el
+   * comportamiento de todas esas pantallas a la vez. Queda en **I-152**.
+   *
+   * La prueba se deja escrita y marcada: cuando se corrija, se quita el
+   * `fixme` y esto pasa a ser la regresión.
+   */
+  test.fixme('el foco vuelve a «Generar filas» al cerrar con Escape (I-152)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    const generar = page.getByRole('button', { name: 'Generar filas' })
+    await generar.click()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+
+    await generar.click()
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await expect(generar).toBeFocused()
+  })
+
+  test('la confirmación se recorre y se acepta con el teclado (P1-C)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    const generar = page.getByRole('button', { name: 'Generar filas' })
+    await generar.click()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+
+    await page.getByLabel(/Cantidad/).fill('4')
+    await generar.click()
+
+    const dialogo = page.getByRole('alertdialog')
+    await expect(dialogo).toBeVisible()
+
+    // El foco entra en el diálogo y sus dos botones se alcanzan con Tab.
+    await expect(dialogo.getByRole('button', { name: 'Cancelar' })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(dialogo.getByRole('button', { name: 'Generar de nuevo' })).toBeFocused()
+
+    await page.keyboard.press('Enter')
+    await expect(dialogo).toBeHidden()
     await expect(page.getByText('4 fila(s).')).toBeVisible()
     await expect(page.getByLabel('Número diario de la fila 1', { exact: true })).toHaveValue('')
   })
