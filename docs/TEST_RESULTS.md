@@ -13909,3 +13909,55 @@ E2E y un agente no puede volver a entrar. Lo que se afirma arriba sale de aserci
 * **Los cinco fallos de escritorio, uno por uno**: se demostró que dependen del estado de la base, no el mecanismo
   concreto de cada prueba.
 * **Producción**: no se tocó ni se leyó. Sin migración.
+
+---
+
+## D-212 — El foco vuelve al cerrar una confirmación (2026-09-21, solo en local)
+
+### a. Reproducción, y dos suposiciones que la medida tumbó
+
+| Qué | Medido |
+|---|---|
+| El defecto | Tras `Escape`, `document.activeElement` = **`BODY`** |
+| Leer el foco al abrir **no sirve** | En ese instante ya vale `BUTTON\|alert-dialog-cancel`: el efecto del hijo de Radix corre antes que el del padre |
+| `isConnected` al cerrar **no basta** | «Anular boleta» sigue montado al cerrar el diálogo; se va después, con `router.refresh()` |
+
+### b. Las tres formas, cada una comprobada
+
+| Forma | Pantalla | Destino medido |
+|---|---|---|
+| Botón que sobrevive | «Generar filas» | el propio botón, con Escape, con ratón y al confirmar |
+| Desde un menú | «Desactivar» en Administradores | el botón **«⋯»**, no la opción del menú |
+| Botón que desaparece | «Anular boleta» | **`main`**, porque el botón ya no existe |
+
+### c. Verificación
+
+| Comando | Resultado |
+|---|---|
+| `restore-focus.test.ts` | ✅ **11/11** |
+| E2E de confirmaciones, grupo 1 (9 specs: equipo, liberar, raffles, tickets, users, payments, clients, seller-tickets, selección) | ✅ **133/133** |
+| E2E de confirmaciones, grupo 2 (premios, dianas táctiles, liberar móvil, premios móvil, cabecera) | ✅ **45/45** |
+| `npm run verify` | ✅ **exit 0** — **1.550** unitarias, lint 0 errores, build |
+| `npm run test:db` | ✅ **1.402 + 1 omitida**, con la base recién sembrada |
+
+Cada grupo corrió con `db:reset` + `seed:local` delante. La prueba que estaba en `test.fixme` **está activa y pasa**.
+
+### d. Revisión visual (mirada, con sesión iniciada por el dueño)
+
+Esta vez sí la hubo, y se distingue de lo automático. Con sesión de **Dueño**: el campo con `5000` conserva lo
+escrito, enseña borde y mensaje rojos y desactiva el botón; **vacío** vuelve al anillo verde normal **sin mensaje
+ni borde rojo**; el diálogo dice «Volver a generar las filas» y «Escribiste números en 1 fila…»; y tras `Escape`
+**se ve el anillo de foco sobre «Generar filas»** con el `1234` intacto. En 375 px los dos botones van a ancho
+completo. Con sesión de **vendedor**: en modo selección los números son `<span>` —**cero enlaces visibles**— con
+el mismo aspecto que antes, y tocarlos marca la boleta sin salir de la lista.
+
+**Observaciones visuales, ninguna de este bloque:** en el diálogo, «Generar de nuevo» se pinta encima de
+«Cancelar» (`flex-col-reverse` de `AlertDialogFooter`, en las doce confirmaciones; en el DOM Cancelar va primero,
+así que el teclado llega antes a Cancelar), y el botón verde deshabilitado se lee bastante presente al 50 % de
+opacidad (`disabled:opacity-50` de `buttonVariants`).
+
+### e. Lo que NO se comprobó
+
+* **Lectores de pantalla reales**: se midió dónde queda el foco, no cómo se anuncia.
+* **«Asignar la boleta»**: usa `Dialog`, no `ConfirmDialog`, y sigue sin devolver el foco. Fuera del encargo.
+* **Producción**: no se tocó ni se leyó. Sin migración.

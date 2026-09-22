@@ -308,18 +308,14 @@ test.describe('Creación masiva: cantidad y regeneración', () => {
   })
 
   /**
-   * El foco NO vuelve al botón: se queda en `body`. Medido al cerrar D-211.
+   * I-152, corregida: el foco vuelve al botón que abrió la confirmación.
    *
-   * No es de este bloque y no se corrige aquí: `ConfirmDialog` se usa
-   * controlado (`open`/`onOpenChange`) y sin `AlertDialogTrigger`, así que
-   * Radix no tiene a quién devolverlo, y eso vale para sus **once** usos —
-   * anular, desactivar, eliminar, liberar—. Arreglarlo cambia el
-   * comportamiento de todas esas pantallas a la vez. Queda en **I-152**.
-   *
-   * La prueba se deja escrita y marcada: cuando se corrija, se quita el
-   * `fixme` y esto pasa a ser la regresión.
+   * Antes se quedaba en `body` —medido—, porque `ConfirmDialog` se usa
+   * controlado y sin `AlertDialogTrigger`, así que Radix no tenía a quién
+   * devolverlo. Aquí el abridor sigue en la pantalla al cerrar, que es el caso
+   * corriente; el caso en el que desaparece lo cubre `owner-tickets`.
    */
-  test.fixme('el foco vuelve a «Generar filas» al cerrar con Escape (I-152)', async ({ page }) => {
+  test('el foco vuelve a «Generar filas» al cerrar con Escape (I-152)', async ({ page }) => {
     await page.getByLabel(/Cantidad/).fill('3')
     const generar = page.getByRole('button', { name: 'Generar filas' })
     await generar.click()
@@ -329,6 +325,36 @@ test.describe('Creación masiva: cantidad y regeneración', () => {
     await expect(page.getByRole('alertdialog')).toBeVisible()
     await page.keyboard.press('Escape')
 
+    await expect(generar).toBeFocused()
+    // Y se puede seguir desde ahí: lo escrito está y el botón responde.
+    await expect(page.getByLabel('Número diario de la fila 1', { exact: true })).toHaveValue('1234')
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+  })
+
+  test('cancelar con el ratón también devuelve el foco al botón (I-152)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    const generar = page.getByRole('button', { name: 'Generar filas' })
+    await generar.click()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+
+    await generar.click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar' }).click()
+
+    await expect(generar).toBeFocused()
+  })
+
+  test('al confirmar, el foco vuelve al botón, que sigue ahí (I-152)', async ({ page }) => {
+    await page.getByLabel(/Cantidad/).fill('3')
+    const generar = page.getByRole('button', { name: 'Generar filas' })
+    await generar.click()
+    await page.getByLabel('Número diario de la fila 1', { exact: true }).fill('1234')
+
+    await page.getByLabel(/Cantidad/).fill('4')
+    await generar.click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Generar de nuevo' }).click()
+
+    await expect(page.getByText('4 fila(s).')).toBeVisible()
     await expect(generar).toBeFocused()
   })
 

@@ -13185,3 +13185,50 @@ Lo que propuse al cerrar el bloque anterior estaba mal en dos puntos, y conviene
 
 Con las dos correcciones, **la comparación que hice ya no se sostiene** y habría que rehacerla midiendo, no
 razonando. **Ninguna de las dos opciones se implementa**, y la protección al salir sigue fuera de alcance.
+
+---
+
+## D-212 — Las confirmaciones devuelven el foco: al control que las abrió y, si ya no está, al contenido
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-21). **No es una Fase 10** y no lleva
+etiqueta `fase-*`. **Solo en local.** No autoriza push ni despliegue.
+
+**Problema (I-152).** `ConfirmDialog` se usa **controlado** —`open` / `onOpenChange`— y **sin
+`AlertDialogTrigger`**, así que Radix no tiene ninguna referencia a la que devolver el foco al cerrar y lo deja en
+`body`. Medido con Playwright antes de tocar nada. Afecta a sus **doce** usos, no solo al de la rejilla.
+
+### Los usos no se comportan igual, y por eso la regla mira el estado y no quién abrió
+
+| Forma | Ejemplo | Qué pasa con el abridor | Destino |
+|---|---|---|---|
+| Botón que sobrevive | «Generar filas», «Archivar cliente» | sigue ahí; a lo sumo cambia su texto | el botón |
+| Desde un menú | «Desactivar» en Administradores | la opción se desmonta, pero Radix ya devolvió el foco al «⋯» | el «⋯» |
+| Botón que desaparece | «Anular boleta» (`{canCancel ? … : null}`) | se va **después**, al repintarse el árbol de servidor | el contenido (`main`) |
+
+### Dos cosas que hubo que medir, porque lo evidente estaba mal
+
+**No sirve leer `document.activeElement` al abrir.** El efecto del hijo —el contenido de Radix, que enfoca
+«Cancelar»— corre **antes** que el del padre, así que lo que se leía era el propio botón del diálogo. Medido:
+`alert-dialog-cancel`. La captura se hace **escuchando `focusin` mientras el diálogo está cerrado**; así el último
+apuntado es siempre el control de la pantalla, sin depender del orden de los efectos. Con esto, el caso del menú
+cae solo: Radix devuelve el foco al «⋯» antes de que el diálogo se monte, y eso es lo que se apunta.
+
+**No basta con comprobar `isConnected` al cerrar.** Cuando se anula una boleta, el botón **todavía existe** en ese
+instante: desaparece más tarde, cuando `router.refresh()` repinta el árbol y `canCancel` pasa a false. El rescate
+se engancha al `blur` —que también se dispara al quitar un elemento enfocado— y solo actúa si se cumplen las dos
+condiciones: que el elemento ya no esté **y** que el foco haya acabado en `body`. Si la persona simplemente tabuló
+fuera, no pasa nada.
+
+**Decisión.** Un módulo puro, `src/components/feedback/restore-focus.ts`, con la regla y el préstamo de
+`tabindex`; `ConfirmDialog` lo usa desde `onCloseAutoFocus`, que es el gancho nativo de Radix. **Sin dependencias
+nuevas, sin cambios visuales y sin tocar ninguna operación de negocio.** No se añade ninguna prop: los doce usos
+se arreglan sin que ninguno cambie.
+
+**`tabindex` prestado, y solo a quien no es enfocable.** Un `<main>` lo necesita y se le retira en cuanto pierde
+el foco. A un `<button>` **no** se le pone: la primera versión lo hacía y lo habría **sacado del orden de
+tabulación** mientras tuviera el foco —Shift+Tab dejaría de encontrarlo—. Lo detectó la prueba unitaria.
+
+**Pruebas.** 11 unitarias (`restore-focus.test.ts`) y 6 de extremo a extremo, una por forma: «Generar filas»
+—Escape, cancelar con ratón y confirmar—, «Desactivar» desde el menú y «Anular boleta» cuando el botón se va. La
+que estaba en `test.fixme` **queda activa**. Nota de entorno: **jsdom no emite `blur` al quitar un nodo
+enfocado**, así que esa rama se ejercita despachándolo a mano y el caso real lo cubre la E2E.

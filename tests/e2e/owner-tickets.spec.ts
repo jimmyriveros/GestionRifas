@@ -203,6 +203,15 @@ test.describe('Boletas', () => {
     // Una boleta anulada ya no ofrece editar ni anular de nuevo.
     await expect(page.getByRole('button', { name: 'Editar números' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Anular boleta' })).toHaveCount(0)
+
+    /*
+      I-152, el caso en el que el abridor NO sobrevive.
+      «Anular boleta» acaba de desaparecer —lo comprueba la línea de arriba—,
+      así que el foco no puede volver ahí. Va al contenido de la pantalla, que
+      es el destino lógico que queda, y nunca a `body`, donde lo dejaba Radix
+      al no haber `AlertDialogTrigger`.
+    */
+    await expect(page.locator('main')).toBeFocused()
   })
 
   test('edita los números de una boleta disponible', async ({ page }) => {

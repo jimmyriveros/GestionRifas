@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Foco al cerrar una confirmación (SOLO EN LOCAL, 2026-09-21, D-212)** | **I-152 resuelta.** `ConfirmDialog` dejaba el foco en `body`; ahora vuelve al control que lo abrió —también cuando se abre desde un menú, donde el destino es el «⋯»— y, si ese control desaparece al repintarse el árbol («Anular boleta»), al contenido. Arregla sus **doce** usos sin tocar ninguno, sin dependencias y sin cambios visuales. **Sigue abierto:** «Asignar la boleta», que usa `Dialog` |
 | **Cierre del bloque 1 (SOLO EN LOCAL, 2026-09-21, D-211)** | **Los siete fallos de E2E eran de la base local, comprobado en tres pasadas** (acumulada 7/31 · en `git stash` los mismos 7 · recién sembrada **31/31**). Se corrigió un defecto propio: con «Cantidad» vacía ya no se anuncia un error que no se pinta. Se documentan dos ajenos, **I-151** y **I-152**, sin corregirlos. La propuesta de persistencia quedó **rectificada**: `sessionStorage` no sobrevive al cierre de la pestaña y el efecto de `beforeunload` sobre la caché de navegación depende del navegador |
 | **Auditoría visual, bloque 1 (SOLO EN LOCAL, 2026-09-21, D-211)** | **Tres arreglos de interfaz, sin migración.** En modo selección los dos números de una boleta **ya no son enlace**: tocarlos marca en vez de abrir el detalle (P1-A). «Generar filas» **pregunta** antes de borrar filas escritas, y solo si hay algo que perder (P1-C). La cantidad **no se recorta en silencio**: fuera de rango no se genera, se explica el límite y el campo conserva lo escrito (P2-3). `beforeunload` queda **fuera** por decisión del usuario. Los tres se reprodujeron antes de tocarlos. Relevo en §1.a |
 | **Alineación de campos D-210 — EN PRODUCCIÓN desde el 2026-09-19** | **`9acbfa8` servido**: identificador `484ebe210458`, CSS con `content-start`. PR #2, CI 2/2 en el PR y en `main`. Avance rápido `6401bd0..9acbfa8`. **Punto de reversión:** `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y` (`6401bd0`), no `318357c`. Sin migración. **Pendiente del dueño:** Día/Hora con sesión. Relevo en §1.a |
@@ -158,7 +159,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-211 y su cierre, primer bloque de la auditoría visual (**solo en local**, 2026-09-21)
+## 1.a Último relevo significativo — D-212, el foco vuelve al cerrar una confirmación (**solo en local**, 2026-09-21)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **I-152 resuelta.** `ConfirmDialog` devuelve el foco al control que lo abrió; si ese control desapareció —«Anular boleta» al repintarse el árbol—, al contenido (`main`). Arregla sus **doce** usos sin tocar ninguno. **Fuera:** «Asignar la boleta», que usa `Dialog` y no `ConfirmDialog`, sigue sin devolverlo |
+| Archivos | **nuevo** `components/feedback/restore-focus.ts`; `components/feedback/ConfirmDialog.tsx`. Pruebas: **nueva** `tests/unit/restore-focus.test.ts`; ampliadas `owner-bulk`, `owner-users` y `owner-tickets` |
+| Reutilización | `onCloseAutoFocus`, el gancho nativo de Radix. Módulo puro al lado del componente, como `row-activation.ts`. **Sin dependencias, sin props nuevas y sin cambios visuales** |
+| Decisiones | **D-212.** El abridor se apunta con `focusin` **mientras el diálogo está cerrado**: leerlo al abrir devuelve el «Cancelar» del propio diálogo, porque el efecto del hijo corre antes que el del padre. El rescate al desmontarse va en el `blur` y exige **dos** condiciones: que el elemento ya no esté y que el foco haya caído en `body` |
+| Verificación | 11 unitarias · **178 E2E** de confirmaciones en dos grupos (133 + 45), con la base sembrada antes de cada uno · `npm run verify` **exit 0** (1.550) · `npm run test:db` **1.402 + 1** en base limpia · **revisión visual con sesión del dueño**, en los dos roles. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** ⚠️ **`npm run test:db` deja la base VACÍA**: la E2E que corra después necesita `seed:local`. **2)** Con datos de pasadas anteriores, `test:db` **también** falla (I-151). **3)** Tras `db:reset`, Kong sirve 502 hasta reiniciarlo. **4)** jsdom no emite `blur` al quitar un nodo enfocado: esa rama se prueba a mano y el caso real, por E2E |
+| Pendiente | El resto de la auditoría: ningún otro bloque autorizado. **I-151** (pruebas frágiles con base acumulada). El foco de «Asignar la boleta». La protección al salir sigue fuera de alcance |
+| Git | Rama `feature/premios-configurables`, base observada **`3db7548`**. Tres commits locales; **sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-211 y su cierre, primer bloque de la auditoría visual (**solo en local**, 2026-09-21)
 
 | Campo | Estado |
 |---|---|

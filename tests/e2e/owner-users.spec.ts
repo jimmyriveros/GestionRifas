@@ -53,7 +53,23 @@ test.describe('Vendedores', () => {
     await expectToast(page, /Invitación enviada/)
 
     const row = page.getByRole('row').filter({ hasText: name })
-    await row.getByRole('button', { name: `Acciones para ${name}` }).click()
+    const acciones = row.getByRole('button', { name: `Acciones para ${name}` })
+
+    /*
+      I-152 con la otra forma de abrir: desde un `DropdownMenuItem`.
+      Al cerrarse el menú, Radix ya devolvió el foco al botón «⋯», así que eso
+      —y no la opción del menú, que se desmontó— es lo que `ConfirmDialog`
+      captura y a lo que vuelve. Se comprueba cancelando con Escape, que no
+      toca ningún dato.
+    */
+    await acciones.click()
+    await page.getByRole('menuitem', { name: 'Desactivar' }).click()
+    await expect(page.getByRole('alertdialog')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('alertdialog')).toBeHidden()
+    await expect(acciones).toBeFocused()
+
+    await acciones.click()
     await page.getByRole('menuitem', { name: 'Desactivar' }).click()
     await page.getByRole('button', { name: 'Desactivar', exact: true }).click()
 
