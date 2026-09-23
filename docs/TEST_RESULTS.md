@@ -14023,6 +14023,11 @@ propósito —doce boletas por cada uno de cinco precios—, que es el caso que 
 del vendedor y la base recién sembrada tiene 4. La misma propiedad queda demostrada en «Boletas» por dos
 pruebas que **crean sus 60 filas** y las borran, y en la base por el recorrido de `list-order`.
 
+**Y en la pasada de cierre, sobre la base que dejó `npm run test:db` —con pagos de sobra—, las cuatro SÍ se
+ejecutaron: 22 pasadas y ninguna omitida** en los dos proyectos. Es la misma propiedad medida con datos
+reales de varios clientes: la página 2 de «Valor» descendente no supera a la 1, y el recorrido completo de
+«Método» —donde casi todo empata— no repite ni pierde una fila.
+
 ### d. La privacidad del personal, también en el orden
 
 | Intento | Respuesta |
