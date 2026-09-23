@@ -263,3 +263,37 @@ describe('describeStaffTicketSort', () => {
     }
   })
 })
+
+/**
+ * «MIS BOLETAS» TIENE DOS CONSULTAS, Y CADA UNA ORDENA LOS ESTADOS A SU MANERA
+ * (D-218). Sin buscar, la vista y PostgREST: el ENUMERADO. Buscando,
+ * `search_tickets`: el TEXTO. Las frases, escritas a mano.
+ */
+describe('describeTicketSort: buscando y sin buscar', () => {
+  it.each([
+    ['inventoryStatus', 'asc', false, 'Estado de la boleta, primero Borrador'],
+    ['inventoryStatus', 'desc', false, 'Estado de la boleta, primero Anulada'],
+    ['paymentStatus', 'asc', false, 'Estado de pago, primero Sin pagar'],
+    ['paymentStatus', 'desc', false, 'Estado de pago, primero Pagada'],
+    ['inventoryStatus', 'asc', true, 'Estado de la boleta, primero Asignada'],
+    ['inventoryStatus', 'desc', true, 'Estado de la boleta, primero Pendiente de aprobación'],
+    ['paymentStatus', 'asc', true, 'Estado de pago, primero Pagada'],
+    ['paymentStatus', 'desc', true, 'Estado de pago, primero Sin pagar'],
+  ] as const)('%s %s, buscando=%s → «%s»', (column, direction, searching, frase) => {
+    expect(describeTicketSort({ column, direction }, { searching })).toBe(frase)
+  })
+
+  it('sin indicar nada es el caso SIN busqueda', () => {
+    expect(describeTicketSort({ column: 'inventoryStatus', direction: 'asc' })).toBe(
+      'Estado de la boleta, primero Borrador',
+    )
+  })
+
+  it('las columnas que no son estados no cambian al buscar', () => {
+    for (const searching of [false, true]) {
+      expect(
+        describeTicketSort({ column: 'raffleShortCode', direction: 'desc' }, { searching }),
+      ).toBe('Rifa, de la Z a la A')
+    }
+  })
+})

@@ -1,6 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { createClientFor, loadSeedRefs, serviceClient } from './db-setup'
+import {
+  createClientFor,
+  createPaymentWithAllocation,
+  loadSeedRefs,
+  purgeTestRaffles,
+  serviceClient,
+} from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
 
 /**
@@ -50,10 +56,9 @@ test.describe('En el telefono el orden llega por la direccion', () => {
   })
 
   test.afterAll(async () => {
-    if (!raffleId) return
-    const svc = serviceClient()
-    await svc.from('tickets').delete().eq('raffle_id', raffleId)
-    await svc.from('raffles').delete().eq('id', raffleId)
+    // Borrar la rifa con `svc` fallaba en silencio: la retiene su fila de
+    // `seller_commissions`. El ayudante la borra y lanza si no puede.
+    await purgeTestRaffles({ raffleIds: [raffleId] })
   })
 
   test.beforeEach(async ({ page }) => {
@@ -189,7 +194,11 @@ test.describe('Ordenar desde el telefono', () => {
     // El control nacio vacio en el HTML servido: la frase la copiaba Radix al
     // hidratar. Se mide el HTML crudo de las dos pantallas.
     for (const [ruta, nombre, frase] of [
-      ['/seller/tickets?sort=salePrice&dir=desc', 'Ordenar las boletas', 'Precio, de mayor a menor'],
+      [
+        '/seller/tickets?sort=salePrice&dir=desc',
+        'Ordenar las boletas',
+        'Precio, de mayor a menor',
+      ],
       ['/seller/clients', 'Ordenar los clientes', 'Nombre, de la A a la Z'],
     ] as const) {
       const html = await (await page.request.get(ruta)).text()
@@ -531,14 +540,7 @@ test.describe('El texto del control corresponde con lo que sale', () => {
   })
 
   test.afterAll(async () => {
-    const svc = serviceClient()
-    for (const raffleId of [raffleMenor, raffleMayor]) {
-      if (raffleId) await svc.from('tickets').delete().eq('raffle_id', raffleId)
-    }
-    if (clientId) await svc.from('clients').delete().eq('id', clientId)
-    for (const raffleId of [raffleMenor, raffleMayor]) {
-      if (raffleId) await svc.from('raffles').delete().eq('id', raffleId)
-    }
+    await purgeTestRaffles({ raffleIds: [raffleMenor, raffleMayor], clientIds: [clientId] })
   })
 
   test.beforeEach(async ({ page }) => {
@@ -598,5 +600,184 @@ test.describe('El texto del control corresponde con lo que sale', () => {
     )
     // Ni relevancia ni fecha: el número, de mayor a menor como texto.
     expect(diarios).toEqual(['4512', '1234', '0012'])
+  })
+})
+
+/**
+ * LOS ESTADOS SE ORDENAN DISTINTO BUSCANDO Y SIN BUSCAR (D-218).
+ *
+ * Sin termino, «Mis boletas» lee `v_seller_ticket_list` y PostgREST ordena los
+ * dos estados por su ENUMERADO: Borrador antes que Asignada, Sin pagar antes que
+ * Pagada. Con termino, la lista sale de `search_tickets`, que los compara COMO
+ * TEXTO (`::text`): `assigned` antes que `draft`, `paid` antes que `unpaid`.
+ * Los dos ordenes estan en la base y no se tocan; lo que tiene que cambiar es la
+ * frase del control, que decia siempre la del enumerado.
+ *
+ * Cinco boletas propias, en una rifa propia, montadas para que los dos ordenes
+ * den secuencias DISTINTAS en los dos estados: un borrador, una disponible y
+ * tres vendidas —sin abonos, con un abono y pagada—.
+ */
+test.describe('Los estados se describen segun la consulta que ordena', () => {
+  const STAMP = Date.now().toString(36).slice(-5)
+  let raffleId = ''
+  let clientId = ''
+
+  async function diariosDeTarjetas(page: Page): Promise<string[]> {
+    return page.evaluate(() =>
+      [...document.querySelectorAll('ul li')]
+        .map((li) => (li.textContent ?? '').match(/(\d{4})\s*\/\s*\d{4}/)?.[1] ?? '')
+        .filter((numero) => numero !== ''),
+    )
+  }
+
+  test.beforeAll(async () => {
+    const svc = serviceClient()
+    const refs = await loadSeedRefs()
+    clientId = (await createClientFor(refs, `Orden Estados ${STAMP}`)).id
+
+    const { data, error } = await svc
+      .from('raffles')
+      .insert({
+        organization_id: refs.organizationId,
+        name: `Rifa orden estados ${STAMP}`,
+        ticket_price: 120_000,
+        status: 'active',
+        start_date: '2026-01-01',
+        end_date: '2026-12-31',
+        created_by: refs.ownerId,
+      })
+      .select('id')
+      .single()
+    if (error) throw error
+    raffleId = data.id
+
+    const base = {
+      organization_id: refs.organizationId,
+      raffle_id: raffleId,
+      seller_id: refs.sellerId,
+      created_by: refs.ownerId,
+    }
+    const vendida = (daily: string, weekly: string) => ({
+      ...base,
+      daily_number: daily,
+      weekly_number: weekly,
+      inventory_status: 'assigned' as const,
+      client_id: clientId,
+      sale_price: 120_000,
+      sale_date: '2026-09-01',
+      assigned_at: new Date().toISOString(),
+    })
+    const { data: creadas, error: errorBoletas } = await svc
+      .from('tickets')
+      .insert([
+        {
+          ...base,
+          daily_number: '7811',
+          weekly_number: '6811',
+          inventory_status: 'draft' as const,
+        },
+        {
+          ...base,
+          daily_number: '7812',
+          weekly_number: '6812',
+          inventory_status: 'available' as const,
+        },
+        vendida('7813', '6813'),
+        vendida('7814', '6814'),
+        vendida('7815', '6815'),
+      ])
+      .select('id, daily_number')
+    if (errorBoletas) throw errorBoletas
+
+    const id = (daily: string) => creadas!.find((fila) => fila.daily_number === daily)!.id
+    // 7814 pagada entera; 7815 con un abono; 7813 sin abonos.
+    for (const [daily, amount] of [
+      ['7814', 120_000],
+      ['7815', 40_000],
+    ] as const) {
+      await createPaymentWithAllocation(refs, {
+        clientId,
+        ticketId: id(daily),
+        amount,
+        method: 'cash',
+        paymentDate: '2026-09-02',
+      })
+    }
+  })
+
+  test.afterAll(async () => {
+    await purgeTestRaffles({ raffleIds: [raffleId], clientIds: [clientId] })
+  })
+
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+  })
+
+  function control(page: Page) {
+    return page.getByRole('combobox', { name: 'Ordenar las boletas' })
+  }
+
+  const VENDIDAS = ['7813', '7814', '7815']
+
+  test('estado de la boleta SIN buscar: enumerado, primero Borrador', async ({ page }) => {
+    await page.goto(`/seller/tickets?raffleId=${raffleId}&sort=inventoryStatus`)
+    await expect(control(page)).toHaveText(/Estado de la boleta, primero Borrador/)
+    const diarios = await diariosDeTarjetas(page)
+    expect(diarios.slice(0, 2)).toEqual(['7811', '7812'])
+    expect(diarios.slice(2).sort()).toEqual(VENDIDAS)
+  })
+
+  test('estado de la boleta BUSCANDO: texto, primero Asignada', async ({ page }) => {
+    await page.goto(`/seller/tickets?raffleId=${raffleId}&q=781&sort=inventoryStatus`)
+    await expect(control(page)).toHaveText(/Estado de la boleta, primero Asignada/)
+    const diarios = await diariosDeTarjetas(page)
+    expect(diarios.slice(0, 3).sort()).toEqual(VENDIDAS)
+    expect(diarios.slice(3)).toEqual(['7812', '7811'])
+  })
+
+  test('estado de la boleta BUSCANDO, descendente: primero Pendiente de aprobación', async ({
+    page,
+  }) => {
+    await page.goto(`/seller/tickets?raffleId=${raffleId}&q=781&sort=inventoryStatus&dir=desc`)
+    await expect(control(page)).toHaveText(/Estado de la boleta, primero Pendiente de aprobación/)
+    // No hay ninguna pendiente en esta rifa: sale primero la de valor mayor
+    // presente, `draft`, que como texto va detras de `available`.
+    const diarios = await diariosDeTarjetas(page)
+    expect(diarios.slice(0, 2)).toEqual(['7811', '7812'])
+  })
+
+  test('estado de pago SIN buscar: enumerado, primero Sin pagar', async ({ page }) => {
+    await page.goto(`/seller/tickets?clientId=${clientId}&sort=paymentStatus`)
+    await expect(control(page)).toHaveText(/Estado de pago, primero Sin pagar/)
+    expect(await diariosDeTarjetas(page)).toEqual(['7813', '7815', '7814'])
+  })
+
+  test('estado de pago BUSCANDO: texto, primero Pagada', async ({ page }) => {
+    await page.goto(`/seller/tickets?clientId=${clientId}&q=781&sort=paymentStatus`)
+    await expect(control(page)).toHaveText(/Estado de pago, primero Pagada/)
+    expect(await diariosDeTarjetas(page)).toEqual(['7814', '7815', '7813'])
+  })
+
+  test('estado de pago BUSCANDO, descendente: primero Sin pagar', async ({ page }) => {
+    await page.goto(`/seller/tickets?clientId=${clientId}&q=781&sort=paymentStatus&dir=desc`)
+    await expect(control(page)).toHaveText(/Estado de pago, primero Sin pagar/)
+    expect(await diariosDeTarjetas(page)).toEqual(['7813', '7815', '7814'])
+  })
+
+  test('la frase tambien es la correcta en el HTML del servidor', async ({ page }) => {
+    for (const [ruta, frase] of [
+      [
+        `/seller/tickets?raffleId=${raffleId}&sort=inventoryStatus`,
+        'Estado de la boleta, primero Borrador',
+      ],
+      [
+        `/seller/tickets?raffleId=${raffleId}&q=781&sort=inventoryStatus`,
+        'Estado de la boleta, primero Asignada',
+      ],
+    ] as const) {
+      const html = await (await page.request.get(ruta)).text()
+      const trozo = html.match(/aria-label="Ordenar las boletas"[\s\S]{0,1500}/)?.[0] ?? ''
+      expect(trozo.match(/data-slot="select-value"[^>]*>([^<]*)</)?.[1], ruta).toBe(frase)
+    }
   })
 })

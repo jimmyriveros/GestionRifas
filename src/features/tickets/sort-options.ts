@@ -111,19 +111,36 @@ const OTHER_COLUMN_LABELS: Record<string, string> = {
  * Como se lee un orden que la consulta SI aplica y este control no ofrece.
  *
  * Los estados se describen por su primera etiqueta —«primero Borrador»,
- * «primero Anulada»— y no con «de la A a la Z», que seria falso: su orden es el
- * de la lista de valores, no el alfabetico. Es lo que hacia imposible
- * OFRECERLOS con palabras claras, y aqui no estorba: describir uno que ya esta
- * puesto es mas facil que invitar a ponerlo.
+ * «primero Anulada»— y no con «de la A a la Z», que seria falso: sin buscar, su
+ * orden es el de la lista de valores, no el alfabetico. BUSCANDO es otro:
+ * `search_tickets` los compara como texto, y entonces es «primero Asignada»
+ * (D-218). Quien llama dice si hay busqueda con `options.searching`.
+ *
+ * Ese orden es lo que hacia imposible OFRECERLOS con palabras claras, y aqui
+ * no estorba: describir uno que ya esta puesto es mas facil que invitar a
+ * ponerlo.
  */
-export function describeTicketSort(sort: ListSort): string | null {
+export function describeTicketSort(
+  sort: ListSort,
+  options: { searching?: boolean } = {},
+): string | null {
   const name = OTHER_COLUMN_LABELS[sort.column]
   if (name === undefined) return null
 
-  // El primer valor del enumerado con `asc`, el ultimo con `desc`: es el orden
-  // en que PostgreSQL los compara, que es el de su declaracion.
-  const edge = <T,>(values: readonly T[]): T | undefined =>
-    sort.direction === 'asc' ? values[0] : values[values.length - 1]
+  /*
+    DOS CONSULTAS, DOS ORDENES (D-218). Sin termino, la lista sale de
+    `v_seller_ticket_list` y PostgREST compara los estados por su ENUMERADO: el
+    primer valor declarado con `asc`, el ultimo con `desc`. Con termino, sale de
+    `search_tickets`, que los compara COMO TEXTO (`::text`, migracion 0076), igual
+    que `admin_list_tickets`: ahi manda el alfabetico de los valores internos.
+    Los dos ordenes son de la base y no se tocan; la frase dice el que aplica.
+  */
+  const edge = <T extends string>(values: readonly T[]): T | undefined =>
+    options.searching
+      ? textEdge(values, sort.direction)
+      : sort.direction === 'asc'
+        ? values[0]
+        : values[values.length - 1]
 
   if (sort.column === 'inventoryStatus') {
     const first = edge(TICKET_INVENTORY_STATUS_VALUES)

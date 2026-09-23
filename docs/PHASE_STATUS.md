@@ -3,17 +3,19 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-23 — **auditoría visual y listas, D-211 a D-217, SOLO EN LOCAL** (mantenimiento
+- **Actualizado:** 2026-09-23 — **auditoría visual y listas, D-211 a D-218, SOLO EN LOCAL** (mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas). Este archivo se quedó en D-210 mientras corrían
-  siete bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
+  ocho bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
   **(1) Funcionalidades:** foco al cerrar una confirmación (D-212); las siete listas **ordenan y paginan en
   PostgreSQL** sobre el conjunto filtrado entero (D-213, D-214); control de orden **en el teléfono** para
   «Mis boletas» y «Mis clientes» del vendedor (D-215), que **dice el orden que de verdad aplica** (D-216), y
-  en «Boletas» del personal con su lista blanca, sin cliente ni dinero (D-217).
-  **(2) Pruebas:** `verify` **exit 0** (1.633 unitarias, D-217) · E2E de orden **47/47** en `movil` (D-217).
+  en «Boletas» del personal con su lista blanca, sin cliente ni dinero (D-217); buscando, la frase de los
+  estados del vendedor dice el orden efectivo, y las pruebas de orden ya no dejan rifas (D-218).
+  **(2) Pruebas:** `verify` **exit 0** (1.643 unitarias, D-218) · E2E de orden **54/54** en `movil`, dos
+  pasadas seguidas sin acumular filas, y **73/73** en escritorio (D-218).
   La base se comprobó por última vez en D-215: `test:db` **1.434 + 1 omitida**, 58/58 archivos, recién
-  sembrada; D-216, su corrección y D-217 **no tocan la base**; la línea base de D-217 lo repitió: 1.434 + 1. Detalle y errores encontrados, en
+  sembrada; D-216, su corrección, D-217 y D-218 **no tocan la base**; la línea base de D-217 lo repitió: 1.434 + 1. Detalle y errores encontrados, en
   [`TEST_RESULTS.md`](TEST_RESULTS.md).
   **(3) Migraciones:** **76**, dos nuevas y **solo en local** — `0075_orden_de_listas.sql` (orden en
   `search_tickets` y `admin_list_tickets`) y `0076_orden_en_la_base.sql` (dos vistas y dos funciones para

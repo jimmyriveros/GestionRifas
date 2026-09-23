@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Estados del vendedor al buscar y limpieza de las pruebas de orden (SOLO EN LOCAL, 2026-09-23, D-218)** | Buscando, la frase de los estados de «Mis boletas» dice el orden de texto de `search_tickets` («primero Asignada»); sin buscar, el del enumerado. Las pruebas de orden ya no dejan rifas: dos pasadas seguidas, nueve recuentos idénticos. §1.c ya no presenta I-155 como pendiente. Sin migración |
 | **Ordenar desde el teléfono en el portal del personal (SOLO EN LOCAL, 2026-09-23, D-217)** | **I-155 cerrada en los dos portales.** «Boletas» del Dueño y del Administrador usa el mismo control con su lista blanca: Boleta, Rifa y Vendedor; nunca cliente ni dinero. Sus estados se describen con frases propias porque `admin_list_tickets` los ordena como texto. Dos defectos del control compartido, corregidos para los dos portales: venía vacío en el HTML del servidor y recortaba la frase más larga a 320 px. Sin migración ni consultas |
 | **Correspondencia del control de orden (SOLO EN LOCAL, 2026-09-23, D-216 y su corrección)** | **CERRADO en `8514ef9`.** El selector decía un orden y la lista salía en otro, en cuatro combinaciones. Un orden válido que el teléfono no ofrece ya no cae al valor por defecto: se describe («Rifa, de la Z a la A»). Buscando, «Mis boletas» sale por **relevancia**, y la opción que restablece lo dice **también** cuando además hay un orden descrito. Y `?sort=name` en «Mis clientes» es el orden de siempre pedido por su nombre: se enseña como tal **sin reescribir la dirección**. Se distingue de un orden que la consulta **rechaza**, que sí cae al de siempre. **La prueba que exigía el comportamiento equivocado se invirtió.** Sin migración |
 | **Ordenar desde el teléfono (SOLO EN LOCAL, 2026-09-22, D-215)** | **I-155 cerrada para el portal del vendedor.** «Mis boletas» y «Mis clientes» tienen en el teléfono un control de orden en su propia línea, cuyas opciones nombran la columna y el sentido —«Falta, de mayor a menor»—. No cabía como tercer botón a 320 px ni podía ir dentro de «Filtros», que cuenta filtros y escondería el orden activo. Reutiliza la ordenación de servidor de D-213/D-214; sin dependencias, sin consultas y **sin migración**. Al probar el teclado apareció un defecto propio —el control perdía el foco al deshabilitarse— y se corrigió. **Sigue abierto** el mismo hueco en el portal del personal |
@@ -164,7 +165,26 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-217, ordenar desde el teléfono en «Boletas» del personal (**solo en local**, 2026-09-23)
+## 1.a Último relevo significativo — D-218, estados del vendedor al buscar y limpieza de las pruebas de orden (**solo en local**, 2026-09-23)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Tres cierres acotados.** **1)** Buscando, «Mis boletas» sale de `search_tickets`, que compara los estados **como texto**, y el control los describía por el enumerado: ahora la frase depende de si hay búsqueda («primero Asignada», «Estado de pago, primero Pagada»). Sin buscar, igual que antes. **2)** `orden-movil` y `orden-personal-movil` dejaban una rifa vacía por bloque y pasada: la retenía `seller_commissions` y nadie miraba el error. **3)** `HANDOFF` §1.c ya no presenta I-155 como encargo sin autorizar |
+| Archivos | `features/tickets/sort-options.ts` (`describeTicketSort(sort, { searching })`), `features/tickets/components/TicketFilters.tsx` (`searching` con `normalizeSearchTerm`, que usa también `defaultLabel`), `tests/e2e/db-setup.ts` (**`purgeTestRaffles`**), `tests/e2e/orden-movil.spec.ts` (bloque nuevo y limpiezas), `tests/e2e/orden-personal-movil.spec.ts` (limpieza), `tests/unit/sort-options.test.ts` |
+| Reutilización | `textEdge` de D-217; `normalizeSearchTerm`, la misma regla que `listTickets`; `createPaymentWithAllocation`. `ListSortSelect` y el diseño, sin cambios |
+| Decisiones | **D-218.** No se igualaron las dos consultas: los dos órdenes existían y el encargo era que la frase dijera el efectivo. La limpieza borra **por identificador**, solo lo de esas rifas y de los clientes que la prueba creó, y **lanza** si la rifa no se borra |
+| Verificación | ❌→✅ reproducido antes de corregir: 5 de 7 fallaban buscando; después **7/7** · `orden-movil` + `orden-personal-movil` **54/54 dos veces seguidas**, con **nueve recuentos idénticos** antes y después · unitarias **84/84** · `verify` **exit 0** (1.643) · escritorio **73/73** (`orden-paginacion`, `seller-tickets`, `owner-tickets`, `busqueda-hibrida`) |
+| Advertencias | **1)** Una rifa creada en una prueba **no se borra con `svc`**: usa `purgeTestRaffles`. **2)** Los estados del vendedor se ordenan **distinto con y sin búsqueda**; quien toque `search_tickets` o la vista tiene que mirar la frase. **3)** Con comillas dobles en la shell, las comillas invertidas se ejecutan: pasó dos veces en este bloque |
+| Pendiente | **Revisión en un teléfono real**, nunca hecha. **Abiertas y ajenas:** I-156, I-157, I-151 (el resto de pruebas que acumulan datos) e I-059 |
+| Entorno (al entregar) | Supabase local encendido; `dev:local` levantado desde el panel de vista previa. La base se restableció y sembró antes de medir la limpieza; después corrieron las E2E de escritorio, que dejan sus propios restos (I-151) |
+| Git | Rama `feature/premios-configurables`, por delante de `origin`. D-217 en `b1b07e5`; D-218 en su propio commit, cuyo hash va en el reporte. **Sin push.** Sin tocar: `DesignFix.txt`, `PublicarProduccion.txt` y `prueba-abono.csv` |
+
+Dónde vive el detalle: **`DECISIONS.md`** (D-218) · **`TEST_RESULTS.md`** · **`KNOWN_ISSUES.md`** (I-155) ·
+**`UX_COPY_GUIDELINES.md`** Anexo A.
+
+---
+
+## 1.a.0 Relevo anterior — D-217, ordenar desde el teléfono en «Boletas» del personal (**solo en local**, 2026-09-23)
 
 | Campo | Estado |
 |---|---|
@@ -1896,7 +1916,7 @@ si no existieran:
 
 | Asunto | Qué hace falta |
 |---|---|
-| **I-155** — en el teléfono, el portal del **personal** sigue sin poder ordenar sus boletas | **Es el próximo encargo PROPUESTO, y no está autorizado.** El vendedor ya lo tiene (D-215, D-216); el personal tiene el mismo hueco en `/owner/tickets`, donde la lista también son tarjetas bajo `md`. El servidor ya está hecho (D-214): falta la interfaz, reutilizando `ListSortSelect` y `useListSort` con las columnas que **el personal** puede ordenar — **D-198 manda**: ni cliente, ni abonado, ni saldo, tampoco a través del orden |
+| **I-155** — ordenar desde el teléfono | **Cerrada en local en los dos portales** (vendedor en D-215 y D-216; personal en D-217, con su lista blanca de D-198; estados del vendedor al buscar, D-218). **Nada de esto está en producción.** Lo único pendiente es la **revisión del usuario en un teléfono real**, que nunca se ha hecho |
 | **I-156** — el historial de pagos de la ficha de un cliente se corta en 100 sin avisar | Paginar esa sección como las demás, o decir en pantalla que se enseñan los cien más recientes. Anterior a D-213 y **ajeno** al bloque de orden y paginación |
 | **I-157** — una organización no puede pasar de 999 rifas | `lpad(contador::text, 3, '0')` **trunca**: la rifa 1.000 nace como `R100` y choca. Arreglarlo exige **decidir qué código llevan** a partir de la 999, que es una decisión de producto. Impacto hoy: ninguno, la operación real tiene 16 rifas |
 | **A6** — ¿la imagen de «Resultados de la semana» debe exigir que la semana caiga dentro de las fechas de la rifa del catálogo? | Hoy **no** lo exige (D-194, Decisión 3): en la primera semana de una rifa nueva sale la semana anterior con el nombre de la nueva. Si el dueño lo quiere, es una condición más en `features/weekly-results/` y un estado propio, **sin migración** |

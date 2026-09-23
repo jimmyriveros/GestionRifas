@@ -14384,3 +14384,51 @@ Detector de Impeccable sobre `ListSortSelect.tsx` y `TicketFilters.tsx`: **0 hal
 `orden-movil.spec.ts` y el nuevo `orden-personal-movil.spec.ts` borran sus boletas y su cliente, pero **la rifa
 queda** (0 boletas): su `delete` no prospera y la prueba no lo comprueba. Es el patrón anterior, copiado; no
 afecta a otras pruebas medidas aquí. Se anota, no se corrige en este encargo.
+
+## D-218 — Estados del vendedor al buscar y limpieza de las pruebas de orden (2026-09-23, solo en local)
+
+**Sin migración.** Aplicación con `npm run dev:local` contra la base local.
+
+### a. Reproducción, antes de corregir
+
+Bloque nuevo en `orden-movil.spec.ts` con cinco boletas propias (borrador, disponible y tres vendidas: sin
+abonos, con un abono y pagada), para que el orden del enumerado y el de texto den secuencias distintas.
+
+| Pasada | Resultado |
+|---|---|
+| Con el código de D-217 | ❌ **5 fallan, 2 pasan**. Pasan las dos SIN búsqueda; fallan las cinco CON búsqueda, p. ej. `Expected /primero Asignada/` · `Received "Estado de la boleta, primero Borrador"` |
+| Con la corrección | ✅ **7/7**, comprobando la frase **y** la secuencia de tarjetas, y la frase en el HTML crudo |
+
+### b. Por qué quedaban rifas
+
+`delete from raffles` con `postgres` y con `set local role service_role`, dentro de una transacción que se deshizo:
+`ERROR: … violates foreign key constraint "seller_commissions_raffle_org_fk"`. Las cuatro rifas que había de
+pasadas anteriores tenían **una** fila de `seller_commissions` cada una, creada por `raffles_sync_commission`.
+
+### c. Dos pasadas seguidas, contando
+
+Tras `db:reset` + Kong + `seed:local`. Recuentos de `raffles`, `tickets`, `clients`, `payments`,
+`payment_allocations`, `seller_commissions`, `commission_ledger`, `notifications` y `audit_logs`:
+
+| Momento | Recuento |
+|---|---|
+| Antes | 2 · 33 · 6 · 4 · 5 · 3 · 1 · 16 · 68 |
+| Tras la pasada 1 (`orden-movil` + `orden-personal-movil`, **54/54**) | **idéntico** |
+| Tras la pasada 2 (**54/54**) | **idéntico** |
+
+### d. Resto
+
+| Comando | Resultado |
+|---|---|
+| `vitest run tests/unit/sort-options.test.ts` | ✅ **84/84** (+10: las ocho frases escritas a mano en los dos modos y dos más) |
+| `npm run verify` | ✅ exit 0, **1.643** unitarias, lint 0 errores (los 2 avisos de siempre), build |
+| `orden-paginacion`, `seller-tickets`, `owner-tickets`, `busqueda-hibrida` | ✅ **73/73** |
+
+### e. Errores propios
+
+* Otra vez una sustitución de shell entre comillas dobles se comió texto entre comillas invertidas, esta vez en un
+  comentario de `orden-movil.spec.ts`. Visto en la salida y corregido.
+* `orden-personal-movil.spec.ts`, creado en D-217, no estaba formateado con Prettier: ese archivo es entero de
+  D-217 y se formateó. En los demás solo se dejaron limpias las líneas propias.
+
+La nota «f. Restos que deja la E2E» de D-217 queda **resuelta** por este bloque.

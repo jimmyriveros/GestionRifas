@@ -35,7 +35,7 @@ import {
   TICKET_PAYMENT_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_VALUES,
 } from '@/lib/constants'
-import { SEARCH_MIN_CHARS } from '@/lib/search'
+import { normalizeSearchTerm, SEARCH_MIN_CHARS } from '@/lib/search'
 
 import { adminPaymentStateSchema } from '../schemas'
 import {
@@ -131,6 +131,10 @@ export function TicketFilters({
   const [sheetOpen, setSheetOpen] = useState(false)
   const search = useUrlSearch({ minChars: SEARCH_MIN_CHARS.tickets })
   const staff = audience === 'staff'
+  // Hay busqueda si el termino, ya normalizado, no queda vacio: es la misma
+  // regla con la que `listTickets` decide ir a `search_tickets`, y cambia el
+  // orden por defecto (relevancia) y el de los estados del vendedor (D-218).
+  const searching = normalizeSearchTerm(searchParams.get('q') ?? '') !== ''
 
   // D-198: en el portal administrativo un `paymentStatus=partial` de un enlace
   // antiguo no es un filtro —la consulta lo ignora—, asi que tampoco se pinta
@@ -355,7 +359,9 @@ export function TicketFilters({
       <ListSortSelect
         options={staff ? STAFF_TICKET_SORT_OPTIONS : TICKET_SORT_OPTIONS}
         allowed={staff ? ADMIN_TICKET_SORT_COLUMNS : TICKET_SORT_COLUMNS}
-        describe={staff ? describeStaffTicketSort : describeTicketSort}
+        describe={
+          staff ? describeStaffTicketSort : (sort) => describeTicketSort(sort, { searching })
+        }
         /*
           Buscando y sin columna pedida, la lista NO sale por fecha: sale por
           relevancia, que es como ordenan `search_tickets` y, para el personal,
@@ -364,7 +370,7 @@ export function TicketFilters({
           lo que hay escrito en el campo: el campo se adelanta mientras se
           teclea, y el orden lo decide la consulta que ya se hizo.
         */
-        defaultLabel={ticketDefaultSortLabel(Boolean(searchParams.get('q')))}
+        defaultLabel={ticketDefaultSortLabel(searching)}
         label="Ordenar las boletas"
         className="w-full md:hidden"
       />

@@ -13701,3 +13701,54 @@ desborda.
 La consulta, la migración, la tabla de escritorio, el diseño de las tarjetas y la fila «Filtros» /
 «Seleccionar varias». El control va en su propia línea debajo de ella, como en el vendedor, y **en escritorio no
 existe** (`md:hidden`): allí siguen las cabeceras de la tabla.
+
+## D-218 — Los estados de «Mis boletas» se describen según la consulta que ordena, y las pruebas de orden limpian sus rifas
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-23). **No es una Fase 10.** **Solo en
+local.** Sin migración, sin consultas nuevas y **sin cambiar ningún orden de la base**.
+
+### 1. Buscando, la frase de los estados era falsa
+
+`describeTicketSort` (D-216) suponía siempre el orden del **enumerado**. Es cierto sin término: la lista sale de
+`v_seller_ticket_list` y PostgREST ordena `inventory_status` y `payment_status` por su declaración. Con término, la
+lista sale de `search_tickets`, que los compara **como texto** (`::text`, migración `0076`), igual que
+`admin_list_tickets` en D-217.
+
+**Reproducido antes de corregir** con una prueba E2E y datos que separan los dos órdenes —un borrador, una
+disponible y tres vendidas: sin abonos, con un abono y pagada—: buscando, **cinco de cinco comprobaciones
+fallaban**, por ejemplo «primero Borrador» con la lista empezando por las asignadas.
+
+| Orden | Sin buscar (enumerado) | Buscando (texto) |
+|---|---|---|
+| Estado de la boleta, asc | «primero Borrador» | «primero **Asignada**» |
+| Estado de la boleta, desc | «primero Anulada» | «primero **Pendiente de aprobación**» |
+| Estado de pago, asc | «primero Sin pagar» | «primero **Pagada**» |
+| Estado de pago, desc | «primero Pagada» | «primero **Sin pagar**» |
+
+**Cómo.** `describeTicketSort(sort, { searching })`. `TicketFilters` calcula `searching` con la **misma regla** que
+`listTickets` usa para ir a `search_tickets` —`normalizeSearchTerm(q)` no vacío— y la usa también para
+`defaultLabel`, que antes miraba `Boolean(q)`: un `q` de solo espacios ya no anuncia relevancia en una lista que
+sale por fecha. `ListSortSelect` no cambia. **No se igualaron las consultas**: los dos órdenes existían, y el
+encargo pedía que la frase dijera el efectivo, no cambiar reglas.
+
+### 2. Por qué las pruebas de orden dejaban rifas
+
+`orden-movil.spec.ts` y `orden-personal-movil.spec.ts` borraban la rifa con `svc.from('raffles').delete()` y **no
+miraban el `error`**. Comprobado en SQL, con `postgres` y con `service_role`: `seller_commissions_raffle_org_fk`
+la retiene, porque el disparador `raffles_sync_commission` crea una fila de `seller_commissions` al insertar la
+rifa. Con pagos, `commission_ledger` hace lo mismo. Cada pasada dejaba una rifa vacía por bloque.
+
+**`purgeTestRaffles`** (`tests/e2e/db-setup.ts`): una transacción por `pg` que borra, **por identificador y solo
+de esas rifas**, los pagos de sus boletas o de los clientes que la prueba creó, sus asignaciones, avisos, boletas,
+`commission_ledger`, `seller_commissions`, clientes, la rifa y, al final, las filas de `audit_logs` de todos esos
+identificadores —al final porque borrar también escribe en la bitácora—. Si no borra exactamente las rifas
+pedidas, **lanza**. Ni `like` por nombre ni barrido general: no es la limpieza de I-151.
+
+**Medido:** contando nueve tablas antes y después, **dos pasadas seguidas** de las dos pruebas (54/54 cada una)
+dejan los nueve recuentos idénticos.
+
+### 3. `HANDOFF` §1.c
+
+La tabla vigente seguía presentando I-155 como «próximo encargo PROPUESTO, y no está autorizado». Ahora dice lo
+que es: cerrada en local en los dos portales, pendiente solo de la revisión en un teléfono real. Los relevos
+anteriores que la citaban como pendiente se conservan: son historia y están marcados como tal.

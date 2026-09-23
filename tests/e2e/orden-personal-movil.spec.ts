@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { createClientFor, loadSeedRefs, serviceClient } from './db-setup'
+import { createClientFor, loadSeedRefs, purgeTestRaffles, serviceClient } from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
 
 /**
@@ -301,7 +301,12 @@ test.describe('El texto del control del personal corresponde con lo que sale', (
         sale_date: '2026-09-01',
         assigned_at: new Date().toISOString(),
       },
-      { ...base, daily_number: '1234', weekly_number: '9002', inventory_status: 'available' as const },
+      {
+        ...base,
+        daily_number: '1234',
+        weekly_number: '9002',
+        inventory_status: 'available' as const,
+      },
       { ...base, daily_number: '4512', weekly_number: '9003', inventory_status: 'draft' as const },
     ]
     for (const fila of filas) {
@@ -312,10 +317,7 @@ test.describe('El texto del control del personal corresponde con lo que sale', (
   })
 
   test.afterAll(async () => {
-    const svc = serviceClient()
-    if (raffleId) await svc.from('tickets').delete().eq('raffle_id', raffleId)
-    if (clientId) await svc.from('clients').delete().eq('id', clientId)
-    if (raffleId) await svc.from('raffles').delete().eq('id', raffleId)
+    await purgeTestRaffles({ raffleIds: [raffleId], clientIds: [clientId] })
   })
 
   test.beforeEach(async ({ page }) => {
@@ -336,9 +338,7 @@ test.describe('El texto del control del personal corresponde con lo que sale', (
     expect(await diariosDeTarjetas(page)).toEqual(['0012', '1234', '4512'])
   })
 
-  test('estado de la boleta descendente: el borrador antes que la disponible', async ({
-    page,
-  }) => {
+  test('estado de la boleta descendente: el borrador antes que la disponible', async ({ page }) => {
     await page.goto(`/owner/tickets?raffleId=${raffleId}&sort=inventoryStatus&dir=desc`)
     // En esta rifa no hay ninguna pendiente de aprobación, así que la primera es
     // la de valor MAYOR presente: `draft`.

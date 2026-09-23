@@ -196,6 +196,74 @@ export async function purgeTestData(options: {
   }
 }
 
+/**
+ * Borra RIFAS CREADAS POR UNA PRUEBA, con todo lo que cuelga de ellas.
+ *
+ * POR QUE HACE FALTA. `svc.from('raffles').delete()` NO bastaba, y fallaba en
+ * silencio porque nadie miraba su `error`: el disparador `raffles_sync_commission`
+ * crea una fila de `seller_commissions` al insertar la rifa, y esa fila la
+ * referencia (`seller_commissions_raffle_org_fk`, `on delete restrict`). La rifa
+ * se quedaba, vacia, en cada pasada (medido el 2026-09-23 en `orden-movil` y
+ * `orden-personal-movil`). Con pagos pasa lo mismo con `commission_ledger`.
+ *
+ * SOLO LO SUYO. Todo se elige por el id de ESAS rifas, de sus boletas, de los
+ * pagos asignados a esas boletas y de los clientes que se pasan —que la prueba
+ * creo—. Ni un `like` por nombre ni un barrido general: no es la limpieza de
+ * I-151.
+ *
+ * El ORDEN importa: las boletas se borran antes que sus comisiones, porque su
+ * disparador las recalcula; y la bitacora al final, porque borrar tambien deja
+ * su propia fila. Todo en UNA transaccion, y un fallo se LANZA.
+ */
+export async function purgeTestRaffles(options: {
+  raffleIds: string[]
+  clientIds?: string[]
+}): Promise<void> {
+  const raffleIds = options.raffleIds.filter(Boolean)
+  const clientIds = (options.clientIds ?? []).filter(Boolean)
+  if (raffleIds.length === 0 && clientIds.length === 0) return
+
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    const { rows: tickets } = await db.query<{ id: string }>(
+      'select id from tickets where raffle_id = any($1)',
+      [raffleIds],
+    )
+    const ticketIds = tickets.map((row) => row.id)
+    const { rows: payments } = await db.query<{ id: string }>(
+      `select distinct payment_id as id from payment_allocations where ticket_id = any($1)
+       union
+       select id from payments where client_id = any($2)`,
+      [ticketIds, clientIds],
+    )
+    const paymentIds = payments.map((row) => row.id)
+    const entityIds = [...raffleIds, ...ticketIds, ...clientIds, ...paymentIds]
+
+    await db.query('delete from payment_allocations where payment_id = any($1)', [paymentIds])
+    await db.query('delete from payments where id = any($1)', [paymentIds])
+    await db.query('delete from notifications where entity_id = any($1)', [entityIds])
+    await db.query('delete from tickets where id = any($1)', [ticketIds])
+    await db.query('delete from commission_ledger where raffle_id = any($1)', [raffleIds])
+    await db.query('delete from seller_commissions where raffle_id = any($1)', [raffleIds])
+    await db.query('delete from clients where id = any($1)', [clientIds])
+    const borradas = await db.query('delete from raffles where id = any($1)', [raffleIds])
+    if (borradas.rowCount !== raffleIds.length) {
+      throw new Error(
+        `purgeTestRaffles: se pidieron ${raffleIds.length} rifas y se borraron ${borradas.rowCount}`,
+      )
+    }
+    await db.query('delete from audit_logs where entity_id = any($1)', [entityIds])
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}
+
 export type SeedRefs = {
   organizationId: string
   raffleId: string
