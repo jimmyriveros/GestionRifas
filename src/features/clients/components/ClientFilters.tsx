@@ -12,7 +12,12 @@ import { SearchInput } from '@/features/search/components/SearchInput'
 import { useUrlSearch } from '@/features/search/use-url-search'
 import { tourTarget } from '@/features/tour/tours'
 
-import { CLIENT_SORT_COLUMNS, CLIENT_SORT_OPTIONS, describeClientSort } from '../sort-options'
+import {
+  CLIENT_DEFAULT_SORT,
+  CLIENT_SORT_COLUMNS,
+  CLIENT_SORT_OPTIONS,
+  describeClientSort,
+} from '../sort-options'
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 const ALL = 'all'
@@ -76,6 +81,12 @@ export function ClientFilters() {
         options={CLIENT_SORT_OPTIONS}
         allowed={CLIENT_SORT_COLUMNS}
         describe={describeClientSort}
+        /*
+          `?sort=name` es esta misma lista: el orden de siempre es el nombre
+          ascendente. Se declara para que las dos formas de pedirlo se vean
+          igual, sin tocar la dirección de nadie (D-216, corregido).
+        */
+        defaultSort={CLIENT_DEFAULT_SORT}
         label="Ordenar los clientes"
         className="w-full md:hidden"
       />

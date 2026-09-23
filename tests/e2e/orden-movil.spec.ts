@@ -281,6 +281,51 @@ test.describe('Ordenar desde el telefono', () => {
     await expect(page).toHaveURL(/sort=totalPurchased/)
   })
 
+/*
+    DOS COMBINACIONES QUE SE ESCAPARON (D-216, corregido). Las dos salían de
+    tratar cada caso por separado, sin mirar qué pasa cuando coinciden.
+  */
+
+  test('buscando Y con un orden que no se ofrece: se describe, y restablecer sigue siendo la relevancia', async ({
+    page,
+  }) => {
+    await page.goto('/seller/tickets?q=12&sort=raffleShortCode&dir=desc')
+
+    // El orden puesto se describe, como sin búsqueda.
+    await expect(control(page, 'boletas')).toHaveText(/Rifa, de la Z a la A/)
+
+    // Y la opción que restablece dice a dónde devuelve DE VERDAD: hay
+    // búsqueda, así que quitar el orden deja la lista por relevancia.
+    await control(page, 'boletas').click()
+    await expect(page.getByRole('option', { name: 'Las que mejor coinciden' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Más recientes primero' })).toHaveCount(0)
+
+    // Y al elegirla, eso es lo que pasa: se borra el orden y queda la búsqueda.
+    await page.getByRole('option', { name: 'Las que mejor coinciden' }).click()
+    await expect(page).not.toHaveURL(/sort=/)
+    await expect(page).toHaveURL(/q=12/)
+    await expect(control(page, 'boletas')).toHaveText(/Las que mejor coinciden/)
+  })
+
+  test('«Mis clientes» con el orden de siempre pedido por su nombre', async ({ page }) => {
+    // `?sort=name` y una dirección limpia dan la MISMA lista: el orden de
+    // siempre de esta pantalla es el nombre ascendente.
+    await page.goto('/seller/clients?sort=name')
+
+    await expect(control(page, 'clientes')).toHaveText(/Nombre, de la A a la Z/)
+    // Y la dirección se conserva: el control cuenta el orden, no lo reescribe.
+    await expect(page).toHaveURL(/sort=name/)
+  })
+
+  test('desde ahí se puede cambiar, y entonces sí cambia la dirección', async ({ page }) => {
+    await page.goto('/seller/clients?sort=name')
+    await elegir(page, 'clientes', 'Saldo, de mayor a menor')
+
+    await expect(page).toHaveURL(/sort=pendingAmount/)
+    await expect(page).toHaveURL(/dir=desc/)
+    await expect(control(page, 'clientes')).toHaveText(/Saldo, de mayor a menor/)
+  })
+
   test('«Mis clientes»: buscar NO cambia el orden, y el control no lo inventa', async ({ page }) => {
     // Aquí el término es un `ilike` sobre la misma consulta: el `order by`
     // sigue siendo el nombre. El control dice lo mismo con y sin búsqueda.

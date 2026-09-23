@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { CLIENT_SORT_OPTIONS } from '@/features/clients/sort-options'
-import { TICKET_SORT_OPTIONS } from '@/features/tickets/sort-options'
-import { CLIENT_SORT_COLUMNS } from '@/features/clients/queries'
-import { TICKET_SORT_COLUMNS } from '@/features/tickets/queries'
+import {
+  CLIENT_DEFAULT_SORT,
+  CLIENT_SORT_COLUMNS,
+  CLIENT_SORT_OPTIONS,
+  describeClientSort,
+} from '@/features/clients/sort-options'
+import {
+  describeTicketSort,
+  TICKET_SORT_COLUMNS,
+  TICKET_SORT_OPTIONS,
+} from '@/features/tickets/sort-options'
 
 /**
  * Las opciones del control del telefono (I-155, D-215).
@@ -87,5 +94,89 @@ describe('opciones de orden del telefono', () => {
       if (opcion.sort === null) continue
       expect(opcion.label, opcion.label).toMatch(/, de (mayor a menor|menor a mayor|más a menos|menos a más|la A a la Z|la Z a la A)$/)
     }
+  })
+})
+
+/**
+ * NINGUNA COLUMNA ADMITIDA SE QUEDA SIN PALABRAS (D-216, corregido).
+ *
+ * El control ofrece menos columnas de las que la consulta acepta, y eso está
+ * bien. Lo que no puede pasar es que una dirección pida un orden que la
+ * consulta APLICA y el control no sepa nombrarlo: ahí el selector se queda sin
+ * valor que enseñar, o peor, enseña otro.
+ *
+ * Hay tres formas válidas de representarlo, y basta con una:
+ *
+ *   1. una opción de la lista con esa misma columna y sentido;
+ *   2. la función `describe`, para las que no se ofrecen;
+ *   3. coincidir con el orden por defecto de la lista, que ya tiene su opción
+ *      —es el caso de `?sort=name` en clientes—.
+ *
+ * Se recorren TODAS las columnas en LOS DOS sentidos, que es lo que hace que
+ * añadir una a la lista blanca sin darle palabras falle aquí y no en la
+ * pantalla de alguien.
+ */
+describe('cada columna admitida tiene representación, en los dos sentidos', () => {
+  const pantallas = [
+    {
+      nombre: 'Mis boletas',
+      columnas: TICKET_SORT_COLUMNS,
+      opciones: TICKET_SORT_OPTIONS,
+      describe: describeTicketSort,
+      porDefecto: undefined,
+    },
+    {
+      nombre: 'Mis clientes',
+      columnas: CLIENT_SORT_COLUMNS,
+      opciones: CLIENT_SORT_OPTIONS,
+      describe: describeClientSort,
+      porDefecto: CLIENT_DEFAULT_SORT,
+    },
+  ] as const
+
+  for (const pantalla of pantallas) {
+    for (const column of pantalla.columnas) {
+      for (const direction of ['asc', 'desc'] as const) {
+        it(`${pantalla.nombre}: «${column}» ${direction}`, () => {
+          const sort = { column, direction }
+
+          const ofrecida = pantalla.opciones.some(
+            (opcion) =>
+              opcion.sort !== null &&
+              opcion.sort.column === column &&
+              opcion.sort.direction === direction,
+          )
+          const esElDefecto =
+            pantalla.porDefecto !== undefined &&
+            pantalla.porDefecto.column === column &&
+            pantalla.porDefecto.direction === direction
+          const descrita = pantalla.describe(sort)
+
+          const representado = ofrecida || esElDefecto || descrita !== null
+          expect(representado, `${column} ${direction} se queda sin palabras`).toBe(true)
+
+          // Y si le toca describirla, la frase tiene que decir algo: ni vacía
+          // ni el nombre de la columna a secas.
+          if (!ofrecida && !esElDefecto) {
+            expect(descrita).toBeTruthy()
+            expect(descrita).not.toBe(column)
+            expect((descrita ?? '').length).toBeGreaterThan(4)
+          }
+        })
+      }
+    }
+  }
+
+  it('el orden por defecto escrito de «Mis clientes» es el que aplica la consulta', () => {
+    // `listClients` ordena por `name` ascendente cuando nadie pide otra cosa.
+    // Si eso cambiara, `?sort=name` dejaría de ser la misma lista y el control
+    // lo estaría representando mal.
+    expect(CLIENT_DEFAULT_SORT).toEqual({ column: 'name', direction: 'asc' })
+  })
+
+  it('«Mis boletas» no declara orden por defecto escrito, y es correcto', () => {
+    // Su orden de siempre es `created_at`, que NO está en la lista blanca: no
+    // se puede pedir por la dirección, así que no hay nada que equiparar.
+    expect(TICKET_SORT_COLUMNS as readonly string[]).not.toContain('createdAt')
   })
 })

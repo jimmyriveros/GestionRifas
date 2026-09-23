@@ -88,6 +88,22 @@ type ListSortSelectProps = {
    * relevancia y no por fecha, y «restablecer el orden» devuelve ahi.
    */
   defaultLabel?: string
+  /**
+   * El orden por defecto de la lista, ESCRITO (D-216, corregido).
+   *
+   * Una lista puede llegar a su orden de siempre por dos direcciones: sin
+   * parametros, o pidiendolo por su nombre. En «Mis clientes» el orden de
+   * siempre es el nombre ascendente, asi que `?sort=name` y una direccion
+   * limpia producen exactamente la misma lista, y las dos tienen que verse
+   * igual en el control.
+   *
+   * Sin esto, `?sort=name` no casaba con ninguna opcion —la del defecto vale
+   * `null`— y el control se quedaba sin valor que ensenar.
+   *
+   * «Mis boletas» no lo necesita: su orden de siempre es `created_at`, que no
+   * esta en la lista blanca y por tanto no se puede pedir por la direccion.
+   */
+  defaultSort?: ListSort
   className?: string
 }
 
@@ -105,35 +121,54 @@ export function ListSortSelect({
   allowed,
   describe,
   defaultLabel,
+  defaultSort,
   className,
 }: ListSortSelectProps) {
   const { sort, setSort, pending } = useListSort()
 
   /*
-    Tres situaciones, y las tres tienen una respuesta distinta:
+    Cuatro situaciones, y cada una tiene su respuesta:
 
       1. la direccion no pide orden, o pide uno que la consulta RECHAZA. En las
          dos la lista sale en su orden por defecto, asi que se elige esa opcion;
-      2. pide uno que este control ofrece: esa opcion;
-      3. pide uno que la consulta aplica y este control no ofrece: se anade una
+      2. pide, por su nombre, el orden que YA es el de siempre —`?sort=name` en
+         clientes—: es la misma lista, asi que tambien es esa opcion;
+      3. pide uno que este control ofrece: esa opcion;
+      4. pide uno que la consulta aplica y este control no ofrece: se anade una
          opcion para el, al principio, y queda elegida.
 
-    Lo que NO se hace en ningun caso es reescribir la direccion. El control
-    cuenta el orden; no lo cambia por su cuenta.
+    Lo que NO se hace en NINGUN caso es reescribir la direccion. El control
+    cuenta el orden; no lo cambia por su cuenta. En el caso 2 eso significa
+    dejar `?sort=name` puesto: produce la misma lista, y quitarlo seria cambiar
+    la direccion de alguien a su espalda.
   */
-  const applied = sort !== null && allowed.includes(sort.column) ? sort : null
+  const requested = sort !== null && allowed.includes(sort.column) ? sort : null
+  const isDefault =
+    requested !== null &&
+    defaultSort !== undefined &&
+    requested.column === defaultSort.column &&
+    requested.direction === defaultSort.direction
+
+  const applied = isDefault ? null : requested
   const current = keyOf(applied)
   const offered = options.some((option) => keyOf(option.sort) === current)
   const extra = applied !== null && !offered ? describe(applied) : null
 
+  /*
+    El texto de la opcion por defecto se sustituye SIEMPRE que haga falta,
+    tambien cuando hay una opcion anadida: buscando y con la rifa pedida, la
+    opcion que restablece sigue devolviendo a la relevancia y tiene que
+    decirlo. Antes esta sustitucion vivia en la otra rama y se la saltaba.
+  */
+  const base: readonly ListSortOption[] =
+    defaultLabel === undefined
+      ? options
+      : options.map((option) =>
+          option.sort === null ? { ...option, label: defaultLabel } : option,
+        )
+
   const shown: readonly ListSortOption[] =
-    extra !== null
-      ? [{ label: extra, sort: applied }, ...options]
-      : defaultLabel === undefined
-        ? options
-        : options.map((option) =>
-            option.sort === null ? { ...option, label: defaultLabel } : option,
-          )
+    extra !== null ? [{ label: extra, sort: applied }, ...base] : base
 
   return (
     <Select

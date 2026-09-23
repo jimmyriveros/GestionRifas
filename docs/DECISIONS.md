@@ -13602,3 +13602,30 @@ Y se añadió lo que faltaba: comprobar el **texto contra los resultados**, con 
 orden dé una secuencia distinta —la rifa de código menor tiene las boletas más recientes, y la coincidencia
 exacta de «12» es la más antigua—. Sin esos datos, una lista ordenada por fecha y otra por relevancia podrían
 salir iguales y la prueba no vería nada.
+
+### Corrección de D-216 — dos combinaciones que se escaparon (2026-09-23)
+
+Las dos salían de tratar cada caso por separado sin mirar qué pasa **cuando coinciden**.
+
+**1. Buscando Y con un orden que el teléfono no ofrece.** En
+`?q=12&sort=raffleShortCode&dir=desc` el control describía bien la rifa, pero la opción que **restablece**
+seguía diciendo «Más recientes primero»: la rama que añade la opción descrita se saltaba la sustitución de
+`defaultLabel`, que vivía en la otra. Ahora la sustitución se hace **siempre** sobre la lista base y la opción
+descrita se antepone después, así que las dos cosas se aplican a la vez.
+
+**2. El orden de siempre, pedido por su nombre.** En `/seller/clients?sort=name` el valor era `name:asc`, y
+ninguna opción lo representaba: la del orden por defecto vale `null`, y `describeClientSort` devolvía `null`
+porque `name` no está entre las columnas «que no se ofrecen». El control se quedaba **sin valor que enseñar**.
+
+Es un caso general, no una rareza de clientes: una lista puede llegar a su orden de siempre por dos
+direcciones —sin parámetros, o pidiéndolo por su nombre— y las dos producen la misma lista. Se declara con
+`defaultSort`, y entonces `?sort=name` se ve como la opción por defecto **sin tocar la dirección**: quitar ese
+parámetro sería cambiarle la dirección a alguien a su espalda, y además no cambia nada de lo que ve.
+
+«Mis boletas» no lo necesita, y conviene decir por qué: su orden de siempre es `created_at`, que **no está en
+la lista blanca**, así que no se puede pedir por la dirección y no hay nada que equiparar.
+
+**La comprobación que faltaba.** Una prueba recorre **todas** las columnas admitidas de las dos pantallas en
+**los dos sentidos** —34 casos— y exige que cada una tenga representación por alguna de las tres vías: una
+opción ofrecida, la función `describe`, o coincidir con el orden por defecto escrito. Añadir mañana una
+columna a una lista blanca sin darle palabras falla ahí, y no en la pantalla de alguien.

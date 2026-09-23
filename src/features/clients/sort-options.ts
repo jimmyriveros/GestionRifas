@@ -43,6 +43,17 @@ export type ClientSortColumn = (typeof CLIENT_SORT_COLUMNS)[number]
  * aplica como un `ilike` sobre la misma consulta y el `order by` sigue siendo
  * el mismo. Por eso esta lista no necesita una etiqueta de relevancia (D-216).
  */
+/**
+ * El orden de siempre de esta lista, ESCRITO (D-216, corregido).
+ *
+ * `listClients` ordena por `name` ascendente cuando nadie pide otra cosa, asi
+ * que `?sort=name` y una direccion limpia dan exactamente la misma lista. El
+ * control lo necesita para ensenar las dos igual; sin esto, `?sort=name` no
+ * casaba con ninguna opcion —la del defecto vale `null`— y se quedaba sin
+ * valor que mostrar.
+ */
+export const CLIENT_DEFAULT_SORT: ListSort = { column: 'name', direction: 'asc' }
+
 export const CLIENT_SORT_OPTIONS: readonly ListSortOption[] = [
   { label: 'Nombre, de la A a la Z', sort: null },
   { label: 'Nombre, de la Z a la A', sort: { column: 'name', direction: 'desc' } },

@@ -14293,3 +14293,33 @@ opciones con lista blanca sigue en pie.
 
 * **El portal del personal**: I-155 sigue abierta para él, y su lista blanca es otra (D-198).
 * **Producción**: no se tocó ni se leyó.
+
+### Corrección de D-216 — dos combinaciones que se escaparon (2026-09-23)
+
+| Dirección | Qué pasaba | Qué pasa ahora |
+|---|---|---|
+| `/seller/tickets?q=12&sort=raffleShortCode&dir=desc` | Describía bien la rifa, pero la opción de **restablecer** decía «Más recientes primero» | Describe la rifa **y** ofrece «Las que mejor coinciden», que es a donde devuelve de verdad |
+| `/seller/clients?sort=name` | `name:asc` no lo representaba **ninguna** opción: el control se quedaba sin valor que enseñar | Se ve como «Nombre, de la A a la Z», y la dirección **se conserva** |
+
+La primera era una rama que se saltaba la otra: la sustitución de `defaultLabel` vivía en el camino sin opción
+descrita. Ahora se aplica siempre sobre la lista base y la descrita se antepone después.
+
+La segunda es un caso general: una lista puede llegar a su orden de siempre por dos direcciones —sin
+parámetros, o pidiéndolo por su nombre—. Se declara con `defaultSort`, y no se toca la dirección: quitar ese
+parámetro no cambiaría nada de lo que se ve y sí cambiaría la dirección de alguien a su espalda.
+
+### La comprobación exhaustiva
+
+Una prueba recorre **las 17 columnas admitidas de las dos pantallas en los dos sentidos —34 casos—** y exige
+que cada una tenga representación por alguna de las tres vías: una opción ofrecida, `describe`, o coincidir
+con el orden por defecto escrito. Además comprueba que la frase descrita no sea vacía ni el nombre de la
+columna a secas. Añadir mañana una columna a una lista blanca sin darle palabras falla ahí.
+
+| Comando | Resultado |
+|---|---|
+| `tests/unit/sort-options.test.ts` | ✅ **48/48** (12 de antes + 36 nuevas) |
+| E2E `orden-movil.spec.ts` (`movil`) | ✅ **29/29**, con las tres regresiones nuevas |
+| E2E `orden-paginacion.spec.ts` (`escritorio`) | ✅ **25/25** |
+| `npm run verify` | ✅ **exit 0** — **1.607** unitarias en 85 archivos, lint sin errores, build |
+
+**Un fallo que no era del cambio.** En una pasada, «Pagos: descendente…» falló y arrastró a cinco más: la base tenía un cliente «Orden …» y 93 boletas de pasadas anteriores que corté a mano, así que la creación de las 60 boletas chocaba con la unicidad de números. Con `db:reset` + `seed:local` la suite da **25/25**. Es I-151 otra vez, no este trabajo; se comprobó en vez de suponerlo.
