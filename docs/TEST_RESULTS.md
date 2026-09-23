@@ -13961,3 +13961,104 @@ opacidad (`disabled:opacity-50` de `buttonVariants`).
 * **Lectores de pantalla reales**: se midió dónde queda el foco, no cómo se anuncia.
 * **«Asignar la boleta»**: usa `Dialog`, no `ConfirmDialog`, y sigue sin devolver el foco. Fuera del encargo.
 * **Producción**: no se tocó ni se leyó. Sin migración.
+
+## D-213 — El orden es del conjunto filtrado, y tres listas más paginan (2026-09-22, solo en local)
+
+Condiciones iniciales: `npx supabase db reset` con la `0075` incluida, `docker restart supabase_kong_Rifas`
+—si no, `seed:local` falla con `AuthRetryableFetchError`— y `npm run seed:local`. La base sembrada tiene
+**33 boletas, 4 pagos, 6 clientes, 2 rifas y 6 membresías**, que es poco para cruzar páginas: por eso las
+pruebas que necesitan volumen **crean sus propias filas** y las borran al terminar.
+
+### a. Reproducción, antes de tocar nada
+
+| Qué | Medido |
+|---|---|
+| P1-B, «Mis pagos» con 73 pagos | Ordenando «Valor» de mayor a menor, la pantalla daba **$150.000** como máximo; el máximo real del vendedor era **$2.280.000** |
+| Cómo lo hacía | `DataTable` con `getSortedRowModel()`: ordena las filas que tiene, que son las 25 servidas |
+| Y lo afirmaba | La cabecera anunciaba `aria-sort="descending"` sobre ese orden falso |
+| P1-H, tres listas | `listAllOrgMembers` y `listAdminRaffleSummaries` consultaban **sin `range` ni `limit`**, y ninguna de las tres páginas montaba `DataTablePagination` |
+
+### b. Dos cosas que hubo que medir, porque lo evidente no valía
+
+**PostgREST no ordena por una columna de `clients`.** Probado contra el PostgREST local:
+`order=clients(name).asc` responde **`PGRST201`** —hay dos claves ajenas entre `tickets` y `clients`— y la
+sintaxis que las desambigua, `order=clients!tickets_client_org_fk(name).asc`, responde **`PGRST100`**: el `!`
+no se acepta en `order`. Con `raffles`, que tiene una sola, `order=raffles(short_code).desc` **sí funciona**,
+y por eso «Rifa» se puede ordenar y «Cliente» no.
+
+**El tope de 1.000 filas de PostgREST no se aplica al desplazamiento.** Medido con 1.100 boletas en una rifa
+propia: `range(1050, 1074)` devuelve las filas 1.051 a 1.075, con el recuento exacto. Conviene tenerlo medido:
+si el tope afectara al `offset`, la página 43 de «Mis boletas» estaría vacía para cualquier vendedor con más
+de mil boletas —el caso real de esta operación— y nadie se enteraría.
+
+### b.bis El desempate estable no tira el índice — medido con EXPLAIN
+
+El orden por defecto de «Mis boletas» pasó de `created_at desc` a `created_at desc, id`. La duda razonable es si
+eso convierte un recorrido de índice en una ordenación completa. **No lo hace:**
+
+| Consulta | Plan |
+|---|---|
+| `order by created_at desc limit 25` | `Index Scan using tickets_created_at_idx` |
+| `order by created_at desc, id limit 25` | `Incremental Sort` (`Presorted Key: created_at`) sobre **el mismo** `Index Scan` |
+
+PostgreSQL sigue leyendo por el índice y solo ordena **dentro de cada grupo de `created_at` iguales**, que es
+exactamente lo que hay que desempatar. Es el precio de que una fila no salte de página entre dos consultas.
+
+### c. La comprobación que distingue un orden de servidor de uno de navegador
+
+No es que una página salga ordenada: es que el **recorrido completo** lo esté. Se piden todas las páginas y se
+comprueban tres cosas sobre la secuencia entera: que está ordenada en cada salto de página, que **ninguna fila
+se repite** y que el número de filas vistas es **exactamente** el total anunciado. Siempre con empates a
+propósito —doce boletas por cada uno de cinco precios—, que es el caso que rompe un orden sin desempate estable.
+
+| Nivel | Prueba | Resultado |
+|---|---|---|
+| Base de datos | `tests/db/list-order.test.ts` — 60 boletas propias, recorrido completo, empates, doble recorrido, lista blanca en las dos funciones, aislamiento del vendedor, y **más allá de las 1.000 filas** | ✅ **16/16** |
+| Lógica pura | `tests/unit/list-page.test.ts` — el conjunto contra la página, empates, columna desconocida, página fuera de rango, orden en español y nulos al final | ✅ **13/13** |
+| Lógica pura | `tests/unit/list-sort.test.ts` — lista blanca, ciclo de tres estados, `aria-sort` | ✅ **9/9** |
+| Navegador, escritorio | `tests/e2e/orden-paginacion.spec.ts` | ✅ **16 pasadas, 4 omitidas** |
+| Navegador, teléfono | `tests/e2e/orden-movil.spec.ts` | ✅ **2/2** |
+
+**Las 4 omitidas son de «Pagos» y se saltan por falta de datos, no por un fallo**: necesitan más de 25 pagos
+del vendedor y la base recién sembrada tiene 4. La misma propiedad queda demostrada en «Boletas» por dos
+pruebas que **crean sus 60 filas** y las borran, y en la base por el recorrido de `list-order`.
+
+### d. La privacidad del personal, también en el orden
+
+| Intento | Respuesta |
+|---|---|
+| `admin_list_tickets(… 'clientName')` | ❌ «No se puede ordenar por esa columna.» |
+| `… 'salePrice'`, `'paidAmount'`, `'pendingAmount'` | ❌ la misma, las tres |
+| `… 'dailyNumber'` | ✅ ordena, con el recuento correcto |
+| `search_tickets(… 'clientName; drop table tickets')` | ❌ «No se puede ordenar por esa columna.» |
+
+Y sin `p_sort_column`, las dos funciones devuelven **lo mismo que antes y en el mismo orden**: hay una prueba
+por función que lo fija.
+
+### e. Verificación general
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ **exit 0** — **1.572** unitarias en 85 archivos, lint sin errores, build correcto |
+| `npm run test:db` | ✅ **1.418 + 1 omitida**, 58/58 archivos, con la base recién sembrada |
+| `npm run lint` | ✅ **0 errores**, 2 avisos preexistentes de TanStack Virtual |
+
+### f. Errores encontrados durante el trabajo, y cómo se corrigieron
+
+| Error | Causa | Corrección |
+|---|---|---|
+| `npm run test:db` daba **4 fallos** | Uno real —el guardián de la firma de `search_tickets`, que hace su trabajo— y **tres por el estado de la base**: venía de la E2E, con 8.465 boletas acumuladas | Actualizado el guardián con los dos parámetros nuevos; la base, sembrada de nuevo antes de volver a medir |
+| `catalog.test.ts` rechazaba la `0075` | El proyecto exige que **toda** migración lleve su **nota de reversión**, y no la tenía | Añadida al final del archivo, con lo que hay que cambiar antes en la aplicación |
+| Las 5 E2E nuevas de «Pagos» fallaban con «Algo salió mal» | `.order('id')` sobre `v_payment_history`: **la vista no expone `id`**, sino `payment_id`. PostgREST respondía `42703` | Desempatar por `payment_id` |
+| 10 E2E fallaban buscando la barra de paginación | Las barras invertidas de `\d` se perdieron al escribir el archivo: el patrón quedó en `d+` | Reescritas con `String.raw` |
+| 4 E2E esperaban `dir=asc` en la dirección | Expectativa **mía** equivocada: ascendente es el valor por defecto de la lectura y el gancho **borra** `dir` a propósito | Corregida la prueba, no el código |
+| Las pruebas de móvil no se ejecutaban | El proyecto `movil` solo toma `*(responsive\|movil).spec.ts` | Separadas en `orden-movil.spec.ts` |
+| `sortAndPaginate` ordenaba por el desempate cuando no había columna pedida | Un `* 0` que anulaba la comparación y destruía el orden por defecto | Sin columna pedida **no se ordena**: el orden llega desempatado desde la consulta |
+
+### g. Lo que NO se comprobó
+
+* **Rendimiento con volumen de producción.** Las cifras de este entorno son de un servidor de desarrollo y no
+  se presentan como rendimiento de producción. Lo que sí se midió es el **número de filas transferidas**: las
+  tres listas nuevas envían al navegador **una página** donde antes enviaban todas.
+* **Ordenar desde el teléfono**: no existe ese control y es anterior a este bloque (I-155).
+* **Producción**: no se tocó ni se leyó.

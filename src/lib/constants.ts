@@ -79,6 +79,12 @@ export const LIST_ITEM_LABELS = {
   days: { one: 'día', many: 'días' },
   /** «Premios ganados» pagina PREMIOS: una fila es un premio, no una boleta (D-208). */
   prizes: { one: 'premio', many: 'premios' },
+  /* Las tres listas del portal administrativo que pasaron a paginar (P1-H).
+     Los nombres son los del glosario: en pantalla no hay «miembros» ni
+     «usuarios», hay administradores, vendedores y rifas. */
+  admins: { one: 'administrador', many: 'administradores' },
+  sellers: { one: 'vendedor', many: 'vendedores' },
+  raffles: { one: 'rifa', many: 'rifas' },
 } as const
 
 export type ListItemKind = keyof typeof LIST_ITEM_LABELS

@@ -7,6 +7,12 @@ import {
   type InventoryCounts,
 } from '@/features/tickets/admin-queries'
 import { listOrgMembers, type OrgMember } from '@/features/users/queries'
+import {
+  compareBoolean,
+  compareNumber,
+  compareText,
+  type ListComparators,
+} from '@/lib/list-page'
 
 /**
  * Vendedores con sus indicadores. La gestion (alta, edicion, activacion) vive
@@ -58,4 +64,28 @@ export async function listActiveSellerOptions(): Promise<SellerOption[]> {
   return members
     .filter((member) => member.isActive)
     .map((member) => ({ id: member.profileId, fullName: member.fullName, alias: member.alias }))
+}
+
+/**
+ * Las columnas por las que se puede ordenar «Vendedores» (P1-H).
+ *
+ * «Equipo» no esta: esa celda se arma en la pantalla contando, sobre la lista
+ * completa, quien pertenece al equipo de quien, y no es un dato de la fila.
+ * «Acciones» tampoco, que no es un dato.
+ */
+export const SELLER_SORT_COLUMNS = [
+  'fullName',
+  'isActive',
+  'ticketsTotal',
+  'ticketsAssigned',
+  'ticketsPendingApproval',
+] as const
+
+export const SELLER_COMPARATORS: ListComparators<SellerWithInventory> = {
+  fullName: (a, b) => compareText(a.fullName, b.fullName),
+  isActive: (a, b) => compareBoolean(a.isActive, b.isActive),
+  ticketsTotal: (a, b) => compareNumber(a.ticketsTotal, b.ticketsTotal),
+  ticketsAssigned: (a, b) => compareNumber(a.ticketsAssigned, b.ticketsAssigned),
+  ticketsPendingApproval: (a, b) =>
+    compareNumber(a.ticketsPendingApproval, b.ticketsPendingApproval),
 }

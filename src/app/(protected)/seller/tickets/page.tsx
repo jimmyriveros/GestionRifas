@@ -10,13 +10,14 @@ import { listRaffleOptions } from '@/features/raffles/queries'
 import { ticketSearchEmptyDescription } from '@/features/search/hints'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsList } from '@/features/tickets/components/TicketsList'
-import { listTickets } from '@/features/tickets/queries'
+import { listTickets, TICKET_SORT_COLUMNS } from '@/features/tickets/queries'
 import { inventoryStatusSchema, paymentStatusSchema } from '@/features/tickets/schemas'
 import { TicketListSlot } from '@/features/tickets/selection/components/SelectedTicketsView'
 import { TicketSelectionModeButton } from '@/features/tickets/selection/components/TicketSelectionModeButton'
 import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
 import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSelectionContext'
 import { getWhatsappSettings } from '@/features/whatsapp/queries'
+import { parseListSort } from '@/lib/list-sort'
 import { SEARCH_OPTIONS_LIMIT } from '@/lib/search'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -32,6 +33,8 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
   const inventoryStatus = inventoryStatusSchema.safeParse(single(params.inventoryStatus))
   const paymentStatus = paymentStatusSchema.safeParse(single(params.paymentStatus))
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
+  // Lo que no este en la lista blanca se ignora y manda el orden por defecto.
+  const sort = parseListSort(single(params.sort), single(params.dir), TICKET_SORT_COLUMNS)
 
   // No se filtra por `sellerId`: `tickets_select` ya limita las filas a las
   // boletas de quien consulta (BR-U07). Pasar el id por la URL no cambiaria
@@ -47,6 +50,7 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
       paymentStatus: paymentStatus.success ? paymentStatus.data : undefined,
       search: single(params.q),
       page: Number.isNaN(requestedPage) ? 1 : requestedPage,
+      sort,
     }),
     listRaffleOptions(),
     // Alimenta el desplegable «Cliente» de los filtros, que no tiene buscador:

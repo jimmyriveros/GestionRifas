@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { PAGE_SIZE, type PaymentMethod } from '@/lib/constants'
+import type { ListSort } from '@/lib/list-sort'
 import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
@@ -55,6 +56,34 @@ export type PaymentFilters = {
   dateTo?: string
   page?: number
   pageSize?: number
+  /** Orden pedido desde la URL, ya validado contra `PAYMENT_SORT_COLUMNS`. */
+  sort?: ListSort<PaymentSortColumn> | null
+}
+
+/**
+ * Las columnas por las que se puede pedir orden (P1-B).
+ *
+ * Son los `id` de las columnas de `PaymentsTable`, para que la cabecera pulsada
+ * y el parametro de la URL sean el mismo nombre. Fuera quedan «Boletas» y
+ * «Acción», que ya no se podian ordenar.
+ */
+export const PAYMENT_SORT_COLUMNS = [
+  'clientName',
+  'paymentDate',
+  'totalAmount',
+  'paymentMethod',
+  'isActive',
+] as const
+
+export type PaymentSortColumn = (typeof PAYMENT_SORT_COLUMNS)[number]
+
+/** De nombre de columna a columna de la vista. Lo que no este aqui no se pide. */
+const PAYMENT_SORT_DB: Record<PaymentSortColumn, string> = {
+  clientName: 'client_name',
+  paymentDate: 'payment_date',
+  totalAmount: 'total_amount',
+  paymentMethod: 'payment_method',
+  isActive: 'is_active',
 }
 
 type HistoryRow = {
@@ -132,9 +161,30 @@ export async function listPayments(
   if (filters.status === 'active') query = query.is('voided_at', null)
   if (filters.status === 'voided') query = query.not('voided_at', 'is', null)
 
-  const { data, error, count } = await query
-    .order('payment_date', { ascending: false })
-    .order('created_at', { ascending: false })
+  /*
+    EL ORDEN LO APLICA LA BASE, sobre el conjunto filtrado entero (P1-B).
+    Antes se ordenaba en el navegador las 25 filas ya servidas.
+
+    `nullsFirst: false` a proposito: en PostgreSQL un `desc` pone los nulos
+    PRIMERO, asi que ordenar por un importe opcional encabezaria la lista con
+    las filas que no lo tienen.
+
+    Y `id` al final SIEMPRE, tambien en el orden por defecto: sin un desempate
+    estable, dos filas con la misma fecha pueden cambiar de pagina entre dos
+    consultas y una se ve dos veces mientras otra no se ve nunca.
+  */
+  const ordered = filters.sort
+    ? query.order(PAYMENT_SORT_DB[filters.sort.column], {
+        ascending: filters.sort.direction === 'asc',
+        nullsFirst: false,
+      })
+    : query
+        .order('payment_date', { ascending: false })
+        .order('created_at', { ascending: false })
+
+  const { data, error, count } = await ordered
+    // La vista no expone `id`, sino `payment_id`.
+    .order('payment_id', { ascending: true })
     .range((page - 1) * pageSize, page * pageSize - 1)
 
   if (error) throw error

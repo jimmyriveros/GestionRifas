@@ -737,7 +737,11 @@ describe('E13-07 search_tickets devuelve las dos columnas (D-170)', () => {
         'p_client_id uuid DEFAULT NULL::uuid, ' +
         'p_inventory_status ticket_inventory_status DEFAULT NULL::ticket_inventory_status, ' +
         'p_payment_status ticket_payment_status DEFAULT NULL::ticket_payment_status, ' +
-        'p_limit integer DEFAULT 20, p_offset integer DEFAULT 0',
+        'p_limit integer DEFAULT 20, p_offset integer DEFAULT 0, ' +
+        // Los dos ultimos los anade la `0075` (P1-B, D-213): el orden pedido
+        // desde una cabecera, que manda sobre la relevancia. Van AL FINAL y con
+        // `default null`, para que ninguna llamada anterior cambie.
+        'p_sort_column text DEFAULT NULL::text, p_sort_direction text DEFAULT NULL::text',
     )
     expect(rows[0].auth).toBe(true)
     expect(rows[0].anon).toBe(false)

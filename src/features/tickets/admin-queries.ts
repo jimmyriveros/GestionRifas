@@ -10,6 +10,7 @@ import {
   type RaffleStatus,
   type TicketInventoryStatus,
 } from '@/lib/constants'
+import type { ListSort } from '@/lib/list-sort'
 import { normalizeSearchTerm } from '@/lib/search'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
@@ -47,7 +48,34 @@ export type AdminTicketFilters = {
   ticketIds?: readonly string[]
   page?: number
   pageSize?: number
+  /** Orden pedido desde la URL, ya validado contra `ADMIN_TICKET_SORT_COLUMNS`. */
+  sort?: ListSort<AdminTicketSortColumn> | null
 }
+
+/**
+ * Las columnas por las que el PERSONAL puede pedir orden (P1-B).
+ *
+ * Es mas corta que la del vendedor (`TICKET_SORT_COLUMNS`) y lo es a proposito:
+ * aqui no hay cliente ni dinero, y ordenar por una columna es preguntar por
+ * ella. Ordenar por saldo y mirar la primera fila diria quien debe mas sin que
+ * ninguna celda lo escriba, asi que la privacidad de D-198 vale tambien para el
+ * orden, no solo para lo que se pinta.
+ *
+ * «Vendedor» tampoco esta: su nombre no sale de la consulta, lo resuelve un
+ * mapa en memoria, de modo que ordenar por el solo reacomodaria la pagina.
+ *
+ * La lista se repite en SQL, dentro de `admin_list_tickets` (migracion 0075):
+ * la pantalla no es una frontera de seguridad (CLAUDE.md 26).
+ */
+export const ADMIN_TICKET_SORT_COLUMNS = [
+  'dailyNumber',
+  'raffleShortCode',
+  'inventoryStatus',
+  'paymentState',
+  'clearance',
+] as const
+
+export type AdminTicketSortColumn = (typeof ADMIN_TICKET_SORT_COLUMNS)[number]
 
 export type AdminTicketListItem = {
   id: string
@@ -120,6 +148,9 @@ async function callAdminList(
     ...(filters.inventoryStatus ? { p_inventory_status: filters.inventoryStatus } : {}),
     ...(filters.paymentState ? { p_payment_state: filters.paymentState } : {}),
     ...(filters.ticketIds ? { p_ticket_ids: [...filters.ticketIds] } : {}),
+    ...(filters.sort
+      ? { p_sort_column: filters.sort.column, p_sort_direction: filters.sort.direction }
+      : {}),
     p_limit: limit,
     p_offset: offset,
   })

@@ -7,7 +7,8 @@ import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
-import { listPayments } from '@/features/payments/queries'
+import { listPayments, PAYMENT_SORT_COLUMNS } from '@/features/payments/queries'
+import { parseListSort } from '@/lib/list-sort'
 import { paymentNewHref } from '@/features/payments/return-to'
 import { getSellerDashboard } from '@/features/dashboard/seller-queries'
 import { formatCOP } from '@/lib/money'
@@ -22,12 +23,15 @@ function single(value: string | string[] | undefined): string | undefined {
 export default async function SellerPaymentsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
+  // Lo que no este en la lista blanca se ignora y manda el orden por defecto.
+  const sort = parseListSort(single(params.sort), single(params.dir), PAYMENT_SORT_COLUMNS)
 
   // Sin filtrar por vendedor: `payments_select` ya limita las filas a las suyas.
   const [{ rows, total, page, pageSize }, dashboard] = await Promise.all([
     listPayments({
       clientId: single(params.clientId),
       page: Number.isNaN(requestedPage) ? 1 : requestedPage,
+      sort,
     }),
     getSellerDashboard(),
   ])
@@ -70,7 +74,7 @@ export default async function SellerPaymentsPage({ searchParams }: { searchParam
         />
       ) : (
         <>
-          <PaymentsTable payments={rows} clientBasePath="/seller/clients" />
+          <PaymentsTable payments={rows} clientBasePath="/seller/clients" serverSorted />
           <DataTablePagination total={total} page={page} pageSize={pageSize} items="payments" />
         </>
       )}

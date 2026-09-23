@@ -5,6 +5,7 @@ import { RowLink } from '@/components/data/RowLink'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
+import { useListSort } from '@/components/data/use-list-sort'
 import { formatCOP } from '@/lib/money'
 
 import type { ClientListItem } from '../queries'
@@ -25,6 +26,8 @@ type ClientsTableProps = {
  */
 
 export function ClientsTable({ clients, basePath }: ClientsTableProps) {
+  const { sort, toggle } = useListSort()
+
   const columns = useMemo<ColumnDef<ClientListItem>[]>(() => {
     const base: ColumnDef<ClientListItem>[] = [
       {
@@ -100,6 +103,10 @@ export function ClientsTable({ clients, basePath }: ClientsTableProps) {
       getRowId={(row) => row.id}
       rowHref={(row) => `${basePath}/${row.id}`}
       caption="Clientes"
+      // El orden viaja en la URL y lo aplica la base sobre el conjunto
+      // filtrado entero, no esta tabla sobre la pagina servida (P1-B).
+      sort={sort}
+      onSortToggle={toggle}
     />
   )
 }

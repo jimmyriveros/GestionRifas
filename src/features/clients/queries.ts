@@ -2,6 +2,7 @@ import 'server-only'
 
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE } from '@/lib/constants'
+import type { ListSort } from '@/lib/list-sort'
 import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
@@ -35,6 +36,36 @@ export type ClientFilters = {
   includeArchived?: boolean
   page?: number
   pageSize?: number
+  /** Orden pedido desde la URL, ya validado contra `CLIENT_SORT_COLUMNS`. */
+  sort?: ListSort<ClientSortColumn> | null
+}
+
+/**
+ * Las columnas por las que se puede pedir orden (P1-B). Son los `id` de las
+ * columnas de `ClientsTable`, para que la cabecera pulsada y el parametro de la
+ * URL sean el mismo nombre.
+ */
+export const CLIENT_SORT_COLUMNS = [
+  'name',
+  'phone',
+  'ticketsCount',
+  'totalPurchased',
+  'totalPaid',
+  'pendingAmount',
+  'archivedAt',
+] as const
+
+export type ClientSortColumn = (typeof CLIENT_SORT_COLUMNS)[number]
+
+/** De nombre de columna a columna de la vista. Lo que no este aqui no se pide. */
+const CLIENT_SORT_DB: Record<ClientSortColumn, string> = {
+  name: 'name',
+  phone: 'phone',
+  ticketsCount: 'tickets_count',
+  totalPurchased: 'total_purchased',
+  totalPaid: 'total_paid',
+  pendingAmount: 'pending_amount',
+  archivedAt: 'archived_at',
 }
 
 /**
@@ -76,8 +107,22 @@ export async function listClients(
     query = query.ilike('search_text', `%${search}%`)
   }
 
-  const { data, error, count } = await query
-    .order('name', { ascending: true })
+  /*
+    EL ORDEN LO APLICA LA BASE (P1-B). `nullsFirst: false` porque un `desc`
+    en PostgreSQL pone los nulos primero: ordenar por «Estado» —que es
+    `archived_at`— encabezaria la lista con los clientes activos, que son
+    justo los que no tienen fecha. Y `client_id` cierra siempre, para que dos
+    nombres iguales no bailen entre paginas.
+  */
+  const ordered = filters.sort
+    ? query.order(CLIENT_SORT_DB[filters.sort.column], {
+        ascending: filters.sort.direction === 'asc',
+        nullsFirst: false,
+      })
+    : query.order('name', { ascending: true })
+
+  const { data, error, count } = await ordered
+    .order('client_id', { ascending: true })
     .range((page - 1) * pageSize, page * pageSize - 1)
 
   if (error) throw error

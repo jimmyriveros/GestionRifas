@@ -2,6 +2,16 @@ import 'server-only'
 
 import { cache } from 'react'
 
+import {
+  compareBoolean,
+  compareDate,
+  compareText,
+  sortAndPaginate,
+  type ListComparators,
+  type PagedList,
+} from '@/lib/list-page'
+import { fetchAllRows } from '@/lib/supabase/paginate'
+import type { ListSort } from '@/lib/list-sort'
 import { createClient } from '@/lib/supabase/server'
 import type { AppRole, CommissionModel } from '@/lib/constants'
 
@@ -120,14 +130,29 @@ export function mapMember(row: MemberRow): OrgMember | null {
  */
 const listAllOrgMembers = cache(async (): Promise<OrgMember[]> => {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('memberships')
-    .select(MEMBER_SELECT)
-    .order('created_at', { ascending: true })
 
-  if (error) throw error
+  /*
+    PAGINADA CON `fetchAllRows`, y no por tamano: PostgREST corta toda respuesta
+    en 1.000 filas y no avisa —llegan 1.000 y `error` nulo, igual que si fueran
+    todas (I-011)—. Esta lista no es solo el listado de «Administradores»: es el
+    MAPA DE NOMBRES que usan las boletas, los clientes y los pagos para escribir
+    de quien es cada fila. Truncada, no falta una pagina: faltan nombres
+    repartidos por toda la aplicacion, sustituidos por «Vendedor», sin que nada
+    lo delate.
 
-  return (data as MemberRow[] | null)?.flatMap((row) => mapMember(row) ?? []) ?? []
+    Y `profile_id` cierra el orden, para que dos altas del mismo instante no
+    cambien de sitio entre dos lecturas.
+  */
+  const { rows } = await fetchAllRows<MemberRow>((from, to) =>
+    supabase
+      .from('memberships')
+      .select(MEMBER_SELECT)
+      .order('created_at', { ascending: true })
+      .order('profile_id', { ascending: true })
+      .range(from, to),
+  )
+
+  return rows.flatMap((row) => mapMember(row) ?? [])
 })
 
 /**
@@ -137,4 +162,55 @@ const listAllOrgMembers = cache(async (): Promise<OrgMember[]> => {
 export async function listOrgMembers(roles: AppRole[]): Promise<OrgMember[]> {
   const members = await listAllOrgMembers()
   return members.filter((member) => roles.includes(member.role))
+}
+
+/**
+ * Una PAGINA de miembros con esos roles, ordenada por lo que pida la URL (P1-H).
+ *
+ * «Administradores» enviaba al navegador todos los miembros de la organizacion
+ * y no tenia paginacion: con mil administradores la pantalla intentaba pintar
+ * mil filas, y a partir de ahi PostgREST dejaba de servirlos sin avisar.
+ *
+ * El corte y el orden se hacen en el servidor sobre la lista completa
+ * (`sortAndPaginate`), no en el navegador: al browser le llega una pagina.
+ */
+export async function listOrgMembersPage(
+  roles: AppRole[],
+  options: { page: number; sort: ListSort | null },
+): Promise<PagedList<OrgMember>> {
+  const members = await listOrgMembers(roles)
+
+  return sortAndPaginate(members, {
+    page: options.page,
+    sort: options.sort,
+    tiebreak: (member) => member.profileId,
+    comparators: MEMBER_COMPARATORS,
+  })
+}
+
+/**
+ * Las columnas por las que se puede ordenar «Administradores» y «Vendedores».
+ *
+ * Son los `id` de las columnas de sus tablas. «Acciones» y «Equipo» no estan:
+ * la primera no es un dato, y la segunda es un enlace que se arma en el
+ * navegador a partir de otra consulta.
+ */
+export const MEMBER_SORT_COLUMNS = [
+  'fullName',
+  'role',
+  'email',
+  'phone',
+  'isActive',
+  'createdAt',
+] as const
+
+const MEMBER_COMPARATORS: ListComparators<OrgMember> = {
+  fullName: (a, b) => compareText(a.fullName, b.fullName),
+  role: (a, b) => compareText(a.role, b.role),
+  email: (a, b) => compareText(a.email, b.email),
+  phone: (a, b) => compareText(a.phone, b.phone),
+  // Ascendente pone primero a quien tiene la cuenta activa, que es lo que se
+  // busca al ordenar por «Estado».
+  isActive: (a, b) => compareBoolean(a.isActive, b.isActive),
+  createdAt: (a, b) => compareDate(a.createdAt, b.createdAt),
 }

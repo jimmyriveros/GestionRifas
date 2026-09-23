@@ -5,6 +5,7 @@ import { RowLink } from '@/components/data/RowLink'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
+import { useListSort } from '@/components/data/use-list-sort'
 import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
 import type { AppRole } from '@/lib/constants'
@@ -32,6 +33,8 @@ export function SellersTable({
   teamSizes,
   parentNames,
 }: SellersTableProps) {
+  const { sort, toggle } = useListSort()
+
   const columns = useMemo<ColumnDef<SellerWithInventory>[]>(
     () => [
       {
@@ -132,6 +135,10 @@ export function SellersTable({
       getRowId={(row) => row.profileId}
       rowHref={(row) => `/owner/sellers/${row.profileId}`}
       caption="Vendedores de la organización con sus indicadores"
+      // El orden es del conjunto entero y se aplica antes de cortar la pagina,
+      // no aqui sobre las filas servidas (P1-B).
+      sort={sort}
+      onSortToggle={toggle}
     />
   )
 }

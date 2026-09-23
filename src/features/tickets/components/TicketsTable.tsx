@@ -4,6 +4,7 @@ import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
+import { useListSort } from '@/components/data/use-list-sort'
 import { PaymentProgressBar } from '@/components/data/PaymentProgressBar'
 import { RowChevron } from '@/components/data/RowChevron'
 import {
@@ -104,6 +105,7 @@ function SellerTicketsTable({
           {
             accessorKey: 'sellerName',
             header: 'Vendedor',
+            enableSorting: false,
             meta: { showFrom: 'lg' },
             cell: ({ row }) => (
               <span
@@ -152,6 +154,7 @@ function SellerTicketsTable({
       {
         accessorKey: 'clientName',
         header: 'Cliente',
+        enableSorting: false,
         cell: ({ row }) => (
           // El paz y salvo va DENTRO del ancho maximo de la celda, no al lado:
           // la columna no puede crecer (el `px-2` de «Progreso» ya se pago con
@@ -209,6 +212,7 @@ function SellerTicketsTable({
         // el termino entero. La ficha del cliente, que tiene ancho, si lo
         // escribe completo.
         header: 'Falta',
+        enableSorting: false,
         meta: { align: 'right' },
         cell: ({ row }) => <Money ticket={row.original} pick="pendingAmount" />,
       },
@@ -216,6 +220,7 @@ function SellerTicketsTable({
         id: 'percentage',
         accessorFn: (row) => ticketFinancials(row).percentage,
         header: 'Progreso',
+        enableSorting: false,
         // Centrada: «Falta» va pegada a la derecha de SU celda, asi que una
         // barra alineada a la izquierda de la suya quedaba a un pelo de la
         // cifra y las dos se leian como una sola columna.
@@ -305,6 +310,7 @@ function StaffTicketsTable({
       {
         accessorKey: 'sellerName',
         header: 'Vendedor',
+        enableSorting: false,
         cell: ({ row }) => (
           <span title={row.original.sellerName} className="block max-w-[14rem] truncate text-sm">
             {row.original.sellerName}
@@ -416,6 +422,8 @@ function TicketsDataTable<T extends TicketTableRow>({
   selection: TicketSelectionContextValue | null
   className?: string
 }) {
+  const { sort, toggle } = useListSort()
+
   // TanStack necesita el mapa `{ id: true }` para pintar `data-state=selected`;
   // la verdad sigue siendo la lista de ids del contexto.
   const rowSelection = useMemo<RowSelectionState | undefined>(() => {
@@ -434,6 +442,11 @@ function TicketsDataTable<T extends TicketTableRow>({
       getRowId={(row) => row.id}
       rowSelection={rowSelection}
       rowHref={(row) => `${basePath}/${row.id}`}
+      // El orden viaja en la URL y lo aplica la base sobre el conjunto filtrado
+      // entero, no esta tabla sobre la pagina servida (P1-B). Las columnas que
+      // la base no puede ordenar llevan `enableSorting: false` y no lo ofrecen.
+      sort={sort}
+      onSortToggle={toggle}
       onRowSelect={selection?.rowClickSelects ? (row) => selection.toggle(row.id) : undefined}
       onRowLongPress={
         selection && selection.compact && !selection.selectionMode

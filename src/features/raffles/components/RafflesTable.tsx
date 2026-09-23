@@ -5,6 +5,7 @@ import { EyeIcon } from 'lucide-react'
 import { RowLink } from '@/components/data/RowLink'
 
 import { DataTable } from '@/components/data/DataTable'
+import { useListSort } from '@/components/data/use-list-sort'
 import { RaffleStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { formatDateEs } from '@/lib/dates'
@@ -79,6 +80,8 @@ const columns: ColumnDef<AdminRaffleSummary>[] = [
 ]
 
 export function RafflesTable({ raffles }: { raffles: AdminRaffleSummary[] }) {
+  const { sort, toggle } = useListSort()
+
   return (
     <DataTable
       columns={columns}
@@ -86,6 +89,10 @@ export function RafflesTable({ raffles }: { raffles: AdminRaffleSummary[] }) {
       getRowId={(row) => row.id}
       rowHref={(row) => `/owner/raffles/${row.id}`}
       caption="Listado de rifas de la organización"
+      // El orden es del conjunto entero y se aplica antes de cortar la pagina,
+      // no aqui sobre las filas servidas (P1-B).
+      sort={sort}
+      onSortToggle={toggle}
     />
   )
 }

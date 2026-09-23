@@ -31,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { tourTarget } from '@/features/tour/tours'
+import type { ListSort } from '@/lib/list-sort'
 import { cn } from '@/lib/utils'
 
 /**
@@ -114,6 +115,18 @@ type DataTableProps<TData, TValue> = {
    * tarjeta, y dibujarlos dos veces se ve como una caja dentro de otra.
    */
   className?: string
+  /**
+   * ORDENACION DE SERVIDOR (P1-B). Pasar `onSortToggle` cambia el modo: la
+   * tabla deja de reordenar las filas que tiene y se limita a pintar el estado
+   * que le dan, porque el orden lo aplica la base sobre el conjunto filtrado
+   * entero.
+   *
+   * Sin `onSortToggle` se conserva el comportamiento de siempre —ordenar en el
+   * navegador—, que es el correcto en una lista que NO pagina y por tanto tiene
+   * todas sus filas delante.
+   */
+  sort?: ListSort | null
+  onSortToggle?: (column: string) => void
 }
 
 /**
@@ -141,24 +154,38 @@ export function DataTable<TData, TValue>({
   onRowSelect,
   onRowLongPress,
   className,
+  sort,
+  onSortToggle,
 }: DataTableProps<TData, TValue>) {
   const router = useRouter()
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [localSorting, setLocalSorting] = useState<SortingState>([])
   const longPress = useLongPress(onRowLongPress)
+
+  // Quien manda en el orden. Con `onSortToggle` lo decide el servidor y esta
+  // tabla solo lo refleja; sin el, sigue ordenando en el navegador.
+  const serverSorted = onSortToggle !== undefined
+  const sorting: SortingState = serverSorted
+    ? sort
+      ? [{ id: sort.column, desc: sort.direction === 'desc' }]
+      : []
+    : localSorting
 
   const table = useReactTable({
     data,
     columns,
     getRowId: getRowId ? (row) => getRowId(row) : undefined,
     state: { sorting, ...(rowSelection ? { rowSelection } : {}) },
-    onSortingChange: setSorting,
+    onSortingChange: serverSorted ? undefined : setLocalSorting,
     onRowSelectionChange,
     enableRowSelection:
       typeof enableRowSelection === 'function'
         ? (row) => enableRowSelection(row.original)
         : enableRowSelection,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    // En modo servidor NO se calcula el modelo ordenado: reordenar aqui las 25
+    // filas servidas es exactamente el defecto que esto viene a cerrar.
+    manualSorting: serverSorted,
+    ...(serverSorted ? {} : { getSortedRowModel: getSortedRowModel() }),
   })
 
   if (data.length === 0 && empty) {
@@ -238,7 +265,11 @@ export function DataTable<TData, TValue>({
                     {header.isPlaceholder ? null : canSort ? (
                       <button
                         type="button"
-                        onClick={header.column.getToggleSortingHandler()}
+                        onClick={
+                          onSortToggle
+                            ? () => onSortToggle(header.column.id)
+                            : header.column.getToggleSortingHandler()
+                        }
                         className="hover:text-foreground inline-flex items-center gap-1"
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}

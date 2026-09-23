@@ -13232,3 +13232,128 @@ tabulación** mientras tuviera el foco —Shift+Tab dejaría de encontrarlo—. 
 —Escape, cancelar con ratón y confirmar—, «Desactivar» desde el menú y «Anular boleta» cuando el botón se va. La
 que estaba en `test.fixme` **queda activa**. Nota de entorno: **jsdom no emite `blur` al quitar un nodo
 enfocado**, así que esa rama se ejercita despachándolo a mano y el caso real lo cubre la E2E.
+
+## D-213 — El orden de una lista es del conjunto filtrado, y las tres listas del personal paginan
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-22). **No es una Fase 10** y no lleva
+etiqueta `fase-*`. **Solo en local.** No autoriza push ni despliegue.
+
+Corrige los dos hallazgos de la auditoría visual: **P1-B** (ordenar reacomodaba la página servida) y **P1-H**
+(Vendedores, Rifas y Administradores no paginaban y se truncaban en silencio).
+
+### P1-B — el defecto, medido antes de tocar nada
+
+`DataTable` usaba `getSortedRowModel()`, que ordena **las filas que el componente tiene**: las 25 de la página. La
+cabecera lo anunciaba además con `aria-sort`, así que la lista no se equivocaba en silencio — **afirmaba** un orden
+del conjunto. Medido en «Mis pagos» de la base local, con 73 pagos del vendedor:
+
+| Acción | Lo que enseñaba | Lo que es |
+|---|---|---|
+| «Valor», de mayor a menor | $150.000 como máximo | $2.280.000 |
+
+No es una imprecisión de presentación: es una respuesta falsa a «cuál es el más grande», que es exactamente la
+pregunta que se hace quien pulsa esa cabecera.
+
+### Cómo se arregla, y dónde vive cada pieza
+
+| Pieza | Qué hace |
+|---|---|
+| `src/lib/list-sort.ts` | lógica pura: qué columna, en qué sentido, y la **lista blanca** que decide si se puede pedir |
+| `src/components/data/use-list-sort.ts` | lee y escribe `sort` / `dir` en la dirección; al cambiar el orden **borra `page`** |
+| `DataTable` | con `onSortToggle` entra en `manualSorting`: deja de ordenar en el navegador y solo pinta el estado |
+| Cada consulta | aplica `.order(...)` sobre el conjunto filtrado, antes de `range()` |
+
+**El orden viaja en la dirección**, así que se puede compartir, recargar y volver atrás. Tres estados al pulsar
+—ascendente, descendente, y de vuelta al orden por defecto— para que se pueda **deshacer** sin tener que saber que
+hay que borrar un parámetro a mano.
+
+**`nullsFirst: false` en todas.** En PostgreSQL un `desc` pone los nulos **primero**: sin esto, ordenar «Precio» de
+mayor a menor encabezaba la lista con las boletas que ni siquiera se han vendido.
+
+**Un desempate estable al final, siempre, también en el orden por defecto.** Sin él, dos filas empatadas pueden
+cambiar de sitio entre dos consultas: una se ve dos veces y otra no se ve nunca. Es `id` en las listas de
+PostgREST, `payment_id` en `v_payment_history` —que no expone `id`— y `client_id` en `v_client_balances`.
+
+### Las listas blancas son distintas por audiencia, y eso es el punto
+
+Ordenar por una columna **es preguntar por ella**: ordenar por saldo y mirar la primera fila dice quién debe más
+sin que ninguna celda lo escriba. Por eso la lista del personal **no incluye cliente ni dinero** (D-198, BR-Q01), y
+no es la misma constante que la del vendedor.
+
+| Lista | Dónde | Se puede ordenar por |
+|---|---|---|
+| Pagos (vendedor) | `PAYMENT_SORT_COLUMNS` | cliente, fecha, valor, método, estado |
+| Clientes (vendedor) | `CLIENT_SORT_COLUMNS` | nombre, teléfono, boletas, comprado, pagado, saldo, estado |
+| Boletas (vendedor) | `TICKET_SORT_COLUMNS` | boleta, rifa, estado, pago, abonado, precio |
+| Boletas (personal) | `ADMIN_TICKET_SORT_COLUMNS` | boleta, rifa, estado, pago, paz y salvo — **ni cliente ni dinero** |
+| Administradores | `MEMBER_SORT_COLUMNS` | nombre, rol, correo, teléfono, estado, alta |
+| Vendedores | `SELLER_SORT_COLUMNS` | vendedor, estado, boletas, vendidas, por aprobar |
+| Rifas | `RAFFLE_SORT_COLUMNS` | código, rifa, estado, precio, boletas, asignadas, vigencia |
+
+La lista se repite en SQL dentro de las dos funciones que ordenan por relevancia (migración `0075`). No es
+duplicación por descuido: **la pantalla no es una frontera de seguridad** (`CLAUDE.md` §26). El nombre de la
+columna **no se concatena en ninguna parte**; se compara contra nombres escritos a mano y, si no está, la función
+levanta una excepción.
+
+### Lo que NO se puede ordenar tampoco se ofrece
+
+Cuatro columnas de «Mis boletas» —«Vendedor», «Cliente», «Falta» y «Progreso»— llevan `enableSorting: false`, así
+que su cabecera ya no es un botón y ya no anuncia `aria-sort`. Las razones son de la base, no de gusto:
+
+* **Vendedor**: el nombre lo resuelve un mapa en memoria (`sellerNameMap`), no sale de la consulta.
+* **Cliente**: `clients` tiene **dos** claves ajenas hacia `tickets`, y la sintaxis que las desambigua
+  (`clients!fk(name)`) **no se acepta en `order`** — comprobado contra el PostgREST local, responde `PGRST100`.
+  Con `raffles`, que tiene una sola, `order=raffles(short_code)` sí funciona, y por eso «Rifa» sí se puede ordenar.
+* **Falta** y **Progreso**: son `sale_price - paid_amount` y su cociente. No existen como columna.
+
+Una cabecera que promete un orden y reacomoda la página es peor que una que no lo promete. Recuperarlas exige SQL
+—una vista con esas columnas— y queda anotado, no improvisado.
+
+### El orden pedido manda sobre la relevancia
+
+Las boletas se buscan por relevancia: el número diario antes que el semanal, el nombre completo antes que la
+coincidencia suelta. Eso **no es una columna**, así que hasta ahora pulsar una cabecera durante una búsqueda no
+podía hacer nada. La migración `0075` mete el orden pedido **delante** de la relevancia en `search_tickets` y en
+`admin_list_tickets`: quien busca «Ana» y pulsa «Precio» quiere los resultados por precio. Sin `p_sort_column` las
+expresiones nuevas valen `null` y las dos funciones devuelven exactamente lo de antes, en el mismo orden.
+
+### P1-H — paginar tres listas que se arman cruzando dos consultas
+
+Vendedores, Rifas y Administradores no salen de una sola consulta: cada fila cruza los miembros de la organización
+con el inventario contado en SQL (una fila por rifa y vendedor). No hay un `limit` que empujar a PostgREST sin
+escribir antes una función que agregue y pagine.
+
+Lo que se hizo, y lo que **no**:
+
+* **Sí**: las tres tienen paginación real en la dirección, el navegador recibe **una página**, el orden se aplica
+  sobre el conjunto completo **antes** de cortar, y la barra dice qué cuenta —«administradores», «vendedores»,
+  «rifas», los términos del glosario (D-111)—.
+* **Sí**: las dos consultas que las alimentan pasan por `fetchAllRows`. `listAllOrgMembers` no tenía tope y
+  PostgREST corta en 1.000 filas sin avisar (I-011). Y esa lista **no es solo «Administradores»**: es el mapa de
+  nombres que usan boletas, clientes y pagos para escribir de quién es cada fila. Truncada no falta una página:
+  faltan nombres repartidos por toda la aplicación, sustituidos por «Vendedor», sin que nada lo delate.
+* **No**: el orden y el corte ocurren **en el servidor, sobre filas ya leídas** (`src/lib/list-page.ts`). Es
+  correcto y acotado —decenas de vendedores y de rifas—, pero no es un `limit` en SQL. Si alguna creciera a miles
+  de filas, lo que toca es una función que agregue y pagine en la base, no subir un tope. Anotado en
+  `KNOWN_ISSUES.md` (I-153).
+
+**Los equipos se cuentan antes de cortar.** En «Vendedores», quién tiene equipo y de quién es cada integrante se
+calcula sobre la lista completa; cortando primero, un vendedor cuyo equipo cayera en otra página aparecería sin él.
+
+### Qué pasa al cambiar filtros, orden o página
+
+| Acción | Qué ocurre | Por qué |
+|---|---|---|
+| Cambiar el orden | vuelve a la página 1 | la página 2 del orden viejo no tiene nada que ver con la del nuevo |
+| Cambiar un filtro | vuelve a la página 1 | ya lo hacía; no se tocó |
+| Atrás y adelante | recupera filtros, orden y página | todo vive en la dirección, nada en el componente |
+| Pedir una columna que no está | se ignora y manda el orden por defecto | una dirección vieja o escrita a mano no debe romper una pantalla |
+| Pedir una página que no existe | cero filas y el total de verdad | igual que las listas que ya paginaban en PostgREST |
+
+### Verificaciones
+
+`tests/db/list-order.test.ts` (13), `tests/unit/list-page.test.ts` (13), `tests/unit/list-sort.test.ts` (9) y
+`tests/e2e/orden-paginacion.spec.ts`. La comprobación que de verdad distingue un orden de servidor de uno de
+navegador es el **recorrido completo**: se piden todas las páginas, se comprueba que la secuencia entera está
+ordenada, que ninguna fila se repite y que el número de filas vistas es exactamente el total anunciado. Se hace con
+empates a propósito —doce boletas por precio—, que es el caso que rompe un orden sin desempate estable.

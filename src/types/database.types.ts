@@ -2575,6 +2575,8 @@ export type Database = {
           p_search?: string
           p_seller_id?: string
           p_ticket_ids?: string[]
+          p_sort_column?: string
+          p_sort_direction?: string
         }
         Returns: {
           clearance_state: string | null
@@ -3711,6 +3713,8 @@ export type Database = {
           p_raffle_id?: string
           p_search: string
           p_seller_id?: string
+          p_sort_column?: string
+          p_sort_direction?: string
         }
         Returns: {
           clearance_receipt_assumed_delivered: boolean

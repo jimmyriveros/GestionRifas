@@ -6,6 +6,13 @@ import {
   ZERO_INVENTORY,
   type InventoryCounts,
 } from '@/features/tickets/admin-queries'
+import {
+  compareDate,
+  compareNumber,
+  compareText,
+  type ListComparators,
+} from '@/lib/list-page'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
 import type { RaffleStatus } from '@/lib/constants'
 
@@ -131,17 +138,24 @@ function mapAdminRaffle(row: AdminRaffleRow, counts: InventoryCounts): AdminRaff
  */
 export async function listAdminRaffleSummaries(): Promise<AdminRaffleSummary[]> {
   const supabase = await createClient()
-  const [{ data, error }, inventory] = await Promise.all([
-    supabase.from('raffles').select(ADMIN_RAFFLE_COLUMNS).order('short_code', { ascending: false }),
+  // Igual que el mapa de miembros: PostgREST corta en 1.000 filas sin avisar
+  // (I-011), y aqui el corte no se notaria —una rifa que falta parece una rifa
+  // que no existe—. El `id` cierra el orden para que dos codigos iguales no
+  // bailen entre lecturas.
+  const [{ rows: data }, inventory] = await Promise.all([
+    fetchAllRows<AdminRaffleRow>((from, to) =>
+      supabase
+        .from('raffles')
+        .select(ADMIN_RAFFLE_COLUMNS)
+        .order('short_code', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to),
+    ),
     readAdminTicketInventory(null),
   ])
 
-  if (error) throw error
-
   const byRaffle = inventoryByRaffle(inventory)
-  return ((data ?? []) as AdminRaffleRow[]).map((row) =>
-    mapAdminRaffle(row, byRaffle.get(row.id) ?? ZERO_INVENTORY),
-  )
+  return data.map((row) => mapAdminRaffle(row, byRaffle.get(row.id) ?? ZERO_INVENTORY))
 }
 
 export async function getAdminRaffleDetail(raffleId: string): Promise<AdminRaffleDetail | null> {
@@ -245,4 +259,30 @@ function mapSummaryRow(row: SummaryRow): RaffleSummary {
     totalCollected: row.total_collected ?? 0,
     pendingAmount: row.pending_amount ?? 0,
   }
+}
+
+/**
+ * Las columnas por las que se puede ordenar «Rifas» (P1-H).
+ *
+ * «Vigencia» es una sola columna con las dos fechas; se ordena por la de
+ * inicio, que es por la que se busca una rifa en un listado.
+ */
+export const RAFFLE_SORT_COLUMNS = [
+  'shortCode',
+  'name',
+  'status',
+  'ticketPrice',
+  'ticketsTotal',
+  'ticketsAssigned',
+  'startDate',
+] as const
+
+export const RAFFLE_COMPARATORS: ListComparators<AdminRaffleSummary> = {
+  shortCode: (a, b) => compareText(a.shortCode, b.shortCode),
+  name: (a, b) => compareText(a.name, b.name),
+  status: (a, b) => compareText(a.status, b.status),
+  ticketPrice: (a, b) => compareNumber(a.ticketPrice, b.ticketPrice),
+  ticketsTotal: (a, b) => compareNumber(a.ticketsTotal, b.ticketsTotal),
+  ticketsAssigned: (a, b) => compareNumber(a.ticketsAssigned, b.ticketsAssigned),
+  startDate: (a, b) => compareDate(a.startDate, b.startDate),
 }

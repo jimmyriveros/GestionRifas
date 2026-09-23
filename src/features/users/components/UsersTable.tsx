@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
+import { useListSort } from '@/components/data/use-list-sort'
 import { AccountStatusBadge } from '@/components/data/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { ROLE_LABELS, type AppRole } from '@/lib/constants'
@@ -19,6 +20,7 @@ type UsersTableProps = {
 }
 
 export function UsersTable({ members, currentRole, currentProfileId }: UsersTableProps) {
+  const { sort, toggle } = useListSort()
   const columns = useMemo<ColumnDef<OrgMember>[]>(
     () => [
       {
@@ -95,6 +97,10 @@ export function UsersTable({ members, currentRole, currentProfileId }: UsersTabl
       data={members}
       getRowId={(row) => row.profileId}
       caption="Usuarios administrativos de la organización"
+      // El orden viaja en la URL y se aplica sobre el conjunto entero antes de
+      // cortar la pagina, no aqui sobre las filas servidas (P1-B).
+      sort={sort}
+      onSortToggle={toggle}
     />
   )
 }

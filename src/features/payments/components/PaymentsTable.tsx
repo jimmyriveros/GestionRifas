@@ -6,6 +6,7 @@ import { RowLink } from '@/components/data/RowLink'
 import { useMemo, useState } from 'react'
 
 import { DataTable } from '@/components/data/DataTable'
+import { useListSort } from '@/components/data/use-list-sort'
 import { Button } from '@/components/ui/button'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { formatDateEs } from '@/lib/dates'
@@ -27,6 +28,15 @@ type PaymentsTableProps = {
   showClient?: boolean
   /** Se pasa a la tabla; sirve para aplanarla dentro de una `TableSection`. */
   className?: string
+  /**
+   * `true` SOLO donde la lista pagina en el servidor: «Mis pagos» (P1-B).
+   *
+   * En la ficha de un cliente esta misma tabla recibe los pagos de ESE cliente
+   * ya completos —`listClientPayments`, sin paginar—, asi que ahi ordenar en el
+   * navegador es correcto y pedir el orden a la base seria escribir un
+   * parametro en la URL que nadie lee. El valor por defecto es el seguro.
+   */
+  serverSorted?: boolean
 }
 
 export function PaymentsTable({
@@ -34,8 +44,10 @@ export function PaymentsTable({
   clientBasePath,
   showClient = true,
   className,
+  serverSorted = false,
 }: PaymentsTableProps) {
   const [selected, setSelected] = useState<PaymentListItem | null>(null)
+  const { sort, toggle } = useListSort()
 
   const columns = useMemo<ColumnDef<PaymentListItem>[]>(() => {
     const clientColumn: ColumnDef<PaymentListItem>[] = showClient
@@ -142,6 +154,12 @@ export function PaymentsTable({
         onRowActivate={(row) => setSelected(row)}
         caption="Historial de pagos"
         className={className}
+        // El orden viaja en la URL y lo aplica la base sobre el conjunto
+        // filtrado entero, no esta tabla sobre las filas que tiene (P1-B).
+        // Sin `serverSorted` se mantiene el orden en el navegador, que es lo
+        // correcto donde la lista llega completa.
+        sort={serverSorted ? sort : undefined}
+        onSortToggle={serverSorted ? toggle : undefined}
       />
 
       <PaymentDetailDialog

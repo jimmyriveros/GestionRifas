@@ -7,7 +7,8 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { ClientFilters } from '@/features/clients/components/ClientFilters'
 import { ClientsList } from '@/features/clients/components/ClientsList'
-import { listClients } from '@/features/clients/queries'
+import { CLIENT_SORT_COLUMNS, listClients } from '@/features/clients/queries'
+import { parseListSort } from '@/lib/list-sort'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -19,6 +20,8 @@ function single(value: string | string[] | undefined): string | undefined {
 export default async function SellerClientsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
+  // Lo que no este en la lista blanca se ignora y manda el orden por defecto.
+  const sort = parseListSort(single(params.sort), single(params.dir), CLIENT_SORT_COLUMNS)
 
   // Sin filtrar por vendedor: `clients_select` ya limita las filas a la cartera
   // de quien consulta (BR-C05, BR-U07).
@@ -26,6 +29,7 @@ export default async function SellerClientsPage({ searchParams }: { searchParams
     search: single(params.q),
     includeArchived: single(params.archived) === '1',
     page: Number.isNaN(requestedPage) ? 1 : requestedPage,
+    sort,
   })
 
   const hasFilters = Boolean(single(params.q) ?? single(params.archived))

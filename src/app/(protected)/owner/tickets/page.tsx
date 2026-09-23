@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { adminTicketSearchEmptyDescription } from '@/features/search/hints'
-import { listAdminTickets } from '@/features/tickets/admin-queries'
+import { ADMIN_TICKET_SORT_COLUMNS, listAdminTickets } from '@/features/tickets/admin-queries'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
 import { TicketsList } from '@/features/tickets/components/TicketsList'
 import { adminPaymentStateSchema, inventoryStatusSchema } from '@/features/tickets/schemas'
@@ -17,6 +17,7 @@ import { TicketListSlot } from '@/features/tickets/selection/components/Selected
 import { TicketSelectionModeButton } from '@/features/tickets/selection/components/TicketSelectionModeButton'
 import { TicketSelectionToolbar } from '@/features/tickets/selection/components/TicketSelectionToolbar'
 import { TicketSelectionProvider } from '@/features/tickets/selection/TicketSelectionContext'
+import { parseListSort } from '@/lib/list-sort'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -63,6 +64,8 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
   const inventoryStatus = inventoryStatusSchema.safeParse(single(params.inventoryStatus))
   const paymentState = adminPaymentStateSchema.safeParse(single(params.paymentStatus))
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
+  // Lista blanca propia del personal: no incluye cliente ni dinero (D-198).
+  const sort = parseListSort(single(params.sort), single(params.dir), ADMIN_TICKET_SORT_COLUMNS)
 
   const filters = {
     raffleId: single(params.raffleId),
@@ -76,6 +79,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
     listAdminTickets({
       ...filters,
       page: Number.isNaN(requestedPage) ? 1 : requestedPage,
+      sort,
     }),
     listRaffleOptions(),
     listActiveSellerOptions(),

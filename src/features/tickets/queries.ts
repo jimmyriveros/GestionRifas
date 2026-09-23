@@ -2,6 +2,7 @@ import 'server-only'
 
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE, type TicketInventoryStatus, type TicketPaymentStatus } from '@/lib/constants'
+import type { ListSort } from '@/lib/list-sort'
 import { isTicketSearchTerm, normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
@@ -31,6 +32,49 @@ export type TicketFilters = {
   ticketIds?: readonly string[]
   page?: number
   pageSize?: number
+  /** Orden pedido desde la URL, ya validado contra `TICKET_SORT_COLUMNS`. */
+  sort?: ListSort<TicketSortColumn> | null
+}
+
+/**
+ * Las columnas por las que un VENDEDOR puede pedir orden (P1-B).
+ *
+ * Son los `id` de las columnas de `TicketsTable`, para que la cabecera pulsada
+ * y el parametro de la URL sean el mismo nombre. Fuera quedan las que la base
+ * no puede ordenar sin inventarselas, y que por eso tampoco se ofrecen como
+ * ordenables en la tabla:
+ *
+ *   * «Vendedor» y «Cliente»: el nombre del vendedor lo resuelve un mapa en
+ *     memoria (`sellerNameMap`), y `clients` tiene DOS claves ajenas hacia
+ *     `tickets`, asi que PostgREST no sabe por cual ordenar y la sintaxis que
+ *     lo desambigua no se acepta en `order`.
+ *   * «Falta» y «Progreso»: son `sale_price - paid_amount` y su cociente. No
+ *     existen como columna, y una expresion no se puede pedir por PostgREST.
+ *
+ * La lista del PERSONAL es otra y vive en `admin-queries.ts`: alli no puede
+ * haber ni cliente ni dinero (D-198).
+ */
+export const TICKET_SORT_COLUMNS = [
+  'dailyNumber',
+  'raffleShortCode',
+  'inventoryStatus',
+  'paymentStatus',
+  'paidAmount',
+  'salePrice',
+] as const
+
+export type TicketSortColumn = (typeof TICKET_SORT_COLUMNS)[number]
+
+/** De nombre de columna a columna de la base. Lo que no este aqui no se pide. */
+const TICKET_SORT_DB: Record<TicketSortColumn, string> = {
+  dailyNumber: 'daily_number',
+  // `raffles` tiene UNA sola clave ajena desde `tickets`, asi que PostgREST
+  // resuelve el embebido sin ambigüedad y puede ordenar por el.
+  raffleShortCode: 'raffles(short_code)',
+  inventoryStatus: 'inventory_status',
+  paymentStatus: 'payment_status',
+  paidAmount: 'paid_amount',
+  salePrice: 'sale_price',
 }
 
 export type TicketListItem = {
@@ -148,8 +192,28 @@ export async function listTickets(
     filters,
   )
 
-  const { data, error, count } = await query
-    .order('created_at', { ascending: false })
+  /*
+    EL ORDEN LO APLICA LA BASE, sobre el conjunto filtrado entero (P1-B).
+    Antes `DataTable` reordenaba en el navegador las 25 filas ya servidas, de
+    modo que «Precio» de mayor a menor daba el mayor DE LA PAGINA.
+
+    `nullsFirst: false` a proposito: en PostgreSQL un `desc` pone los nulos
+    PRIMERO, y una boleta sin vender no tiene precio. Sin esto, ordenar por
+    «Precio» encabezaria la lista con las que ni siquiera lo tienen.
+
+    Y `id` cierra SIEMPRE, tambien en el orden por defecto: sin un desempate
+    estable, dos boletas creadas en el mismo instante pueden cambiar de pagina
+    entre dos consultas y una se veria dos veces mientras otra no se ve nunca.
+  */
+  const ordered = filters.sort
+    ? query.order(TICKET_SORT_DB[filters.sort.column], {
+        ascending: filters.sort.direction === 'asc',
+        nullsFirst: false,
+      })
+    : query.order('created_at', { ascending: false })
+
+  const { data, error, count } = await ordered
+    .order('id', { ascending: true })
     .range((page - 1) * pageSize, page * pageSize - 1)
 
   if (error) throw error
@@ -179,7 +243,9 @@ export async function listTickets(
  *     semanal; el nombre completo, sobre la coincidencia suelta— y eso no es
  *     una columna por la que se pueda ordenar. Reordenar en el navegador no
  *     vale: la lista esta paginada en servidor, asi que solo reacomodaria las
- *     filas de la pagina que ya se esta viendo.
+ *     filas de la pagina que ya se esta viendo. Cuando SI se pide una columna
+ *     desde la cabecera, esa columna manda sobre la relevancia y el orden lo
+ *     sigue aplicando la funcion, sobre el conjunto entero (P1-B, 0075).
  *   * Buscar por nombre exige cruzar `tickets` con `clients`, y ese cruce se
  *     resuelve en SQL. Traerse los clientes al navegador para compararlos ahi
  *     dejaria de funcionar en cuanto haya mas de una pagina de ellos (I-036).
@@ -211,6 +277,12 @@ async function searchTicketsMatching(
     p_payment_status: filters.paymentStatus,
     p_limit: pageSize,
     p_offset: (page - 1) * pageSize,
+    // Con orden pedido manda la cabecera, no la relevancia: quien pulsa
+    // «Precio» estando en una busqueda quiere los resultados por precio. La
+    // funcion vuelve a comprobar el nombre contra su propia lista blanca
+    // (migracion 0075), porque la pantalla no es una frontera.
+    p_sort_column: filters.sort ? filters.sort.column : undefined,
+    p_sort_direction: filters.sort ? filters.sort.direction : undefined,
   })
 
   if (error) throw error
