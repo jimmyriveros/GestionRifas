@@ -14469,3 +14469,45 @@ Capturas a 1.280 y 375 px de las páginas 1, 2 y 3. A 320 px, la barra mide 44 p
 | Los 3 fallos | `ventas-por-fecha` ×2 —**I-090**, acumulación: «< 26» frente a **115**— y `premios-ganados:443` —«Atrás» tras rellenar una fecha, sin tocar la paginación—, que pasa **2/2 en solitario**: **I-148** |
 | `npm run verify` | ✅ exit 0, **1.643** unitarias, lint 0 errores, build |
 | `npm run test:db` | Se corre en el bloque de I-157, con `0077` aplicada: este bloque no toca la base |
+
+## D-220 — Códigos de rifa a partir de 1.000 (I-157, migración 0077, 2026-09-23, solo en local)
+
+### a. Reproducción, antes de corregir (transacciones que se deshicieron, organización desechable)
+
+| Montaje | Resultado con `0004` |
+|---|---|
+| Contador en 998, dos rifas | `R999`, y la siguiente **`R100`**, sin error |
+| La rifa 100 existe, contador en 999 | `ERROR: duplicate key … "raffles_org_short_code_key"` — `(…, R100) already exists` |
+| `select lpad('1000', 3, '0')` | `100` |
+
+### b. Pruebas nuevas — `tests/db/raffle-short-code.test.ts`
+
+| Pasada | Resultado |
+|---|---|
+| Primera | ❌ 1 falla: la prueba de concurrencia llamaba «A» a una rifa y la base exige un nombre más largo (`raffles_name_check`). Error de la prueba; la limpieza funcionó igual —la organización de prueba no quedó— |
+| Corregida, dos veces seguidas | ✅ **10/10** y ✅ **10/10**; 0 organizaciones y 0 rifas de prueba después |
+| **Con la función de `0004` restaurada a mano** | ❌ **8 fallan, 2 pasan**: pasan justo las dos que no dependen del arreglo —el tramo por debajo de 1.000 y los privilegios—. Demuestran el defecto |
+| Con `0077` reaplicada | ✅ **10/10** |
+
+Cubren: 999 → 1000 → 1001, 9999 → 10000, el tramo bajo 1.000 idéntico, la 1.000 que ya no choca con la 100, dos
+organizaciones con el mismo código, la unicidad con cuatro cifras, un código a mano, `R1000-000001` en las boletas,
+los privilegios y **dos rifas creadas a la vez** al cruzar el 1.000 —`R1000` y `R1001`, ninguna falla—.
+
+### c. Ensayo sobre los datos locales existentes
+
+Sin restablecer, con el semillero y los restos de la E2E de D-219: foto de rifas, organizaciones y boletas —códigos
+y contadores—, `npx supabase migration up --local`, otra foto. **197 filas, sin ninguna diferencia.**
+
+### d. En pantalla
+
+Una rifa `R1000` temporal en la organización del semillero, con una boleta: «Rifas», su detalle y «Boletas», a
+**1.280 y 320 px**, **0 px de desborde** en las seis. Borrada después y el contador devuelto a 15 (comprobado).
+
+### e. Regresiones
+
+| Comando | Resultado |
+|---|---|
+| `db:reset` (aplica `0001`–`0077` desde cero) + Kong + `seed:local` | ✅ |
+| `npm run test:db` | ✅ **1.444 + 1 omitida**, 59/59 archivos (+10 sobre la línea base de 1.434) |
+| `npm run verify` | ✅ exit 0, 1.643 unitarias, lint 0 errores, build |
+| `owner-raffles`, `owner-tickets`, `premios*`, `formularios-alineacion` | ⚠️ **97/98**; el fallo es `premios-ganados:443` (I-148), que pasa al repetirlo |

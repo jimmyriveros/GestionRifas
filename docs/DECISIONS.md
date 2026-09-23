@@ -13810,3 +13810,40 @@ uso; la segunda afectaba a **todas** las listas:
 «Boletas de este cliente», en la misma ficha, también pide `pageSize: 100` y se cortaría igual: **no era el
 encargo** y queda anotado como **I-159**. La tabla de pagos en el teléfono sigue desplazándose en horizontal dentro
 de su tarjeta, como antes; la página no gana desbordamiento lateral (medido a 320 px).
+
+## D-220 — Códigos de rifa a partir de 1.000: R999 → R1000 → R1001 (I-157, migración 0077)
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-23). **No es una Fase 10.** **Solo en
+local.** Migración **`0077`**; no se reescribe ninguna aplicada ni se renumera ninguna rifa.
+
+**Decisión de producto, del dueño (2026-09-23):** se conservan todos los códigos y se continúa R999 → R1000 → R1001,
+con tres cifras como mínimo y sin recortar nunca.
+
+### El defecto, reproducido antes de corregir
+
+`raffles_set_short_code` (`0004`) hacía `'R' || lpad(contador, 3, '0')`, y `lpad` **recorta**: `lpad('1000', 3, '0')`
+es `'100'`. Dos formas de fallar, las dos reproducidas en local dentro de transacciones que se deshicieron:
+
+| Caso | Qué pasaba |
+|---|---|
+| La rifa 100 existe (lo normal) | La 1.000 nace `R100` y el `insert` falla con `raffles_org_short_code_key` |
+| La 100 no existe (contador movido) | La 1.000 se crea **sin error** y con un código engañoso, `R100` |
+
+### Qué cambia y qué no
+
+`0077` solo redefine la función: `'R' || lpad(n, greatest(3, length(n)), '0')`. **Hasta la 999 da exactamente lo
+mismo que antes.** No cambia ninguna fila, el contador ni su bloqueo de fila, la unicidad por organización, el
+respeto a un código escrito a mano ni los privilegios —`create or replace` conserva los de `0032`, y la migración lo
+comprueba—. El código interno de las boletas se arma con el de la rifa **tal cual** (`R1000-000001`) y hereda el
+arreglo sin tocarlo.
+
+**Ensayada sobre los datos locales existentes**, sin restablecer: 197 filas —rifas, organizaciones y boletas, con
+sus códigos y contadores— **idénticas** antes y después de aplicarla.
+
+### Lo que se revisó y NO se corrigió (detectado y medido)
+
+| Hallazgo | Medido | Por qué no se tocó |
+|---|---|---|
+| **El orden por código es de texto** | `R999 > R101 > R1001 > R1000 > R100 > R099` | Las listas de rifas y sus desplegables ordenan por código descendente como sustituto de «la más reciente primero» (así lo dice `raffles/queries.ts`), y a partir de la 1.000 esa intención se rompe: la rifa nueva cae entre la 101 y la 100. Arreglarlo es cambiar unas diez consultas —tres de PostgREST que no admiten expresiones, `admin_list_raffles`, `admin_list_tickets`, `search_tickets`, vistas e informes— para un caso que hoy está a 984 rifas. **Queda como I-160**, con la decisión pendiente: orden natural en todas partes, o solo en los órdenes por defecto |
+| El contador de boletas usa `lpad(n, 6, '0')` | Recortaría en la boleta 1.000.000 **de una misma rifa** | Otro tope, no el autorizado. La creación masiva es de 1.000 como máximo. **I-161** |
+| Ninguna validación, búsqueda ni formato de pantalla supone tres cifras | `R1000` visto en «Rifas», su detalle y «Boletas», a 1.280 y 320 px, **sin desbordes** | — |

@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Códigos de rifa a partir de 1.000 (SOLO EN LOCAL, 2026-09-23, D-220, `0077`)** | **I-157 cerrada.** R999 → R1000 → R1001 sin recortar; ningún código existente cambia. Quedan I-160 (orden por código de texto, decisión pendiente) e I-161 |
 | **Historial de abonos de la ficha, paginado (SOLO EN LOCAL, 2026-09-23, D-219)** | **I-156 cerrada.** La ficha pagina sus abonos en la base y el detalle de boleta filtra los suyos en la base. `DataTablePagination` ya no suelta el foco y, con `scrollTargetId`, no devuelve arriba del todo. Queda **I-159** (boletas de la ficha, mismo corte). Sin migración |
 | **Estados del vendedor al buscar y limpieza de las pruebas de orden (SOLO EN LOCAL, 2026-09-23, D-218)** | Buscando, la frase de los estados de «Mis boletas» dice el orden de texto de `search_tickets` («primero Asignada»); sin buscar, el del enumerado. Las pruebas de orden ya no dejan rifas: dos pasadas seguidas, nueve recuentos idénticos. §1.c ya no presenta I-155 como pendiente. Sin migración |
 | **Ordenar desde el teléfono en el portal del personal (SOLO EN LOCAL, 2026-09-23, D-217)** | **I-155 cerrada en los dos portales.** «Boletas» del Dueño y del Administrador usa el mismo control con su lista blanca: Boleta, Rifa y Vendedor; nunca cliente ni dinero. Sus estados se describen con frases propias porque `admin_list_tickets` los ordena como texto. Dos defectos del control compartido, corregidos para los dos portales: venía vacío en el HTML del servidor y recortaba la frase más larga a 320 px. Sin migración ni consultas |
@@ -166,7 +167,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-219, el historial de abonos de la ficha pagina (I-156, **solo en local**, 2026-09-23)
+## 1.a Último relevo significativo — D-220, códigos de rifa a partir de 1.000 (I-157, `0077`, **solo en local**, 2026-09-23)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **I-157 cerrada.** Migración `0077`: `raffles_set_short_code` da `R999`, `R1000`, `R1001`… sin recortar; hasta la 999, exactamente lo de antes. Ninguna fila cambia. **Detectados y NO corregidos:** el orden por código es de texto (**I-160**, decisión pendiente) y el contador de boletas a 6 cifras (**I-161**, sin impacto) |
+| Archivos | **nueva** `supabase/migrations/0077_raffle_short_code_mil.sql` (se comprueba a sí misma: privilegios, `SECURITY DEFINER`, disparador y la regla en cuatro límites); **nueva** `tests/db/raffle-short-code.test.ts`; `docs/DATA_MODEL.md` (formato del código) |
+| Decisiones | **D-220.** La decisión de producto es del dueño; la de no tocar el orden es mía y está razonada en D-220 |
+| Verificación | Reproducido en los dos modos · 10/10 dos veces; **8 de 10 fallan con la función antigua** · ensayo sobre datos existentes: **197 filas idénticas** · `test:db` **1.444 + 1** · `verify` exit 0 · E2E de rifas **97/98** (I-148) · `R1000` visto a 1.280 y 320 px sin desbordes |
+| Advertencias | **1)** **Para publicar hay que aplicar `0077`** junto con las demás migraciones solo locales (`0067`–`0077`); es `create or replace` de una función con privilegios explícitos, así que conviene repetir la comprobación de privilegios de I-132 en el proyecto alojado. **2)** La nota de reversión de `0077` avisa: volver a `0004` con una rifa `R1000` ya creada hace chocar a la siguiente |
+| Pendiente | **I-160** (decisión), **I-161**, **I-159**. Revisión en un teléfono real de D-215 a D-219 |
+| Entorno (al entregar) | Supabase local encendido, **con `0077` aplicada** y la base recién sembrada tras `test:db`; `dev:local` levantado desde el panel de vista previa |
+| Git | Rama `feature/premios-configurables`. D-219 en `55e97f7`; D-220 en su propio commit. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-219, el historial de abonos de la ficha pagina (I-156, **solo en local**, 2026-09-23)
 
 | Campo | Estado |
 |---|---|
@@ -1934,7 +1950,7 @@ si no existieran:
 |---|---|
 | **I-155** — ordenar desde el teléfono | **Cerrada en local en los dos portales** (vendedor en D-215 y D-216; personal en D-217, con su lista blanca de D-198; estados del vendedor al buscar, D-218). **Nada de esto está en producción.** Lo único pendiente es la **revisión del usuario en un teléfono real**, que nunca se ha hecho |
 | **I-156** — historial de abonos de la ficha | **Cerrada en local** (D-219). Queda **I-159**: «Boletas de este cliente», en la misma ficha, se corta igual en 100 |
-| **I-157** — una organización no puede pasar de 999 rifas | `lpad(contador::text, 3, '0')` **trunca**: la rifa 1.000 nace como `R100` y choca. Arreglarlo exige **decidir qué código llevan** a partir de la 999, que es una decisión de producto. Impacto hoy: ninguno, la operación real tiene 16 rifas |
+| **I-157** — códigos de rifa a partir de 1.000 | **Cerrada en local** (D-220, `0077`). Queda **I-160**: a partir de R1000 las listas ordenan mal por código; hace falta decidir cómo ordenar |
 | **A6** — ¿la imagen de «Resultados de la semana» debe exigir que la semana caiga dentro de las fechas de la rifa del catálogo? | Hoy **no** lo exige (D-194, Decisión 3): en la primera semana de una rifa nueva sale la semana anterior con el nombre de la nueva. Si el dueño lo quiere, es una condición más en `features/weekly-results/` y un estado propio, **sin migración** |
 | **I-059** — limpiar pagos por PostgREST falla en silencio; dos suites de comisiones dejan basura | Llevar su `afterAll` a **una** transacción por `pg`, como hace `price-migration.test.ts`, y comprobar el resultado. Es lo que degrada `test:db` al repetirlo |
 | **I-060** — `ticket-search` elige la rifa con un `limit 1` sin orden | Elegir la rifa por nombre y usar el mismo id en las dos consultas. Falla a partir de la tercera pasada seguida |

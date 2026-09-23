@@ -508,7 +508,7 @@ organización, incluso con `SERVICE_ROLE` o con un error de programación.
 |---------|------|---------------|
 | `id` | `uuid` | PK |
 | `organization_id` | `uuid` | `NOT NULL`, FK → `organizations(id)` |
-| `short_code` | `text` | `NOT NULL`, `UNIQUE (organization_id, short_code)` — generado `R001`, `R002`… |
+| `short_code` | `text` | `NOT NULL`, `UNIQUE (organization_id, short_code)` — generado `R001`, `R002`… `R999`, `R1000`, `R1001`: tres cifras como mínimo y **nunca recortado** (`0077`, D-220; hasta `0076` la rifa 1.000 salía `R100`, I-157) |
 | `name` | `text` | `NOT NULL`, `UNIQUE (organization_id, lower(btrim(name)))` |
 | `description` | `text` | `NULL` |
 | `ticket_price` | `bigint` | `NOT NULL DEFAULT 120000` (`0027`), `CHECK (ticket_price > 0)` |
