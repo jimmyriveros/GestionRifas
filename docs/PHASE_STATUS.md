@@ -3,7 +3,28 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-19, más tarde — **D-210 EN PRODUCCIÓN** (`9acbfa8`, mantenimiento posterior a la Fase 9,
+- **Actualizado:** 2026-09-23 — **auditoría visual y listas, D-211 a D-216, SOLO EN LOCAL** (mantenimiento
+  posterior a la Fase 9, sin fase ni etiqueta nuevas). Este archivo se quedó en D-210 mientras corrían
+  seis bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
+  bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
+  **(1) Funcionalidades:** foco al cerrar una confirmación (D-212); las siete listas **ordenan y paginan en
+  PostgreSQL** sobre el conjunto filtrado entero (D-213, D-214); control de orden **en el teléfono** para
+  «Mis boletas» y «Mis clientes» del vendedor (D-215), que **dice el orden que de verdad aplica** (D-216).
+  **(2) Pruebas:** `verify` **exit 0** (1.607 unitarias) · E2E **29/29** `movil` y **25/25** `escritorio`.
+  La base se comprobó por última vez en D-215: `test:db` **1.434 + 1 omitida**, 58/58 archivos, recién
+  sembrada; D-216 y su corrección **no tocan la base**. Detalle y errores encontrados, en
+  [`TEST_RESULTS.md`](TEST_RESULTS.md).
+  **(3) Migraciones:** **76**, dos nuevas y **solo en local** — `0075_orden_de_listas.sql` (orden en
+  `search_tickets` y `admin_list_tickets`) y `0076_orden_en_la_base.sql` (dos vistas y dos funciones para
+  que Vendedores, Rifas y Administradores no lean su lista entera).
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-155** en el portal del **personal**, **I-156**, **I-157**, **I-151**
+  y **I-059**; el resto de la auditoría visual, sin autorizar.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
+  **Nada de esto está en producción**, y la rama no se ha fusionado.
+
+
+- Antes — 2026-09-19, más tarde — **D-210 EN PRODUCCIÓN** (`9acbfa8`, mantenimiento posterior a la Fase 9,
   sin fase ni etiqueta nuevas; autorización expresa para publicar).
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades implementadas:** la alineación de campos **servida**: `FormItem` con `content-start`.
