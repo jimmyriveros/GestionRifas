@@ -4,6 +4,7 @@ import { SlidersHorizontalIcon, XIcon } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useTransition, type ReactNode } from 'react'
 
+import { ListSortSelect } from '@/components/data/ListSortSelect'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
@@ -37,6 +38,7 @@ import {
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 import { adminPaymentStateSchema } from '../schemas'
+import { TICKET_SORT_OPTIONS } from '../sort-options'
 
 type Option = { value: string; label: string }
 
@@ -330,6 +332,26 @@ export function TicketFilters({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* EN SU PROPIA LINEA, debajo de la fila de botones (D-215). No cabe
+          como tercer boton —«Seleccionar varias» ya necesita 160 px de los
+          320 de la pantalla mas estrecha— y tampoco puede ir dentro de
+          «Filtros»: un orden no es un filtro, no debe sumar en su contador y,
+          sobre todo, ahi no se leeria cual esta puesto.
+
+          El orden se lee en el propio control, asi que la linea es el precio
+          de que el estado sea visible sin abrir nada.
+
+          Solo el portal del vendedor por ahora: el del personal tiene el
+          mismo hueco y su propia lista blanca (D-198), y no entra aqui. */}
+      {staff ? null : (
+        <ListSortSelect
+          options={TICKET_SORT_OPTIONS}
+          label="Ordenar las boletas"
+          className="w-full md:hidden"
+        />
+      )}
+
 
       {/* Escritorio: los mismos desplegables, a la vista. */}
       <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-4">

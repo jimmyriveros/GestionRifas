@@ -7,9 +7,12 @@ import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { ListSortSelect } from '@/components/data/ListSortSelect'
 import { SearchInput } from '@/features/search/components/SearchInput'
 import { useUrlSearch } from '@/features/search/use-url-search'
 import { tourTarget } from '@/features/tour/tours'
+
+import { CLIENT_SORT_OPTIONS } from '../sort-options'
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 const ALL = 'all'
@@ -62,6 +65,15 @@ export function ClientFilters() {
         showSubmitButton
         size="touch"
         hint={search.hint}
+      />
+
+      {/* En el telefono no hay cabeceras que pulsar: la lista son tarjetas
+          (D-136). El control va en su propia linea, encima del interruptor,
+          porque primero se decide QUE se ve y despues en que orden. */}
+      <ListSortSelect
+        options={CLIENT_SORT_OPTIONS}
+        label="Ordenar los clientes"
+        className="w-full md:hidden"
       />
 
       <div className="flex flex-wrap items-end gap-4">

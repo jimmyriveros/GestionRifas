@@ -14160,3 +14160,72 @@ El informe de D-213 repetía la misma confusión.
 * **Rendimiento de producción**: las cifras son de una base local en Docker.
 * **Un control de orden en el teléfono**: sigue sin existir (I-155) y quedaba fuera de este cierre.
 * **Producción**: no se tocó ni se leyó. Las dos migraciones son locales.
+
+## D-215 — Ordenar desde el teléfono (2026-09-22, solo en local)
+
+Condiciones iniciales: `npx supabase db reset`, `docker restart supabase_kong_Rifas` y `npm run seed:local`.
+**Sin migración**: este trabajo no toca la base.
+
+### a. El hueco, medido
+
+Por debajo de `md` la lista es de tarjetas y la tabla queda oculta con `display:none`. Comprobado en el
+navegador: en escritorio el control nuevo responde `display:none` y las cabeceras de la tabla **sí** ofrecen su
+orden; en el teléfono pasa lo contrario. No era que el control estuviera escondido: **no existía**.
+
+### b. Las medidas que decidieron la ubicación, a 320 px
+
+| Elemento | x | Ancho | Alto |
+|---|---|---|---|
+| «Filtros» | 16 | 103 | 44 |
+| Control de orden | 16 | **288** | 44 |
+| Desbordamiento horizontal de la página | — | **0** | — |
+
+«Seleccionar varias» necesita 160 px de los 288 disponibles, así que con «Filtros» la fila queda llena: un
+tercer botón no cabía. En su propia línea, el control ocupa los 288 completos y la página no gana barra
+horizontal.
+
+**El texto más largo cabe entero.** Con «Progreso, de mayor a menor» puesto, el valor del control mide menos
+que su caja: `scrollWidth <= clientWidth`, sin recorte. Se comprobó con la etiqueta más larga a propósito,
+porque una frase cortada en el sitio que anuncia el orden activo es peor que no anunciarlo.
+
+### c. Un defecto propio, encontrado al probar el teclado
+
+El control nació con `disabled={pending}`, copiando a los desplegables de «Filtros». **Medido:** después de
+elegir una opción con el teclado, `expect(control).toBeFocused()` fallaba con «inactive» — el navegador quita el
+foco al deshabilitar un botón, y al rehabilitarse el foco ya estaba en `body`. Quien ordenara con teclado perdía
+su sitio en cada elección. Retirado el `disabled`, la misma prueba pasa: el foco vuelve al control.
+
+Es la misma familia que I-152, y la razón de que el encargo pidiera comprobar el teclado.
+
+### d. Un acabado corregido tras mirar la captura
+
+El `justify-between` del primitivo `SelectTrigger` separaba el icono de su frase y la dejaba flotando en mitad
+del botón, donde se lee como un título centrado y no como el valor de un control. El icono y el texto son un
+grupo, a la izquierda; la flecha se queda a la derecha.
+
+### e. Pruebas
+
+| Nivel | Qué cubre | Resultado |
+|---|---|---|
+| Unitaria | `tests/unit/sort-options.test.ts` — que ninguna opción pida una columna que la consulta rechace, que la primera sea el orden por defecto, que no haya duplicados, que cada columna esté en los dos sentidos y que no se ofrezca ordenar por un estado | ✅ **12/12** |
+| Navegador, teléfono | `orden-movil.spec.ts` — dice el orden activo, lo cambia, vuelve al predeterminado, conserva búsqueda y filtros, vuelve a la página 1, atrás/adelante, recarga, un orden no ofrecido no lo hace mentir, 320 px sin desbordar, teclado y foco, la selección sobrevive, y las dos pantallas | ✅ |
+| Navegador, escritorio | `orden-paginacion.spec.ts` — el control **no** se ve en escritorio y las cabeceras sí ordenan | ✅ |
+| Las dos suites juntas | escritorio + móvil | ✅ **39/39** |
+| Unitarias y build | `npm run verify` | ✅ **exit 0** — **1.571** en 85 archivos, lint sin errores |
+| Base | `npm run test:db` | ✅ **1.434 + 1 omitida**, 58/58, con la base recién sembrada. **Sin migración**: no cambia nada de la base |
+
+### f. Errores encontrados durante el trabajo
+
+| Error | Causa | Corrección |
+|---|---|---|
+| El foco se perdía al elegir con el teclado | **Defecto propio**: `disabled={pending}` (ver c) | Retirado; se anuncia con `aria-busy` |
+| «el orden llega a las tarjetas» comparaba nombres del menú | Mi selector cogía todos los `li` de la página, incluida la navegación | Acotado a `ul[aria-label="Clientes"]` |
+| «la selección sobrevive» esperaba «1 seleccionada» | Dos expectativas mías equivocadas: el texto real es «N seleccionadas» y `checkbox.first()` es la casilla de **toda la página**, no una fila | Anclada a «Ver seleccionadas» y al `role="status"`, sin depender de la cifra |
+| La primera medición leyó el control vacío | Mi script midió antes de que hidratara | Espera a que el control tenga texto |
+
+### g. Lo que NO se comprobó
+
+* **El portal del personal**: tiene el mismo hueco en su lista de boletas y no entraba en el encargo. I-155
+  sigue abierta para él.
+* **Lectores de pantalla reales**: se midió el nombre accesible y dónde queda el foco, no cómo se anuncia.
+* **Producción**: no se tocó ni se leyó. Sin migración.

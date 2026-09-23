@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Ordenar desde el teléfono (SOLO EN LOCAL, 2026-09-22, D-215)** | **I-155 cerrada para el portal del vendedor.** «Mis boletas» y «Mis clientes» tienen en el teléfono un control de orden en su propia línea, cuyas opciones nombran la columna y el sentido —«Falta, de mayor a menor»—. No cabía como tercer botón a 320 px ni podía ir dentro de «Filtros», que cuenta filtros y escondería el orden activo. Reutiliza la ordenación de servidor de D-213/D-214; sin dependencias, sin consultas y **sin migración**. Al probar el teclado apareció un defecto propio —el control perdía el foco al deshabilitarse— y se corrigió. **Sigue abierto** el mismo hueco en el portal del personal |
 | **Orden y paginación EN LA BASE (SOLO EN LOCAL, 2026-09-22, D-214)** | **Cierre de P1-B y P1-H.** Las siete listas ordenan y paginan en PostgreSQL: Vendedores, Rifas y Administradores dejan de leer su lista entera —migración 0076, dos vistas y dos funciones— y «Cliente», «Falta», «Progreso» y «Vendedor» vuelven a ofrecer orden. **I-153 e I-154 resueltas**; I-158 era anterior. Medido con 20.033 boletas: de 2 consultas y 2.206 filas a 1 consulta y 25 filas. D-198 intacto: el personal no obtiene ni una fila de la vista del vendedor |
 | **Orden y paginación de listas (SOLO EN LOCAL, 2026-09-22, D-213)** | **P1-B y P1-H.** Siete listas ordenan **sobre el conjunto filtrado entero** —cuatro en la base, tres en el servidor—; el orden vive en la dirección y vuelve a la página 1 al cambiarlo. **Vendedores, Rifas y Administradores** paginan y ya no se truncan en las 1.000 filas de PostgREST. Migración **`0075`**: el orden pedido manda sobre la relevancia en `search_tickets` y `admin_list_tickets`, con **lista blanca en SQL** y la del personal **sin cliente ni dinero** (D-198). Lo que la base no puede ordenar **deja de ofrecerse** (I-154). Tres pendientes anotados: I-153, I-154, I-155 |
 | **Foco al cerrar una confirmación (SOLO EN LOCAL, 2026-09-21, D-212)** | **I-152 resuelta.** `ConfirmDialog` dejaba el foco en `body`; ahora vuelve al control que lo abrió —también cuando se abre desde un menú, donde el destino es el «⋯»— y, si ese control desaparece al repintarse el árbol («Anular boleta»), al contenido. Arregla sus **doce** usos sin tocar ninguno, sin dependencias y sin cambios visuales. **Sigue abierto:** «Asignar la boleta», que usa `Dialog` |
@@ -161,7 +162,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-214, ordenar y paginar en la base (**solo en local**, 2026-09-22)
+## 1.a Último relevo significativo — D-215, ordenar desde el teléfono (**solo en local**, 2026-09-22)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **I-155 cerrada para el portal del vendedor.** «Mis boletas» y «Mis clientes» tienen en el teléfono un control de orden en su propia línea, cuyas opciones nombran la columna **y** el sentido. Reutiliza la ordenación de servidor y los parámetros de la dirección; **sin dependencias, sin consultas y sin migración**. **Sigue abierto** el mismo hueco en el portal del personal |
+| Archivos | **nuevos** `components/data/ListSortSelect.tsx`, `features/tickets/sort-options.ts`, `features/clients/sort-options.ts`. Modificados `components/data/use-list-sort.ts` (gana `setSort`), `features/tickets/components/TicketFilters.tsx` y `features/clients/components/ClientFilters.tsx`. Pruebas: **nueva** `tests/unit/sort-options.test.ts`; ampliadas `orden-movil.spec.ts` y `orden-paginacion.spec.ts`. **Sin tocar:** las tarjetas, el panel, los colores, `DesignFix.txt`, `PublicarProduccion.txt`, `prueba-abono.csv` |
+| Reutilización | `useListSort` —`toggle` pasa a expresarse con `setSort`, así que las dos formas de ordenar no pueden separarse—, las listas blancas de D-214, el `Select` de shadcn con su `size="touch"`, y el patrón de «Filtros»: mismo alto de 44 px y misma alineación con las tarjetas |
+| Decisiones | **D-215.** Un solo control, no uno de columna más otro de sentido: a 320 px no cabe un tercer botón —«Filtros» 103 px, «Seleccionar varias» 160 de 288— y un botón genérico de sentido no puede acertar con todas las columnas («A–Z» miente sobre un importe). **No va dentro de «Filtros»**: un orden no es un filtro, no debe sumar en su contador (D-107) y ahí no se leería cuál está puesto. **No se ofrece ordenar por un estado**: eso se filtra, a un toque |
+| Verificación | `verify` **exit 0** (1.571 unitarias) · E2E **39/39** en los dos proyectos · unitarias del control **12/12** · medido a 320 px: control de 288×44, cero desbordamiento, el texto más largo sin recortar; en escritorio `display:none`. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** El control **no se deshabilita** mientras navega, y es a propósito: `disabled` le quitaba el foco al teclado en cada elección. Si alguien lo vuelve a poner, rompe eso. **2)** Las opciones de cada pantalla y su lista blanca de consulta viven separadas; si se separan de verdad, el fallo es **silencioso** —por eso hay una prueba que las compara—. **3)** Correr `test:db` justo después de la E2E da 2 fallos en premios por el estado que deja la E2E (I-151), no por este trabajo: con la base recién sembrada pasan los 70 |
+| Pendiente | **I-155** en el portal del personal. **I-156** (el historial de pagos de una ficha se corta en 100) e **I-157** (999 rifas). El resto de la auditoría sigue sin autorizar |
+| Git | Rama `feature/premios-configurables`, base observada **`a0e8b2e`**. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-214, ordenar y paginar en la base (**solo en local**, 2026-09-22)
 
 | Campo | Estado |
 |---|---|

@@ -23,7 +23,18 @@ import { nextListSort, type ListSort } from '@/lib/list-sort'
  */
 export function useListSort(): {
   sort: ListSort | null
+  /** Cabecera pulsada: recorre ascendente, descendente y vuelta al defecto. */
   toggle: (column: string) => void
+  /**
+   * Un orden CONCRETO, o `null` para volver al de siempre.
+   *
+   * Lo usa el control del telefono (D-215), donde no hay cabeceras que pulsar y
+   * cada opcion nombra ya su columna y su sentido. Es la misma escritura en la
+   * direccion que `toggle`, con las mismas reglas —se borra `page`, y el orden
+   * por defecto no escribe parametros—, para que las dos formas de ordenar no
+   * puedan separarse.
+   */
+  setSort: (next: ListSort | null) => void
   pending: boolean
 } {
   const router = useRouter()
@@ -39,7 +50,10 @@ export function useListSort(): {
       : { column: rawColumn, direction: searchParams.get('dir') === 'desc' ? 'desc' : 'asc' }
 
   function toggle(column: string) {
-    const next = nextListSort(sort, column)
+    setSort(nextListSort(sort, column))
+  }
+
+  function setSort(next: ListSort | null) {
     const params = new URLSearchParams(searchParams.toString())
 
     if (next === null) {
@@ -60,5 +74,5 @@ export function useListSort(): {
     })
   }
 
-  return { sort, toggle, pending }
+  return { sort, toggle, setSort, pending }
 }

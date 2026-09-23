@@ -13464,3 +13464,83 @@ las siete lecturas. Su prueba unitaria se retira con él; lo que medía se mide 
 más largo que el ancho: la rifa 1.000 sale como `R100` y choca con la 100. Una organización **no puede pasar de
 999 rifas**. Es anterior y ajeno a este trabajo, así que se anota y no se corrige; la prueba de volumen lo esquiva
 poniendo el código a mano, y lo dice.
+
+## D-215 — Ordenar desde el teléfono: un solo control cuyas opciones dicen columna y sentido
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-22). **No es una Fase 10** y no lleva
+etiqueta `fase-*`. **Solo en local.** No autoriza push ni despliegue. **Sin migración y sin consultas nuevas.**
+
+Cierra **I-155**, que D-214 dejó anotado: desde D-213 el orden lo aplica la base y viaja en la dirección, pero en
+un teléfono no había forma de pedirlo. Por debajo de `md` las listas son tarjetas y la tabla queda oculta con
+`display:none`, así que sus cabeceras **no están en el árbol de accesibilidad** ni se pueden pulsar. La única
+manera de ordenar era escribir `?sort=` a mano.
+
+### Dónde va, y las dos ubicaciones que se descartaron
+
+| Ubicación | Por qué no |
+|---|---|
+| Un tercer botón en la fila de «Filtros» | **Medido**: a 320 px esa fila ya está llena. «Filtros» ocupa 103 px y «Seleccionar varias» necesita 160 de los 288 disponibles (D-108). Un tercero rompe los tres |
+| Dentro de la hoja de «Filtros» | Un orden **no es un filtro**: no debe sumar en el contador de ese botón (D-107) y, sobre todo, ahí el orden activo **no se leería** sin abrir nada. Además «Mis clientes» no tiene hoja: habría que inventarle una |
+
+**Va en su propia línea, debajo de la fila de botones.** La línea es el precio de que el orden activo esté
+siempre a la vista, y a cambio la pantalla gana algo que nunca había contado: **en qué orden llega la lista**.
+El control mide 44 px de alto, como los dos botones de arriba: en el teléfono los tres controles de preparar la
+lista miden lo mismo.
+
+### Un solo control, y no uno de columna más otro de sentido
+
+Cada opción nombra las dos cosas —«Falta, de mayor a menor»—. Eso resuelve tres problemas a la vez:
+
+* **Cabe.** Un control por línea, a lo ancho: 288 px de los 320.
+* **Se puede escribir bien.** Un botón genérico de sentido no tiene palabras correctas para todas las columnas:
+  «A–Z» miente sobre un importe y «de mayor a menor» miente sobre un nombre. La frase entera dice lo que va a
+  pasar, columna por columna.
+* **El orden activo se lee en el propio control**, sin abrirlo y sin un segundo control que interpretar.
+
+La dirección **sí se elige**, que era el requisito: se elige al elegir la frase. Cada columna ofrecida aparece en
+los dos sentidos, y hay una prueba que lo exige.
+
+### Qué se ofrece en cada pantalla, y qué no
+
+Lo que la **tarjeta enseña** y se puede decir con palabras claras. Las columnas salen de las listas blancas que
+ya existen (`TICKET_SORT_COLUMNS`, `CLIENT_SORT_COLUMNS`), así que ninguna opción puede pedir algo que la consulta
+rechace —y hay una prueba unitaria que compara las dos listas, porque si se separan el fallo es **silencioso**:
+la lista sale en el orden de siempre y el control se queda diciendo otra cosa—.
+
+| Pantalla | Se ofrece | Se deja fuera |
+|---|---|---|
+| Mis boletas | Boleta, Cliente, Falta, Abonado, Progreso, Precio | Los dos **estados**; **Rifa** y **Vendedor**, que su portal ni siquiera pinta |
+| Mis clientes | Nombre, Teléfono, Boletas, Saldo | **Estado**; **Comprado** y **Pagado**, que la tarjeta oculta en móvil |
+
+**Los estados se filtran, no se ordenan.** El filtro está a un toque en la misma pantalla y responde mejor esa
+pregunta; además no hay forma clara de decir su sentido —«de Borrador a Anulada» no lo dice nadie—.
+
+**La primera opción es el orden por defecto y se llama por lo que hace**: «Más recientes primero» en boletas,
+«Nombre, de la A a la Z» en clientes. Elegirla **borra** `sort` y `dir` de la dirección, que es como se vuelve al
+orden de siempre.
+
+**Un orden que el control no ofrece no lo hace mentir.** Si la dirección trae `sort=raffleShortCode` —un enlace
+viejo, o un orden que solo existe en la tabla de escritorio—, el control cae a su valor por defecto en vez de
+anunciar algo que no tiene. La consulta sigue aplicando el orden real; lo que no hace la pantalla es afirmarlo.
+
+### Un defecto que apareció al probar el teclado
+
+El control se escribió con `disabled={pending}`, como hacen los desplegables de «Filtros». **Medido con
+Playwright:** al deshabilitarse, el navegador **quita el foco** del botón, y al volver a habilitarse el foco ya
+estaba en `body`. Quien ordenara con el teclado perdía su sitio en cada elección. Se retiró el `disabled` y se
+anuncia con `aria-busy`, que no toca el foco. Un segundo toque durante la transición no rompe nada: la
+navegación nueva sustituye a la anterior.
+
+Y una corrección de acabado: el `justify-between` del primitivo separaba el icono de su frase y la dejaba
+flotando en mitad del botón, donde se lee como un título centrado y no como el valor de un control. El icono y
+el texto son un grupo, pegados a la izquierda; la flecha se queda a la derecha.
+
+### Lo que NO cambió
+
+El diseño de las tarjetas, la estructura del panel, los colores, las consultas y la ordenación de servidor: todo
+sigue igual. El control **reutiliza** `useListSort`, que solo gana un `setSort(orden)` —`toggle` pasa a
+expresarse con él, así que las dos formas de ordenar no pueden separarse— y las listas blancas de D-214. Sin
+dependencias, sin consultas y sin migración.
+
+**Solo el portal del vendedor.** El del personal tiene el mismo hueco en su lista de boletas y su propia lista
+blanca (D-198); no entraba en este encargo y sigue anotado.

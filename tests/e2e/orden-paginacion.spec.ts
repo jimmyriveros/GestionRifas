@@ -438,3 +438,30 @@ test.describe('Boletas: el orden entre paginas, con datos propios', () => {
     expect([...recorrido].sort((a, b) => a - b)).toEqual(recorrido)
   })
 })
+
+/**
+ * En ESCRITORIO el control del telefono no existe: ahí se ordena pulsando las
+ * cabeceras de la tabla, y dos formas de pedir lo mismo a la vez sobran (D-215).
+ */
+test.describe('El control de orden es solo del telefono', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+  })
+
+  const pantallas = [
+    { ruta: '/seller/tickets', nombre: 'Ordenar las boletas', cabecera: /^Precio/ },
+    { ruta: '/seller/clients', nombre: 'Ordenar los clientes', cabecera: /^Saldo/ },
+  ]
+
+  for (const pantalla of pantallas) {
+    test(`«${pantalla.nombre}» no se ve en escritorio`, async ({ page }) => {
+      await page.goto(pantalla.ruta)
+
+      // Está en el DOM —el mismo árbol sirve a los dos anchos— pero oculto,
+      // así que no cuenta para el árbol de accesibilidad ni se puede pulsar.
+      await expect(page.getByRole('combobox', { name: pantalla.nombre })).toBeHidden()
+      // Y la cabecera de la tabla sí ofrece su orden.
+      await expect(page.getByRole('button', { name: pantalla.cabecera })).toBeVisible()
+    })
+  }
+})

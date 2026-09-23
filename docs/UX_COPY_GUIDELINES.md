@@ -395,6 +395,9 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Cuenta cuya dueña ya configuró su contraseña | **Cuenta activa** | Activado, confirmado, verificado |
 | Correo con el enlace para crear la contraseña | **Invitación** | Enlace mágico, token, activación |
 | Dejar el menú lateral en solo iconos, y devolverlo a su sitio | **Cerrar el menú** y **Abrir el menú** | Contraer, expandir, colapsar, plegar, minimizar |
+| Decirle a una lista en qué orden salen sus filas, desde el teléfono | **Ordenar**; el control se nombra **«Ordenar las boletas»** y **«Ordenar los clientes»** (D-215) | Clasificar, organizar, filtrar —que es otra cosa: filtrar decide CUÁLES se ven, ordenar en qué orden— |
+| Ahí, el orden con el que llega la lista si nadie pide otro | Se dice por **lo que hace**: **«Más recientes primero»** en boletas, **«Nombre, de la A a la Z»** en clientes (D-215) | «Predeterminado», «Por defecto», «Sin orden» — ninguno dice en qué orden van a salir |
+| Ahí, hacia dónde ordena | Va **dentro de la misma frase**, detrás de una coma: **«, de mayor a menor»**, **«, de menor a mayor»**, **«, de más a menos»**, **«, de la A a la Z»**, **«, de la Z a la A»** (D-215) | «Ascendente» y «descendente», que son palabras de programa; y un botón suelto de sentido, que no puede acertar con todas las columnas a la vez |
 | Poner la aplicación en la pantalla de inicio del teléfono | **Instalar** | Descargar, bajar la app, añadir acceso directo |
 | El nombre bajo el icono, donde solo caben ~12 caracteres | **Rifas** | «Gestión de…», que es como quedaría el nombre completo |
 | Resultado publicado por una lotería colombiana | **Resultado** (oficial) | Premio, ganador, extracto |
@@ -1657,6 +1660,8 @@ castigo donde solo había una espera.
 |---|---|
 | Etiquetas de estado, roles y métodos de pago | `src/lib/constants.ts` |
 | Los dos textos de ejemplo de un campo de teléfono | `src/lib/phone.ts` (`PHONE_PLACEHOLDER`, `PHONE_WITH_CODE_PLACEHOLDER`, D-184). **Ninguna pantalla los escribe**: los pone `PhoneInput` |
+| El control de orden del teléfono, y su nombre accesible | `src/components/data/ListSortSelect.tsx` (D-215). Quien lo usa pasa el nombre: «Ordenar las boletas», «Ordenar los clientes» |
+| Las frases de cada orden que se ofrece en el teléfono | `src/features/tickets/sort-options.ts` y `src/features/clients/sort-options.ts` (D-215), **cada una con las suyas**: la pantalla decide qué columnas admite, y una prueba comprueba que ninguna pide algo que la consulta rechace |
 | Nombre de lo que cuenta cada listado en su paginación | `src/lib/constants.ts` (`LIST_ITEM_LABELS`, D-111) |
 | Etiquetas de estado de pago en plural, para encabezar grupos | `src/lib/constants.ts` (`TICKET_PAYMENT_STATUS_PLURAL_LABELS`, D-112) |
 | Nombres de los períodos del panel del vendedor | `src/features/dashboard/date-range.ts` (`DASHBOARD_RANGE_LABELS`, D-112) |
