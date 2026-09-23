@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { loadSeedRefs, serviceClient } from './db-setup'
+import { createClientFor, loadSeedRefs, serviceClient } from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
 
 /**
@@ -189,12 +189,106 @@ test.describe('Ordenar desde el telefono', () => {
     await expect(control(page, 'boletas')).toHaveText(/Progreso, de menor a mayor/)
   })
 
-  test('un orden que el control no ofrece no lo hace mentir', async ({ page }) => {
-    // «Rifa» se puede pedir por la direccion pero no se ofrece en el telefono:
-    // el control cae al valor por defecto en vez de anunciar algo que no tiene.
+  /*
+    LA CORRESPONDENCIA ENTRE LO QUE DICE EL CONTROL Y LO QUE SALE EN LA LISTA
+    (D-216). Hasta aqui el control caia al valor por defecto en cuanto la
+    direccion pedia un orden que el no ofrece, aunque la consulta SI lo
+    aplicara: decia «Más recientes primero» mientras la lista salia por rifa.
+    La prueba anterior exigia ese comportamiento; estaba mal y se invirtio.
+  */
+
+  test('un orden válido que el control no ofrece se DICE, no se esconde', async ({ page }) => {
+    // «Rifa» está en `TICKET_SORT_COLUMNS`, así que la consulta la aplica.
     await page.goto('/seller/tickets?sort=raffleShortCode&dir=desc')
+
+    await expect(control(page, 'boletas')).toHaveText(/Rifa, de la Z a la A/)
+    // Y no se reescribe la dirección: pasar de escritorio a teléfono no cambia
+    // el orden, solo lo cuenta.
+    await expect(page).toHaveURL(/sort=raffleShortCode/)
+    await expect(page).toHaveURL(/dir=desc/)
+  })
+
+  test('un estado se describe por su primera etiqueta, no con «A–Z»', async ({ page }) => {
+    await page.goto('/seller/tickets?sort=inventoryStatus')
+    await expect(control(page, 'boletas')).toHaveText(/Estado de la boleta, primero Borrador/)
+
+    await page.goto('/seller/tickets?sort=inventoryStatus&dir=desc')
+    await expect(control(page, 'boletas')).toHaveText(/Estado de la boleta, primero Anulada/)
+  })
+
+  test('desde ese orden se puede volver al predeterminado', async ({ page }) => {
+    await page.goto('/seller/tickets?sort=sellerName&dir=asc')
+    await expect(control(page, 'boletas')).toHaveText(/Vendedor, de la A a la Z/)
+
+    await elegir(page, 'boletas', 'Más recientes primero')
+
+    await expect(page).not.toHaveURL(/sort=/)
+    await expect(control(page, 'boletas')).toHaveText(/Más recientes primero/)
+  })
+
+  test('un orden que la consulta RECHAZA sí cae al predeterminado', async ({ page }) => {
+    // `inventado` no está en la lista blanca: `parseListSort` lo descarta y la
+    // lista sale por fecha. Ahí el control acierta diciendo el orden de
+    // siempre — es el caso que NO hay que confundir con el de arriba.
+    await page.goto('/seller/tickets?sort=inventado&dir=desc')
     await expect(control(page, 'boletas')).toHaveText(/Más recientes primero/)
     await expect(page.getByRole('heading', { name: 'Mis boletas' })).toBeVisible()
+  })
+
+  test('buscando, el control dice RELEVANCIA y no fecha', async ({ page }) => {
+    // Con término y sin columna pedida la lista sale por relevancia
+    // (`search_tickets`), no por `created_at`.
+    await page.goto('/seller/tickets?q=0')
+    await expect(control(page, 'boletas')).toHaveText(/Las que mejor coinciden/)
+
+    // Sin búsqueda vuelve a ser la fecha.
+    await page.goto('/seller/tickets')
+    await expect(control(page, 'boletas')).toHaveText(/Más recientes primero/)
+  })
+
+  test('restablecer el orden durante una búsqueda devuelve a la relevancia', async ({ page }) => {
+    await page.goto('/seller/tickets?q=0&sort=salePrice&dir=desc')
+    await expect(control(page, 'boletas')).toHaveText(/Precio, de mayor a menor/)
+
+    await elegir(page, 'boletas', 'Las que mejor coinciden')
+
+    // Se borran `sort` y `dir`, se conserva la búsqueda, y el texto sigue
+    // diciendo lo que de verdad ordena la lista.
+    await expect(page).not.toHaveURL(/sort=/)
+    await expect(page).toHaveURL(/q=0/)
+    await expect(control(page, 'boletas')).toHaveText(/Las que mejor coinciden/)
+  })
+
+  test('atrás y adelante conservan la correspondencia con la búsqueda', async ({ page }) => {
+    await page.goto('/seller/tickets?q=0')
+    await expect(control(page, 'boletas')).toHaveText(/Las que mejor coinciden/)
+
+    await elegir(page, 'boletas', 'Precio, de mayor a menor')
+    await expect(control(page, 'boletas')).toHaveText(/Precio, de mayor a menor/)
+
+    await page.goBack()
+    await expect(page).toHaveURL(/q=0/)
+    await expect(page).not.toHaveURL(/sort=/)
+    await expect(control(page, 'boletas')).toHaveText(/Las que mejor coinciden/)
+
+    await page.goForward()
+    await expect(control(page, 'boletas')).toHaveText(/Precio, de mayor a menor/)
+  })
+
+  test('«Mis clientes»: un orden que no ofrece también se dice', async ({ page }) => {
+    await page.goto('/seller/clients?sort=totalPurchased&dir=desc')
+    await expect(control(page, 'clientes')).toHaveText(/Comprado, de mayor a menor/)
+    await expect(page).toHaveURL(/sort=totalPurchased/)
+  })
+
+  test('«Mis clientes»: buscar NO cambia el orden, y el control no lo inventa', async ({ page }) => {
+    // Aquí el término es un `ilike` sobre la misma consulta: el `order by`
+    // sigue siendo el nombre. El control dice lo mismo con y sin búsqueda.
+    await page.goto('/seller/clients')
+    await expect(control(page, 'clientes')).toHaveText(/Nombre, de la A a la Z/)
+
+    await page.goto('/seller/clients?q=a')
+    await expect(control(page, 'clientes')).toHaveText(/Nombre, de la A a la Z/)
   })
 
   test('a 320 px conviven los tres controles y nada se desborda', async ({ page }) => {
@@ -284,5 +378,165 @@ test.describe('Ordenar desde el telefono', () => {
     expect(nombres.length).toBeGreaterThan(1)
     const descendente = [...nombres].sort((a, b) => b.localeCompare(a, 'es'))
     expect(nombres).toEqual(descendente)
+  })
+})
+
+/**
+ * EL TEXTO CONTRA LOS RESULTADOS, con datos hechos para distinguirlos (D-216).
+ *
+ * Comprobar que el control DICE «Las que mejor coinciden» no prueba nada si la
+ * lista podría salir igual por fecha. Estos datos están montados para que cada
+ * orden dé una secuencia DISTINTA:
+ *
+ *   * la rifa de código MENOR tiene las boletas más RECIENTES, así que ordenar
+ *     por rifa descendente y ordenar por fecha dan listas al revés;
+ *   * buscando «12», la coincidencia exacta es la boleta más ANTIGUA, así que
+ *     relevancia y fecha tampoco coinciden.
+ *
+ * Si el control dijera una cosa y la consulta hiciera otra, estas pruebas lo
+ * verían.
+ */
+test.describe('El texto del control corresponde con lo que sale', () => {
+  const STAMP = Date.now().toString(36).slice(-5)
+  let clientId = ''
+  let raffleMenor = ''
+  let raffleMayor = ''
+
+  /** Los números diarios de las tarjetas, en el orden en que se ven. */
+  async function diariosDeTarjetas(page: Page): Promise<string[]> {
+    return page.evaluate(() =>
+      [...document.querySelectorAll('ul li')]
+        .map((li) => (li.textContent ?? '').match(/(\d{4})\s*\/\s*\d{4}/)?.[1] ?? '')
+        .filter((numero) => numero !== ''),
+    )
+  }
+
+  test.beforeAll(async () => {
+    const svc = serviceClient()
+    const refs = await loadSeedRefs()
+
+    const cliente = await createClientFor(refs, `Orden Texto ${STAMP}`)
+    clientId = cliente.id
+
+    // Dos rifas: el disparador da el código por orden de creación, así que la
+    // primera se queda con el MENOR.
+    for (const cual of ['menor', 'mayor'] as const) {
+      const { data } = await svc
+        .from('raffles')
+        .insert({
+          organization_id: refs.organizationId,
+          name: `Rifa ${cual} ${STAMP}`,
+          ticket_price: 120_000,
+          status: 'active',
+          start_date: '2026-01-01',
+          end_date: '2026-12-31',
+          created_by: refs.ownerId,
+        })
+        .select('id')
+        .single()
+      if (cual === 'menor') raffleMenor = data!.id
+      else raffleMayor = data!.id
+    }
+
+    // Se insertan en dos tandas para que `created_at` las separe de verdad: las
+    // de la rifa MAYOR primero (más antiguas), las de la MENOR después.
+    const fila = (raffleId: string, daily: string, weekly: string) => ({
+      organization_id: refs.organizationId,
+      raffle_id: raffleId,
+      seller_id: refs.sellerId,
+      client_id: clientId,
+      daily_number: daily,
+      weekly_number: weekly,
+      inventory_status: 'assigned' as const,
+      sale_price: 120_000,
+      sale_date: '2026-09-01',
+      assigned_at: new Date().toISOString(),
+      created_by: refs.ownerId,
+    })
+
+    /*
+      UNA A UNA, con pausa. Dos boletas en el mismo `insert` comparten
+      `created_at` al milisegundo y entonces las desempata el `id`, que es un
+      uuid: el orden por fecha dejaria de ser predecible y la prueba mediria el
+      azar. Asi quedan: 0012 la mas antigua y 4512 la mas reciente.
+    */
+    for (const [raffleId, daily, weekly] of [
+      [raffleMayor, '0012', '9001'],
+      [raffleMayor, '1234', '9002'],
+      [raffleMenor, '4512', '9003'],
+    ] as const) {
+      await svc.from('tickets').insert([fila(raffleId, daily, weekly)])
+      await new Promise((listo) => setTimeout(listo, 1100))
+    }
+  })
+
+  test.afterAll(async () => {
+    const svc = serviceClient()
+    for (const raffleId of [raffleMenor, raffleMayor]) {
+      if (raffleId) await svc.from('tickets').delete().eq('raffle_id', raffleId)
+    }
+    if (clientId) await svc.from('clients').delete().eq('id', clientId)
+    for (const raffleId of [raffleMenor, raffleMayor]) {
+      if (raffleId) await svc.from('raffles').delete().eq('id', raffleId)
+    }
+  })
+
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page, ACCOUNTS.seller)
+  })
+
+  function control(page: Page) {
+    return page.getByRole('combobox', { name: 'Ordenar las boletas' })
+  }
+
+  test('por defecto: el control dice la fecha y la lista sale por fecha', async ({ page }) => {
+    await page.goto(`/seller/tickets?clientId=${clientId}`)
+
+    await expect(control(page)).toHaveText(/Más recientes primero/)
+    // La más reciente es la de la rifa menor.
+    expect(await diariosDeTarjetas(page)).toEqual(['4512', '1234', '0012'])
+  })
+
+  test('por rifa descendente: el control lo dice y la lista cambia de verdad', async ({ page }) => {
+    await page.goto(`/seller/tickets?clientId=${clientId}&sort=raffleShortCode&dir=desc`)
+
+    await expect(control(page)).toHaveText(/Rifa, de la Z a la A/)
+    // Primero la rifa de código mayor —sus dos boletas— y después la otra: es
+    // justo lo contrario del orden por fecha de la prueba anterior.
+    const diarios = await diariosDeTarjetas(page)
+    expect(diarios).toHaveLength(3)
+    expect(diarios[2]).toBe('4512')
+    expect(diarios.slice(0, 2).sort()).toEqual(['0012', '1234'])
+  })
+
+  test('buscando: el control dice relevancia y la lista sale por relevancia', async ({ page }) => {
+    await page.goto(`/seller/tickets?q=12&clientId=${clientId}`)
+
+    await expect(control(page)).toHaveText(/Las que mejor coinciden/)
+
+    const diarios = (await diariosDeTarjetas(page)).filter((numero) =>
+      ['0012', '1234', '4512'].includes(numero),
+    )
+    /*
+      Primero la que EMPIEZA por «12», después las que solo lo contienen, y
+      entre esas dos, por número. «0012» no es coincidencia exacta: el número
+      guardado lleva sus ceros, y «12» no es «0012».
+
+      Por fecha saldría «4512» primero, que es la más reciente: los dos órdenes
+      no coinciden, que es de lo que se trata.
+    */
+    expect(diarios).toEqual(['1234', '0012', '4512'])
+  })
+
+  test('buscando y pidiendo precio, manda el precio y el control lo dice', async ({ page }) => {
+    await page.goto(`/seller/tickets?q=12&clientId=${clientId}&sort=dailyNumber&dir=desc`)
+
+    await expect(control(page)).toHaveText(/Boleta, de mayor a menor/)
+
+    const diarios = (await diariosDeTarjetas(page)).filter((numero) =>
+      ['0012', '1234', '4512'].includes(numero),
+    )
+    // Ni relevancia ni fecha: el número, de mayor a menor como texto.
+    expect(diarios).toEqual(['4512', '1234', '0012'])
   })
 })

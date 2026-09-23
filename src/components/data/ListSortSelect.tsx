@@ -40,11 +40,27 @@ import { useListSort } from './use-list-sort'
  *
  * NO SE OFRECEN LOS ESTADOS. «Estado de la boleta» y «Estado de pago» se
  * FILTRAN desde el mismo sitio, a un toque, y ordenar por un estado es una
- * forma peor de responder esa misma pregunta. Dejarlos fuera acorta la lista y
- * evita tener que inventar como se dice «de Borrador a Anulada».
+ * forma peor de responder esa misma pregunta. Dejarlos fuera acorta la lista.
+ * (Describir uno que ya esta puesto es otra cosa, y si se hace: ver `describe`
+ * mas abajo. Invitar a poner un orden y contar el que hay no piden lo mismo.)
  *
- * Quien pasa las opciones decide que columnas admite SU pantalla y SU rol: aqui
- * no hay ninguna lista blanca, solo se pinta lo que se recibe.
+ * Quien pasa las opciones decide que columnas ofrece SU pantalla y SU rol.
+ *
+ * OFRECER MENOS NO ES PODER MENOS (D-216). La consulta acepta mas columnas que
+ * las que este control ofrece, y un enlace traido de la pantalla grande puede
+ * pedir una de ellas. Hay que distinguir DOS cosas que se parecen y no lo son:
+ *
+ *   * un orden que la consulta RECHAZA —no esta en su lista blanca, asi que
+ *     `parseListSort` lo descarta y la lista sale en su orden de siempre—: ahi
+ *     el control dice el orden por defecto, y acierta;
+ *   * un orden que la consulta APLICA y este control no ofrece: ahi el control
+ *     tiene que DECIRLO. Caer al valor por defecto seria anunciar «Más
+ *     recientes primero» mientras la lista sale por rifa.
+ *
+ * Para el segundo caso se anade una opcion mas, al principio y ya elegida, con
+ * la frase que compone `describe`. Elegir otra la hace desaparecer, porque deja
+ * de ser el orden puesto. Y pasar de escritorio a telefono NO cambia el orden:
+ * el control se limita a contarlo.
  */
 
 export type ListSortOption = {
@@ -58,6 +74,20 @@ type ListSortSelectProps = {
   options: readonly ListSortOption[]
   /** Nombre accesible: «Ordenar las boletas», «Ordenar los clientes». */
   label: string
+  /**
+   * Las columnas que LA CONSULTA acepta, que son mas que las ofrecidas. Sin
+   * esto no hay forma de distinguir un orden rechazado de uno que si se aplica
+   * y aqui no aparece (D-216).
+   */
+  allowed: readonly string[]
+  /** Como se lee un orden aceptado que no esta entre las opciones. */
+  describe: (sort: ListSort) => string | null
+  /**
+   * Sustituye el texto de la opcion por defecto cuando ese orden cambia por el
+   * contexto. Hoy solo lo usa «Mis boletas»: buscando, la lista sale por
+   * relevancia y no por fecha, y «restablecer el orden» devuelve ahi.
+   */
+  defaultLabel?: string
   className?: string
 }
 
@@ -69,24 +99,47 @@ function keyOf(sort: ListSort | null): string {
   return sort === null ? DEFAULT_VALUE : `${sort.column}:${sort.direction}`
 }
 
-export function ListSortSelect({ options, label, className }: ListSortSelectProps) {
+export function ListSortSelect({
+  options,
+  label,
+  allowed,
+  describe,
+  defaultLabel,
+  className,
+}: ListSortSelectProps) {
   const { sort, setSort, pending } = useListSort()
 
   /*
-    Lo que dice la direccion puede no estar entre las opciones: un enlace viejo,
-    o un orden que solo existe en la tabla de escritorio. Entonces se cae al
-    valor por defecto, igual que hace `parseListSort` con una columna
-    desconocida: la pantalla no miente diciendo que ordena por algo que no
-    ofrece, y el orden real lo sigue aplicando la consulta.
+    Tres situaciones, y las tres tienen una respuesta distinta:
+
+      1. la direccion no pide orden, o pide uno que la consulta RECHAZA. En las
+         dos la lista sale en su orden por defecto, asi que se elige esa opcion;
+      2. pide uno que este control ofrece: esa opcion;
+      3. pide uno que la consulta aplica y este control no ofrece: se anade una
+         opcion para el, al principio, y queda elegida.
+
+    Lo que NO se hace en ningun caso es reescribir la direccion. El control
+    cuenta el orden; no lo cambia por su cuenta.
   */
-  const current = keyOf(sort)
-  const known = options.some((option) => keyOf(option.sort) === current)
+  const applied = sort !== null && allowed.includes(sort.column) ? sort : null
+  const current = keyOf(applied)
+  const offered = options.some((option) => keyOf(option.sort) === current)
+  const extra = applied !== null && !offered ? describe(applied) : null
+
+  const shown: readonly ListSortOption[] =
+    extra !== null
+      ? [{ label: extra, sort: applied }, ...options]
+      : defaultLabel === undefined
+        ? options
+        : options.map((option) =>
+            option.sort === null ? { ...option, label: defaultLabel } : option,
+          )
 
   return (
     <Select
-      value={known ? current : DEFAULT_VALUE}
+      value={current}
       onValueChange={(value) => {
-        const chosen = options.find((option) => keyOf(option.sort) === value)
+        const chosen = shown.find((option) => keyOf(option.sort) === value)
         if (chosen) setSort(chosen.sort)
       }}
     >
@@ -120,7 +173,7 @@ export function ListSortSelect({ options, label, className }: ListSortSelectProp
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {options.map((option) => (
+        {shown.map((option) => (
           <SelectItem key={keyOf(option.sort)} value={keyOf(option.sort)}>
             {option.label}
           </SelectItem>

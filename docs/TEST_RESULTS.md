@@ -14229,3 +14229,67 @@ grupo, a la izquierda; la flecha se queda a la derecha.
   sigue abierta para él.
 * **Lectores de pantalla reales**: se midió el nombre accesible y dónde queda el foco, no cómo se anuncia.
 * **Producción**: no se tocó ni se leyó. Sin migración.
+
+## D-216 — El control del teléfono cuenta el orden que de verdad aplica (2026-09-23, solo en local)
+
+Condiciones iniciales: `npx supabase db reset`, `docker restart supabase_kong_Rifas` y `npm run seed:local`.
+**Sin migración.**
+
+### a. Los dos casos, comprobados contra la consulta
+
+| Dirección | Qué hace la consulta | Qué decía el control | Qué dice ahora |
+|---|---|---|---|
+| `?sort=raffleShortCode&dir=desc` | Ordena por rifa: está en `TICKET_SORT_COLUMNS` | «Más recientes primero» ❌ | «Rifa, de la Z a la A» |
+| `?q=12` sin `sort` | Relevancia (`search_tickets`) | «Más recientes primero» ❌ | «Las que mejor coinciden» |
+| `?sort=inventado` | `parseListSort` lo descarta: orden por defecto | «Más recientes primero» ✅ | Igual — y acierta |
+
+La tercera fila es la que hace falta no confundir con la primera, y por eso tiene prueba propia.
+
+### b. La prueba que estaba mal
+
+`«un orden que el control no ofrece no lo hace mentir»` exigía exactamente lo contrario de lo que su nombre
+prometía: que con `sort=raffleShortCode` el control dijera «Más recientes primero». **Invertida.**
+
+### c. El texto contra los resultados, con datos que distinguen los órdenes
+
+Comprobar que el control **dice** «Las que mejor coinciden» no prueba nada si la lista pudiera salir igual por
+fecha. Se montó un bloque con tres boletas propias, en dos rifas, insertadas **una a una con pausa** —dos en el
+mismo `insert` comparten `created_at` y entonces las desempata el `id`, que es un uuid, y el orden por fecha
+deja de ser predecible—:
+
+| Orden pedido | Secuencia esperada, y comprobada |
+|---|---|
+| Por defecto (fecha) | `4512`, `1234`, `0012` |
+| Rifa, descendente | las dos de la rifa de código mayor, y `4512` al final |
+| Búsqueda `12`, sin columna | `1234`, `0012`, `4512` |
+| Búsqueda `12` + número descendente | `4512`, `1234`, `0012` |
+
+Las cuatro son distintas entre sí, así que una correspondencia rota se vería.
+
+### d. Dos expectativas mías que la medida corrigió
+
+| Lo que supuse | Lo que pasa |
+|---|---|
+| `0012` es la coincidencia **exacta** de «12» | No: el número guardado lleva sus ceros. La exacta no existe aquí, y `1234` —que **empieza** por 12— va antes. La consulta tenía razón |
+| Dos boletas en un `insert` conservan su orden | Comparten `created_at` al milisegundo y las desempata el `id` |
+
+### e. Verificación
+
+| Comando | Resultado |
+|---|---|
+| E2E `orden-movil.spec.ts` (proyecto `movil`) | ✅ **26/26** |
+| E2E `orden-paginacion.spec.ts` (proyecto `escritorio`) | ✅ **25/25** |
+| `npm run verify` | ✅ **exit 0** — **1.571** unitarias en 85 archivos, lint sin errores, build |
+
+### f. Un defecto propio de camino
+
+Al pasar la lista blanca al control lo importé de `queries.ts`, que empieza con `server-only` y arrastra
+`next/headers`: **la pantalla entera devolvía 500** en un componente de cliente. `TICKET_SORT_COLUMNS` y
+`CLIENT_SORT_COLUMNS` viven ahora en los `sort-options.ts`, que son neutros, y `queries.ts` las reexporta para
+que quien las pedía siga pidiéndolas donde estaban. Una sola definición, y la prueba unitaria que compara
+opciones con lista blanca sigue en pie.
+
+### g. Lo que NO se comprobó
+
+* **El portal del personal**: I-155 sigue abierta para él, y su lista blanca es otra (D-198).
+* **Producción**: no se tocó ni se leyó.

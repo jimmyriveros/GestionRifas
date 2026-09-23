@@ -4,6 +4,12 @@ import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE } from '@/lib/constants'
 import { pageBeyondEnd } from '@/lib/list-page'
 import type { ListSort } from '@/lib/list-sort'
+
+export {
+  CLIENT_SORT_COLUMNS,
+  type ClientSortColumn,
+} from './sort-options'
+import type { ClientSortColumn } from './sort-options'
 import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
@@ -46,17 +52,7 @@ export type ClientFilters = {
  * columnas de `ClientsTable`, para que la cabecera pulsada y el parametro de la
  * URL sean el mismo nombre.
  */
-export const CLIENT_SORT_COLUMNS = [
-  'name',
-  'phone',
-  'ticketsCount',
-  'totalPurchased',
-  'totalPaid',
-  'pendingAmount',
-  'archivedAt',
-] as const
 
-export type ClientSortColumn = (typeof CLIENT_SORT_COLUMNS)[number]
 
 /** De nombre de columna a columna de la vista. Lo que no este aqui no se pide. */
 const CLIENT_SORT_DB: Record<ClientSortColumn, string> = {

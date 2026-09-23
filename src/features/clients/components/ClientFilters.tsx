@@ -12,7 +12,7 @@ import { SearchInput } from '@/features/search/components/SearchInput'
 import { useUrlSearch } from '@/features/search/use-url-search'
 import { tourTarget } from '@/features/tour/tours'
 
-import { CLIENT_SORT_OPTIONS } from '../sort-options'
+import { CLIENT_SORT_COLUMNS, CLIENT_SORT_OPTIONS, describeClientSort } from '../sort-options'
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 const ALL = 'all'
@@ -70,8 +70,12 @@ export function ClientFilters() {
       {/* En el telefono no hay cabeceras que pulsar: la lista son tarjetas
           (D-136). El control va en su propia linea, encima del interruptor,
           porque primero se decide QUE se ve y despues en que orden. */}
+      {/* Aqui la busqueda NO cambia el orden —es un `ilike` sobre la misma
+          consulta—, asi que no hace falta `defaultLabel` (D-216). */}
       <ListSortSelect
         options={CLIENT_SORT_OPTIONS}
+        allowed={CLIENT_SORT_COLUMNS}
+        describe={describeClientSort}
         label="Ordenar los clientes"
         className="w-full md:hidden"
       />

@@ -38,7 +38,12 @@ import {
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 import { adminPaymentStateSchema } from '../schemas'
-import { TICKET_SORT_OPTIONS } from '../sort-options'
+import {
+  describeTicketSort,
+  ticketDefaultSortLabel,
+  TICKET_SORT_COLUMNS,
+  TICKET_SORT_OPTIONS,
+} from '../sort-options'
 
 type Option = { value: string; label: string }
 
@@ -347,6 +352,17 @@ export function TicketFilters({
       {staff ? null : (
         <ListSortSelect
           options={TICKET_SORT_OPTIONS}
+          allowed={TICKET_SORT_COLUMNS}
+          describe={describeTicketSort}
+          /*
+            Buscando y sin columna pedida, la lista NO sale por fecha: sale por
+            relevancia, que es como ordena `search_tickets`. La primera opcion
+            lo dice, y por eso tambien es la que devuelve ahi al restablecer
+            (D-216). Se mira el parametro y no lo que hay escrito en el campo:
+            el campo se adelanta mientras se teclea, y el orden lo decide la
+            consulta que ya se hizo.
+          */
+          defaultLabel={ticketDefaultSortLabel(Boolean(searchParams.get('q')))}
           label="Ordenar las boletas"
           className="w-full md:hidden"
         />

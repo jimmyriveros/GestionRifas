@@ -13544,3 +13544,61 @@ dependencias, sin consultas y sin migración.
 
 **Solo el portal del vendedor.** El del personal tiene el mismo hueco en su lista de boletas y su propia lista
 blanca (D-198); no entraba en este encargo y sigue anotado.
+
+## D-216 — El control del teléfono cuenta el orden que de verdad aplica la consulta
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-23). **No es una Fase 10** y no
+lleva etiqueta `fase-*`. **Solo en local.** Sin migración, sin dependencias y sin tocar reglas de negocio.
+
+Corrige **dos afirmaciones falsas** del control que D-215 estrenó. Las dos eran del mismo tipo —el selector
+decía un orden y la lista salía en otro— y la segunda, además, estaba **fijada por una prueba mía**, que
+exigía el comportamiento equivocado.
+
+### 1. Ofrecer menos no es poder menos
+
+`TICKET_SORT_COLUMNS` tiene diez columnas; el teléfono ofrece seis. El control tomaba «no está entre mis
+opciones» por «no está puesto» y caía al valor por defecto. Con `?sort=raffleShortCode&dir=desc` —un enlace
+traído de la pantalla grande, o guardado— la consulta **sí** ordenaba por rifa y el control decía «Más
+recientes primero».
+
+Hay que distinguir dos cosas que se parecen y no lo son:
+
+| Caso | Qué hace la consulta | Qué dice ahora el control |
+|---|---|---|
+| `sort=inventado` | `parseListSort` lo descarta: orden por defecto | El orden por defecto — y acierta |
+| `sort=raffleShortCode` | Lo aplica: está en su lista blanca | **«Rifa, de la Z a la A»**, en una opción añadida y ya elegida |
+
+Para saberlo, el control recibe ahora `allowed` —lo que **la consulta** acepta, que es más que lo que él
+ofrece— y `describe`, que compone la frase. Elegir otra opción hace desaparecer la añadida, porque deja de ser
+el orden puesto. **Y no se reescribe la dirección en ningún caso**: pasar de escritorio a teléfono no cambia
+el orden, solo lo cuenta.
+
+**Los estados se describen por su primera etiqueta** —«Estado de la boleta, primero Borrador», «primero
+Anulada»— y no con «de la A a la Z», que sería falso: su orden es el de la lista de valores, no el alfabético.
+Eso era lo que hacía imposible **ofrecerlos** con palabras claras en D-215, y aquí no estorba: describir un
+orden que ya está puesto es más fácil que invitar a ponerlo. La decisión de no ofrecerlos no cambia.
+
+### 2. Buscando, el orden por defecto no es la fecha
+
+En «Mis boletas», con término de búsqueda y sin columna pedida, la lista **no** sale por `created_at`: sale por
+**relevancia**, que es como ordena `search_tickets` —la coincidencia exacta del número diario antes que la del
+semanal; el nombre completo antes que la coincidencia suelta—. Es el orden que esa pantalla ya tenía desde
+siempre; lo que faltaba era decirlo.
+
+Ahora la primera opción dice **«Las que mejor coinciden»** mientras hay búsqueda, y **«Más recientes primero»**
+cuando no la hay. Importa en los dos sentidos: también es la opción que **restablece** el orden, así que
+elegirla durante una búsqueda devuelve a la relevancia —que es lo que pasa— y no a la fecha.
+
+**En «Mis clientes» no aplica**, y conviene dejarlo escrito: ahí el término es un `ilike` sobre la misma
+consulta y el `order by` sigue siendo el nombre. Buscar no cambia el orden, así que esa lista no necesita
+etiqueta de relevancia.
+
+### La prueba que estaba mal
+
+`«un orden que el control no ofrece no lo hace mentir»` afirmaba justo lo contrario de lo que su nombre
+prometía: exigía que con `sort=raffleShortCode` el control dijera «Más recientes primero». **Se invirtió.**
+
+Y se añadió lo que faltaba: comprobar el **texto contra los resultados**, con datos montados para que cada
+orden dé una secuencia distinta —la rifa de código menor tiene las boletas más recientes, y la coincidencia
+exacta de «12» es la más antigua—. Sin esos datos, una lista ordenada por fecha y otra por relevancia podrían
+salir iguales y la prueba no vería nada.

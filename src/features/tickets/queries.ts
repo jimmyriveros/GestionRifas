@@ -4,6 +4,12 @@ import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE, type TicketInventoryStatus, type TicketPaymentStatus } from '@/lib/constants'
 import { pageBeyondEnd } from '@/lib/list-page'
 import type { ListSort } from '@/lib/list-sort'
+
+export {
+  TICKET_SORT_COLUMNS,
+  type TicketSortColumn,
+} from './sort-options'
+import type { TicketSortColumn } from './sort-options'
 import { isTicketSearchTerm, normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
 
@@ -55,20 +61,7 @@ export type TicketFilters = {
  * La lista del PERSONAL es otra y vive en `admin-queries.ts`: alli no puede
  * haber ni cliente ni dinero (D-198).
  */
-export const TICKET_SORT_COLUMNS = [
-  'dailyNumber',
-  'raffleShortCode',
-  'sellerName',
-  'clientName',
-  'inventoryStatus',
-  'paymentStatus',
-  'paidAmount',
-  'pendingAmount',
-  'percentage',
-  'salePrice',
-] as const
 
-export type TicketSortColumn = (typeof TICKET_SORT_COLUMNS)[number]
 
 /** De nombre de columna a columna de la vista. Lo que no este aqui no se pide. */
 const TICKET_SORT_DB: Record<TicketSortColumn, string> = {

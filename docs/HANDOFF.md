@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Correspondencia del control de orden (SOLO EN LOCAL, 2026-09-23, D-216)** | **El selector decía un orden y la lista salía en otro, en dos casos.** Un orden válido que el teléfono no ofrece ya no cae al valor por defecto: se describe («Rifa, de la Z a la A»). Y buscando, «Mis boletas» sale por **relevancia**: la primera opción lo dice y es la que devuelve ahí al restablecer. Se distingue de un orden que la consulta **rechaza**, que sí cae al de siempre. **La prueba que exigía el comportamiento equivocado se invirtió.** Sin migración |
 | **Ordenar desde el teléfono (SOLO EN LOCAL, 2026-09-22, D-215)** | **I-155 cerrada para el portal del vendedor.** «Mis boletas» y «Mis clientes» tienen en el teléfono un control de orden en su propia línea, cuyas opciones nombran la columna y el sentido —«Falta, de mayor a menor»—. No cabía como tercer botón a 320 px ni podía ir dentro de «Filtros», que cuenta filtros y escondería el orden activo. Reutiliza la ordenación de servidor de D-213/D-214; sin dependencias, sin consultas y **sin migración**. Al probar el teclado apareció un defecto propio —el control perdía el foco al deshabilitarse— y se corrigió. **Sigue abierto** el mismo hueco en el portal del personal |
 | **Orden y paginación EN LA BASE (SOLO EN LOCAL, 2026-09-22, D-214)** | **Cierre de P1-B y P1-H.** Las siete listas ordenan y paginan en PostgreSQL: Vendedores, Rifas y Administradores dejan de leer su lista entera —migración 0076, dos vistas y dos funciones— y «Cliente», «Falta», «Progreso» y «Vendedor» vuelven a ofrecer orden. **I-153 e I-154 resueltas**; I-158 era anterior. Medido con 20.033 boletas: de 2 consultas y 2.206 filas a 1 consulta y 25 filas. D-198 intacto: el personal no obtiene ni una fila de la vista del vendedor |
 | **Orden y paginación de listas (SOLO EN LOCAL, 2026-09-22, D-213)** | **P1-B y P1-H.** Siete listas ordenan **sobre el conjunto filtrado entero** —cuatro en la base, tres en el servidor—; el orden vive en la dirección y vuelve a la página 1 al cambiarlo. **Vendedores, Rifas y Administradores** paginan y ya no se truncan en las 1.000 filas de PostgREST. Migración **`0075`**: el orden pedido manda sobre la relevancia en `search_tickets` y `admin_list_tickets`, con **lista blanca en SQL** y la del personal **sin cliente ni dinero** (D-198). Lo que la base no puede ordenar **deja de ofrecerse** (I-154). Tres pendientes anotados: I-153, I-154, I-155 |
@@ -162,7 +163,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-215, ordenar desde el teléfono (**solo en local**, 2026-09-22)
+## 1.a Último relevo significativo — D-216, el control del teléfono cuenta el orden que de verdad aplica (**solo en local**, 2026-09-23)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Dos afirmaciones falsas del control de D-215, corregidas.** Un orden que la consulta aplica y el teléfono no ofrece —«Rifa», «Vendedor», los dos estados— ya no cae al valor por defecto: se describe. Y buscando, «Mis boletas» sale por **relevancia**, no por fecha: la primera opción dice «Las que mejor coinciden» y es también la que devuelve ahí al restablecer. **Sin migración, sin dependencias y sin tocar reglas de negocio** |
+| Archivos | `components/data/ListSortSelect.tsx` (props `allowed` y `describe`, y `defaultLabel`); `features/tickets/sort-options.ts` y `features/clients/sort-options.ts` —ahí viven ahora las **listas blancas** y las funciones que describen un orden—; el `queries.ts` de ambos, que las reexporta; `TicketFilters.tsx` y `ClientFilters.tsx`. Pruebas: `tests/e2e/orden-movil.spec.ts` |
+| Reutilización | Las listas blancas de D-214 y las etiquetas de estado de `constants.ts`. El diseño del control **no cambia**: sigue siendo un solo `Select` en su propia línea |
+| Decisiones | **D-216.** Se distingue un orden **rechazado** por la consulta —que sí cae al de siempre— de uno **aplicado** que este control no ofrece, que se cuenta en una opción añadida y ya elegida. **No se reescribe la dirección**: pasar de escritorio a teléfono no cambia el orden. Los estados se describen por su primera etiqueta, no con «A–Z», que sería falso |
+| Verificación | E2E **26/26** en `movil` y **25/25** en `escritorio` · `npm run verify` **exit 0** (1.571 unitarias). El texto se comprueba **contra los resultados**, con tres boletas propias en dos rifas donde fecha, rifa y relevancia dan secuencias distintas |
+| Advertencias | **1)** Las listas blancas ya **no** están en `queries.ts`: importarlas de ahí desde un componente de cliente devuelve **500**, porque arrastra `server-only` y `next/headers`. **2)** Insertar dos boletas en el mismo `insert` las deja con el mismo `created_at`, y entonces el orden por fecha lo decide el `id`: una prueba que mida fecha tiene que separarlas en el tiempo |
+| Pendiente | **I-155** en el portal del personal. **I-156** e **I-157**. El resto de la auditoría sigue sin autorizar |
+| Git | Rama `feature/premios-configurables`, base observada **`7962445`**. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-215, ordenar desde el teléfono (**solo en local**, 2026-09-22)
 
 | Campo | Estado |
 |---|---|
