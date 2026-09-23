@@ -197,6 +197,51 @@ export async function purgeTestData(options: {
 }
 
 /**
+ * Muchos abonos de UNA boleta, en una sola transaccion (I-156).
+ *
+ * `createPaymentWithAllocation` abre una conexion por abono; para cruzar el
+ * tope de 100 del historial hacen falta mas de cien, y ahi eso pesa. Cada abono
+ * lleva su importe y su fecha; todos comparten `created_at`, y eso es a
+ * proposito: obliga al historial a desempatar por `payment_id`.
+ */
+export async function createPaymentsInBulk(
+  refs: SeedRefs,
+  options: { clientId: string; ticketId: string; amounts: number[]; dates: string[] },
+): Promise<void> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    await db.query(
+      `with datos as (
+         select * from unnest($5::bigint[], $6::date[]) as d(amount, payment_date)
+       ), creados as (
+         insert into payments (organization_id, seller_id, client_id, total_amount,
+                               payment_date, payment_method, created_by)
+         select $1, $2, $3, d.amount, d.payment_date, 'cash', $2 from datos d
+         returning id, total_amount
+       )
+       insert into payment_allocations (organization_id, client_id, payment_id, ticket_id, amount)
+       select $1, $3, c.id, $4, c.total_amount from creados c`,
+      [
+        refs.organizationId,
+        refs.sellerId,
+        options.clientId,
+        options.ticketId,
+        options.amounts,
+        options.dates,
+      ],
+    )
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}
+
+/**
  * Borra RIFAS CREADAS POR UNA PRUEBA, con todo lo que cuelga de ellas.
  *
  * POR QUE HACE FALTA. `svc.from('raffles').delete()` NO bastaba, y fallaba en

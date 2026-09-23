@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Historial de abonos de la ficha, paginado (SOLO EN LOCAL, 2026-09-23, D-219)** | **I-156 cerrada.** La ficha pagina sus abonos en la base y el detalle de boleta filtra los suyos en la base. `DataTablePagination` ya no suelta el foco y, con `scrollTargetId`, no devuelve arriba del todo. Queda **I-159** (boletas de la ficha, mismo corte). Sin migración |
 | **Estados del vendedor al buscar y limpieza de las pruebas de orden (SOLO EN LOCAL, 2026-09-23, D-218)** | Buscando, la frase de los estados de «Mis boletas» dice el orden de texto de `search_tickets` («primero Asignada»); sin buscar, el del enumerado. Las pruebas de orden ya no dejan rifas: dos pasadas seguidas, nueve recuentos idénticos. §1.c ya no presenta I-155 como pendiente. Sin migración |
 | **Ordenar desde el teléfono en el portal del personal (SOLO EN LOCAL, 2026-09-23, D-217)** | **I-155 cerrada en los dos portales.** «Boletas» del Dueño y del Administrador usa el mismo control con su lista blanca: Boleta, Rifa y Vendedor; nunca cliente ni dinero. Sus estados se describen con frases propias porque `admin_list_tickets` los ordena como texto. Dos defectos del control compartido, corregidos para los dos portales: venía vacío en el HTML del servidor y recortaba la frase más larga a 320 px. Sin migración ni consultas |
 | **Correspondencia del control de orden (SOLO EN LOCAL, 2026-09-23, D-216 y su corrección)** | **CERRADO en `8514ef9`.** El selector decía un orden y la lista salía en otro, en cuatro combinaciones. Un orden válido que el teléfono no ofrece ya no cae al valor por defecto: se describe («Rifa, de la Z a la A»). Buscando, «Mis boletas» sale por **relevancia**, y la opción que restablece lo dice **también** cuando además hay un orden descrito. Y `?sort=name` en «Mis clientes» es el orden de siempre pedido por su nombre: se enseña como tal **sin reescribir la dirección**. Se distingue de un orden que la consulta **rechaza**, que sí cae al de siempre. **La prueba que exigía el comportamiento equivocado se invirtió.** Sin migración |
@@ -165,7 +166,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-218, estados del vendedor al buscar y limpieza de las pruebas de orden (**solo en local**, 2026-09-23)
+## 1.a Último relevo significativo — D-219, el historial de abonos de la ficha pagina (I-156, **solo en local**, 2026-09-23)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **I-156 cerrada.** La ficha del cliente pagina su historial de abonos en la base —25 por página, orden sobre el conjunto, desempate estable, `page`/`sort`/`dir` en la URL—, distingue vacío de página inexistente y conserva sus totales. El detalle de la boleta filtra sus abonos en la base en vez de elegirlos entre los 100 más recientes del cliente. **Y dos defectos de `DataTablePagination`**: volvía arriba del todo al cambiar de página (opcional `scrollTargetId`) y soltaba el foco a `body` (en todas las listas) |
+| Archivos | `features/payments/queries.ts` (`listClientPayments` paginada, `CLIENT_PAYMENT_SORT_COLUMNS`, `listTicketPayments`, filtro `ticketId`), **nuevo** `features/payments/components/ClientPaymentsHistory.tsx`, `PaymentsTable.tsx` (`keepScrollOnSort`), `components/data/DataTablePagination.tsx`, `use-list-sort.ts` (`{ scroll }`), `TableSection.tsx` (`id`), `lib/constants.ts` (`clientPayments`), las páginas de la ficha y del detalle de boleta. Pruebas: **nuevas** `historial-abonos-cliente.spec.ts` y `-movil.spec.ts`, `db-setup.ts` (`createPaymentsInBulk`) |
+| Reutilización | `listPayments`, `DataTablePagination`, `useListSort`, `fetchAllRows`, `purgeTestRaffles` y el patrón de página inexistente de «Premios ganados» |
+| Decisiones | **D-219.** Mismos parámetros que «Mis pagos». La barra dice «abonos». «Boletas de este cliente» se corta igual en 100 y **no se tocó**: **I-159** |
+| Verificación | ❌→✅ 7 de 9 fallaban antes · **9/9 + 4/4** · 47 archivos E2E **499/502**, los 3 conocidos (I-090 ×2, I-148, que pasa 2/2 sola) · `verify` exit 0 (1.643) |
+| Advertencias | **1)** `npm run dev` apunta al proyecto **real**: se usó `dev:local`. **2)** Un filtro `contains` sobre `jsonb` va como **texto JSON**, no como array. **3)** `DataTablePagination` ya no deshabilita sus botones mientras navega: una prueba que esperara `toBeDisabled()` durante la espera fallaría |
+| Pendiente | I-157 en el bloque siguiente. **I-159**. Revisión en un teléfono real |
+| Git | Rama `feature/premios-configurables`. Commit propio; hash en el reporte. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-218, estados del vendedor al buscar y limpieza de las pruebas de orden (**solo en local**, 2026-09-23)
 
 | Campo | Estado |
 |---|---|
@@ -1917,7 +1933,7 @@ si no existieran:
 | Asunto | Qué hace falta |
 |---|---|
 | **I-155** — ordenar desde el teléfono | **Cerrada en local en los dos portales** (vendedor en D-215 y D-216; personal en D-217, con su lista blanca de D-198; estados del vendedor al buscar, D-218). **Nada de esto está en producción.** Lo único pendiente es la **revisión del usuario en un teléfono real**, que nunca se ha hecho |
-| **I-156** — el historial de pagos de la ficha de un cliente se corta en 100 sin avisar | Paginar esa sección como las demás, o decir en pantalla que se enseñan los cien más recientes. Anterior a D-213 y **ajeno** al bloque de orden y paginación |
+| **I-156** — historial de abonos de la ficha | **Cerrada en local** (D-219). Queda **I-159**: «Boletas de este cliente», en la misma ficha, se corta igual en 100 |
 | **I-157** — una organización no puede pasar de 999 rifas | `lpad(contador::text, 3, '0')` **trunca**: la rifa 1.000 nace como `R100` y choca. Arreglarlo exige **decidir qué código llevan** a partir de la 999, que es una decisión de producto. Impacto hoy: ninguno, la operación real tiene 16 rifas |
 | **A6** — ¿la imagen de «Resultados de la semana» debe exigir que la semana caiga dentro de las fechas de la rifa del catálogo? | Hoy **no** lo exige (D-194, Decisión 3): en la primera semana de una rifa nueva sale la semana anterior con el nombre de la nueva. Si el dueño lo quiere, es una condición más en `features/weekly-results/` y un estado propio, **sin migración** |
 | **I-059** — limpiar pagos por PostgREST falla en silencio; dos suites de comisiones dejan basura | Llevar su `afterAll` a **una** transacción por `pg`, como hace `price-migration.test.ts`, y comprobar el resultado. Es lo que degrada `test:db` al repetirlo |

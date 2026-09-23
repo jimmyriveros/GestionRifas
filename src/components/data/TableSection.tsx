@@ -22,6 +22,8 @@ type TableSectionProps = {
   action?: ReactNode
   children: ReactNode
   className?: string
+  /** Para llegar a la seccion desde su propia paginacion (I-156). */
+  id?: string
 }
 
 /**
@@ -33,9 +35,9 @@ type TableSectionProps = {
  */
 export const SECTION_TABLE_CLASSES = 'rounded-none border-0'
 
-export function TableSection({ title, action, children, className }: TableSectionProps) {
+export function TableSection({ title, action, children, className, id }: TableSectionProps) {
   return (
-    <Card className={cn('gap-0 py-0', className)}>
+    <Card id={id} className={cn('gap-0 py-0', className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
         <CardTitle className="text-heading-h4">
           <h2>{title}</h2>

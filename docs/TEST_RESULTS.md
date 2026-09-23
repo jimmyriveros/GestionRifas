@@ -14432,3 +14432,40 @@ Tras `db:reset` + Kong + `seed:local`. Recuentos de `raffles`, `tickets`, `clien
   D-217 y se formateó. En los demás solo se dejaron limpias las líneas propias.
 
 La nota «f. Restos que deja la E2E» de D-217 queda **resuelta** por este bloque.
+
+## D-219 — El historial de abonos de la ficha del cliente pagina en la base (I-156, 2026-09-23, solo en local)
+
+**Sin migración.** Aplicación con `npm run dev:local` («`next dev contra LOCAL (127.0.0.1:54321)`»). **No se usó
+`npm run dev`**, aunque el encargo lo nombraba: hoy apunta al proyecto real (`.env.local`), y el encargo prohíbe
+acceder a producción.
+
+### a. Reproducción, antes de corregir
+
+`historial-abonos-cliente.spec.ts`: un cliente con **130 abonos** de importes distintos (1.000 + i) en diez fechas.
+
+| Pasada | Resultado |
+|---|---|
+| Con el código anterior | ❌ **7 fallan, 2 pasan**: 100 filas y sin paginación; «Valor» de mayor a menor dio **1.109** (el mayor de la página) en vez de **1.129**; la página 6 enseñaba 100 filas; el detalle de la boleta no tenía su abono más antiguo |
+| Primera versión corregida | ❌ 1 falla: el detalle de la boleta caía en «Algo salió mal» — `22P02`, `contains` sobre `jsonb` con un array. Corregido pasándolo como texto JSON |
+| Final | ✅ **9/9** escritorio + ✅ **4/4** móvil (`historial-abonos-cliente-movil.spec.ts`) |
+
+### b. Medido en la inspección, con sesión real
+
+| Qué | Antes | Después |
+|---|---|---|
+| Desplazamiento al pasar de página, escritorio | 1.311 px → **0** | La sección entera a la vista, con su título |
+| Lo mismo en un teléfono de 375 px | 2.231 px → **0** | Igual |
+| Foco tras pulsar «Siguiente» con el teclado | **`body`** | Se queda en «Siguiente»; en la última página pasa a «Anterior» |
+| Primera versión del arreglo del desplazamiento | — | Traía la tabla y dejaba el título bajo el encabezado fijo; corregido apuntando a la sección |
+
+Capturas a 1.280 y 375 px de las páginas 1, 2 y 3. A 320 px, la barra mide 44 px, cabe y la página no se desborda
+(fijado por E2E). La tabla sigue desplazándose en horizontal **dentro** de su tarjeta en el teléfono, como antes.
+
+### c. Regresiones
+
+| Comando | Resultado |
+|---|---|
+| 47 archivos E2E que tocan la ficha, el detalle de boleta, los pagos o la paginación, tras `db:reset` + Kong + `seed:local` | ⚠️ **499/502** en 28,4 min |
+| Los 3 fallos | `ventas-por-fecha` ×2 —**I-090**, acumulación: «< 26» frente a **115**— y `premios-ganados:443` —«Atrás» tras rellenar una fecha, sin tocar la paginación—, que pasa **2/2 en solitario**: **I-148** |
+| `npm run verify` | ✅ exit 0, **1.643** unitarias, lint 0 errores, build |
+| `npm run test:db` | Se corre en el bloque de I-157, con `0077` aplicada: este bloque no toca la base |

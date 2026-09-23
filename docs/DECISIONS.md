@@ -13752,3 +13752,61 @@ dejan los nueve recuentos idénticos.
 La tabla vigente seguía presentando I-155 como «próximo encargo PROPUESTO, y no está autorizado». Ahora dice lo
 que es: cerrada en local en los dos portales, pendiente solo de la revisión en un teléfono real. Los relevos
 anteriores que la citaban como pendiente se conservan: son historia y están marcados como tal.
+
+## D-219 — El historial de abonos de la ficha del cliente pagina en la base (I-156)
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-23). **No es una Fase 10.** **Solo en
+local.** Sin migración y sin consultas de más.
+
+### El defecto, reproducido antes de corregir
+
+`listClientPayments` pedía los **100** pagos más recientes y la ficha los pintaba todos. Con una prueba de **130
+abonos** —importes distintos para reconocer cada uno, diez fechas para forzar empates—: **7 de 9 comprobaciones
+fallaban**. Se veían 100 filas y ninguna paginación, ordenar por valor daba 1.109 como el mayor cuando era 1.129, y
+el detalle de la boleta perdía sus abonos más antiguos.
+
+**Esa segunda cara estaba en otra pantalla.** El detalle de una boleta leía los mismos 100 pagos **del cliente** y
+elegía en el navegador los de esa boleta: con un cliente de más de cien abonos, uno antiguo de la boleta desaparecía
+de su historial. Es el mismo corte de la misma función, y se corrige con él.
+
+### Cómo
+
+| Pieza | Qué pasa |
+|---|---|
+| `listClientPayments(clientId, { page, sort })` | Es `listPayments` tal cual: **una** consulta, 25 filas, orden sobre el conjunto filtrado y `payment_id` como desempate estable |
+| `CLIENT_PAYMENT_SORT_COLUMNS` | Las de «Mis pagos» menos «Cliente», que en su propia ficha no se pinta |
+| `listTicketPayments(ticketId, clientId)` | **Nueva.** Filtra en la base por `allocations @> [{ticket_id}]` (jsonb) y lee todos por tramos con `fetchAllRows`: una boleta tiene un puñado de abonos. Sustituye, no añade, la consulta del detalle |
+| `ClientPaymentsHistory` | **Nuevo.** El cuerpo de la sección con sus tres casos: vacío, fuera de rango y tabla con paginación |
+| La URL | `page`, `sort` y `dir`, **los mismos nombres que «Mis pagos»**, para reutilizar `DataTablePagination` y `useListSort` sin tocar su lógica. En la ficha solo los lee el historial: la lista de boletas ordena en el navegador |
+
+**Tres casos que no se confunden.** El vacío se decide con el `total` del historial, nunca con las filas de la
+página (la lección de D-214). Una página que no existe lo dice con las cifras del conjunto —«El historial tiene 130
+abonos en 6 páginas.»— y ofrece «Ir a la primera página», como «Premios ganados». **Los totales de la ficha**
+(`ClientTotals`) salen de la ficha, no de las filas: en la página 6, con 5 abonos, el total pagado sigue siendo el
+de los 130.
+
+**La barra dice «abonos», no «pagos».** Son los mismos registros que «Mis pagos», pero la sección se titula
+«Historial de abonos» y su estado vacío habla de abonos: la barra dice lo que dice su título. Nueva entrada en
+`LIST_ITEM_LABELS` (`clientPayments`), que es donde viven esos nombres (D-111).
+
+**Un detalle de PostgREST que costó una prueba.** `.contains('allocations', [{…}])` con un array lo serializa como
+array de PostgreSQL, y la base responde `22P02` sobre `jsonb`: la página entera caía en «Algo salió mal». Va como
+texto JSON.
+
+### Dos defectos de `DataTablePagination`, medidos al inspeccionarlo
+
+Reutilizar la barra en una lista que **no ocupa la pantalla entera** destapó dos cosas. La primera es solo de ese
+uso; la segunda afectaba a **todas** las listas:
+
+| Defecto | Medido | Arreglo |
+|---|---|---|
+| Cambiar de página devolvía la vista arriba del todo | De 1.311 px a 0 en escritorio y de 2.231 a 0 en un teléfono: el historial queda al pie | Prop opcional `scrollTargetId`: navega sin desplazar y trae a la vista la sección, **título incluido** (`scroll-mt-20`, para que no lo tape el encabezado fijo). Sin ella, el comportamiento de siempre. `useListSort({ scroll: false })` hace lo mismo al ordenar por una cabecera de esa sección |
+| El foco se perdía | El botón se deshabilitaba mientras navegaba y soltaba el foco a `body`: con teclado no se podía pulsar «Siguiente» dos veces seguidas | Ya no se deshabilita por la espera —`aria-busy`, igual que el control de orden de D-215—; si la página nueva deshabilita el pulsado («Siguiente» en la última), el foco pasa al otro |
+
+`TableSection` gana un `id` opcional para poder apuntar a la sección entera. Nada cambia de aspecto.
+
+### Lo que NO se tocó
+
+«Boletas de este cliente», en la misma ficha, también pide `pageSize: 100` y se cortaría igual: **no era el
+encargo** y queda anotado como **I-159**. La tabla de pagos en el teléfono sigue desplazándose en horizontal dentro
+de su tarjeta, como antes; la página no gana desbordamiento lateral (medido a 320 px).

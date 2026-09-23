@@ -4,6 +4,7 @@ import { PAGE_SIZE, type PaymentMethod } from '@/lib/constants'
 import { pageBeyondEnd } from '@/lib/list-page'
 import type { ListSort } from '@/lib/list-sort'
 import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
+import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
 
 import type { PayableTicket } from './allocation'
@@ -49,6 +50,12 @@ export type PaymentListItem = {
 
 export type PaymentFilters = {
   clientId?: string
+  /**
+   * Solo los pagos con una asignacion a ESTA boleta (I-156). Se filtra en la
+   * base sobre `allocations` (jsonb): antes el detalle de la boleta traia los
+   * 100 pagos mas recientes del cliente y elegia en el navegador.
+   */
+  ticketId?: string
   sellerId?: string
   /** `active` = vigentes, `voided` = anulados, sin valor = todos. */
   status?: 'active' | 'voided'
@@ -157,11 +164,17 @@ type PaymentQuery<Q> = {
   lte(column: string, value: string): Q
   is(column: string, value: null): Q
   not(column: string, operator: string, value: null): Q
+  contains(column: string, value: unknown): Q
 }
 
 function applyPaymentFilters<Q extends PaymentQuery<Q>>(query: Q, filters: PaymentFilters): Q {
   let next = query
   if (filters.clientId) next = next.eq('client_id', filters.clientId)
+  // `allocations` es jsonb: el valor va como TEXTO JSON. Con un array, supabase-js
+  // lo escribe como array de PostgreSQL y la base responde 22P02 (medido).
+  if (filters.ticketId) {
+    next = next.contains('allocations', JSON.stringify([{ ticket_id: filters.ticketId }]))
+  }
   if (filters.sellerId) next = next.eq('seller_id', filters.sellerId)
   if (filters.method) next = next.eq('payment_method', filters.method)
   if (filters.dateFrom) next = next.gte('payment_date', filters.dateFrom)
@@ -229,10 +242,53 @@ export async function listPayments(
   }
 }
 
-/** Historial de un cliente concreto, para su perfil (BR-C09, BR-F13). */
-export async function listClientPayments(clientId: string): Promise<PaymentListItem[]> {
-  const { rows } = await listPayments({ clientId, pageSize: 100 })
-  return rows
+/**
+ * Las columnas por las que se ordena el historial de UN cliente (I-156): las de
+ * «Mis pagos» menos «Cliente», que en su propia ficha seria el mismo nombre en
+ * todas las filas y ni siquiera se pinta (`showClient={false}`).
+ */
+export const CLIENT_PAYMENT_SORT_COLUMNS = PAYMENT_SORT_COLUMNS.filter(
+  (column) => column !== 'clientName',
+)
+
+/**
+ * Historial de un cliente concreto, para su ficha (BR-C09, BR-F13), PAGINADO
+ * EN LA BASE (I-156).
+ *
+ * Antes pedia los 100 mas recientes y los pintaba todos: un cliente con 130
+ * ensenaba 100 y nada decia que faltaran 30. Ahora es `listPayments` tal cual
+ * —una consulta, 25 filas, orden sobre el conjunto entero y `payment_id` como
+ * desempate—, con los mismos `page`, `sort` y `dir` que «Mis pagos».
+ */
+export async function listClientPayments(
+  clientId: string,
+  options: { page?: number; sort?: ListSort<PaymentSortColumn> | null } = {},
+): Promise<{ rows: PaymentListItem[]; total: number; page: number; pageSize: number }> {
+  return listPayments({ clientId, page: options.page, sort: options.sort })
+}
+
+/**
+ * Todos los pagos de UNA boleta, para su detalle (I-156).
+ *
+ * Antes eran los 100 mas recientes DEL CLIENTE, filtrados despues en el
+ * navegador: con un cliente de mas de cien abonos, uno antiguo de esta boleta
+ * desaparecia de su historial. Ahora el filtro lo hace la base y se leen todos,
+ * por tramos —una boleta tiene un punado de abonos, anulados incluidos, y su
+ * tarjeta los ensena todos—.
+ */
+export async function listTicketPayments(
+  ticketId: string,
+  clientId: string,
+): Promise<PaymentListItem[]> {
+  const supabase = await createClient()
+  const { rows } = await fetchAllRows<HistoryRow>((from, to) =>
+    applyPaymentFilters(supabase.from('v_payment_history').select('*'), { clientId, ticketId })
+      .order('payment_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .order('payment_id', { ascending: true })
+      .range(from, to),
+  )
+  return rows.map(mapPayment)
 }
 
 export type PayableTicketDetail = PayableTicket & {

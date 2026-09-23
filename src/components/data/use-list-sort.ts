@@ -21,7 +21,14 @@ import { nextListSort, type ListSort } from '@/lib/list-sort'
  * escribir el valor por defecto. Una URL sin `sort` es la lista tal como la
  * sirve la consulta, y es la que se comparte el 99 % de las veces.
  */
-export function useListSort(): {
+export function useListSort(
+  /**
+   * `scroll: false` para una lista que no ocupa la pantalla entera (I-156): la
+   * cabecera pulsada esta arriba de esa lista, y volver al principio de la
+   * pagina dejaria a quien ordena lejos de lo que acaba de ordenar.
+   */
+  options: { scroll?: boolean } = {},
+): {
   sort: ListSort | null
   /** Cabecera pulsada: recorre ascendente, descendente y vuelta al defecto. */
   toggle: (column: string) => void
@@ -70,7 +77,7 @@ export function useListSort(): {
 
     const query = params.toString()
     startTransition(() => {
-      router.push(query ? `${pathname}?${query}` : pathname)
+      router.push(query ? `${pathname}?${query}` : pathname, { scroll: options.scroll ?? true })
     })
   }
 

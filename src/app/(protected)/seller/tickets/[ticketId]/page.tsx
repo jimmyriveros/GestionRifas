@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
 import { listClientOptions } from '@/features/clients/queries'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
-import { listClientPayments } from '@/features/payments/queries'
+import { listTicketPayments } from '@/features/payments/queries'
 import { paymentNewHref } from '@/features/payments/return-to'
 import { AssignTicketDialog } from '@/features/tickets/assign/components/AssignTicketDialog'
 import { canEditClearanceReceipt, clearanceState } from '@/features/tickets/clearance-receipt'
@@ -64,7 +64,9 @@ export default async function SellerTicketDetailPage({
     canReassign
       ? listClientOptions(undefined, undefined, { sellerId: ticket.sellerId })
       : Promise.resolve([]),
-    ticket.clientId ? listClientPayments(ticket.clientId) : Promise.resolve([]),
+    // Solo los abonos de ESTA boleta, filtrados en la base (I-156): antes eran
+    // los 100 mas recientes del cliente, elegidos despues en el navegador.
+    ticket.clientId ? listTicketPayments(ticket.id, ticket.clientId) : Promise.resolve([]),
     getWhatsappSettings(),
   ])
 

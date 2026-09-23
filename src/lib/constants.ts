@@ -75,6 +75,12 @@ export const LIST_ITEM_LABELS = {
   tickets: { one: 'boleta', many: 'boletas' },
   clients: { one: 'cliente', many: 'clientes' },
   payments: { one: 'pago', many: 'pagos' },
+  /**
+   * Los MISMOS registros en la ficha de un cliente, donde la seccion se llama
+   * «Historial de abonos» y su estado vacio habla de abonos (I-156). La barra
+   * dice lo que dice su titulo, un centimetro mas arriba.
+   */
+  clientPayments: { one: 'abono', many: 'abonos' },
   /** El reporte de recaudo pagina DIAS, no pagos: una fila es un dia. */
   days: { one: 'día', many: 'días' },
   /** «Premios ganados» pagina PREMIOS: una fila es un premio, no una boleta (D-208). */

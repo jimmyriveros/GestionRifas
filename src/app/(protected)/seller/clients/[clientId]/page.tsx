@@ -11,20 +11,47 @@ import { ClientArchiveButton } from '@/features/clients/components/ClientArchive
 import { ClientInfoCard } from '@/features/clients/components/ClientInfoCard'
 import { ClientTotals } from '@/features/clients/components/ClientTotals'
 import { getClientDetail } from '@/features/clients/queries'
-import { PaymentsTable } from '@/features/payments/components/PaymentsTable'
-import { listClientPayments } from '@/features/payments/queries'
+import { ClientPaymentsHistory } from '@/features/payments/components/ClientPaymentsHistory'
+import { CLIENT_PAYMENT_SORT_COLUMNS, listClientPayments } from '@/features/payments/queries'
 import { paymentNewHref } from '@/features/payments/return-to'
 import { ClientPrizeSummary } from '@/features/prize-awards/components/ClientPrizeSummary'
 import { readClientPrizeTotals } from '@/features/prize-awards/queries'
 import { ClientTicketsList } from '@/features/tickets/components/ClientTicketsList'
 import { listTickets } from '@/features/tickets/queries'
+import { parseListSort } from '@/lib/list-sort'
+
+/** La seccion del historial: ahi trae la vista su paginacion (I-156). */
+const PAYMENTS_SECTION_ID = 'historial-abonos'
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>
+
+function single(value: string | string[] | undefined): string | undefined {
+  const first = Array.isArray(value) ? value[0] : value
+  return first === '' ? undefined : first
+}
 
 export default async function SellerClientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ clientId: string }>
+  searchParams: SearchParams
 }) {
   const { clientId } = await params
+  const query = await searchParams
+
+  /*
+    `page`, `sort` y `dir` son del HISTORIAL DE ABONOS (I-156): es la unica
+    lista de esta ficha que pagina y ordena en la base. Los mismos nombres que
+    «Mis pagos», para reutilizar `DataTablePagination` y `useListSort` tal cual.
+    La lista de boletas de arriba ordena en el navegador y no los lee.
+  */
+  const requestedPage = Number.parseInt(single(query.page) ?? '1', 10)
+  const paymentsSort = parseListSort(
+    single(query.sort),
+    single(query.dir),
+    CLIENT_PAYMENT_SORT_COLUMNS,
+  )
   const client = await getClientDetail(clientId)
 
   // Si el cliente es de otro vendedor, RLS no lo devuelve: no se distingue
@@ -35,7 +62,10 @@ export default async function SellerClientDetailPage({
   // lecturas independientes (D-208).
   const [{ rows: tickets }, payments, prizes] = await Promise.all([
     listTickets({ clientId, pageSize: 100 }),
-    listClientPayments(clientId),
+    listClientPayments(clientId, {
+      page: Number.isNaN(requestedPage) ? 1 : requestedPage,
+      sort: paymentsSort,
+    }),
     readClientPrizeTotals(clientId),
   ])
 
@@ -140,6 +170,10 @@ export default async function SellerClientDetailPage({
       </TableSection>
 
       <TableSection
+        id={PAYMENTS_SECTION_ID}
+        // Que el encabezado fijo no tape el titulo cuando la paginacion trae
+        // aqui la vista (I-156).
+        className="scroll-mt-20"
         title="Historial de abonos"
         action={
           canRegisterPayment ? (
@@ -152,19 +186,29 @@ export default async function SellerClientDetailPage({
           ) : null
         }
       >
-        {payments.length === 0 ? (
-          <p className="text-muted-foreground px-2 py-2 text-sm">
-            Todavía no le has registrado ningún abono.
-          </p>
-        ) : (
-          <PaymentsTable
-            payments={payments}
-            clientBasePath="/seller/clients"
-            showClient={false}
-            className={SECTION_TABLE_CLASSES}
-          />
-        )}
+        <ClientPaymentsHistory
+          rows={payments.rows}
+          total={payments.total}
+          page={payments.page}
+          pageSize={payments.pageSize}
+          firstPageHref={firstPageHref(client.id, query)}
+          sectionId={PAYMENTS_SECTION_ID}
+        />
       </TableSection>
     </div>
   )
+}
+
+/** La pagina 1 del historial, con los demas parametros intactos. */
+function firstPageHref(
+  clientId: string,
+  query: Record<string, string | string[] | undefined>,
+): string {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(query)) {
+    if (key === 'page' || value === undefined) continue
+    for (const item of Array.isArray(value) ? value : [value]) params.append(key, item)
+  }
+  const rest = params.toString()
+  return rest ? `/seller/clients/${clientId}?${rest}` : `/seller/clients/${clientId}`
 }

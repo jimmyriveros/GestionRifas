@@ -37,6 +37,11 @@ type PaymentsTableProps = {
    * parametro en la URL que nadie lee. El valor por defecto es el seguro.
    */
   serverSorted?: boolean
+  /**
+   * Ordenar sin volver arriba de la pagina. Lo pide la ficha del cliente, donde
+   * el historial esta al pie (I-156); en «Mis pagos» la lista ES la pagina.
+   */
+  keepScrollOnSort?: boolean
 }
 
 export function PaymentsTable({
@@ -45,9 +50,10 @@ export function PaymentsTable({
   showClient = true,
   className,
   serverSorted = false,
+  keepScrollOnSort = false,
 }: PaymentsTableProps) {
   const [selected, setSelected] = useState<PaymentListItem | null>(null)
-  const { sort, toggle } = useListSort()
+  const { sort, toggle } = useListSort({ scroll: !keepScrollOnSort })
 
   const columns = useMemo<ColumnDef<PaymentListItem>[]>(() => {
     const clientColumn: ColumnDef<PaymentListItem>[] = showClient
