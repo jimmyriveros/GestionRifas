@@ -34,7 +34,8 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 | Migraciones (**74** aplicadas, hasta `0074`, desde el 2026-09-19 a las 17:53 UTC; antes, **72** desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
 | **`0050` aplicada el 2026-09-08** (D-176) | La invitación al grupo de WhatsApp. **Aditiva y sin una sola sentencia de datos**: tres columnas nuevas en `memberships` que nacen nulas o en `false`, tres CHECK y una RPC; no toca ninguna tabla, política, función ni restricción existente. Promovida con el procedimiento completo: respaldo en `Rifas-backups/2026-09-08-pre-0050/` (4,1 MB, 19 tablas, **0** identidades de Auth), sonda de solo lectura **antes**, `db push --dry-run` confirmando que **solo** aparecía `0050`, aplicación **antes** del despliegue y la **misma sonda después**. **Las 30 cifras de negocio salieron idénticas** —981 boletas, 540 clientes, 352 pagos, $32.780.000 abonados, 4.816 de bitácora— y lo único que se movió fue el número de migración, las tres columnas y la RPC. Comprobado además que `memberships_update_staff` **sigue siendo la única política de escritura**, que la RPC **no es ejecutable por `anon`** y que **0 filas** tienen algo escrito en las columnas nuevas |
 | **`0073` y `0074`: APLICADAS el 2026-09-19** (D-209), de 17:53:21 a 17:53:39 UTC | Bre-B y «Otros» en las cuentas para recibir pagos, con autorización expresa del dueño y el procedimiento de §2.2; su código, `6401bd0`, desde las 17:57:44 UTC (§3.2.m). Van en ese orden y en dos archivos —un valor de enumerado no se usa en la transacción que lo añade (`55P04`)—, **antes** del código: el código desplegado funciona con la base nueva (medido) y el nuevo no funciona con la vieja. La `0074` no escribe datos: una columna nula, dos CHECK, un índice reconstruido, dos funciones y dos RPC con firma nueva, y se comprueba a sí misma. `verify:remote` tendrá **dos comprobaciones en rojo a propósito** hasta aplicarlas. Orden completo en §2.2 |
-| RLS, RPC, vistas, auditoría | Igual que en local (mismo código, mismas migraciones) |
+| **`0075`, `0076` y `0077`: PENDIENTES — se espera que NO estén en producción** (anotado el 2026-09-23, **sin consultar producción**) | Existen solo en la rama `feature/premios-configurables`: `origin/main` —la referencia local, del último `fetch`— es `9acbfa8` y trae `0001`–`0074`. `0075` y `0076` son el orden y la paginación en la base (D-213, D-214); `0077`, el código de rifa desde R1000 (D-220). **Es una expectativa documental, no una comprobación remota**: lo primero de la próxima publicación es confirmarlo en solo lectura (§3.3) |
+| RLS, RPC, vistas, auditoría | Igual que en local **hasta `0074`**. Lo que añaden `0075`–`0077` solo existe en local |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
 ### 2.1 Configuración de Auth que hay que revisar (una sola vez)
@@ -829,6 +830,57 @@ publicar esta corrección, incluyendo rama, PR, `main` y el despliegue automáti
 > **no** se empuja a `main`: desplegaría otra versión y, en Hobby, movería el punto de reversión lejos de `6401bd0`.
 
 ### 3.3 Despliegues futuros
+
+#### 3.3.a Próxima publicación: D-211 a D-220 (preparada, NO autorizada)
+
+Tres cosas distintas, que no se mezclan:
+
+| | Qué | Fuente |
+|---|---|---|
+| **Documentado como publicado** | Migraciones `0001`–`0074`; código `9acbfa8` (D-210), el último release registrado; `verify:remote` **46/46** el 2026-09-19 a las 21:15 UTC, **la última comprobación contra producción que consta** | §2 y §3.2.n |
+| **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `9acbfa8`: D-211 a D-220, 16 commits a 2026-09-23 | Git local: `origin/main..HEAD` |
+| **Requiere confirmación contra producción** | Que producción siga en `0074` y en `9acbfa8`; que nadie haya aplicado ni desplegado nada desde el 2026-09-19; que `verify:remote` siga en verde. **Nada de esto se ha comprobado desde esa fecha** | — |
+
+**Lista de verificación, en este orden.** Cada paso que escribe en producción necesita **su propia autorización
+expresa** del dueño.
+
+1. **Base local limpia y E2E completa**: `npm run db:reset`, reiniciar Kong, `npm run seed:local` y
+   `npm run test:e2e` completa con `npm run dev:local` (nunca `npm run dev`, que apunta al proyecto real).
+2. **Tratamiento de cada fallo de la E2E**, uno por uno y por escrito en `TEST_RESULTS`:
+   * repetir el archivo **solo**, tras `db:reset` + `seed:local`;
+   * si pasa solo, comprobar que es un problema **ya registrado** —I-090 (acumulación en «Ventas por fecha»),
+     I-148 (premios con el servidor caliente), I-151 (selección con restos), I-075—, con **la misma firma**
+     (mismo archivo, misma línea, mismo tipo de diferencia);
+   * si falla solo, o su firma no coincide con ninguno registrado, **se detiene la publicación**: se
+     reproduce, se corrige en local y se repite desde el paso 1. Nunca se quita ni se salta una prueba
+     para seguir.
+3. `npm run verify` y `npm run test:db` en verde, este último sobre base recién sembrada.
+4. **Solo lectura en producción** (§9.1 de `RUNBOOK` como modelo): confirmar que la última migración aplicada es
+   `0074`, qué commit está servido y `verify:remote`. Si algo no coincide con la fila «Documentado como
+   publicado», **se detiene** y se explica la diferencia antes de seguir.
+5. `supabase db push --dry-run` debe listar **exactamente** `0075`, `0076` y `0077`, y nada más.
+6. **Respaldo** nuevo (`RUNBOOK` §5.1) inmediatamente antes, validado restaurándolo en local.
+7. **Privilegios de lo que crean** (I-132): el proyecto alojado concede `EXECUTE` a `service_role` en toda
+   función nueva y el local no. Leído en los archivos: `0075` **borra y vuelve a crear** `search_tickets` y
+   `admin_list_tickets` con firma nueva; `0076` crea las vistas `v_seller_ticket_list` y `v_org_member_list` y
+   las funciones `admin_list_sellers` y `admin_list_raffles`, y redefine las dos de `0075`; `0077` redefine
+   `raffles_set_short_code` (`create or replace`, conserva privilegios y se comprueba a sí misma). Ensayar el
+   escenario B y H7-05 como en D-207/D-208.
+8. Aplicar las migraciones **antes** del código (§2.2). **No son todas aditivas**: `0075` borra y recrea dos
+   funciones. Sus parámetros nuevos tienen valor por defecto y el código servido (`9acbfa8`) las llama con
+   argumentos con nombre que siguen existiendo, así que **se espera** que siga funcionando con la base nueva.
+   **Es una lectura del código, no una medición**: hay que comprobarlo en local —base con `0077`, código de
+   `9acbfa8`— antes de aplicar, y medir si queda un instante sin función hasta que PostgREST recarga su caché.
+   Con la sonda de solo lectura antes y después.
+9. Push a `main` y despliegue; comprobar el código **servido** (§6.1) y `verify:remote`.
+10. Revisión del dueño **con sesión** en un teléfono real: el control de orden (D-215 a D-218) y el historial
+    de abonos (D-219). Un agente no introduce contraseñas.
+
+**Registrados y NO incluidos en esta publicación** (no se implementan sin encargo): **I-159** (boletas de la ficha
+cortadas en 100), **I-160** (orden de los códigos de rifa como texto desde R1000; decisión pendiente) e **I-161**
+(código interno de boleta a 6 cifras).
+
+#### 3.3.b Cómo se despliega
 
 Cada `git push` a `main` que se decida subir dispara un build y despliegue a producción automático
 (la integración de GitHub ya está conectada). Si una migración nueva acompaña al cambio, aplicarla
