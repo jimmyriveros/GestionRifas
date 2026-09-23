@@ -14323,3 +14323,64 @@ columna a secas. Añadir mañana una columna a una lista blanca sin darle palabr
 | `npm run verify` | ✅ **exit 0** — **1.607** unitarias en 85 archivos, lint sin errores, build |
 
 **Un fallo que no era del cambio.** En una pasada, «Pagos: descendente…» falló y arrastró a cinco más: la base tenía un cliente «Orden …» y 93 boletas de pasadas anteriores que corté a mano, así que la creación de las 60 boletas chocaba con la unicidad de números. Con `db:reset` + `seed:local` la suite da **25/25**. Es I-151 otra vez, no este trabajo; se comprobó en vez de suponerlo.
+
+## D-217 — Ordenar desde el teléfono en «Boletas» del personal (2026-09-23, solo en local)
+
+Condiciones iniciales: Supabase local encendido, `npm run db:reset`, `docker restart supabase_kong_Rifas` y
+`npm run seed:local`. Aplicación con **`npm run dev:local`**, que escribió «`next dev contra LOCAL
+(127.0.0.1:54321)`». **Sin migración.**
+
+### a. Línea base, antes de tocar nada
+
+| Comando | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **1.434 + 1 omitida**, 58/58 archivos |
+| `npm run verify` | ✅ exit 0, **1.607** unitarias. Arrancó justo cuando empezaba a editar: vale como línea base del resto del repositorio, no de estos tres archivos |
+
+### b. Medido en la base antes de escribir las frases
+
+`select … order by v` sobre los valores internos: `assigned, available, cancelled, draft, pending_approval`;
+`paid, unpaid`; `assumed, delivered, pending`. Es el orden de `admin_list_tickets`, que compara **como texto**.
+De ahí «Estado de la boleta, primero **Asignada**» para el personal, frente a «primero Borrador» del vendedor.
+
+### c. Pasadas
+
+| Comando | Resultado |
+|---|---|
+| `vitest run tests/unit/sort-options.test.ts` | ✅ **74/74** (casos del personal en las dos baterías, privacidad y las seis frases exactas) |
+| `orden-personal-movil` + `orden-movil` (`movil`) | ✅ **47/47**, tras el arreglo del HTML y del recorte |
+| Las dos pruebas del HTML crudo, **con `ListSortSelect` de HEAD** | ❌ **2/2 fallan**, `Received: ""` — demuestran el defecto; con el arreglo, ✅ |
+| `npm run verify` final | ✅ exit 0, **1.633** unitarias (+26), lint 0 errores (los 2 avisos de siempre), build |
+| E2E afectada —15 archivos que tocan `/owner/tickets` o el orden—, **sin `db:reset` previo** | ⚠️ **229 pasan, 8 fallan** en 17,1 min: 5 de `seleccion-multiple` (escritorio), 2 de `seleccion-movil` y 1 de `paz-y-salvo-movil` |
+| Esos tres archivos, tras `db:reset` + Kong + `seed:local` | ✅ **36/36** |
+| `orden-personal-movil` + `orden-movil` y **justo después** esos tres, sin restablecer | ✅ **47/47** y ✅ **36/36** |
+
+**Los 8 fallos son de acumulación (I-151), no del cambio**: la pasada larga arrancó sobre una base con restos de
+las pasadas de esta misma sesión, y los mismos archivos pasan limpios —también inmediatamente después de las
+pruebas nuevas—.
+
+### d. Visual, con sesión real por Playwright contra `dev:local` (sin teclear contraseñas en el navegador)
+
+| Ancho | Qué se miró | Resultado |
+|---|---|---|
+| 320 | Encabezado, buscador, «Filtros», «Seleccionar varias» y el control | Sin desborde; el control, 288 × 44 |
+| 320 | «Estado de la boleta, primero Pendiente de aprobación» | ❌ «…primero Pendi…» → corregido: dos líneas, entera |
+| 320 | Carga inicial | ❌ control **vacío** hasta hidratar, también en `/seller/tickets` → corregido |
+| 320 / 375 | Lista abierta, con búsqueda y con un orden descrito | La descrita primero y marcada; «Las que mejor coinciden» debajo |
+| 320 | Foco con teclado | Anillo de foco visible del sistema de diseño |
+| 1.280 | Escritorio | Sin cambios: el control no existe (`md:hidden`) |
+
+Detector de Impeccable sobre `ListSortSelect.tsx` y `TicketFilters.tsx`: **0 hallazgos**.
+
+### e. Errores propios encontrados
+
+* El primer nombre del spec, `orden-movil-personal.spec.ts`, **no lo recogía ningún proyecto** —`movil` exige
+  terminar en `movil.spec.ts`— y la primera «pasada» corrió 29 pruebas, ninguna mía. Renombrado.
+* Una sustitución con comillas invertidas en la shell se comió cuatro nombres de código en `KNOWN_ISSUES.md`;
+  se vio al releer y se corrigió.
+
+### f. Restos que deja la E2E
+
+`orden-movil.spec.ts` y el nuevo `orden-personal-movil.spec.ts` borran sus boletas y su cliente, pero **la rifa
+queda** (0 boletas): su `delete` no prospera y la prueba no lo comprueba. Es el patrón anterior, copiado; no
+afecta a otras pruebas medidas aquí. Se anota, no se corrige en este encargo.

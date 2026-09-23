@@ -1,11 +1,15 @@
 import type { ListSortOption } from '@/components/data/ListSortSelect'
 import {
+  ADMIN_TICKET_PAYMENT_STATE_LABELS,
+  ADMIN_TICKET_PAYMENT_STATE_VALUES,
   TICKET_INVENTORY_STATUS_LABELS,
   TICKET_INVENTORY_STATUS_VALUES,
   TICKET_PAYMENT_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_VALUES,
 } from '@/lib/constants'
 import type { ListSort } from '@/lib/list-sort'
+
+import { clearanceShortLabel } from './clearance-receipt'
 
 /**
  * Las columnas que LA CONSULTA acepta. Viven aqui, y no en `queries.ts`, porque
@@ -15,8 +19,9 @@ import type { ListSort } from '@/lib/list-sort'
  * para que quien las pedia siga pidiendolas donde estaban.
  *
  * Son los `id` de las columnas de su tabla, para que la cabecera pulsada y el
- * parametro de la URL sean el mismo nombre. La lista del PERSONAL es otra y
- * vive en `admin-queries.ts`: alli no puede haber ni cliente ni dinero (D-198).
+ * parametro de la URL sean el mismo nombre. La lista del PERSONAL es otra
+ * —`ADMIN_TICKET_SORT_COLUMNS`, mas abajo—: alli no puede haber ni cliente ni
+ * dinero (D-198).
  */
 export const TICKET_SORT_COLUMNS = [
   'dailyNumber',
@@ -131,4 +136,116 @@ export function describeTicketSort(sort: ListSort): string | null {
   }
 
   return sort.direction === 'asc' ? `${name}, de la A a la Z` : `${name}, de la Z a la A`
+}
+
+/* ---------------------------------------------------------------------------
+ * PORTAL DEL PERSONAL (I-155 en «Boletas» del Dueño y del Administrador)
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Las columnas por las que el PERSONAL puede pedir orden (P1-B).
+ *
+ * Es mas corta que la del vendedor (`TICKET_SORT_COLUMNS`) y lo es a proposito:
+ * aqui no hay cliente ni dinero, y ordenar por una columna es preguntar por
+ * ella. Ordenar por saldo y mirar la primera fila diria quien debe mas sin que
+ * ninguna celda lo escriba, asi que la privacidad de D-198 vale tambien para el
+ * orden, no solo para lo que se pinta.
+ *
+ * Desde D-214 «Vendedor» SI esta: la funcion se une a `profiles` para poder
+ * ordenar por el nombre. Sigue sin proyectarlo —la fila devuelta no cambia— y
+ * sigue sin ser un dato de cliente.
+ *
+ * La lista se repite en SQL, dentro de `admin_list_tickets` (migracion 0076):
+ * la pantalla no es una frontera de seguridad (CLAUDE.md 26). Vive aqui y no en
+ * `admin-queries.ts` porque el control del telefono es un componente de
+ * cliente y aquel archivo es `server-only` (misma razon que D-216).
+ */
+export const ADMIN_TICKET_SORT_COLUMNS = [
+  'dailyNumber',
+  'raffleShortCode',
+  'sellerName',
+  'inventoryStatus',
+  'paymentState',
+  'clearance',
+] as const
+
+export type AdminTicketSortColumn = (typeof ADMIN_TICKET_SORT_COLUMNS)[number]
+
+/**
+ * Como se puede ordenar «Boletas» del personal DESDE EL TELEFONO (I-155).
+ *
+ * Lo que la tarjeta del personal ensena (`StaffCardBody`) y se dice con
+ * palabras claras: la boleta, la rifa y el vendedor. Salen de
+ * `ADMIN_TICKET_SORT_COLUMNS`, asi que ninguna opcion puede pedir cliente ni
+ * dinero: esa lista no los tiene (D-198). Una prueba unitaria lo vigila.
+ *
+ * QUE NO ENTRA, igual que en el vendedor (D-215): los dos ESTADOS, que se
+ * filtran desde «Filtros», y el PAZ Y SALVO, que tampoco se ofrece en la
+ * cabecera de la tabla de escritorio (`enableSorting: false`). Si llegan por la
+ * direccion, el control los DESCRIBE con `describeStaffTicketSort` (D-216).
+ *
+ * «Rifa» y «Vendedor» SI entran, al reves que en «Mis boletas»: el personal
+ * trabaja con todas las rifas y todos los vendedores, y la tarjeta escribe los
+ * dos en su segunda linea.
+ */
+export const STAFF_TICKET_SORT_OPTIONS: readonly ListSortOption[] = [
+  // `created_at` descendente, igual que `admin_list_tickets` sin busqueda.
+  { label: 'Más recientes primero', sort: null },
+  { label: 'Boleta, de menor a mayor', sort: { column: 'dailyNumber', direction: 'asc' } },
+  { label: 'Boleta, de mayor a menor', sort: { column: 'dailyNumber', direction: 'desc' } },
+  { label: 'Rifa, de la A a la Z', sort: { column: 'raffleShortCode', direction: 'asc' } },
+  { label: 'Rifa, de la Z a la A', sort: { column: 'raffleShortCode', direction: 'desc' } },
+  { label: 'Vendedor, de la A a la Z', sort: { column: 'sellerName', direction: 'asc' } },
+  { label: 'Vendedor, de la Z a la A', sort: { column: 'sellerName', direction: 'desc' } },
+]
+
+/**
+ * El primero y el ultimo de una lista de valores ordenada COMO TEXTO.
+ *
+ * `admin_list_tickets` ordena los estados con `::text` —el estado de la boleta
+ * como `inventory_status::text`, y el de pago y el paz y salvo como las
+ * palabras internas que calcula—, no por el orden de declaracion del enumerado
+ * como hace la vista del vendedor. Asi que aqui «primero» es el alfabetico de
+ * los valores internos: `assigned` antes que `draft`. Comprobado contra la base
+ * local el 2026-09-23 y fijado por E2E (`orden-personal-movil.spec.ts`).
+ */
+function textEdge<T extends string>(
+  values: readonly T[],
+  direction: ListSort['direction'],
+): T | undefined {
+  const sorted = [...values].sort()
+  return direction === 'asc' ? sorted[0] : sorted[sorted.length - 1]
+}
+
+/**
+ * Como se lee un orden que `admin_list_tickets` SI aplica y el telefono del
+ * personal no ofrece: los dos estados y el paz y salvo.
+ *
+ * Las boletas SIN VENDER no tienen estado de pago ni paz y salvo: la consulta
+ * las deja al final en los dos sentidos (`nulls last`), y por eso la frase
+ * habla solo de cual va primero.
+ */
+export function describeStaffTicketSort(sort: ListSort): string | null {
+  if (sort.column === 'inventoryStatus') {
+    const first = textEdge(TICKET_INVENTORY_STATUS_VALUES, sort.direction)
+    return first === undefined
+      ? null
+      : `Estado de la boleta, primero ${TICKET_INVENTORY_STATUS_LABELS[first]}`
+  }
+
+  if (sort.column === 'paymentState') {
+    const first = textEdge(ADMIN_TICKET_PAYMENT_STATE_VALUES, sort.direction)
+    return first === undefined
+      ? null
+      : `Estado de pago, primero ${ADMIN_TICKET_PAYMENT_STATE_LABELS[first]}`
+  }
+
+  if (sort.column === 'clearance') {
+    // `assumed` y `delivered` dicen lo mismo en pantalla —«Entregado»— y van
+    // juntos: `assumed` < `delivered` < `pending`.
+    const first = textEdge(['assumed', 'delivered', 'pending'] as const, sort.direction)
+    return first !== undefined ? `Paz y salvo, primero ${clearanceShortLabel(first)}` : null
+  }
+
+  return null
 }

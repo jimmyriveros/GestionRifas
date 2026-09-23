@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/server'
 
 import { parseClearanceState, type ClearanceState } from './clearance-receipt'
 import { sellerNameMap } from './queries'
+import type { AdminTicketSortColumn } from './sort-options'
 import type { AdminTicketEligibility } from './selection/eligibility'
 
 /**
@@ -52,32 +53,13 @@ export type AdminTicketFilters = {
   sort?: ListSort<AdminTicketSortColumn> | null
 }
 
-/**
- * Las columnas por las que el PERSONAL puede pedir orden (P1-B).
- *
- * Es mas corta que la del vendedor (`TICKET_SORT_COLUMNS`) y lo es a proposito:
- * aqui no hay cliente ni dinero, y ordenar por una columna es preguntar por
- * ella. Ordenar por saldo y mirar la primera fila diria quien debe mas sin que
- * ninguna celda lo escriba, asi que la privacidad de D-198 vale tambien para el
- * orden, no solo para lo que se pinta.
- *
- * Desde D-214 «Vendedor» SI esta: la funcion se une a `profiles` para poder
- * ordenar por el nombre. Sigue sin proyectarlo —la fila devuelta no cambia— y
- * sigue sin ser un dato de cliente.
- *
- * La lista se repite en SQL, dentro de `admin_list_tickets` (migracion 0075):
- * la pantalla no es una frontera de seguridad (CLAUDE.md 26).
- */
-export const ADMIN_TICKET_SORT_COLUMNS = [
-  'dailyNumber',
-  'raffleShortCode',
-  'sellerName',
-  'inventoryStatus',
-  'paymentState',
-  'clearance',
-] as const
-
-export type AdminTicketSortColumn = (typeof ADMIN_TICKET_SORT_COLUMNS)[number]
+/*
+  La lista blanca del ORDEN del personal vive en `sort-options.ts` desde I-155:
+  el control del telefono es un componente de CLIENTE y este archivo empieza con
+  `server-only`, la misma razon que D-216 dio para la del vendedor. Se reexporta
+  aqui para que quien la pedia siga pidiendola donde estaba.
+*/
+export { ADMIN_TICKET_SORT_COLUMNS, type AdminTicketSortColumn } from './sort-options'
 
 export type AdminTicketListItem = {
   id: string

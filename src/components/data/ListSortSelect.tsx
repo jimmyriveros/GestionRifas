@@ -170,6 +170,15 @@ export function ListSortSelect({
   const shown: readonly ListSortOption[] =
     extra !== null ? [{ label: extra, sort: applied }, ...base] : base
 
+  /*
+    La frase del orden puesto, escrita YA en el HTML del servidor (I-155).
+    `SelectValue` sin hijos la copia del elemento elegido, y eso solo ocurre en
+    el navegador al hidratar: medido el 2026-09-23, el HTML servido traia el
+    control VACIO en los dos portales, y en un telefono lento no decia ningun
+    orden hasta que cargaba el JavaScript.
+  */
+  const currentLabel = shown.find((option) => keyOf(option.sort) === current)?.label
+
   return (
     <Select
       value={current}
@@ -198,14 +207,23 @@ export function ListSortSelect({
           separa y el texto queda flotando en mitad del boton, que a simple
           vista se lee como un titulo centrado y no como el valor de un control.
         */
+        /*
+          LA FRASE NO SE RECORTA (D-165): si no cabe en una linea, baja a la
+          segunda y el control crece. Pasa con la mas larga que puede aparecer,
+          «Estado de la boleta, primero Pendiente de aprobación», a 320 px en el
+          portal del personal; con puntos suspensivos se leia «primero Pendi…».
+          El alto minimo sigue siendo 44 px.
+        */
         className={cn(
           '*:data-[slot=select-value]:flex-1 *:data-[slot=select-value]:justify-start',
+          'text-left whitespace-normal data-[size=touch]:h-auto data-[size=touch]:min-h-11',
+          '*:data-[slot=select-value]:line-clamp-none',
           className,
         )}
         size="touch"
       >
         <ArrowUpDownIcon className="size-4 shrink-0 opacity-60" aria-hidden />
-        <SelectValue />
+        <SelectValue>{currentLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {shown.map((option) => (

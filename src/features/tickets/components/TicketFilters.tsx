@@ -39,7 +39,10 @@ import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 import { adminPaymentStateSchema } from '../schemas'
 import {
+  ADMIN_TICKET_SORT_COLUMNS,
+  describeStaffTicketSort,
   describeTicketSort,
+  STAFF_TICKET_SORT_OPTIONS,
   ticketDefaultSortLabel,
   TICKET_SORT_COLUMNS,
   TICKET_SORT_OPTIONS,
@@ -347,27 +350,24 @@ export function TicketFilters({
           El orden se lee en el propio control, asi que la linea es el precio
           de que el estado sea visible sin abrir nada.
 
-          Solo el portal del vendedor por ahora: el del personal tiene el
-          mismo hueco y su propia lista blanca (D-198), y no entra aqui. */}
-      {staff ? null : (
-        <ListSortSelect
-          options={TICKET_SORT_OPTIONS}
-          allowed={TICKET_SORT_COLUMNS}
-          describe={describeTicketSort}
-          /*
-            Buscando y sin columna pedida, la lista NO sale por fecha: sale por
-            relevancia, que es como ordena `search_tickets`. La primera opcion
-            lo dice, y por eso tambien es la que devuelve ahi al restablecer
-            (D-216). Se mira el parametro y no lo que hay escrito en el campo:
-            el campo se adelanta mientras se teclea, y el orden lo decide la
-            consulta que ya se hizo.
-          */
-          defaultLabel={ticketDefaultSortLabel(Boolean(searchParams.get('q')))}
-          label="Ordenar las boletas"
-          className="w-full md:hidden"
-        />
-      )}
-
+          El portal del personal usa el MISMO control con SU lista blanca
+          (D-198, I-155): boleta, rifa y vendedor, nunca cliente ni dinero. */}
+      <ListSortSelect
+        options={staff ? STAFF_TICKET_SORT_OPTIONS : TICKET_SORT_OPTIONS}
+        allowed={staff ? ADMIN_TICKET_SORT_COLUMNS : TICKET_SORT_COLUMNS}
+        describe={staff ? describeStaffTicketSort : describeTicketSort}
+        /*
+          Buscando y sin columna pedida, la lista NO sale por fecha: sale por
+          relevancia, que es como ordenan `search_tickets` y, para el personal,
+          `admin_list_tickets`. La primera opcion lo dice, y por eso tambien es
+          la que devuelve ahi al restablecer (D-216). Se mira el parametro y no
+          lo que hay escrito en el campo: el campo se adelanta mientras se
+          teclea, y el orden lo decide la consulta que ya se hizo.
+        */
+        defaultLabel={ticketDefaultSortLabel(Boolean(searchParams.get('q')))}
+        label="Ordenar las boletas"
+        className="w-full md:hidden"
+      />
 
       {/* Escritorio: los mismos desplegables, a la vista. */}
       <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-4">

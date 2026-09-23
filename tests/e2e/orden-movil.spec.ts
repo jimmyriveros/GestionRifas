@@ -183,6 +183,21 @@ test.describe('Ordenar desde el telefono', () => {
     await expect(control(page, 'boletas')).toHaveText(/Abonado, de mayor a menor/)
   })
 
+  test('el orden se lee ya en el HTML del servidor (I-155, corrección de D-215)', async ({
+    page,
+  }) => {
+    // El control nacio vacio en el HTML servido: la frase la copiaba Radix al
+    // hidratar. Se mide el HTML crudo de las dos pantallas.
+    for (const [ruta, nombre, frase] of [
+      ['/seller/tickets?sort=salePrice&dir=desc', 'Ordenar las boletas', 'Precio, de mayor a menor'],
+      ['/seller/clients', 'Ordenar los clientes', 'Nombre, de la A a la Z'],
+    ] as const) {
+      const html = await (await page.request.get(ruta)).text()
+      const trozo = html.match(new RegExp(`aria-label="${nombre}"[\\s\\S]{0,1500}`))?.[0] ?? ''
+      expect(trozo.match(/data-slot="select-value"[^>]*>([^<]*)</)?.[1], ruta).toBe(frase)
+    }
+  })
+
   test('recargar conserva el orden', async ({ page }) => {
     await page.goto('/seller/tickets?sort=percentage&dir=asc')
     await page.reload()

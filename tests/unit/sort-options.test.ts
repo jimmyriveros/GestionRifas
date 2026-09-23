@@ -7,7 +7,10 @@ import {
   describeClientSort,
 } from '@/features/clients/sort-options'
 import {
+  ADMIN_TICKET_SORT_COLUMNS,
+  describeStaffTicketSort,
   describeTicketSort,
+  STAFF_TICKET_SORT_OPTIONS,
   TICKET_SORT_COLUMNS,
   TICKET_SORT_OPTIONS,
 } from '@/features/tickets/sort-options'
@@ -26,6 +29,11 @@ describe('opciones de orden del telefono', () => {
   const casos = [
     { nombre: 'Mis boletas', opciones: TICKET_SORT_OPTIONS, permitidas: TICKET_SORT_COLUMNS },
     { nombre: 'Mis clientes', opciones: CLIENT_SORT_OPTIONS, permitidas: CLIENT_SORT_COLUMNS },
+    {
+      nombre: 'Boletas del personal',
+      opciones: STAFF_TICKET_SORT_OPTIONS,
+      permitidas: ADMIN_TICKET_SORT_COLUMNS,
+    },
   ] as const
 
   it.each(casos)('$nombre: ninguna opción pide una columna que la consulta rechace', (caso) => {
@@ -78,19 +86,24 @@ describe('opciones de orden del telefono', () => {
     // Ordenar por un estado responde peor la pregunta que ya responde el
     // filtro, que esta a un toque, y ademas no hay forma clara de decir su
     // sentido. Se deja fuera a proposito, no por olvido.
-    const columnas = [...TICKET_SORT_OPTIONS, ...CLIENT_SORT_OPTIONS]
+    const columnas = [...TICKET_SORT_OPTIONS, ...CLIENT_SORT_OPTIONS, ...STAFF_TICKET_SORT_OPTIONS]
       .map((opcion) => opcion.sort?.column)
       .filter((columna): columna is string => columna !== undefined)
 
     expect(columnas).not.toContain('inventoryStatus')
     expect(columnas).not.toContain('paymentStatus')
     expect(columnas).not.toContain('archivedAt')
+    expect(columnas).not.toContain('paymentState')
   })
 
   it('cada texto dice la columna Y el sentido', () => {
     // En el telefono no hay cabecera que pulsar dos veces, asi que la frase
     // entera es lo unico que anuncia hacia donde ordena.
-    for (const opcion of [...TICKET_SORT_OPTIONS, ...CLIENT_SORT_OPTIONS]) {
+    for (const opcion of [
+      ...TICKET_SORT_OPTIONS,
+      ...CLIENT_SORT_OPTIONS,
+      ...STAFF_TICKET_SORT_OPTIONS,
+    ]) {
       if (opcion.sort === null) continue
       expect(opcion.label, opcion.label).toMatch(/, de (mayor a menor|menor a mayor|más a menos|menos a más|la A a la Z|la Z a la A)$/)
     }
@@ -131,6 +144,13 @@ describe('cada columna admitida tiene representación, en los dos sentidos', () 
       opciones: CLIENT_SORT_OPTIONS,
       describe: describeClientSort,
       porDefecto: CLIENT_DEFAULT_SORT,
+    },
+    {
+      nombre: 'Boletas del personal',
+      columnas: ADMIN_TICKET_SORT_COLUMNS,
+      opciones: STAFF_TICKET_SORT_OPTIONS,
+      describe: describeStaffTicketSort,
+      porDefecto: undefined,
     },
   ] as const
 
@@ -178,5 +198,68 @@ describe('cada columna admitida tiene representación, en los dos sentidos', () 
     // Su orden de siempre es `created_at`, que NO está en la lista blanca: no
     // se puede pedir por la dirección, así que no hay nada que equiparar.
     expect(TICKET_SORT_COLUMNS as readonly string[]).not.toContain('createdAt')
+  })
+})
+
+/**
+ * EL PERSONAL NO ORDENA POR CLIENTE NI POR DINERO (I-155 en su portal, D-198).
+ *
+ * Ordenar por una columna es preguntar por ella: «Falta, de mayor a menor» y
+ * mirar la primera tarjeta diría quién debe más sin que ninguna celda lo
+ * escriba. La consulta ya lo rechaza; esto vigila que el TELÉFONO ni siquiera
+ * lo ofrezca, ni lo describa.
+ */
+describe('las opciones del personal respetan la lista blanca de D-198', () => {
+  const PRIVADAS = [
+    'clientName',
+    'paidAmount',
+    'pendingAmount',
+    'percentage',
+    'salePrice',
+    'paymentStatus',
+  ]
+
+  it('ninguna opción ni la lista blanca nombran cliente o dinero', () => {
+    const ofrecidas = STAFF_TICKET_SORT_OPTIONS.map((opcion) => opcion.sort?.column).filter(
+      (columna): columna is string => columna !== undefined,
+    )
+    for (const columna of PRIVADAS) {
+      expect(ofrecidas).not.toContain(columna)
+      expect(ADMIN_TICKET_SORT_COLUMNS as readonly string[]).not.toContain(columna)
+      // Tampoco se describe: el control no pone palabras a lo que no aplica.
+      expect(describeStaffTicketSort({ column: columna, direction: 'asc' })).toBeNull()
+    }
+  })
+
+  it('ofrece lo que la tarjeta del personal enseña: boleta, rifa y vendedor', () => {
+    const columnas = new Set(
+      STAFF_TICKET_SORT_OPTIONS.map((opcion) => opcion.sort?.column).filter(Boolean),
+    )
+    expect([...columnas].sort()).toEqual(['dailyNumber', 'raffleShortCode', 'sellerName'])
+  })
+})
+
+/**
+ * LAS FRASES DEL PERSONAL DESCRIBEN EL ORDEN DE `admin_list_tickets`, que no
+ * es el de la vista del vendedor: allí los estados se comparan como TEXTO
+ * (`inventory_status::text`), así que el primero es «Asignada» y no «Borrador».
+ * Las frases se escriben a mano, no con la función que las produce.
+ */
+describe('describeStaffTicketSort', () => {
+  it.each([
+    ['inventoryStatus', 'asc', 'Estado de la boleta, primero Asignada'],
+    ['inventoryStatus', 'desc', 'Estado de la boleta, primero Pendiente de aprobación'],
+    ['paymentState', 'asc', 'Estado de pago, primero Pagada'],
+    ['paymentState', 'desc', 'Estado de pago, primero Sin pagar'],
+    ['clearance', 'asc', 'Paz y salvo, primero Entregado'],
+    ['clearance', 'desc', 'Paz y salvo, primero Por entregar'],
+  ] as const)('%s %s → «%s»', (column, direction, frase) => {
+    expect(describeStaffTicketSort({ column, direction })).toBe(frase)
+  })
+
+  it('las columnas ofrecidas no se describen: ya tienen su opción', () => {
+    for (const column of ['dailyNumber', 'raffleShortCode', 'sellerName']) {
+      expect(describeStaffTicketSort({ column, direction: 'asc' })).toBeNull()
+    }
   })
 })

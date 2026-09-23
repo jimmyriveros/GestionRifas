@@ -13629,3 +13629,75 @@ la lista blanca**, así que no se puede pedir por la dirección y no hay nada qu
 **los dos sentidos** —34 casos— y exige que cada una tenga representación por alguna de las tres vías: una
 opción ofrecida, la función `describe`, o coincidir con el orden por defecto escrito. Añadir mañana una
 columna a una lista blanca sin darle palabras falla ahí, y no en la pantalla de alguien.
+
+## D-217 — Ordenar desde el teléfono en «Boletas» del personal: el mismo control, su lista blanca
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-23). **No es una Fase 10** y no
+lleva etiqueta `fase-*`. **Solo en local.** Sin migración, sin consultas nuevas y sin dependencias.
+
+Cierra **I-155** en el portal del personal —el Dueño y el Administrador—, que D-215 dejó anotado: en «Boletas»,
+por debajo de `md`, la tabla se oculta y no había forma de pedir un orden sin escribir `?sort=` a mano.
+
+### Qué se reutilizó y qué es nuevo
+
+| Pieza | Qué pasa |
+|---|---|
+| `ListSortSelect`, `useListSort`, `ticketDefaultSortLabel` | **Los mismos**, sin API nueva. `TicketFilters` deja de esconder el control con `audience="staff"` y le pasa las piezas del personal |
+| `ADMIN_TICKET_SORT_COLUMNS` | **Se muda** de `admin-queries.ts` (`server-only`) a `sort-options.ts`, que el navegador sí puede importar. `admin-queries.ts` la **reexporta**: `owner/tickets/page.tsx` no cambia. Es la misma razón y el mismo patrón de D-216 |
+| `STAFF_TICKET_SORT_OPTIONS` | **Nueva.** Siete opciones: el orden de siempre, y **Boleta, Rifa y Vendedor** en los dos sentidos |
+| `describeStaffTicketSort` | **Nueva.** Da palabras a lo que la consulta aplica y el teléfono no ofrece: los dos estados y el paz y salvo |
+
+### Qué se ofrece, y la frontera de D-198
+
+Se ofrece lo que la **tarjeta del personal enseña** (`StaffCardBody`): los números, la rifa y el vendedor. Al
+revés que en «Mis boletas», Rifa y Vendedor **sí** entran: el personal ve todas las rifas y todos los
+vendedores. **No se ofrecen** los dos estados —se filtran, como en D-215— ni el paz y salvo, que tampoco se
+ofrece en la cabecera de la tabla de escritorio (`enableSorting: false`); si llegan por la dirección, se
+describen.
+
+**Ninguna opción, ninguna descripción y ninguna columna de la lista blanca nombran cliente ni dinero.** Las
+opciones salen de `ADMIN_TICKET_SORT_COLUMNS`, que no los tiene, y hay una prueba unitaria que lo vigila en las
+tres cosas. Con `?sort=pendingAmount` —o `salePrice`, `clientName`, `paidAmount`— la consulta lo **rechaza** y
+el control dice el orden de siempre, sin añadir ninguna opción: lo comprueba la E2E.
+
+### Los estados del personal NO se ordenan como los del vendedor, y la frase lo refleja
+
+Hallado al leer `admin_list_tickets` antes de escribir (`0076`) y **medido en la base local**: ahí los estados
+se comparan **como texto** —`inventory_status::text`, y las palabras internas que calcula para el pago y el
+paz y salvo—, no por el orden de declaración del enumerado, que es lo que usa la vista del vendedor.
+
+| Orden pedido | Vendedor (`describeTicketSort`) | Personal (`describeStaffTicketSort`) |
+|---|---|---|
+| Estado de la boleta, asc | «primero Borrador» | **«primero Asignada»** (`assigned` < `available` < …) |
+| Estado de la boleta, desc | «primero Anulada» | **«primero Pendiente de aprobación»** |
+| Estado de pago, asc / desc | — (otra columna) | «primero Pagada» / «primero Sin pagar» |
+| Paz y salvo, asc / desc | — | «primero Entregado» / «primero Por entregar» |
+
+Reutilizar `describeTicketSort` habría dicho «primero Borrador» con la lista empezando por las asignadas: la
+mentira que D-216 vino a quitar. **No se cambió la consulta** para igualarlas: el encargo no lo autoriza y es un
+orden que ya existía. Las boletas sin vender no tienen estado de pago ni paz y salvo, y la consulta las deja al
+final en los dos sentidos: por eso la frase solo dice cuál va **primero**. La E2E lo fija contra los
+resultados, con una boleta asignada, una disponible y un borrador puestos para que el orden de texto y el del
+enumerado den secuencias distintas.
+
+### Dos defectos del control compartido, encontrados al inspeccionar y corregidos
+
+Los dos venían de D-215 y afectaban **también** al portal del vendedor; se corrigen en `ListSortSelect`, sin
+cambiar su API ni el primitivo `select.tsx`.
+
+**1. El HTML del servidor traía el control VACÍO.** `SelectValue` sin hijos copia la frase del elemento elegido,
+y eso ocurre en el navegador al hidratar. Medido pidiendo el HTML crudo: `data-slot="select-value"` llegaba con
+`""` en `/owner/tickets` y en `/seller/tickets`. En un teléfono lento el control no decía ningún orden hasta que
+cargaba el JavaScript. Ahora recibe la frase ya calculada como hijo. **Dos E2E nuevas miden el HTML crudo, y se
+comprobó que fallan sin el arreglo** (`Received: ""`).
+
+**2. La frase más larga se recortaba a 320 px.** «Estado de la boleta, primero Pendiente de aprobación» salía como
+«…primero Pendi…», contra D-165 —ninguna etiqueta se recorta, aunque ocupe dos líneas—. Ahora baja a la segunda
+línea y el control crece; con una línea sigue midiendo 44 px. La E2E de 320 px comprueba que la caja del valor no
+desborda.
+
+### Lo que NO cambió
+
+La consulta, la migración, la tabla de escritorio, el diseño de las tarjetas y la fila «Filtros» /
+«Seleccionar varias». El control va en su propia línea debajo de ella, como en el vendedor, y **en escritorio no
+existe** (`md:hidden`): allí siguen las cabeceras de la tabla.
