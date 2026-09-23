@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { PAGE_SIZE, type PaymentMethod } from '@/lib/constants'
+import { pageBeyondEnd } from '@/lib/list-page'
 import type { ListSort } from '@/lib/list-sort'
 import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
@@ -143,6 +144,34 @@ function mapPayment(row: HistoryRow): PaymentListItem {
   }
 }
 
+/**
+ * Los filtros de la lista, aplicados a una consulta ya empezada.
+ *
+ * Mismo patron que `applyTicketFilters` en boletas, y por la misma razon: la
+ * consulta se arma DOS veces —una para la pagina y otra, si esa pagina no
+ * existe, solo para recontar— y las dos tienen que filtrar exactamente igual.
+ */
+type PaymentQuery<Q> = {
+  eq(column: string, value: string): Q
+  gte(column: string, value: string): Q
+  lte(column: string, value: string): Q
+  is(column: string, value: null): Q
+  not(column: string, operator: string, value: null): Q
+}
+
+function applyPaymentFilters<Q extends PaymentQuery<Q>>(query: Q, filters: PaymentFilters): Q {
+  let next = query
+  if (filters.clientId) next = next.eq('client_id', filters.clientId)
+  if (filters.sellerId) next = next.eq('seller_id', filters.sellerId)
+  if (filters.method) next = next.eq('payment_method', filters.method)
+  if (filters.dateFrom) next = next.gte('payment_date', filters.dateFrom)
+  if (filters.dateTo) next = next.lte('payment_date', filters.dateTo)
+  // BR-F09: los pagos anulados NO desaparecen; se filtran, que es distinto.
+  if (filters.status === 'active') next = next.is('voided_at', null)
+  if (filters.status === 'voided') next = next.not('voided_at', 'is', null)
+  return next
+}
+
 export async function listPayments(
   filters: PaymentFilters,
 ): Promise<{ rows: PaymentListItem[]; total: number; page: number; pageSize: number }> {
@@ -150,16 +179,10 @@ export async function listPayments(
   const pageSize = filters.pageSize ?? PAGE_SIZE
   const page = Math.max(1, filters.page ?? 1)
 
-  let query = supabase.from('v_payment_history').select('*', { count: 'exact' })
-
-  if (filters.clientId) query = query.eq('client_id', filters.clientId)
-  if (filters.sellerId) query = query.eq('seller_id', filters.sellerId)
-  if (filters.method) query = query.eq('payment_method', filters.method)
-  if (filters.dateFrom) query = query.gte('payment_date', filters.dateFrom)
-  if (filters.dateTo) query = query.lte('payment_date', filters.dateTo)
-  // BR-F09: los pagos anulados NO desaparecen; se filtran, que es distinto.
-  if (filters.status === 'active') query = query.is('voided_at', null)
-  if (filters.status === 'voided') query = query.not('voided_at', 'is', null)
+  const query = applyPaymentFilters(
+    supabase.from('v_payment_history').select('*', { count: 'exact' }),
+    filters,
+  )
 
   /*
     EL ORDEN LO APLICA LA BASE, sobre el conjunto filtrado entero (P1-B).
@@ -187,7 +210,16 @@ export async function listPayments(
     .order('payment_id', { ascending: true })
     .range((page - 1) * pageSize, page * pageSize - 1)
 
-  if (error) throw error
+  if (error) {
+    if (!pageBeyondEnd(error)) throw error
+    // La pagina no existe. Se recuenta sin traer filas, para que la barra siga
+    // diciendo cuantos pagos hay y se pueda volver a una pagina que exista.
+    const { count: real } = await applyPaymentFilters(
+      supabase.from('v_payment_history').select('payment_id', { head: true, count: 'exact' }),
+      filters,
+    )
+    return { rows: [], total: real ?? 0, page, pageSize }
+  }
 
   return {
     rows: ((data ?? []) as HistoryRow[]).map(mapPayment),

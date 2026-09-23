@@ -2,6 +2,7 @@ import 'server-only'
 
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE, type TicketInventoryStatus, type TicketPaymentStatus } from '@/lib/constants'
+import { pageBeyondEnd } from '@/lib/list-page'
 import type { ListSort } from '@/lib/list-sort'
 import { isTicketSearchTerm, normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
@@ -37,19 +38,19 @@ export type TicketFilters = {
 }
 
 /**
- * Las columnas por las que un VENDEDOR puede pedir orden (P1-B).
+ * Las columnas por las que un VENDEDOR puede pedir orden (P1-B, D-214).
  *
  * Son los `id` de las columnas de `TicketsTable`, para que la cabecera pulsada
- * y el parametro de la URL sean el mismo nombre. Fuera quedan las que la base
- * no puede ordenar sin inventarselas, y que por eso tampoco se ofrecen como
- * ordenables en la tabla:
+ * y el parametro de la URL sean el mismo nombre. Estan TODAS las que la
+ * pantalla ensena.
  *
- *   * «Vendedor» y «Cliente»: el nombre del vendedor lo resuelve un mapa en
- *     memoria (`sellerNameMap`), y `clients` tiene DOS claves ajenas hacia
- *     `tickets`, asi que PostgREST no sabe por cual ordenar y la sintaxis que
- *     lo desambigua no se acepta en `order`.
- *   * «Falta» y «Progreso»: son `sale_price - paid_amount` y su cociente. No
- *     existen como columna, y una expresion no se puede pedir por PostgREST.
+ * Que esten todas es lo que arreglo `v_seller_ticket_list` (migracion 0076).
+ * Antes faltaban cuatro, y no por capricho: el nombre del vendedor lo resolvia
+ * un mapa en memoria, `clients` tiene dos claves ajenas hacia `tickets` —asi
+ * que PostgREST no sabia por cual ordenar—, y «Falta» y «Progreso» son
+ * `sale_price - paid_amount` y su cociente, que no existian como columna. La
+ * vista las tiene las cuatro, calculadas con las mismas reglas que
+ * `ticketFinancials`, y PostgREST las ordena como cualquier otra.
  *
  * La lista del PERSONAL es otra y vive en `admin-queries.ts`: alli no puede
  * haber ni cliente ni dinero (D-198).
@@ -57,23 +58,31 @@ export type TicketFilters = {
 export const TICKET_SORT_COLUMNS = [
   'dailyNumber',
   'raffleShortCode',
+  'sellerName',
+  'clientName',
   'inventoryStatus',
   'paymentStatus',
   'paidAmount',
+  'pendingAmount',
+  'percentage',
   'salePrice',
 ] as const
 
 export type TicketSortColumn = (typeof TICKET_SORT_COLUMNS)[number]
 
-/** De nombre de columna a columna de la base. Lo que no este aqui no se pide. */
+/** De nombre de columna a columna de la vista. Lo que no este aqui no se pide. */
 const TICKET_SORT_DB: Record<TicketSortColumn, string> = {
   dailyNumber: 'daily_number',
-  // `raffles` tiene UNA sola clave ajena desde `tickets`, asi que PostgREST
-  // resuelve el embebido sin ambigüedad y puede ordenar por el.
-  raffleShortCode: 'raffles(short_code)',
+  raffleShortCode: 'raffle_short_code',
+  sellerName: 'seller_name',
+  clientName: 'client_name',
   inventoryStatus: 'inventory_status',
   paymentStatus: 'payment_status',
   paidAmount: 'paid_amount',
+  // Las dos calculadas. Valen NULL en una boleta sin vender —que es lo que la
+  // pantalla pinta como «—»— y por eso caen al final con `nullsFirst: false`.
+  pendingAmount: 'pending_amount',
+  percentage: 'paid_ratio',
   salePrice: 'sale_price',
 }
 
@@ -108,6 +117,16 @@ export type TicketListItem = {
   clearanceAssumedDelivered: boolean
 }
 
+/*
+  LA LISTA DE UN VENDEDOR SE LEE DE `v_seller_ticket_list`, no de `tickets`
+  (D-214). La vista es `security_invoker`: hereda `tickets_select` y
+  `clients_select`, de modo que un vendedor sigue viendo exactamente sus
+  boletas y el nombre de sus clientes, ni una fila mas.
+
+  Lo que gana: el nombre del cliente, el del vendedor, el saldo y el progreso
+  son COLUMNAS, asi que la base puede ordenarlos. Antes el nombre del vendedor
+  costaba ademas una consulta aparte (`sellerNameMap`) en cada pagina.
+*/
 const TICKET_SELECT = `
   id,
   internal_code,
@@ -120,12 +139,14 @@ const TICKET_SELECT = `
   sale_date,
   created_at,
   raffle_id,
+  raffle_name,
+  raffle_short_code,
   seller_id,
+  seller_name,
   client_id,
+  client_name,
   clearance_receipt_delivered_at,
-  clearance_receipt_assumed_delivered,
-  raffle:raffles!tickets_raffle_org_fk ( name, short_code ),
-  client:clients!tickets_client_org_fk ( id, name )
+  clearance_receipt_assumed_delivered
 `
 
 type TicketRow = {
@@ -140,12 +161,14 @@ type TicketRow = {
   sale_date: string | null
   created_at: string
   raffle_id: string
+  raffle_name: string | null
+  raffle_short_code: string | null
   seller_id: string
+  seller_name: string | null
   client_id: string | null
+  client_name: string | null
   clearance_receipt_delivered_at: string | null
   clearance_receipt_assumed_delivered: boolean
-  raffle: { name: string; short_code: string } | null
-  client: { id: string; name: string } | null
 }
 
 /**
@@ -188,7 +211,7 @@ export async function listTickets(
 
   const supabase = await createClient()
   const query = applyTicketFilters(
-    supabase.from('tickets').select(TICKET_SELECT, { count: 'exact' }),
+    supabase.from('v_seller_ticket_list').select(TICKET_SELECT, { count: 'exact' }),
     filters,
   )
 
@@ -216,12 +239,18 @@ export async function listTickets(
     .order('id', { ascending: true })
     .range((page - 1) * pageSize, page * pageSize - 1)
 
-  if (error) throw error
-
-  const sellerNames = await sellerNameMap()
+  if (error) {
+    if (!pageBeyondEnd(error)) throw error
+    // La pagina no existe: cero filas, pero el total de verdad.
+    const { count: real } = await applyTicketFilters(
+      supabase.from('v_seller_ticket_list').select('id', { head: true, count: 'exact' }),
+      filters,
+    )
+    return { rows: [], total: real ?? 0, page, pageSize }
+  }
 
   return {
-    rows: ((data ?? []) as TicketRow[]).map((row) => mapTicketRow(row, sellerNames)),
+    rows: ((data ?? []) as TicketRow[]).map(mapTicketRow),
     total: count ?? 0,
     page,
     pageSize,
@@ -290,9 +319,27 @@ async function searchTicketsMatching(
   const rows = data ?? []
   const sellerNames = await sellerNameMap()
 
+  /*
+    Igual que las demas: una pagina que no existe devuelve cero filas, y con
+    ellas se iria el recuento. Se vuelve a pedir la primera, y solo entonces.
+  */
+  let total = Number(rows[0]?.total_count ?? 0)
+  if (rows.length === 0 && page > 1) {
+    const { data: primera } = await supabase.rpc('search_tickets', {
+      p_search: search,
+      p_raffle_id: filters.raffleId,
+      p_seller_id: filters.sellerId,
+      p_client_id: filters.clientId,
+      p_inventory_status: filters.inventoryStatus,
+      p_payment_status: filters.paymentStatus,
+      p_limit: 1,
+      p_offset: 0,
+    })
+    total = Number(primera?.[0]?.total_count ?? 0)
+  }
+
   return {
-    // `total_count` viaja repetido en cada fila; sin filas, no hay resultados.
-    total: rows[0]?.total_count ?? 0,
+    total,
     rows: rows.map((row) => ({
       id: row.id,
       internalCode: row.internal_code,
@@ -392,6 +439,52 @@ export type TicketDetail = TicketListItem & {
   hasLotteryMatch: boolean
 }
 
+/**
+ * Proyeccion del DETALLE, contra `tickets`. No es `TICKET_SELECT`, que desde
+ * D-214 describe las columnas de `v_seller_ticket_list`: aqui hacen falta
+ * campos que el listado no ensena, y una sola fila no necesita que la base
+ * resuelva ningun orden.
+ */
+const TICKET_DETAIL_SELECT = `
+  id,
+  internal_code,
+  daily_number,
+  weekly_number,
+  inventory_status,
+  payment_status,
+  sale_price,
+  paid_amount,
+  sale_date,
+  created_at,
+  raffle_id,
+  seller_id,
+  client_id,
+  clearance_receipt_delivered_at,
+  clearance_receipt_assumed_delivered,
+  raffle:raffles!tickets_raffle_org_fk ( name, short_code ),
+  client:clients!tickets_client_org_fk ( id, name )
+`
+
+/** La fila del detalle, con la rifa y el cliente todavia anidados. */
+type TicketDetailRow = Omit<
+  TicketRow,
+  'raffle_name' | 'raffle_short_code' | 'seller_name' | 'client_name'
+> & {
+  raffle: { name: string; short_code: string } | null
+  client: { id: string; name: string } | null
+}
+
+/** La deja con la forma plana de la vista, para reutilizar `mapTicketRow`. */
+function flattenDetailRow(row: TicketDetailRow, sellerNames: Map<string, string>): TicketRow {
+  return {
+    ...row,
+    raffle_name: row.raffle?.name ?? null,
+    raffle_short_code: row.raffle?.short_code ?? null,
+    seller_name: sellerNames.get(row.seller_id) ?? null,
+    client_name: row.client?.name ?? null,
+  }
+}
+
 export async function getTicketDetail(ticketId: string): Promise<TicketDetail | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -400,7 +493,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
       // `client_contact` es un segundo alias de la MISMA relacion que ya trae
       // `TICKET_SELECT`: se pide aparte para no cargar el telefono en cada fila
       // del listado, igual que `raffle_full` hace con la rifa.
-      `${TICKET_SELECT}, base_price, approved_at, cancelled_at, cancel_reason, assigned_at,
+      `${TICKET_DETAIL_SELECT}, base_price, approved_at, cancelled_at, cancel_reason, assigned_at,
        raffle_full:raffles!tickets_raffle_org_fk ( status, ticket_price ),
        client_contact:clients!tickets_client_org_fk ( phone )`,
     )
@@ -410,7 +503,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   if (error) throw error
   if (!data) return null
 
-  const row = data as TicketRow & {
+  const row = data as TicketDetailRow & {
     base_price: number | null
     approved_at: string | null
     cancelled_at: string | null
@@ -448,7 +541,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   const rafflePrice = row.raffle_full?.ticket_price ?? 0
 
   return {
-    ...mapTicketRow(row, sellerNames),
+    ...mapTicketRow(flattenDetailRow(row, sellerNames)),
     approvedAt: row.approved_at,
     cancelledAt: row.cancelled_at,
     cancelReason: row.cancel_reason,
@@ -472,7 +565,7 @@ export async function sellerNameMap(): Promise<Map<string, string>> {
   return new Map(members.map((member) => [member.profileId, member.fullName]))
 }
 
-function mapTicketRow(row: TicketRow, sellerNames: Map<string, string>): TicketListItem {
+function mapTicketRow(row: TicketRow): TicketListItem {
   return {
     id: row.id,
     internalCode: row.internal_code,
@@ -485,12 +578,14 @@ function mapTicketRow(row: TicketRow, sellerNames: Map<string, string>): TicketL
     saleDate: row.sale_date,
     createdAt: row.created_at,
     raffleId: row.raffle_id,
-    raffleName: row.raffle?.name ?? '',
-    raffleShortCode: row.raffle?.short_code ?? '',
+    raffleName: row.raffle_name ?? '',
+    raffleShortCode: row.raffle_short_code ?? '',
     sellerId: row.seller_id,
-    sellerName: sellerNames.get(row.seller_id) ?? 'Vendedor',
+    // El nombre llega en la misma fila. `I-015`: si quien consulta no puede ver
+    // ese perfil se pierde el nombre, nunca la boleta.
+    sellerName: row.seller_name ?? 'Vendedor',
     clientId: row.client_id,
-    clientName: row.client?.name ?? null,
+    clientName: row.client_name,
     clearanceDeliveredAt: row.clearance_receipt_delivered_at,
     clearanceAssumedDelivered: row.clearance_receipt_assumed_delivered,
   }

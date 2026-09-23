@@ -454,3 +454,58 @@ export async function setMembershipActive(email: string, isActive: boolean): Pro
     .eq('profile_id', profile.id)
   if (error) throw error
 }
+
+/**
+ * Un pago con su reparto, en UNA transaccion.
+ *
+ * `payments_balance_check` NO es diferible: salta en el mismo `insert` del
+ * pago, cuando todavia no hay ninguna asignacion, asi que los dos `insert`
+ * sueltos de la service role fallan con «la suma de las asignaciones (0) debe
+ * ser igual al total». Se abre una conexion directa y se hacen los dos dentro
+ * de la misma transaccion, como `voidPaymentAsStaff`.
+ *
+ * Es PREPARACION del estado de partida; lo que se prueba despues ocurre por la
+ * interfaz (D-043).
+ */
+export async function createPaymentWithAllocation(
+  refs: SeedRefs,
+  options: {
+    clientId: string
+    ticketId: string
+    amount: number
+    method: string
+    paymentDate: string
+  },
+): Promise<string> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    const { rows } = await db.query(
+      `insert into payments (organization_id, seller_id, client_id, total_amount,
+                             payment_date, payment_method, created_by)
+       values ($1, $2, $3, $4, $5, $6, $2) returning id`,
+      [
+        refs.organizationId,
+        refs.sellerId,
+        options.clientId,
+        options.amount,
+        options.paymentDate,
+        options.method,
+      ],
+    )
+    const paymentId = rows[0].id as string
+    await db.query(
+      `insert into payment_allocations (organization_id, client_id, payment_id, ticket_id, amount)
+       values ($1, $2, $3, $4, $5)`,
+      [refs.organizationId, options.clientId, paymentId, options.ticketId, options.amount],
+    )
+    await db.query('commit')
+    return paymentId
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}

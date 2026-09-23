@@ -510,6 +510,8 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
     expect(rows.map((r) => r.proname)).toEqual([
       'admin_audit_log',
       'admin_audit_redact',
+      'admin_list_raffles',
+      'admin_list_sellers',
       'admin_list_tickets',
       'admin_lottery_matches',
       // 0067 (D-208): el historial de premios ganados del personal. Como el
@@ -524,9 +526,36 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
       'admin_update_ticket_numbers',
     ])
 
-    const PROHIBIDAS =
-      /\b(client_id|client_name|sale_price|base_price|min_sale_price|paid_amount|pending_amount|payment_status|total_amount|amount|phone|email|alias|notes)\b/
-    for (const row of rows) expect(row.resultado, row.proname).not.toMatch(PROHIBIDAS)
+    /*
+      DOS REGLAS, y conviene no mezclarlas.
+
+      LA CARTERA no puede aparecer en NINGUNA. Quien compro, a que precio,
+      cuanto abono y cuanto debe son del vendedor, y ninguna proyeccion del
+      personal los declara (D-198, BR-Q01).
+    */
+    const CARTERA =
+      /\b(client_id|client_name|sale_price|base_price|min_sale_price|paid_amount|pending_amount|payment_status|total_amount|amount|notes)\b/
+    for (const row of rows) expect(row.resultado, row.proname).not.toMatch(CARTERA)
+
+    /*
+      EL CONTACTO —telefono, correo, alias— tampoco, PERO por otra razon: en una
+      proyeccion de BOLETAS solo puede venir de un cliente. `admin_list_sellers`
+      es una proyeccion de PERSONAS del propio personal: el telefono y el correo
+      que devuelve son los del vendedor, los mismos que el personal escribe al
+      darlo de alta y que la lista pinta bajo su nombre. Por eso se excluye ahi,
+      y solo ahi (D-214).
+    */
+    const CONTACTO = /\b(phone|email|alias)\b/
+    const PERSONAS = ['admin_list_sellers']
+    for (const row of rows) {
+      if (PERSONAS.includes(row.proname)) continue
+      expect(row.resultado, row.proname).not.toMatch(CONTACTO)
+    }
+
+    // Y la de personas no se libra de nada: lo que NO puede traer es cliente.
+    const sellers = rows.find((r) => r.proname === 'admin_list_sellers')
+    expect(sellers?.resultado).not.toMatch(CARTERA)
+    expect(sellers?.resultado).not.toMatch(/\bclient/)
   })
 
   it('ningun valor secreto viaja en lo que recibe el personal', async () => {

@@ -6,12 +6,9 @@ import {
   ZERO_INVENTORY,
   type InventoryCounts,
 } from '@/features/tickets/admin-queries'
-import {
-  compareDate,
-  compareNumber,
-  compareText,
-  type ListComparators,
-} from '@/lib/list-page'
+import { PAGE_SIZE } from '@/lib/constants'
+import type { PagedList } from '@/lib/list-page'
+import type { ListSort } from '@/lib/list-sort'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
 import type { RaffleStatus } from '@/lib/constants'
@@ -262,6 +259,77 @@ function mapSummaryRow(row: SummaryRow): RaffleSummary {
 }
 
 /**
+ * Una PAGINA de «Rifas», ordenada y contada POR LA BASE (D-214).
+ *
+ * Por `admin_list_raffles` (migracion 0076) y no por PostgREST, por lo mismo
+ * que «Vendedores»: la fila lleva recuentos de BOLETAS y el personal no las
+ * puede leer (`tickets_select` es del vendedor). La funcion es
+ * `security definer` y se acota con `current_staff_org_ids()`.
+ *
+ * `listAdminRaffleSummaries` se conserva tal cual: los reportes necesitan la
+ * lista entera, y ahi traerla es el trabajo, no un desperdicio.
+ */
+export async function listAdminRafflesPage(options: {
+  page: number
+  sort: ListSort | null
+}): Promise<PagedList<AdminRaffleSummary>> {
+  const supabase = await createClient()
+  const pageSize = PAGE_SIZE
+  const page = Math.max(1, options.page)
+
+  const { data, error } = await supabase.rpc('admin_list_raffles', {
+    ...(options.sort
+      ? { p_sort_column: options.sort.column, p_sort_direction: options.sort.direction }
+      : {}),
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  })
+
+  if (error) throw error
+
+  const rows = data ?? []
+
+  /*
+    UNA PAGINA QUE NO EXISTE devuelve cero filas, y con ellas se iria el
+    recuento: `total_count` viaja repetido en CADA fila, asi que sin filas la
+    barra diria «de 0» en una lista que si tiene. Se vuelve a preguntar por la
+    primera, que es una sola fila, y solo en ese caso.
+  */
+  let total = Number(rows[0]?.total_count ?? 0)
+  if (rows.length === 0 && page > 1) {
+    const { data: primera } = await supabase.rpc('admin_list_raffles', {
+      p_limit: 1,
+      p_offset: 0,
+    })
+    total = Number(primera?.[0]?.total_count ?? 0)
+  }
+
+  return {
+    rows: rows.map((row) => ({
+      id: row.id ?? '',
+      shortCode: row.short_code ?? '',
+      name: row.name ?? '',
+      status: row.status ?? 'draft',
+      ticketPrice: Number(row.ticket_price ?? 0),
+      startDate: row.start_date ?? '',
+      endDate: row.end_date ?? '',
+      allowSellerTicketCreation: row.allow_seller_ticket_creation ?? false,
+      ticketsTotal: Number(row.tickets_total ?? 0),
+      ticketsAvailable: Number(row.tickets_available ?? 0),
+      ticketsAssigned: Number(row.tickets_assigned ?? 0),
+      ticketsPendingApproval: Number(row.tickets_pending_approval ?? 0),
+      ticketsDraft: Number(row.tickets_draft ?? 0),
+      ticketsCancelled: Number(row.tickets_cancelled ?? 0),
+      ticketsPaid: Number(row.tickets_paid ?? 0),
+      ticketsNotPaid: Number(row.tickets_not_paid ?? 0),
+    })),
+    total,
+    page,
+    pageSize,
+  }
+}
+
+/**
  * Las columnas por las que se puede ordenar «Rifas» (P1-H).
  *
  * «Vigencia» es una sola columna con las dos fechas; se ordena por la de
@@ -276,13 +344,3 @@ export const RAFFLE_SORT_COLUMNS = [
   'ticketsAssigned',
   'startDate',
 ] as const
-
-export const RAFFLE_COMPARATORS: ListComparators<AdminRaffleSummary> = {
-  shortCode: (a, b) => compareText(a.shortCode, b.shortCode),
-  name: (a, b) => compareText(a.name, b.name),
-  status: (a, b) => compareText(a.status, b.status),
-  ticketPrice: (a, b) => compareNumber(a.ticketPrice, b.ticketPrice),
-  ticketsTotal: (a, b) => compareNumber(a.ticketsTotal, b.ticketsTotal),
-  ticketsAssigned: (a, b) => compareNumber(a.ticketsAssigned, b.ticketsAssigned),
-  startDate: (a, b) => compareDate(a.startDate, b.startDate),
-}

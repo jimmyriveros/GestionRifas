@@ -105,7 +105,6 @@ function SellerTicketsTable({
           {
             accessorKey: 'sellerName',
             header: 'Vendedor',
-            enableSorting: false,
             meta: { showFrom: 'lg' },
             cell: ({ row }) => (
               <span
@@ -154,7 +153,6 @@ function SellerTicketsTable({
       {
         accessorKey: 'clientName',
         header: 'Cliente',
-        enableSorting: false,
         cell: ({ row }) => (
           // El paz y salvo va DENTRO del ancho maximo de la celda, no al lado:
           // la columna no puede crecer (el `px-2` de «Progreso» ya se pago con
@@ -212,7 +210,6 @@ function SellerTicketsTable({
         // el termino entero. La ficha del cliente, que tiene ancho, si lo
         // escribe completo.
         header: 'Falta',
-        enableSorting: false,
         meta: { align: 'right' },
         cell: ({ row }) => <Money ticket={row.original} pick="pendingAmount" />,
       },
@@ -220,7 +217,6 @@ function SellerTicketsTable({
         id: 'percentage',
         accessorFn: (row) => ticketFinancials(row).percentage,
         header: 'Progreso',
-        enableSorting: false,
         // Centrada: «Falta» va pegada a la derecha de SU celda, asi que una
         // barra alineada a la izquierda de la suya quedaba a un pelo de la
         // cifra y las dos se leian como una sola columna.
@@ -310,7 +306,6 @@ function StaffTicketsTable({
       {
         accessorKey: 'sellerName',
         header: 'Vendedor',
-        enableSorting: false,
         cell: ({ row }) => (
           <span title={row.original.sellerName} className="block max-w-[14rem] truncate text-sm">
             {row.original.sellerName}

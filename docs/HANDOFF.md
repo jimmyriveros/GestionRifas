@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Orden y paginación EN LA BASE (SOLO EN LOCAL, 2026-09-22, D-214)** | **Cierre de P1-B y P1-H.** Las siete listas ordenan y paginan en PostgreSQL: Vendedores, Rifas y Administradores dejan de leer su lista entera —migración 0076, dos vistas y dos funciones— y «Cliente», «Falta», «Progreso» y «Vendedor» vuelven a ofrecer orden. **I-153 e I-154 resueltas**; I-158 era anterior. Medido con 20.033 boletas: de 2 consultas y 2.206 filas a 1 consulta y 25 filas. D-198 intacto: el personal no obtiene ni una fila de la vista del vendedor |
 | **Orden y paginación de listas (SOLO EN LOCAL, 2026-09-22, D-213)** | **P1-B y P1-H.** Siete listas ordenan **sobre el conjunto filtrado entero** —cuatro en la base, tres en el servidor—; el orden vive en la dirección y vuelve a la página 1 al cambiarlo. **Vendedores, Rifas y Administradores** paginan y ya no se truncan en las 1.000 filas de PostgREST. Migración **`0075`**: el orden pedido manda sobre la relevancia en `search_tickets` y `admin_list_tickets`, con **lista blanca en SQL** y la del personal **sin cliente ni dinero** (D-198). Lo que la base no puede ordenar **deja de ofrecerse** (I-154). Tres pendientes anotados: I-153, I-154, I-155 |
 | **Foco al cerrar una confirmación (SOLO EN LOCAL, 2026-09-21, D-212)** | **I-152 resuelta.** `ConfirmDialog` dejaba el foco en `body`; ahora vuelve al control que lo abrió —también cuando se abre desde un menú, donde el destino es el «⋯»— y, si ese control desaparece al repintarse el árbol («Anular boleta»), al contenido. Arregla sus **doce** usos sin tocar ninguno, sin dependencias y sin cambios visuales. **Sigue abierto:** «Asignar la boleta», que usa `Dialog` |
 | **Cierre del bloque 1 (SOLO EN LOCAL, 2026-09-21, D-211)** | **Los siete fallos de E2E eran de la base local, comprobado en tres pasadas** (acumulada 7/31 · en `git stash` los mismos 7 · recién sembrada **31/31**). Se corrigió un defecto propio: con «Cantidad» vacía ya no se anuncia un error que no se pinta. Se documentan dos ajenos, **I-151** y **I-152**, sin corregirlos. La propuesta de persistencia quedó **rectificada**: `sessionStorage` no sobrevive al cierre de la pestaña y el efecto de `beforeunload` sobre la caché de navegación depende del navegador |
@@ -160,7 +161,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-213, el orden es del conjunto y tres listas más paginan (**solo en local**, 2026-09-22)
+## 1.a Último relevo significativo — D-214, ordenar y paginar en la base (**solo en local**, 2026-09-22)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Cierra P1-B y P1-H, y corrige dos afirmaciones de D-213.** Las siete listas ordenan y paginan **en PostgreSQL**: Vendedores, Rifas y Administradores dejan de leer su lista entera, y «Cliente», «Falta», «Progreso» y «Vendedor» vuelven a ofrecer orden. **I-153 e I-154 resueltas.** **Fuera, a propósito:** un control de orden en el teléfono (I-155), y el tope de 999 rifas que apareció al medir (I-157) |
+| Archivos | **nueva** `supabase/migrations/0076_orden_en_la_base.sql` —2 vistas, 2 funciones y `create or replace` de las dos de 0075, sin tocar su firma—. Consultas de `tickets`, `users`, `sellers`, `raffles`, `payments`, `clients` y `admin-queries`; las tres páginas del personal; `lib/list-page.ts` (reducido al tipo + `pageBeyondEnd`). Pruebas: `tests/db/list-order.test.ts`, `catalog`, `admin-privacy`, las dos E2E y `db-setup`. **Sin tocar:** `DesignFix.txt`, `PublicarProduccion.txt`, `prueba-abono.csv` |
+| Reutilización | El patrón `applyTicketFilters` para armar dos veces la misma consulta filtrada. `current_staff_org_ids()` y la forma de las `admin_*` de `0057`. `v_ticket_balances` como precedente de vista con cifras calculadas. `create or replace` para no perder privilegios ni reescribir la `0075` |
+| Decisiones | **D-214.** Vista donde el RLS alcanza, función `security definer` donde no: el personal **no puede leer `tickets`**. Las dos funciones tienen **camino rápido** —elegir la página sin tocar `tickets` y contar con `lateral` solo sus 25 filas— porque la primera versión era **más lenta** que la que sustituía. El guardián de privacidad se **partió en dos reglas** en vez de debilitarse |
+| Verificación | `test:db` **1.434 + 1 omitida** (58/58) · `verify` **exit 0** (1.559 unitarias) · E2E **25/25 sin omitidas** · `list-order` **32/32**, con **1.100 rifas y 1.100 vendedores** creados y borrados. Medición con 20.033 boletas: de 2 consultas y 2.206 filas a **1 consulta y 25 filas**; 39,7 → 5,9 ms en Vendedores, 30,5 → 1,6 ms en Administradores. Detalle en `TEST_RESULTS` |
+| Advertencias | **1)** `admin_list_sellers` y `admin_list_raffles` tienen **dos caminos**: tocar uno sin el otro deja la lista incoherente. **2)** Ordenar **por un recuento** cuesta lo de antes, y es inevitable. **3)** `database.types.ts` se amplió **a mano** (213 líneas, ninguna borrada): regenerarlo entero arrastra 400 ajenas. **4)** La prueba de volumen **desactiva** `raffles_set_short_code` por I-157; si falla a medias, ese disparador puede quedar desactivado. **5)** Siguen vigentes: `docker restart supabase_kong_Rifas` tras `db:reset`, y `test:db` deja la base vacía |
+| Pendiente | **I-155** (el teléfono no ofrece control de orden), **I-156** (el historial de pagos de una ficha se corta en 100), **I-157** (999 rifas). Ninguno entra en este cierre. El resto de la auditoría sigue sin autorizar |
+| Git | Rama `feature/premios-configurables`, base observada **`be25382`**. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-213, el orden es del conjunto y tres listas más paginan (**solo en local**, 2026-09-22)
 
 | Campo | Estado |
 |---|---|

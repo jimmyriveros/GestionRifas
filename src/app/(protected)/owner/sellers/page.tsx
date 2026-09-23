@@ -4,14 +4,9 @@ import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { SellersTable } from '@/features/sellers/components/SellersTable'
-import {
-  listSellersWithInventory,
-  SELLER_COMPARATORS,
-  SELLER_SORT_COLUMNS,
-} from '@/features/sellers/queries'
+import { listSellersPage, SELLER_SORT_COLUMNS } from '@/features/sellers/queries'
 import { CreateUserButton } from '@/features/users/components/CreateUserButton'
 import { requireStaff } from '@/lib/auth/guards'
-import { sortAndPaginate } from '@/lib/list-page'
 import { parseListSort } from '@/lib/list-sort'
 
 /**
@@ -33,30 +28,17 @@ export default async function SellersPage({ searchParams }: { searchParams: Sear
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
   const sort = parseListSort(single(params.sort), single(params.dir), SELLER_SORT_COLUMNS)
 
-  const sellers = await listSellersWithInventory()
-
-  // La estructura comercial, derivada de la misma lista: quien tiene equipo,
-  // quien pertenece al de alguien y quien no (BR-E08). Sin consultas nuevas.
-  const teamSizes = new Map<string, number>()
-  const parentNames = new Map<string, string>()
-  for (const seller of sellers) {
-    parentNames.set(seller.profileId, seller.fullName)
-    if (seller.parentSellerId) {
-      teamSizes.set(seller.parentSellerId, (teamSizes.get(seller.parentSellerId) ?? 0) + 1)
-    }
-  }
-
   /*
-    El corte va DESPUES de contar los equipos, a proposito: quien tiene equipo
-    y de quien es cada integrante se cuenta sobre la lista completa. Cortando
-    primero, un vendedor cuyo equipo cayera en otra pagina apareceria sin el.
+    UNA PAGINA, contada y ordenada en SQL (D-214). La funcion devuelve ademas el
+    equipo ya resuelto —cuantos tiene cada uno a su cargo y de quien depende—,
+    que es lo unico que antes obligaba a traer la lista entera: cortando
+    primero, un vendedor cuyo equipo cayera en otra pagina aparecia sin el.
   */
-  const { rows, total, page, pageSize } = sortAndPaginate(sellers, {
+  const { rows, total, page, pageSize, team } = await listSellersPage({
     page: Number.isNaN(requestedPage) ? 1 : requestedPage,
     sort,
-    tiebreak: (seller) => seller.profileId,
-    comparators: SELLER_COMPARATORS,
   })
+  const { teamSizes, parentNames } = team
 
   return (
     <div className="space-y-6">
@@ -66,7 +48,9 @@ export default async function SellersPage({ searchParams }: { searchParams: Sear
         compactAction={<CreateUserButton role="seller" label="Nuevo vendedor" />}
       />
 
-      {sellers.length === 0 ? (
+      {/* El estado vacio es de la LISTA, no de la pagina: con `rows` una pagina
+          fuera de rango decia «todavia no hay» teniendo filas (D-214). */}
+      {total === 0 ? (
         <EmptyState
           icon={<UsersIcon className="size-8" aria-hidden />}
           title="Todavía no hay vendedores"

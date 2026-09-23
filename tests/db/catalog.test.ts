@@ -205,6 +205,12 @@ describe('funciones privilegiadas', () => {
       // ninguna devuelve cliente, precio, abonos ni saldo.
       'admin_audit_log',
       'admin_list_tickets',
+      // 0076 (D-214): las dos listas del personal que cuentan boletas. El
+      // personal no puede leer `tickets` —`tickets_select` es del vendedor—,
+      // asi que cuentan dentro de la funcion, acotadas por
+      // `current_staff_org_ids()`, y devuelven RECUENTOS, nunca importes.
+      'admin_list_raffles',
+      'admin_list_sellers',
       'admin_lottery_matches',
       'admin_ticket_bulk_eligibility',
       'admin_ticket_detail',
@@ -422,7 +428,7 @@ describe('vistas', () => {
     expect(rows.map((r) => r.relname)).toEqual([])
   })
 
-  it('las 5 vistas de saldos existen', async () => {
+  it('las 7 vistas existen: 5 de saldos y 2 de listado (D-214)', async () => {
     const { rows } = await db.query(`
       select c.relname from pg_class c
       join pg_namespace n on n.oid = c.relnamespace
@@ -430,9 +436,15 @@ describe('vistas', () => {
     `)
     expect(rows.map((r) => r.relname)).toEqual([
       'v_client_balances',
+      // 0076 (D-214): los miembros con su nombre, su estado efectivo y su
+      // equipo, para que «Administradores» ordene y pagine en la base.
+      'v_org_member_list',
       'v_payment_history',
       'v_raffle_summary',
+      // 0076 (D-214): «Mis boletas» con el cliente, el saldo y el progreso como
+      // columnas. security_invoker: el personal no obtiene ni una fila (D-198).
       'v_seller_summary',
+      'v_seller_ticket_list',
       'v_ticket_balances',
     ])
   })

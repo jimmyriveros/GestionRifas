@@ -2218,6 +2218,153 @@ export type Database = {
       }
     }
     Views: {
+      v_org_member_list: {
+        Row: {
+          account_active: boolean | null
+          activated_at: string | null
+          alias: string | null
+          commission_model:
+            | Database["public"]["Enums"]["commission_model"]
+            | null
+          created_at: string | null
+          email: string | null
+          fixed_commission_amount: number | null
+          full_name: string | null
+          membership_id: string | null
+          organization_id: string | null
+          parent_seller_id: string | null
+          parent_seller_name: string | null
+          phone: string | null
+          profile_id: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          team_size: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_parent_seller_fk"
+            columns: ["parent_seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "memberships_parent_seller_fk"
+            columns: ["parent_seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "memberships_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_seller_ticket_list: {
+        Row: {
+          clearance_receipt_assumed_delivered: boolean | null
+          clearance_receipt_delivered_at: string | null
+          client_id: string | null
+          client_name: string | null
+          created_at: string | null
+          daily_number: string | null
+          id: string | null
+          internal_code: string | null
+          inventory_status:
+            | Database["public"]["Enums"]["ticket_inventory_status"]
+            | null
+          organization_id: string | null
+          paid_amount: number | null
+          paid_ratio: number | null
+          payment_status:
+            | Database["public"]["Enums"]["ticket_payment_status"]
+            | null
+          pending_amount: number | null
+          raffle_id: string | null
+          raffle_name: string | null
+          raffle_short_code: string | null
+          sale_date: string | null
+          sale_price: number | null
+          seller_id: string | null
+          seller_name: string | null
+          weekly_number: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_client_org_fk"
+            columns: ["client_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tickets_client_org_fk"
+            columns: ["client_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tickets_client_seller_fk"
+            columns: ["client_id", "seller_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id", "seller_id"]
+          },
+          {
+            foreignKeyName: "tickets_client_seller_fk"
+            columns: ["client_id", "seller_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_balances"
+            referencedColumns: ["client_id", "seller_id"]
+          },
+          {
+            foreignKeyName: "tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tickets_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tickets_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "tickets_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+        ]
+      }
       v_client_balances: {
         Row: {
           alias: string | null
@@ -2542,6 +2689,72 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_raffles: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_sort_column?: string
+          p_sort_direction?: string
+        }
+        Returns: {
+          allow_seller_ticket_creation: boolean
+          closed_at: string
+          created_at: string
+          description: string
+          end_date: string
+          id: string
+          name: string
+          prize_mode: string
+          short_code: string
+          start_date: string
+          status: Database["public"]["Enums"]["raffle_status"]
+          ticket_price: number
+          tickets_assigned: number
+          tickets_available: number
+          tickets_cancelled: number
+          tickets_draft: number
+          tickets_not_paid: number
+          tickets_paid: number
+          tickets_pending_approval: number
+          tickets_total: number
+          total_count: number
+        }[]
+      }
+      admin_list_sellers: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_raffle_id?: string
+          p_sort_column?: string
+          p_sort_direction?: string
+        }
+        Returns: {
+          account_active: boolean
+          activated_at: string
+          alias: string
+          commission_model: Database["public"]["Enums"]["commission_model"]
+          created_at: string
+          email: string
+          fixed_commission_amount: number
+          full_name: string
+          membership_id: string
+          parent_seller_id: string
+          parent_seller_name: string
+          phone: string
+          profile_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          team_size: number
+          tickets_assigned: number
+          tickets_available: number
+          tickets_cancelled: number
+          tickets_draft: number
+          tickets_not_paid: number
+          tickets_paid: number
+          tickets_pending_approval: number
+          tickets_total: number
+          total_count: number
+        }[]
+      }
       admin_audit_log: {
         Args: {
           p_entity_id?: string

@@ -13357,3 +13357,110 @@ calcula sobre la lista completa; cortando primero, un vendedor cuyo equipo cayer
 navegador es el **recorrido completo**: se piden todas las páginas, se comprueba que la secuencia entera está
 ordenada, que ninguna fila se repite y que el número de filas vistas es exactamente el total anunciado. Se hace con
 empates a propósito —doce boletas por precio—, que es el caso que rompe un orden sin desempate estable.
+
+## D-214 — Ordenar y paginar en la base: cierre de P1-B y P1-H
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-22). **No es una Fase 10** y no lleva
+etiqueta `fase-*`. **Solo en local.** No autoriza push ni despliegue. Migración **`0076`**; la `0075` **no se
+reescribe**.
+
+Cierra lo que D-213 dejó a medias y **corrige dos afirmaciones suyas que eran falsas**.
+
+### Lo que quedaba a medias, y por qué no bastaba
+
+| D-213 dejó | Por qué no bastaba |
+|---|---|
+| Vendedores, Rifas y Administradores leían la lista **entera** con `fetchAllRows` y la recortaban en el servidor | El navegador recibía una página, pero el servidor traía y ordenaba **todas** las filas en cada visita |
+| «Cliente», «Falta», «Progreso» y «Vendedor» dejaron de ofrecer orden | Se dio por imposible porque **una sintaxis de PostgREST** falla. Que `order=clients!fk(name)` responda `PGRST100` no demuestra que la funcionalidad no se pueda hacer: demuestra que hacía falta darle a PostgREST una **relación** que tuviera esas columnas |
+
+### Dónde vive ahora cada lista, y por qué esa forma
+
+La frontera la marca el RLS, no el gusto. **El personal no puede leer `tickets`**: `tickets_select` devuelve
+únicamente las boletas del propio vendedor (D-198). Así que:
+
+| Lista | Qué se creó | Por qué |
+|---|---|---|
+| Mis boletas | `v_seller_ticket_list` (vista, `security_invoker`) | el vendedor **sí** lee sus boletas y sus clientes |
+| Administradores | `v_org_member_list` (vista, `security_invoker`) | el personal **sí** lee `memberships` y `profiles` |
+| Vendedores | `admin_list_sellers` (función, `security definer`) | cuenta boletas, que no puede leer |
+| Rifas | `admin_list_raffles` (función, `security definer`) | igual |
+
+Las dos vistas las ordena, filtra, cuenta y pagina **PostgREST**, como cualquier tabla. Las dos funciones se
+acotan con `current_staff_org_ids()`, igual que las `admin_*` de `0057`: quien no sea personal activo recibe un
+conjunto vacío, lo mismo que recibiría por un id que no existe.
+
+**El equipo viene resuelto desde SQL.** Cuántos vendedores tiene cada uno a su cargo y de quién depende eran lo
+único que obligaba a recorrer la lista completa: cortando primero, un vendedor cuyo equipo cayera en otra página
+aparecía sin él. Ahora los calcula la consulta, por fila.
+
+**`listSellersWithInventory`, `listAdminRaffleSummaries` y `listOrgMembers` se conservan tal cual.** El panel y
+los reportes necesitan la lista entera, y ahí traerla **es** el trabajo, no un desperdicio. Lo que cambia es que
+la lista visible ya no pasa por ellas.
+
+### Las cuatro columnas recuperadas, y la frontera que no cruzan
+
+`v_seller_ticket_list` expone como COLUMNAS el nombre del cliente, el del vendedor, el saldo y el progreso. Las
+dos calculadas siguen la misma regla que `ticketFinancials`: vendida es `assigned` **y** con precio; una boleta
+sin vender vale **NULL** en las dos, no cero —cero significaría «vendida y sin abonar»— y así cae al final del
+orden, que es donde la pantalla pinta su «—».
+
+**La vista no abre ninguna puerta.** Es `security_invoker`, así que hereda `tickets_select` y `clients_select`:
+un vendedor ve sus boletas y **el personal no obtiene ni una fila**. Hay una prueba que lo comprueba con las
+sesiones reales del Dueño y del Administrador, porque una vista mal hecha habría sido exactamente la puerta
+trasera a la cartera que D-198 cerró.
+
+En el portal del personal, «Vendedor» vuelve a ordenarse: `admin_list_tickets` se une a `profiles` **solo para
+ordenar** y no proyecta el nombre, así que su fila no cambia ni una columna. Un nombre de vendedor no es un dato
+de cliente.
+
+### La medición, que no dijo lo que yo esperaba
+
+Con 1.102 rifas, 1.103 vendedores y 20.033 boletas —el seed tiene 33, y con 33 agregarlas todas cuesta lo mismo
+que no hacerlo, así que no habría dicho nada—:
+
+| Lista | Antes: consultas · filas · ms | Después: consultas · filas · ms |
+|---|---|---|
+| Vendedores, orden por defecto | 2 · 1.104 + 1.102 · **39,7** | 1 · 25 · **5,9** |
+| Vendedores, orden por nombre | 2 · 2.206 · 39,7 | 1 · 25 · **5,9** |
+| Vendedores, orden **por recuento** | 2 · 2.206 · 39,7 | 1 · 25 · **36,4** |
+| Rifas, orden por defecto | 2 · 1.101 + 1.102 · **11,9** | 1 · 25 · **5,4** |
+| Rifas, orden **por recuento** | 2 · 2.203 · 11,9 | 1 · 25 · **9,0** |
+| Administradores | 1 · 1.104 · **30,5** | 1 · **2** · **1,6** |
+
+**La primera versión era MÁS LENTA que la que sustituía**, y eso es lo que obligó a rehacerla. Agregaba
+`tickets` entero para enseñar 25 filas: 4,05 ms frente a 2,97 ms en Rifas. Contar todas las boletas para servir
+veinticinco filas **es** recuperar el conjunto completo, por otra vía. Ahora cada función tiene dos caminos:
+
+* **Camino rápido**, el normal: el orden no depende de los recuentos, así que la página se elige mirando solo
+  `memberships` o `raffles`, y las boletas se cuentan con un `lateral` **únicamente para esas 25 filas**.
+* **Camino lento**, inevitable: ordenar **por** un recuento exige contarlos todos. No se puede saber cuál es el
+  vendedor con más boletas sin mirarlas. Ahí el coste es el de antes, y se paga solo cuando alguien lo pide.
+
+Son tiempos de una base local en Docker y **no se presentan como rendimiento de producción**. Lo que sí es
+independiente de la máquina es la forma: **una consulta en vez de dos, y 25 filas en vez de 2.206**.
+
+### Dos correcciones a D-213
+
+**1. «Una página fuera de rango devuelve cero filas y el total de verdad» era falso.** Medido: PostgREST responde
+**416 `PGRST103`** en cuanto se pide `count: 'exact'` con un desplazamiento mayor que el total, y eso llegaba a la
+pantalla como «Algo salió mal». Las listas que paginan por una función tenían el defecto contrario: devolvían
+cero filas y, con ellas, **total 0**, porque el recuento viaja repetido en cada fila —la barra decía «de 0» en una
+lista que sí tiene—. **Las dos eran anteriores a D-213**, que se limitó a no notarlo. Ahora las siete responden lo
+mismo: cero filas y el total real, con `pageBeyondEnd` para el primer caso y una segunda llamada de una sola fila
+para el segundo.
+
+**2. El estado vacío no es de la página, es de la lista.** «Vendedores» y «Rifas» decidían con `rows.length`, así
+que la página 99 decía «Todavía no hay vendedores» teniendo mil. Ahora deciden con `total`.
+
+### Lo que se retiró
+
+`sortAndPaginate` y sus cuatro comparadores desaparecen de `src/lib/list-page.ts`: ordenar y paginar volvió a ser
+trabajo de PostgreSQL y el ayudante se quedó sin usos. Queda el tipo `PagedList`, que describe lo que devuelven
+las siete lecturas. Su prueba unitaria se retira con él; lo que medía se mide ahora contra la base.
+
+### Un defecto ajeno que apareció al medir (I-157)
+
+`raffles_set_short_code` construye el código con `lpad(contador, 3, '0')`, y **`lpad` trunca** cuando el texto es
+más largo que el ancho: la rifa 1.000 sale como `R100` y choca con la 100. Una organización **no puede pasar de
+999 rifas**. Es anterior y ajeno a este trabajo, así que se anota y no se corrige; la prueba de volumen lo esquiva
+poniendo el código a mano, y lo dice.

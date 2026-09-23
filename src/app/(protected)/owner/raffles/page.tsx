@@ -6,12 +6,7 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
 import { RafflesTable } from '@/features/raffles/components/RafflesTable'
-import {
-  listAdminRaffleSummaries,
-  RAFFLE_COMPARATORS,
-  RAFFLE_SORT_COLUMNS,
-} from '@/features/raffles/queries'
-import { sortAndPaginate } from '@/lib/list-page'
+import { listAdminRafflesPage, RAFFLE_SORT_COLUMNS } from '@/features/raffles/queries'
 import { parseListSort } from '@/lib/list-sort'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -26,14 +21,11 @@ export default async function RafflesPage({ searchParams }: { searchParams: Sear
   const requestedPage = Number.parseInt(single(params.page) ?? '1', 10)
   const sort = parseListSort(single(params.sort), single(params.dir), RAFFLE_SORT_COLUMNS)
 
-  // Recuentos del personal, sin dinero (D-198).
-  const raffles = await listAdminRaffleSummaries()
-
-  const { rows, total, page, pageSize } = sortAndPaginate(raffles, {
+  // Una pagina, contada y ordenada en SQL. Recuentos del personal, sin dinero
+  // de cartera (D-198, D-214).
+  const { rows, total, page, pageSize } = await listAdminRafflesPage({
     page: Number.isNaN(requestedPage) ? 1 : requestedPage,
     sort,
-    tiebreak: (raffle) => raffle.id,
-    comparators: RAFFLE_COMPARATORS,
   })
 
   return (
@@ -51,7 +43,9 @@ export default async function RafflesPage({ searchParams }: { searchParams: Sear
         }
       />
 
-      {raffles.length === 0 ? (
+      {/* El estado vacio es de la LISTA, no de la pagina: con `rows` una pagina
+          fuera de rango decia «todavia no hay» teniendo filas (D-214). */}
+      {total === 0 ? (
         <EmptyState
           icon={<TicketIcon className="size-8" aria-hidden />}
           title="Todavía no hay rifas"

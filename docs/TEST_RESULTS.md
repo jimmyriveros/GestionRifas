@@ -14067,3 +14067,96 @@ por función que lo fija.
   tres listas nuevas envían al navegador **una página** donde antes enviaban todas.
 * **Ordenar desde el teléfono**: no existe ese control y es anterior a este bloque (I-155).
 * **Producción**: no se tocó ni se leyó.
+
+## D-214 — Ordenar y paginar en la base (2026-09-22, solo en local)
+
+Condiciones iniciales: `npx supabase db reset` con la `0076`, `docker restart supabase_kong_Rifas` y
+`npm run seed:local`. **Las pruebas que necesitan volumen crean sus propias filas y las borran**: ya no se
+salta ninguna por falta de datos, que era el punto flojo de D-213.
+
+### a. Lo que se midió antes de decidir
+
+**PostgREST no ordena por una columna de `clients`, y eso no cierra la puerta.** `order=clients(name).asc`
+responde `PGRST201` —dos claves ajenas— y `order=clients!tickets_client_org_fk(name).asc` responde `PGRST100`:
+el `!` no se acepta ahí. Lo que hacía falta no era otra sintaxis, era otra **relación**. Con
+`v_seller_ticket_list` esas columnas existen y se ordenan como cualquier otra.
+
+**El personal no puede leer `tickets`.** `tickets_select` devuelve solo las del propio vendedor, así que las dos
+listas que cuentan boletas necesitan `security definer`; las otras dos se resuelven con vistas
+`security_invoker`. La frontera la marcó la política, no la comodidad.
+
+### b. La medición, con 1.102 rifas, 1.103 vendedores y 20.033 boletas
+
+Con las 33 boletas del seed, agregarlas todas cuesta lo mismo que no hacerlo: la comparación no habría dicho
+nada. `EXPLAIN (ANALYZE, BUFFERS)` sobre los mismos datos, con la identidad del Dueño:
+
+| Lista | Antes: consultas · filas · ms | Después: consultas · filas · ms |
+|---|---|---|
+| Vendedores, orden por defecto | 2 · 2.206 · **39,7** | 1 · 25 · **5,9** |
+| Vendedores, orden por nombre | 2 · 2.206 · 39,7 | 1 · 25 · **5,9** |
+| Vendedores, orden **por recuento** | 2 · 2.206 · 39,7 | 1 · 25 · **36,4** |
+| Rifas, orden por defecto | 2 · 2.203 · **11,9** | 1 · 25 · **5,4** |
+| Rifas, orden **por recuento** | 2 · 2.203 · 11,9 | 1 · 25 · **9,0** |
+| Administradores | 1 · 1.104 · **30,5** | 1 · **2** · **1,6** |
+
+«Antes» de Vendedores y Rifas son **dos** consultas porque las dos las hacían: la lista de personas o de rifas,
+y `admin_ticket_inventory(null)`, que agrega el inventario entero (10,7 ms por sí sola).
+
+**Son tiempos de una base local en Docker y no se presentan como rendimiento de producción.** Lo que no depende
+de la máquina es la forma: **una consulta donde había dos, y 25 filas donde había 2.206**.
+
+### c. La primera versión era MÁS LENTA, y eso obligó a rehacerla
+
+Medido antes del camino rápido: `admin_list_raffles` tardaba **4,05 ms** frente a los **2,97 ms** de la suma
+que sustituía. Agregaba `tickets` entero para servir 25 filas — que es recuperar el conjunto completo por otra
+vía, exactamente lo que este trabajo venía a evitar. Ahora cada función tiene dos caminos: el normal elige la
+página mirando solo `memberships` o `raffles` y cuenta las boletas con un `lateral` **solo para esas 25 filas**;
+ordenar **por** un recuento sigue costando lo de antes, porque no se puede saber quién tiene más boletas sin
+mirarlas.
+
+### d. Pruebas
+
+| Nivel | Qué cubre | Resultado |
+|---|---|---|
+| Base | `tests/db/list-order.test.ts` — las dos funciones, las dos vistas, las listas blancas, el aislamiento, y **más de 1.000 filas**: 1.100 rifas y 1.100 vendedores creados y borrados | ✅ **32/32** |
+| Base | `tests/db/catalog.test.ts` y `admin-privacy.test.ts` — los guardianes del catálogo, ampliados | ✅ |
+| Base | Suite completa | ✅ **1.434 + 1 omitida**, 58/58 |
+| Unitarias y build | `npm run verify` | ✅ **exit 0** — **1.559** en 84 archivos, lint sin errores, build |
+| Navegador | `orden-paginacion.spec.ts` y `orden-movil.spec.ts` | ✅ **25/25, sin omitidas** |
+
+**Las de Pagos ya no se saltan.** Crean su cliente, sus 60 boletas y sus 60 pagos —con el pago y su reparto en
+**una transacción**, porque `payments_balance_check` no es diferible y los dos `insert` sueltos fallan— y los
+borran al terminar. Con importes **únicos**, que identifican cada fila, y con **tres métodos** para sesenta
+pagos, que es el empate de verdad.
+
+**Se corrigió una discrepancia de D-213:** su prueba decía en el comentario que «Método» empata muchísimo y
+ordenaba por «Valor». Ahora hay dos pruebas y cada una dice lo que hace: por «Valor», orden estricto,
+identificadores únicos e igualdad con el conjunto esperado; por «Método», con veinte empatados en cada uno, el
+orden de los importes **no** tiene por qué ser creciente y lo que se exige es que estén todos y una sola vez.
+El informe de D-213 repetía la misma confusión.
+
+### e. Lo que encontraron los guardianes, y cómo se resolvió
+
+| Guardián | Qué pasó | Resolución |
+|---|---|---|
+| «las 5 vistas de saldos existen» | Ahora hay 7 | Se añaden las dos, con su porqué. El título dice «5 de saldos y 2 de listado» |
+| «ninguna función interna es ejecutable por `authenticated`» | Las dos nuevas lo son, a propósito | Entran en la lista blanca, con la misma razón que `admin_list_tickets` |
+| «ninguna función administrativa declara una columna de la cartera» | `admin_list_sellers` declara `phone`, `email` y `alias` | **Se partió en dos reglas, no se debilitó una.** La cartera sigue prohibida en TODAS. El contacto sigue prohibido en todas menos en la proyección de PERSONAS, donde esos datos son **del vendedor** —los que el personal escribe al darlo de alta y la lista pinta bajo su nombre—, y se añadió una comprobación propia de que esa función no trae **nada** de cliente |
+
+### f. Errores encontrados durante el trabajo
+
+| Error | Causa | Corrección |
+|---|---|---|
+| Tres E2E de «página fuera de rango» fallaban | Mi cambio: el estado vacío pasó a decidirse con `rows.length`, así que la página 99 decía «todavía no hay» teniendo filas | Decide con `total` |
+| Y al investigarlo, un defecto **anterior**: PostgREST responde **416** con `count: 'exact'` fuera de rango | Afectaba a Pagos, Clientes y Boletas desde siempre; llegaba como «Algo salió mal» | `pageBeyondEnd`, y las siete listas responden igual (I-158) |
+| Las funciones devolvían **total 0** en esa misma situación | El recuento viaja repetido en cada fila | Segunda llamada de una sola fila, solo en ese caso |
+| Las 60 altas de pago fallaban con «la suma de las asignaciones (0)» | `payments_balance_check` no es diferible | Pago y reparto en una transacción (`createPaymentWithAllocation`) |
+| La prueba de volumen no podía crear 1.100 rifas | `lpad(contador, 3, '0')` **trunca**: la 1.000 sale `R100` (I-157, ajeno) | La prueba pone el código a mano y lo explica |
+| `admin_list_sellers` no compilaba su camino rápido | El CTE proyectaba columnas sin alias | Cada columna con su nombre |
+| `getTicketDetail` dejó de compilar | Compartía `TICKET_SELECT`, que pasó a describir la vista | Proyección propia y un adaptador, sin duplicar el mapeo |
+
+### g. Lo que NO se comprobó
+
+* **Rendimiento de producción**: las cifras son de una base local en Docker.
+* **Un control de orden en el teléfono**: sigue sin existir (I-155) y quedaba fuera de este cierre.
+* **Producción**: no se tocó ni se leyó. Las dos migraciones son locales.

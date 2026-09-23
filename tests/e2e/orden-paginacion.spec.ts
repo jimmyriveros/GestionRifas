@@ -1,6 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { loadSeedRefs, serviceClient } from './db-setup'
+import {
+  createAssignedTicket,
+  createClientFor,
+  createPaymentWithAllocation,
+  loadSeedRefs,
+  serviceClient,
+} from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
 
 /**
@@ -43,22 +49,106 @@ async function columnaDeImportes(page: Page, encabezado: string): Promise<number
   }, indice)
 }
 
+/**
+ * PAGOS, CON DATOS PROPIOS. Antes estas cuatro pruebas se saltaban cuando la
+ * base recien sembrada no llegaba a 25 pagos, asi que en la practica solo
+ * median cuando alguien habia dejado datos de otra pasada. Ahora crean los
+ * suyos y los borran al terminar, de modo que miden siempre y no dependen de
+ * nadie.
+ *
+ * DOS COLUMNAS Y DOS PREGUNTAS DISTINTAS:
+ *
+ *   * «Valor» lleva importes UNICOS —60.000, 61.000, 62.000…—, asi que cada
+ *     importe identifica su fila. Sirve para comprobar el orden estricto, que
+ *     no se repite ninguna y que el recorrido trae exactamente el conjunto
+ *     esperado.
+ *   * «Método» empata a proposito: tres valores para sesenta pagos. Es el caso
+ *     que rompe un orden sin desempate estable, porque PostgreSQL puede
+ *     devolver las filas empatadas en otro orden entre dos consultas y entonces
+ *     una sale dos veces mientras otra no sale nunca. Ahi no se comprueba el
+ *     orden de los importes —no tienen por que estarlo—, sino que el CONJUNTO
+ *     recorrido sea exactamente el esperado.
+ */
 test.describe('Pagos: el orden es del conjunto, no de la página', () => {
+  const STAMP = Date.now().toString(36).slice(-5)
+  /** Tres páginas de 25 no caben en dos, que es lo que hace falta para cruzar. */
+  const CUANTOS = 60
+  const PRECIO = 120_000
+  /** Importes únicos: cada uno identifica su fila. */
+  const importe = (i: number) => 60_000 + i * 1_000
+  /** Tres métodos para sesenta pagos: veinte empatados en cada uno. */
+  const METODOS = ['cash', 'transfer', 'other'] as const
+
+  let clientId = ''
+  const ticketIds: string[] = []
+  const paymentIds: string[] = []
+
+  test.beforeAll(async () => {
+    const refs = await loadSeedRefs()
+
+    const cliente = await createClientFor(refs, `Orden Pagos ${STAMP}`)
+    clientId = cliente.id
+
+    for (let i = 0; i < CUANTOS; i += 1) {
+      const ticket = await createAssignedTicket(refs, {
+        dailyNumber: String(i).padStart(4, '0'),
+        weeklyNumber: String(8000 + i),
+        clientId,
+        salePrice: PRECIO,
+      })
+      ticketIds.push(ticket.id)
+
+      paymentIds.push(
+        await createPaymentWithAllocation(refs, {
+          clientId,
+          ticketId: ticket.id,
+          amount: importe(i),
+          method: METODOS[i % METODOS.length] ?? 'cash',
+          paymentDate: '2026-09-01',
+        }),
+      )
+    }
+  })
+
+  test.afterAll(async () => {
+    const svc = serviceClient()
+    if (paymentIds.length > 0) {
+      await svc.from('payment_allocations').delete().in('payment_id', paymentIds)
+      await svc.from('payments').delete().in('id', paymentIds)
+    }
+    if (ticketIds.length > 0) await svc.from('tickets').delete().in('id', ticketIds)
+    if (clientId) await svc.from('clients').delete().eq('id', clientId)
+  })
+
   test.beforeEach(async ({ page }) => {
     await loginAs(page, ACCOUNTS.seller)
   })
 
-  test('descendente: ninguna página posterior supera a la anterior', async ({ page }) => {
-    await page.goto('/seller/payments?sort=totalAmount&dir=desc')
+  /** Todos los importes del recorrido completo, página a página. */
+  async function recorrido(page: Page, orden: string): Promise<number[]> {
+    await page.goto(`/seller/payments?clientId=${clientId}&${orden}`)
     const total = await totalDe(page)
-    test.skip(total <= 25, `hacen falta más de 25 pagos para cruzar páginas; hay ${total}`)
+    expect(total).toBe(CUANTOS)
 
+    const visto: number[] = []
+    for (let p = 1; p <= Math.ceil(total / 25); p += 1) {
+      await page.goto(`/seller/payments?clientId=${clientId}&${orden}&page=${p}`)
+      visto.push(...(await columnaDeImportes(page, 'Valor')))
+    }
+    return visto
+  }
+
+  /** Lo que tiene que salir, sin importar en qué orden. */
+  const esperado = () => Array.from({ length: CUANTOS }, (_, i) => importe(i))
+
+  test('descendente: ninguna página posterior supera a la anterior', async ({ page }) => {
+    await page.goto(`/seller/payments?clientId=${clientId}&sort=totalAmount&dir=desc`)
     const primera = await columnaDeImportes(page, 'Valor')
-    expect(primera.length).toBeGreaterThan(0)
-    // Dentro de la página, en orden.
+    expect(primera).toHaveLength(25)
+    expect(primera[0]).toBe(importe(CUANTOS - 1))
     expect([...primera].sort((a, b) => b - a)).toEqual(primera)
 
-    await page.goto('/seller/payments?sort=totalAmount&dir=desc&page=2')
+    await page.goto(`/seller/payments?clientId=${clientId}&sort=totalAmount&dir=desc&page=2`)
     const segunda = await columnaDeImportes(page, 'Valor')
 
     // LA COMPROBACIÓN: el mayor de la página 2 no puede superar al menor de la 1.
@@ -66,50 +156,39 @@ test.describe('Pagos: el orden es del conjunto, no de la página', () => {
   })
 
   test('ascendente: mismo criterio al revés', async ({ page }) => {
-    await page.goto('/seller/payments?sort=totalAmount&dir=asc')
-    const total = await totalDe(page)
-    test.skip(total <= 25, `hacen falta más de 25 pagos; hay ${total}`)
-
+    await page.goto(`/seller/payments?clientId=${clientId}&sort=totalAmount&dir=asc`)
     const primera = await columnaDeImportes(page, 'Valor')
+    expect(primera[0]).toBe(importe(0))
     expect([...primera].sort((a, b) => a - b)).toEqual(primera)
 
-    await page.goto('/seller/payments?sort=totalAmount&dir=asc&page=2')
+    await page.goto(`/seller/payments?clientId=${clientId}&sort=totalAmount&dir=asc&page=2`)
     const segunda = await columnaDeImportes(page, 'Valor')
     expect(Math.min(...segunda)).toBeGreaterThanOrEqual(Math.max(...primera))
   })
 
-  test('con muchos empates, el recorrido completo sigue ordenado y no pierde filas', async ({
+  test('por «Valor»: el recorrido sale ordenado, sin repetir y con todas', async ({ page }) => {
+    const visto = await recorrido(page, 'sort=totalAmount&dir=asc')
+
+    expect(visto).toHaveLength(CUANTOS)
+    // Cada importe es único, así que sirve de identificador de su fila.
+    expect(new Set(visto).size).toBe(CUANTOS)
+    expect(visto).toEqual(esperado())
+  })
+
+  test('por «Método», con veinte empatados en cada uno, no se pierde ni repite ninguna', async ({
     page,
   }) => {
-    /*
-      «Método» empata muchísimo: casi todos los pagos son del mismo. Es el peor
-      caso para un orden sin desempate estable, porque PostgreSQL puede
-      devolver las filas empatadas en cualquier orden entre dos consultas y
-      entonces una fila sale dos veces mientras otra no sale nunca.
+    const visto = await recorrido(page, 'sort=paymentMethod&dir=asc')
 
-      Se recorren TODAS las páginas y se comprueban dos cosas sobre el recorrido
-      entero: que el orden no se rompe en ningún salto de página y que el número
-      de filas vistas es exactamente el total anunciado.
-    */
-    await page.goto('/seller/payments?sort=totalAmount&dir=asc')
-    const total = await totalDe(page)
-    test.skip(total <= 25, `hacen falta más de 25 pagos; hay ${total}`)
-
-    const recorrido: number[] = []
-    const paginas = Math.ceil(total / 25)
-    for (let p = 1; p <= paginas; p += 1) {
-      await page.goto(`/seller/payments?sort=totalAmount&dir=asc&page=${p}`)
-      recorrido.push(...(await columnaDeImportes(page, 'Valor')))
-    }
-
-    expect(recorrido.length).toBe(total)
-    expect([...recorrido].sort((a, b) => a - b)).toEqual(recorrido)
+    expect(visto).toHaveLength(CUANTOS)
+    expect(new Set(visto).size).toBe(CUANTOS)
+    // El orden de los importes NO tiene por qué ser creciente: se ordenó por
+    // método. Lo que sí tiene que cumplirse es que estén todos y una sola vez.
+    expect([...visto].sort((a, b) => a - b)).toEqual(esperado())
   })
 
   test('el orden sobrevive al pasar de página, y vuelve a la 1 al cambiarlo', async ({ page }) => {
-    await page.goto('/seller/payments?sort=totalAmount&dir=desc')
-    const total = await totalDe(page)
-    test.skip(total <= 25, `hacen falta más de 25 pagos; hay ${total}`)
+    await page.goto(`/seller/payments?clientId=${clientId}&sort=totalAmount&dir=desc`)
 
     await page.getByRole('button', { name: /Siguiente/ }).click()
     await expect(page).toHaveURL(/sort=totalAmount/)
@@ -160,13 +239,38 @@ test.describe('Boletas: solo se ofrece lo que la base puede ordenar', () => {
     await expect(page).not.toHaveURL(/sort=/)
   })
 
-  test('«Cliente» y «Falta» no ofrecen orden, porque la base no puede darlo', async ({ page }) => {
+  test('«Cliente», «Falta» y «Progreso» YA ofrecen orden', async ({ page }) => {
+    /*
+      Hasta D-214 estas tres cabeceras no eran boton: PostgREST no sabe ordenar
+      por una columna de `clients` —hay dos claves ajenas— ni por una
+      expresion. La vista `v_seller_ticket_list` las tiene como COLUMNAS, asi
+      que ahora se piden como cualquier otra.
+    */
     await page.goto('/seller/tickets')
-    await expect(page.getByRole('columnheader', { name: 'Cliente' })).toBeVisible()
 
-    // La cabecera existe; el BOTON que pediria el orden, no.
-    await expect(page.getByRole('button', { name: /^Cliente/ })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: /^Falta/ })).toHaveCount(0)
+    for (const columna of [/^Cliente/, /^Falta/, /^Progreso/]) {
+      await expect(page.getByRole('button', { name: columna })).toHaveCount(1)
+    }
+  })
+
+  test('ordenar por «Falta» lo aplica la base, no la pagina', async ({ page }) => {
+    await page.goto('/seller/tickets')
+    await page.getByRole('button', { name: /^Falta/ }).click()
+
+    await expect(page).toHaveURL(/sort=pendingAmount/)
+    await expect(page.getByRole('columnheader', { name: /Falta/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+  })
+
+  test('ordenar por «Cliente» tampoco rompe nada', async ({ page }) => {
+    await page.goto('/seller/tickets?sort=clientName&dir=desc')
+    await expect(page.getByRole('heading', { name: 'Mis boletas' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: /Cliente/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    )
   })
 
   test('el orden sobrevive a la busqueda y manda sobre la relevancia', async ({ page }) => {
@@ -238,7 +342,11 @@ test.describe('Vendedores, Rifas y Administradores: ahora paginan', () => {
     test(`«${lista.titulo}» aguanta una pagina fuera de rango`, async ({ page }) => {
       await page.goto(`${lista.ruta}?page=99`)
       await expect(page.getByRole('heading', { name: lista.titulo })).toBeVisible()
-      // El total sigue siendo el de verdad, aunque no haya filas que ensenar.
+      /*
+        Cero filas, pero el total de VERDAD y ningun estado vacio: decir
+        «todavia no hay vendedores» en la pagina 99 de una lista que si tiene
+        seria mentir, y un 416 de PostgREST llegaba como «Algo salió mal».
+      */
       await expect(
         page.getByText(new RegExp(String.raw`de \d+ ` + lista.termino.source)).first(),
       ).toBeVisible()

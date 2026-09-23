@@ -61,8 +61,9 @@ export type AdminTicketFilters = {
  * ninguna celda lo escriba, asi que la privacidad de D-198 vale tambien para el
  * orden, no solo para lo que se pinta.
  *
- * «Vendedor» tampoco esta: su nombre no sale de la consulta, lo resuelve un
- * mapa en memoria, de modo que ordenar por el solo reacomodaria la pagina.
+ * Desde D-214 «Vendedor» SI esta: la funcion se une a `profiles` para poder
+ * ordenar por el nombre. Sigue sin proyectarlo —la fila devuelta no cambia— y
+ * sigue sin ser un dato de cliente.
  *
  * La lista se repite en SQL, dentro de `admin_list_tickets` (migracion 0075):
  * la pantalla no es una frontera de seguridad (CLAUDE.md 26).
@@ -70,6 +71,7 @@ export type AdminTicketFilters = {
 export const ADMIN_TICKET_SORT_COLUMNS = [
   'dailyNumber',
   'raffleShortCode',
+  'sellerName',
   'inventoryStatus',
   'paymentState',
   'clearance',
@@ -173,10 +175,20 @@ export async function listAdminTickets(filters: AdminTicketFilters): Promise<{
     sellerNameMap(),
   ])
 
+  /*
+    UNA PAGINA QUE NO EXISTE devuelve cero filas, y con ellas se iria el
+    recuento: `total_count` viaja repetido en CADA fila, asi que sin filas la
+    barra diria «de 0» en una lista que si tiene. Se vuelve a preguntar por la
+    primera, que es una sola fila, y solo en ese caso.
+  */
+  let total = Number(rows[0]?.total_count ?? 0)
+  if (rows.length === 0 && page > 1) {
+    total = Number((await callAdminList(filters, 1, 0))[0]?.total_count ?? 0)
+  }
+
   return {
     rows: rows.map((row) => mapListRow(row, sellerNames)),
-    // `total_count` viaja repetido en cada fila; sin filas, no hay resultados.
-    total: Number(rows[0]?.total_count ?? 0),
+    total,
     page,
     pageSize,
   }

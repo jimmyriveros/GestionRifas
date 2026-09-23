@@ -2,18 +2,11 @@ import 'server-only'
 
 import { cache } from 'react'
 
-import {
-  compareBoolean,
-  compareDate,
-  compareText,
-  sortAndPaginate,
-  type ListComparators,
-  type PagedList,
-} from '@/lib/list-page'
+import { pageBeyondEnd, type PagedList } from '@/lib/list-page'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import type { ListSort } from '@/lib/list-sort'
 import { createClient } from '@/lib/supabase/server'
-import type { AppRole, CommissionModel } from '@/lib/constants'
+import { PAGE_SIZE, type AppRole, type CommissionModel } from '@/lib/constants'
 
 /**
  * Lecturas de usuarios de la organizacion. La politica `memberships_select`
@@ -165,35 +158,120 @@ export async function listOrgMembers(roles: AppRole[]): Promise<OrgMember[]> {
 }
 
 /**
- * Una PAGINA de miembros con esos roles, ordenada por lo que pida la URL (P1-H).
+ * Una PAGINA de miembros con esos roles, ordenada y contada POR LA BASE (D-214).
  *
- * «Administradores» enviaba al navegador todos los miembros de la organizacion
- * y no tenia paginacion: con mil administradores la pantalla intentaba pintar
- * mil filas, y a partir de ahi PostgREST dejaba de servirlos sin avisar.
+ * Va contra `v_org_member_list` (migracion 0076), que es `security_invoker`:
+ * hereda `memberships_select` y `profiles_select`, asi que devuelve
+ * exactamente las mismas filas que veria `listOrgMembers`. Lo que cambia es que
+ * el nombre, el estado efectivo de la cuenta y el tamano del equipo son
+ * COLUMNAS, de modo que `order` y `range` los resuelve PostgreSQL.
  *
- * El corte y el orden se hacen en el servidor sobre la lista completa
- * (`sortAndPaginate`), no en el navegador: al browser le llega una pagina.
+ * Antes se leia la organizacion entera con `fetchAllRows` y se recortaba en el
+ * servidor: el navegador recibia una pagina, pero el servidor traia y ordenaba
+ * todas las filas en cada visita.
  */
 export async function listOrgMembersPage(
   roles: AppRole[],
   options: { page: number; sort: ListSort | null },
 ): Promise<PagedList<OrgMember>> {
-  const members = await listOrgMembers(roles)
+  const supabase = await createClient()
+  const pageSize = PAGE_SIZE
+  const page = Math.max(1, options.page)
 
-  return sortAndPaginate(members, {
-    page: options.page,
-    sort: options.sort,
-    tiebreak: (member) => member.profileId,
-    comparators: MEMBER_COMPARATORS,
-  })
+  const query = supabase
+    .from('v_org_member_list')
+    .select(MEMBER_VIEW_SELECT, { count: 'exact' })
+    .in('role', roles)
+
+  /*
+    `nullsFirst: false` por lo de siempre: un `desc` en PostgreSQL pone los
+    nulos primero, y el alias o el telefono pueden faltar. Y `profile_id` cierra
+    SIEMPRE, para que dos altas del mismo instante no cambien de pagina entre
+    dos consultas.
+  */
+  const ordered = options.sort
+    ? query.order(MEMBER_SORT_DB[options.sort.column as MemberSortColumn] ?? 'created_at', {
+        ascending: options.sort.direction === 'asc',
+        nullsFirst: false,
+      })
+    : query.order('created_at', { ascending: true })
+
+  const { data, error, count } = await ordered
+    .order('profile_id', { ascending: true })
+    .range((page - 1) * pageSize, page * pageSize - 1)
+
+  if (error) {
+    if (!pageBeyondEnd(error)) throw error
+    // La pagina no existe: cero filas, pero el total de verdad.
+    const { count: real } = await supabase
+      .from('v_org_member_list')
+      .select('profile_id', { head: true, count: 'exact' })
+      .in('role', roles)
+    return { rows: [], total: real ?? 0, page, pageSize }
+  }
+
+  return {
+    rows: (data ?? []).map(mapMemberViewRow),
+    total: count ?? 0,
+    page,
+    pageSize,
+  }
+}
+
+const MEMBER_VIEW_SELECT =
+  'membership_id, profile_id, role, created_at, parent_seller_id, commission_model, fixed_commission_amount, full_name, alias, phone, email, activated_at, account_active, team_size, parent_seller_name'
+
+/**
+ * Una fila de la vista. PostgreSQL no puede demostrar que las columnas de una
+ * vista no sean nulas, asi que el generador de tipos las marca todas
+ * anulables; el mapeo pone el mismo valor por defecto que ya usaban las otras
+ * lecturas (`listClients`).
+ */
+type MemberViewRow = {
+  membership_id: string | null
+  profile_id: string | null
+  role: AppRole | null
+  created_at: string | null
+  parent_seller_id: string | null
+  commission_model: CommissionModel | null
+  fixed_commission_amount: number | null
+  full_name: string | null
+  alias: string | null
+  phone: string | null
+  email: string | null
+  activated_at: string | null
+  account_active: boolean | null
+  team_size: number | null
+  parent_seller_name: string | null
+}
+
+/** Misma forma que `mapMember`; el estado efectivo ya lo calcula la vista. */
+function mapMemberViewRow(row: MemberViewRow): OrgMember {
+  return {
+    membershipId: row.membership_id ?? '',
+    profileId: row.profile_id ?? '',
+    role: row.role ?? 'seller',
+    // La vista ya calcula la conjuncion de las dos banderas (BR-A05).
+    isActive: row.account_active ?? false,
+    fullName: row.full_name ?? '',
+    alias: row.alias,
+    phone: row.phone ?? '',
+    email: row.email ?? '',
+    createdAt: row.created_at ?? '',
+    parentSellerId: row.parent_seller_id,
+    commissionModel: row.commission_model ?? 'tiered',
+    fixedCommissionAmount:
+      row.fixed_commission_amount === null ? null : Number(row.fixed_commission_amount),
+    activatedAt: row.activated_at,
+  }
 }
 
 /**
- * Las columnas por las que se puede ordenar «Administradores» y «Vendedores».
+ * Las columnas por las que se puede ordenar «Administradores» (P1-H, D-214).
  *
- * Son los `id` de las columnas de sus tablas. «Acciones» y «Equipo» no estan:
- * la primera no es un dato, y la segunda es un enlace que se arma en el
- * navegador a partir de otra consulta.
+ * Son los `id` de las columnas de `UsersTable`. «Acciones» no esta: no es un
+ * dato. «Estado» ordena por `account_active`, que es la conjuncion de las dos
+ * banderas, igual que la insignia que se pinta (BR-A05).
  */
 export const MEMBER_SORT_COLUMNS = [
   'fullName',
@@ -204,13 +282,15 @@ export const MEMBER_SORT_COLUMNS = [
   'createdAt',
 ] as const
 
-const MEMBER_COMPARATORS: ListComparators<OrgMember> = {
-  fullName: (a, b) => compareText(a.fullName, b.fullName),
-  role: (a, b) => compareText(a.role, b.role),
-  email: (a, b) => compareText(a.email, b.email),
-  phone: (a, b) => compareText(a.phone, b.phone),
-  // Ascendente pone primero a quien tiene la cuenta activa, que es lo que se
-  // busca al ordenar por «Estado».
-  isActive: (a, b) => compareBoolean(a.isActive, b.isActive),
-  createdAt: (a, b) => compareDate(a.createdAt, b.createdAt),
+export type MemberSortColumn = (typeof MEMBER_SORT_COLUMNS)[number]
+
+/** De nombre de columna a columna de la vista. Lo que no este aqui no se pide. */
+const MEMBER_SORT_DB: Record<MemberSortColumn, string> = {
+  fullName: 'full_name',
+  role: 'role',
+  email: 'email',
+  phone: 'phone',
+  isActive: 'account_active',
+  createdAt: 'created_at',
 }
+

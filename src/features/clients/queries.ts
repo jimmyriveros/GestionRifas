@@ -2,6 +2,7 @@ import 'server-only'
 
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE } from '@/lib/constants'
+import { pageBeyondEnd } from '@/lib/list-page'
 import type { ListSort } from '@/lib/list-sort'
 import { SEARCH_OPTIONS_LIMIT, searchNeedle } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
@@ -86,6 +87,33 @@ function sanitizeSearch(value: string): string {
   return searchNeedle(value).replace(/[(),."'\\*%_]/g, '')
 }
 
+/**
+ * Los filtros de la lista, aplicados a una consulta ya empezada. Mismo patron
+ * que `applyTicketFilters`: la consulta se arma dos veces —la pagina y, si esa
+ * pagina no existe, el recuento— y las dos filtran igual.
+ *
+ * BR-C08: nombre, alias, telefono y correo estan concatenados y normalizados en
+ * `search_text` (migracion 0017), asi que un solo `ilike` sustituye al `or` de
+ * cuatro ramas de antes y ademas encuentra «José» escribiendo «jose».
+ */
+type ClientQuery<Q> = {
+  eq(column: string, value: string): Q
+  is(column: string, value: null): Q
+  ilike(column: string, pattern: string): Q
+}
+
+function applyClientFilters<Q extends ClientQuery<Q>>(
+  query: Q,
+  filters: ClientFilters,
+  search: string,
+): Q {
+  let next = query
+  if (filters.sellerId) next = next.eq('seller_id', filters.sellerId)
+  if (!filters.includeArchived) next = next.is('archived_at', null)
+  if (search !== '') next = next.ilike('search_text', `%${search}%`)
+  return next
+}
+
 export async function listClients(
   filters: ClientFilters,
 ): Promise<{ rows: ClientListItem[]; total: number; page: number; pageSize: number }> {
@@ -93,19 +121,12 @@ export async function listClients(
   const pageSize = filters.pageSize ?? PAGE_SIZE
   const page = Math.max(1, filters.page ?? 1)
 
-  let query = supabase.from('v_client_balances').select('*', { count: 'exact' })
-
-  if (filters.sellerId) query = query.eq('seller_id', filters.sellerId)
-  if (!filters.includeArchived) query = query.is('archived_at', null)
-
-  // BR-C08: nombre, alias, telefono y correo. Los cuatro estan concatenados y
-  // normalizados en `search_text` (migracion 0017), asi que un solo `ilike`
-  // sustituye al `or` de cuatro ramas de antes y ademas encuentra «José»
-  // escribiendo «jose» y el telefono con cualquier formato.
   const search = filters.search ? sanitizeSearch(filters.search) : ''
-  if (search !== '') {
-    query = query.ilike('search_text', `%${search}%`)
-  }
+  const query = applyClientFilters(
+    supabase.from('v_client_balances').select('*', { count: 'exact' }),
+    filters,
+    search,
+  )
 
   /*
     EL ORDEN LO APLICA LA BASE (P1-B). `nullsFirst: false` porque un `desc`
@@ -125,7 +146,16 @@ export async function listClients(
     .order('client_id', { ascending: true })
     .range((page - 1) * pageSize, page * pageSize - 1)
 
-  if (error) throw error
+  if (error) {
+    if (!pageBeyondEnd(error)) throw error
+    // La pagina no existe: cero filas, pero el total de verdad.
+    const { count: real } = await applyClientFilters(
+      supabase.from('v_client_balances').select('client_id', { head: true, count: 'exact' }),
+      filters,
+      search,
+    )
+    return { rows: [], total: real ?? 0, page, pageSize }
+  }
 
   const sellerNames = await sellerNameMap()
 
