@@ -846,8 +846,8 @@ Tres cosas distintas, que no se mezclan:
 | Comprobación local | Resultado |
 |---|---|
 | `verify` · `test:db` | ✅ exit 0, 1.643 · ✅ 1.444 + 1 omitida (59/59), base recién sembrada |
-| E2E completa desde base limpia | ✅ **Explicada** (D-222). En frío y en secuencia: `9acbfa8` 775/798 y `HEAD` 887/908; **ningún fallo de `HEAD` sin causa**: los comunes son I-163 (18, anterior al lote, defecto del producto sin corregir) e I-090; el único solo de `HEAD`, I-106, anterior al lote por registro. Dos pruebas corregidas por causa medida (I-164, I-165) |
-| **Riesgo abierto, anterior al lote: I-163** | La imagen semanal falla (500) en un proceso que haya optimizado antes una imagen con `/_next/image`. Demostrado en local en las dos versiones. En Vercel el optimizador va aparte y **se espera** que no afecte: **no comprobado** |
+| E2E completa desde base limpia | ✅ **908/909** en frío con I-163 corregido (D-223); el único fallo, I-090, anterior al lote. Antes, **explicada** (D-222). En frío y en secuencia: `9acbfa8` 775/798 y `HEAD` 887/908; **ningún fallo de `HEAD` sin causa**: los comunes son I-163 (18, anterior al lote, defecto del producto sin corregir) e I-090; el único solo de `HEAD`, I-106, anterior al lote por registro. Dos pruebas corregidas por causa medida (I-164, I-165) |
+| **I-163, corregido en local (D-223)** | La imagen semanal fallaba (500) en un proceso que hubiera optimizado antes una imagen con `/_next/image`. Corregido sin desbloquear ningún cargador: medido en dev y en producción local, los dos órdenes, PNG idéntico. **Sin comprobar en Vercel**: tras publicar, pedir la imagen semanal desde la cuenta de un vendedor y confirmar 200 |
 | Actualización `0074` → `0077` con `db push --local` sobre datos, con carga | ✅ una transacción por archivo; **6.546/6.546** llamadas del código viejo en 200 durante el push; 12 cifras de negocio idénticas |
 | Código `9acbfa8` con la base en `0077` | ✅ 229/230; el fallo reproducido en `0074` con los mismos datos (acumulación) |
 | Privilegios, escenarios A y B (I-132) | ✅ `verify-remote` 49/49 en los dos; B difiere de A solo en `search_tickets` con `service_role` |
@@ -884,6 +884,9 @@ autorización expresa** del dueño.
 8. `verify:remote` → **49/49**. Push a `main`, despliegue, código **servido** (§6.1) y `verify:remote` otra vez.
 9. Revisión del dueño **con sesión** en un teléfono real: el control de orden (D-215 a D-218) y el historial de
    abonos (D-219). Un agente no introduce contraseñas.
+10. **La imagen semanal en Vercel (I-163, D-223)**: con la sesión de un vendedor, abrir «Resultados de la semana» y
+    confirmar que la imagen sale; en los registros de la función, ningún «unsupported image format» ni
+    «og-renderer». Si falla, es un problema del código: Instant Rollback, sin tocar la base.
 
 **Recuperación, en este orden:**
 

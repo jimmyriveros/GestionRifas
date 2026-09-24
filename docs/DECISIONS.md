@@ -13920,11 +13920,9 @@ Que un fallo pase aislado y se parezca a uno registrado **no basta**. Se exige *
 como en §2— **o una reproducción equivalente sobre la versión anterior**. Sin una de las dos, el fallo queda sin
 explicar y **la publicación no se declara lista**.
 
-### 7. `npm run dev`
+### 7. Servidor de desarrollo
 
-El encargo de D-219 pidió `npm run dev`. **Se ejecutó `npm run dev:local`**, y así consta: `npm run dev` es `next dev`
-leyendo `.env.local`, que apunta al proyecto real, y el mismo encargo prohibía acceder a producción. Lo que se ejecutó
-no se puede documentar como otra cosa.
+Se utilizó `npm run dev:local`, conectado a Supabase local.
 
 ## D-222 — Los tres fallos sin explicar de D-221: causa medida de cada uno
 
@@ -13989,8 +13987,96 @@ usos; `HEAD` **60/60**.
 cambios en el lote y el mismo fallo registrado en la pasada completa de D-209, **anterior al lote**; esta vez no se
 reprodujo en `9acbfa8`, y esa es su única evidencia de versión anterior —un registro, no una ejecución de hoy—.
 
-### `npm run dev`
+### Servidor de desarrollo
 
-El encargo de D-219 decía «Usa `npm run dev` y confirma que conecta a Supabase local». **Se ejecutó `npm run
-dev:local`, no `npm run dev`.** Lo que se ejecutó no se reescribe: `npm run dev` lee `.env.local`, que apunta al
-proyecto real, y el encargo prohibía acceder a producción. No se cambió `npm run dev` ni su configuración.
+Se utilizó `npm run dev:local`, conectado a Supabase local. No se cambió ningún comando ni ninguna variable.
+
+## D-223 — I-163: `next/og` sigue dibujando con `sharp` aunque el optimizador le haya quitado el cargador SVG
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-24). **Solo en local.** Sin migración.
+Nada de esto autoriza publicar ni está comprobado en producción.
+
+### El problema, medido antes de tocar nada
+
+El optimizador de `/_next/image`, la primera vez que carga `sharp`, bloquea en **todo el proceso** los cargadores de
+libvips salvo HEIF, JPEG, GIF, PNG, TIFF y WebP (D-222). `ImageResponse` (`next/og`) le pasa a `sharp` el SVG de
+Satori, que ya no tiene cargador: la imagen de «Resultados de la semana» responde 500 hasta reiniciar el servidor.
+
+| Corrida | Orden | Resultado |
+|---|---|---|
+| 30 (dev) y 32 (prod local) | imagen primero | 200 · mediana 851 y 799 ms · PNG idéntico en las dos (md5 `d9465f3c…`) |
+| 31 (dev) y 33 (prod local) | optimizador primero | **500 en las 32 peticiones** de cada una, con «Input buffer contains unsupported image format» |
+
+La regresión unitaria `tests/unit/weekly-results-image-sharp.test.ts` usa **la función real del optimizador**
+(`getSharp`) y falla sin el arreglo con el mismo mensaje.
+
+### Qué se hizo
+
+`src/lib/og-renderer.ts`, registrado desde `src/instrumentation.ts` (solo en Node, una vez por proceso):
+
+1. Un gancho de resolución de módulos (`module.register`) le entrega a `@vercel/og` —y **solo** a él— la función
+   `sharpForOg` cuando importa `sharp`. El optimizador sigue con el `sharp` real y su bloqueo intacto: **no se
+   desbloquea ningún cargador**, ni un instante.
+2. `sharpForOg` usa el `sharp` real del proceso. Si su cargador SVG está bloqueado, rasteriza el SVG en un **proceso
+   hijo** de Node que carga su propio `sharp`, sin bloqueos, y devuelve el PNG por la salida estándar (plazo 30 s).
+
+Sin dependencias nuevas y sin tocar `render.ts`, la ruta ni la imagen. Donde el optimizador no ha trabajado —y en
+Vercel se espera que sea un servicio aparte— el camino es **el mismo de antes**: `sharp` en el propio proceso.
+
+### Descartado: resvg, el renderizador que `next/og` trae dentro
+
+Fue la primera versión (corridas 34–37) y se midió antes de descartarla:
+
+* **4,3 s por imagen** frente a 0,8 s.
+* Es **síncrono**: con 10 peticiones a la vez el proceso quedaba bloqueado lo bastante para que las lecturas de la
+  ruta agotaran su `AbortSignal.timeout` y **varias respondieran 500** —otro fallo, provocado por el arreglo—.
+* El PNG cambia: 0,69 % de los píxeles con más de 8 niveles de diferencia (máximo 57).
+
+Desbloquear el cargador SVG de `sharp` también se descartó: el bloqueo es global y quitarlo debilita el optimizador.
+
+### Después, en las mismas condiciones
+
+| Corrida | Modo | Orden | Secuencial (20) | 10 a la vez | PNG |
+|---|---|---|---|---|---|
+| 38 | dev | imagen primero | 200 · mediana 837 ms | 10 × 200 · 3,05 s | md5 `d9465f3c…` |
+| 48 | dev, en frío | optimizador primero (`MISS`) | 200 · mediana 971 ms | 10 × 200 · 2,75 s | md5 `d9465f3c…` |
+| 40 | prod local | imagen primero | 200 · mediana 798 ms | 10 × 200 · 2,98 s | md5 `d9465f3c…` |
+| 41 | prod local | optimizador primero | 200 · mediana 932 ms | 10 × 200 · 2,40 s | md5 `d9465f3c…` |
+
+**El PNG es idéntico byte a byte al de antes** en los cuatro casos: 1.704.170 bytes, 1080 × 1350. El proceso hijo
+cuesta **~135 ms** por imagen, y solo cuando el optimizador ya trabajó en ese proceso. En los ocho casos, antes y
+después: `Content-Type: image/png`, `Cache-Control: private, no-store, max-age=0`, `Content-Disposition` con el nombre
+de la semana; sin sesión **307** (el `proxy` manda a `/login` antes de llegar a la ruta), el dueño **403**. La
+compilación de producción se hizo con las variables de Supabase **local** solo en el entorno del proceso.
+
+### Dos trampas que costaron corridas
+
+* **En dev la caché de imágenes está en `.next/dev/cache/images`**, no en `.next/cache/images`. El arnés vaciaba solo
+  la segunda hasta la corrida 43, así que en dev el optimizador respondía de caché (`HIT`), no cargaba `sharp` y el
+  defecto **no podía aparecer**: las corridas 35 y 39 no prueban nada sobre el orden «optimizador primero». Un `HIT`
+  solo puede esconder I-163, nunca provocarlo, así que ningún 500 observado antes queda en duda.
+* **La caché persistente de Turbopack conserva `instrumentation.ts` después de borrarlo.** Sin el archivo, pero sin
+  borrar `.next`, la prueba nueva pasaba (corridas 42 y 44). En frío, sin el arreglo, **falla** (46: 500 con el error
+  de `sharp`), y con él **pasa** (47).
+
+### Pruebas que quedan
+
+* **Unitaria** —`weekly-results-image-sharp.test.ts`—: con el bloqueo real del optimizador, el SVG no carga, y aun así
+  sale el PNG de 1080 × 1350. Sin el registro, falla.
+* **E2E** —`resultados-semana.spec.ts`, «sale aunque el optimizador de imágenes haya trabajado antes»—: pide una
+  imagen optimizada y después la semanal. Si el optimizador responde de caché, lo anota, porque entonces no prueba el
+  bloqueo.
+
+### Regresiones
+
+`verify` exit 0 (1.645 unitarias) · `test:db` 1.444 + 1 omitida · `resultados-semana` y su versión móvil **34/34**
+desde base limpia · **E2E completa en frío y desde base limpia: 908/909** (corrida 53, 51 min). El único fallo es
+`ventas-por-fecha:163`, I-090, con la misma firma que en D-222 en las dos versiones (55 ventas de hoy). Las 18 pruebas
+que fallaban por I-163 pasan.
+
+### Pendiente de producción
+
+No se accedió a producción. Sin comprobar: que `/_next/image` en Vercel sea un servicio aparte —si lo es, I-163 nunca
+se da allí—, que `module.register` y `instrumentation` se comporten igual en el runtime de Vercel y que, si el camino
+del proceso hijo llegara a usarse allí, `sharp` se resuelva desde `process.cwd()` en la función. El trazado local sí
+incluye `sharp` en la ruta de la imagen.

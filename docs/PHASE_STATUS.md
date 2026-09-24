@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-23 — **auditoría visual y listas, D-211 a D-222, SOLO EN LOCAL** (mantenimiento
+- **Actualizado:** 2026-09-24 — **auditoría visual y listas, D-211 a D-223, SOLO EN LOCAL** (mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas). Este archivo se quedó en D-210 mientras corrían
   diez bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
@@ -12,19 +12,17 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   «Mis boletas» y «Mis clientes» del vendedor (D-215), que **dice el orden que de verdad aplica** (D-216), y
   en «Boletas» del personal con su lista blanca, sin cliente ni dinero (D-217); buscando, la frase de los
   estados del vendedor dice el orden efectivo, y las pruebas de orden ya no dejan rifas (D-218); el historial de abonos de la ficha pagina en la base
-  (D-219, I-156); los códigos de rifa continúan R999 → R1000 sin recortarse (D-220, I-157).
-  **(2) Pruebas:** `verify` **exit 0** (1.643 unitarias, D-218) · E2E de orden **54/54** en `movil`, dos
-  pasadas seguidas sin acumular filas, y **73/73** en escritorio (D-218).
-  La base se comprobó por última vez en D-220, con `0077` aplicada desde cero: `test:db` **1.444 + 1
-  omitida**, 59/59 archivos, recién sembrada. Detalle y errores encontrados, en
+  (D-219, I-156); los códigos de rifa continúan R999 → R1000 sin recortarse (D-220, I-157); la imagen de «Resultados de la
+  semana» sale aunque el optimizador de imágenes haya trabajado antes en el mismo servidor (D-223, I-163).
+  **(2) Pruebas (D-223, la última):** `verify` **exit 0** (1.645 unitarias) · `test:db` **1.444 + 1 omitida**,
+  59/59 · **E2E completa en frío y desde base limpia: 908/909**, con el único fallo en I-090, anterior al lote. Detalle y errores encontrados, en
   [`TEST_RESULTS.md`](TEST_RESULTS.md).
   **(3) Migraciones:** **77**, tres nuevas y **solo en local** — `0075_orden_de_listas.sql` (orden en
   `search_tickets` y `admin_list_tickets`) y `0076_orden_en_la_base.sql` (dos vistas y dos funciones para
   que Vendedores, Rifas y Administradores no lean su lista entera) y `0077_raffle_short_code_mil.sql` (el
   código de rifa no se recorta a partir de la 1.000).
   **(4) Variables de entorno:** ninguna nueva.
-  **(5) Problemas que permanecen:** **I-163** —causa demostrada y anterior al lote, defecto del producto sin
-  corregir (D-222)— y el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
+  **(5) Problemas que permanecen:** I-163 **corregido en local** y sin comprobar en Vercel (D-223); el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
   y **I-059**; el resto de la auditoría visual, sin autorizar.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
   **Nada de esto está en producción**, y la rama no se ha fusionado.

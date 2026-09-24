@@ -1607,6 +1607,12 @@ boletas, ni coincidencias, ni saldos, ni datos del vendedor, ni auditoría: la c
 omite del nombre para que `@vercel/og` no lo pida afuera (D-195). Una prueba genera un PNG real con
 `fetch` bloqueado.
 
+**El bloqueo del optimizador se respeta (I-163, D-223).** El optimizador de `/_next/image` bloquea en todo el
+proceso los cargadores de `sharp` que no necesita, SVG incluido. No se desbloquea ninguno: cuando el SVG de
+`@vercel/og` no puede cargarse, se rasteriza en un **proceso hijo** de Node con un guion fijo, que recibe solo ese
+SVG —compuesto por el servidor con los datos de arriba— por la entrada estándar y devuelve el PNG, con plazo de 30 s.
+El proceso hijo no recibe ningún parámetro de la petición.
+
 **Sin limitador de intentos, a propósito** (D-194, Decisión 8). Cada imagen cuesta ~0,6 s de CPU a un
 vendedor autenticado y activo, que ya puede gastar lo mismo recargando cualquier pantalla. Un
 limitador en memoria por instancia (§10.2) no lo impediría en Vercel y sí haría fallar a quien

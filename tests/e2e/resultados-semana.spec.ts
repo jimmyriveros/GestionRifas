@@ -138,6 +138,32 @@ test.describe('con la semana completa', () => {
     expect(medidasPng(await respuesta.body())).toEqual({ width: 1080, height: 1350 })
   })
 
+  test('sale aunque el optimizador de imágenes haya trabajado antes en el mismo servidor (I-163)', async ({
+    page,
+  }) => {
+    // El optimizador, al cargar `sharp`, le quita al proceso el cargador SVG
+    // que usa `next/og` (D-223). Con la caché de imágenes vacía esta petición
+    // lo carga seguro; si responde de caché (`HIT`) puede que no, y se anota.
+    const optimizada = await page.request.get(
+      '/_next/image?url=%2Fimages%2Fcatalog%2Fcatalog-hero-desktop-sportage-hev-2026.webp&w=1920&q=75',
+    )
+    expect(optimizada.status()).toBe(200)
+    const cache = optimizada.headers()['x-nextjs-cache'] ?? 'sin cabecera'
+    if (cache === 'HIT') {
+      test.info().annotations.push({
+        type: 'I-163',
+        description: 'El optimizador respondió de caché: puede que no haya cargado sharp en esta pasada.',
+      })
+    }
+
+    const week = await montarSemana()
+    await loginAs(page, ACCOUNTS.seller)
+    const respuesta = await page.request.get(weeklyResultsImageUrl(week))
+    expect(respuesta.status()).toBe(200)
+    expect(respuesta.headers()['content-type']).toBe('image/png')
+    expect(medidasPng(await respuesta.body())).toEqual({ width: 1080, height: 1350 })
+  })
+
   test('descargar entrega EXACTAMENTE la imagen de la vista previa', async ({ page }) => {
     const week = await montarSemana()
     await loginAs(page, ACCOUNTS.seller)

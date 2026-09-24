@@ -29,7 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
-| **Próxima publicación — preparación local completa, con dos decisiones abiertas (D-222)** | **Documentado como publicado:** `0001`–`0074` y `9acbfa8`; última comprobación contra producción, `verify:remote` 46/46 el 2026-09-19. **Pendiente esperado:** `0075`–`0077` y D-211 a D-220 (no comprobado contra producción). **Medido en local:** transición sin fallos, `9acbfa8` compatible con `0077`, privilegios A/B, recuperación probada y **ningún fallo de E2E de `HEAD` sin causa** (D-222). **Abierto:** I-163 —defecto anterior al lote, sin corregir— y el ACL de `search_tickets` por confirmar. Nada de esto autoriza publicar |
+| **Próxima publicación — preparación local completa; I-163 corregido en local (D-223)** | **Documentado como publicado:** `0001`–`0074` y `9acbfa8`; última comprobación contra producción, `verify:remote` 46/46 el 2026-09-19. **Pendiente esperado:** `0075`–`0077` y D-211 a D-220 (no comprobado contra producción). **Medido en local:** transición sin fallos, `9acbfa8` compatible con `0077`, privilegios A/B, recuperación probada y **ningún fallo de E2E de `HEAD` sin causa** (D-222). **I-163 corregido en local** (D-223): E2E completa 908/909, solo I-090. **Abierto:** el ACL de `search_tickets` por confirmar y todo lo de producción. Nada de esto autoriza publicar |
 | **Códigos de rifa a partir de 1.000 (SOLO EN LOCAL, 2026-09-23, D-220, `0077`)** | **I-157 cerrada.** R999 → R1000 → R1001 sin recortar; ningún código existente cambia. Quedan I-160 (orden por código de texto, decisión pendiente) e I-161 |
 | **Historial de abonos de la ficha, paginado (SOLO EN LOCAL, 2026-09-23, D-219)** | **I-156 cerrada.** La ficha pagina sus abonos en la base y el detalle de boleta filtra los suyos en la base. `DataTablePagination` ya no suelta el foco y, con `scrollTargetId`, no devuelve arriba del todo. Queda **I-159** (boletas de la ficha, mismo corte). Sin migración |
 | **Estados del vendedor al buscar y limpieza de las pruebas de orden (SOLO EN LOCAL, 2026-09-23, D-218)** | Buscando, la frase de los estados de «Mis boletas» dice el orden de texto de `search_tickets` («primero Asignada»); sin buscar, el del enumerado. Las pruebas de orden ya no dejan rifas: dos pasadas seguidas, nueve recuentos idénticos. §1.c ya no presenta I-155 como pendiente. Sin migración |
@@ -168,7 +168,24 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-222, los tres fallos sin explicar de D-221: causa medida de cada uno (**solo en local**, 2026-09-24)
+## 1.a Último relevo significativo — D-223, I-163 corregido: la imagen semanal sale aunque el optimizador haya trabajado (**solo en local**, 2026-09-24)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **I-163 corregido en local.** `next/og` recibe, mediante un gancho de módulos que solo lo afecta a él, un `sharp` que rasteriza el SVG en un **proceso hijo** cuando el optimizador de `/_next/image` ya bloqueó el cargador SVG del proceso. **No se desbloquea ningún cargador.** El PNG sale **idéntico byte a byte** al de antes; +~135 ms solo en ese caso. Se midió y **se descartó** resvg (4,3 s por imagen, bloqueaba el proceso: 500 con 10 a la vez). También: la redacción «Se utilizó `npm run dev:local`, conectado a Supabase local.» en los relevos y decisiones de D-219 a D-222, I-165 aclarado (se corrigió la prueba, no la fila) e I-106 con su antecedente histórico no reproducido hoy |
+| Archivos | **Nuevos:** `src/lib/og-renderer.ts`, `src/instrumentation.ts`, `tests/unit/weekly-results-image-sharp.test.ts`. **Cambiado:** `tests/e2e/resultados-semana.spec.ts` (un caso). Documentación: `DECISIONS` D-223 (y las notas de D-221/D-222), `KNOWN_ISSUES` I-106, I-163, I-165, `TEST_RESULTS`, `DEPLOYMENT` §3.3.a, `PHASE_STATUS` y este archivo |
+| Reutilización | El renderizador (`render.ts`), la ruta y la imagen **no cambian**. La prueba unitaria llama a la función real del optimizador (`getSharp`) y al mismo registro que `instrumentation` |
+| Evidencia | `scratchpad/evidencia/30-…` a `53-…` de la sesión, una carpeta por ejecución; la sonda temporal de medida quedó como `zz-medida-imagen-temp.spec.ts.copia`. **Fuera del repositorio** |
+| Decisiones | **D-223.** Proceso hijo antes que resvg (medido) y antes que desbloquear el SVG (global). Donde el optimizador no trabajó —y en Vercel se espera que vaya aparte— el camino es el de siempre |
+| Verificación | Antes: 500 en 32/32 con el optimizador primero (dev y producción local). Después: 200 en los dos órdenes, en dev y en producción local, 20 seguidas y 10 a la vez, mismo md5, cabeceras, 307 sin sesión y 403 del dueño iguales · la unitaria y la E2E nueva, **vistas fallar sin el arreglo** · `verify` exit 0 (1.645) · `test:db` 1.444 + 1 · `resultados-semana` 34/34 · E2E completa: **908/909** en frío y desde base limpia (51 min); el único fallo es I-090, anterior al lote; las 18 de I-163 pasan |
+| Advertencias | **1)** Se utilizó `npm run dev:local`, conectado a Supabase local. **2)** **En dev la caché de imágenes está en `.next/dev/cache/images`**: vaciar `.next/cache/images` no basta, y con un `HIT` el optimizador no carga `sharp` y I-163 no puede aparecer. **3)** **La caché de Turbopack conserva `instrumentation.ts` aunque se borre el archivo**: para probar «sin el arreglo», borrar `.next`. **4)** El *worktree* `scratchpad/wt-9acbfa8` sigue, con su `node_modules` |
+| Pendiente | **En producción, con autorización:** confirmar `0074` y `9acbfa8`, `verify:remote`, el ACL de `search_tickets` (I-132; que el verificador pase no la hace aceptable) y cómo se comporta la imagen semanal en Vercel tras publicar. Fuera: I-159, I-160, I-161 |
+| Entorno (al entregar) | Supabase local en `0077` con los restos de la corrida 53; sin servidor |
+| Git | Rama `feature/premios-configurables`. Commit propio; hash en el reporte. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-222, los tres fallos sin explicar de D-221: causa medida de cada uno (**solo en local**, 2026-09-24)
 
 | Campo | Estado |
 |---|---|
@@ -177,7 +194,7 @@ reales).
 | Evidencia | `scratchpad/evidencia/NN-…` de la sesión, una carpeta por ejecución (29), con commit, esquema, servidor propio, registro, JSON, trazas y capturas; el arnés es `scratchpad/corrida.sh`. **No está en el repositorio**: si la sesión se pierde, se regenera con el arnés |
 | Decisiones | **D-222.** I-163 no se corrige por no ser del lote y exigir una decisión propia. Las dos pruebas se corrigen solo con causa medida: acotar a `main` y reintentar el clic, sin subir el tiempo de la prueba |
 | Verificación | Hipótesis H1 refutada (21/21), H2 confirmada en las dos versiones (3/3 en 500), ventana de hidratación medida (6 corridas), I-164 capturado con traza y reproducido en `9acbfa8`; correcciones 60/60 y 3/3 en frío; completas en frío `9acbfa8` 775/798 y `HEAD` 887/908; `verify` exit 0 |
-| Advertencias | **1)** **`npm run dev` se pidió y no se ejecutó**: se ejecutó `npm run dev:local`, y la documentación lo dice así; no se reescribe lo que se ejecutó. `npm run dev` lee `.env.local`, que apunta al proyecto real. **2)** Docker Desktop estaba parado al empezar (equipo reiniciado): la corrida 03 es inválida. **3)** El arnés registra el commit pero no el árbol de trabajo: desde la corrida 24, `HEAD` incluía las dos correcciones sin confirmar. **4)** Una E2E completa con la caché de imágenes vacía falla en las 18 de I-163: es esperado mientras I-163 siga abierto |
+| Advertencias | **1)** Se utilizó `npm run dev:local`, conectado a Supabase local. **2)** Docker Desktop estaba parado al empezar (equipo reiniciado): la corrida 03 es inválida. **3)** El arnés registra el commit pero no el árbol de trabajo: desde la corrida 24, `HEAD` incluía las dos correcciones sin confirmar. **4)** Una E2E completa con la caché de imágenes vacía falla en las 18 de I-163: es esperado mientras I-163 siga abierto |
 | Pendiente | **Decidir I-163.** **Confirmar en solo lectura el ACL de `search_tickets`** (I-132): que el verificador pase no la hace aceptable. Después, los pasos de producción de `DEPLOYMENT` §3.3.a, cada uno con autorización. Fuera: I-159, I-160, I-161 |
 | Entorno (al entregar) | Supabase local en `0077` con los restos de la corrida 29; sin servidor; el *worktree* `scratchpad/wt-9acbfa8` sigue, con su `node_modules` |
 | Git | Rama `feature/premios-configurables`. Commit propio; hash en el reporte. **Sin push** |
@@ -192,7 +209,7 @@ reales).
 | Archivos | `scripts/verify-remote.ts` (dos piezas de `0076` en la lista y tres comprobaciones nuevas), **nuevo** `supabase/recovery/0077_a_0074.sql`, `tests/e2e/orden-paginacion.spec.ts` (limpieza). Documentación: `DEPLOYMENT` §3.3.a, `DECISIONS` D-221, `TEST_RESULTS`, `KNOWN_ISSUES` I-132, I-162–I-164 |
 | Decisiones | **D-221.** Regla para aceptar un fallo de la E2E: evidencia causal o reproducción en la versión anterior; si no, no está lista. Recuperación: primero el despliegue anterior sin tocar la base; el script, solo si el problema es de la base |
 | Verificación | `verify` exit 0 (1.643) · `test:db` 1.444 + 1 · `9acbfa8` 230/230 en `0074` y 229/230 en `0077` · `verify-remote` local: 45 + 4 rojos en `0074`, 49/49 en `0077` A y B · E2E completa: **905/908** (3 explicados) y **885/908** (21 sin explicar) |
-| Advertencias | **1)** **`npm run dev` se pidió y no se ejecutó**: lee `.env.local`, que apunta al proyecto real. Se ejecutó `npm run dev:local`, y así consta en toda la documentación; no se puede escribir otra cosa. **2)** `log_statement` solo lo cambia `supabase_admin` **local**, y `alter system` no admite `psql -c` con varias sentencias. **3)** Playwright vacía `test-results` en cada ejecución: **guardar la captura de un fallo antes de repetir nada**. **4)** El *worktree* de `9acbfa8` sigue en `scratchpad/wt-9acbfa8` con su propio `node_modules` (Turbopack no admite el enlazado); `git worktree remove` cuando ya no haga falta. **5)** `verify-remote` dice «proyecto REAL» aunque se apunte a local: comprobar el host antes |
+| Advertencias | **1)** Se utilizó `npm run dev:local`, conectado a Supabase local. **2)** `log_statement` solo lo cambia `supabase_admin` **local**, y `alter system` no admite `psql -c` con varias sentencias. **3)** Playwright vacía `test-results` en cada ejecución: **guardar la captura de un fallo antes de repetir nada**. **4)** El *worktree* de `9acbfa8` sigue en `scratchpad/wt-9acbfa8` con su propio `node_modules` (Turbopack no admite el enlazado); `git worktree remove` cuando ya no haga falta. **5)** `verify-remote` dice «proyecto REAL» aunque se apunte a local: comprobar el host antes |
 | Pendiente | Explicar o reproducir en `9acbfa8` **I-163**, **I-164** y `filas-seleccionables:195` —probablemente una E2E completa de `9acbfa8` desde base limpia— y repetir la E2E completa de `HEAD`. Después, lo que pide `DEPLOYMENT` §3.3.a en producción, con autorización. Registrados y fuera: I-159, I-160, I-161 |
 | Entorno (al entregar) | Supabase local en `0077`, **con los restos de la segunda E2E**; sin servidor de desarrollo |
 | Git | Rama `feature/premios-configurables`. Commit propio; hash en el reporte. **Sin push** |
@@ -223,7 +240,7 @@ reales).
 | Reutilización | `listPayments`, `DataTablePagination`, `useListSort`, `fetchAllRows`, `purgeTestRaffles` y el patrón de página inexistente de «Premios ganados» |
 | Decisiones | **D-219.** Mismos parámetros que «Mis pagos». La barra dice «abonos». «Boletas de este cliente» se corta igual en 100 y **no se tocó**: **I-159** |
 | Verificación | ❌→✅ 7 de 9 fallaban antes · **9/9 + 4/4** · 47 archivos E2E **499/502**, los 3 conocidos (I-090 ×2, I-148, que pasa 2/2 sola) · `verify` exit 0 (1.643) |
-| Advertencias | **1)** **El encargo pedía `npm run dev`**, y no se usó: hoy apunta al proyecto **real** (`.env.local`) y el mismo encargo prohibía acceder a producción. Se usó `npm run dev:local` —el mismo `next dev`, forzado a la base local— y se comprobó que decía «contra LOCAL». **2)** Un filtro `contains` sobre `jsonb` va como **texto JSON**, no como array. **3)** `DataTablePagination` ya no deshabilita sus botones mientras navega: una prueba que esperara `toBeDisabled()` durante la espera fallaría |
+| Advertencias | **1)** Se utilizó `npm run dev:local`, conectado a Supabase local. El servidor anunció «contra LOCAL». **2)** Un filtro `contains` sobre `jsonb` va como **texto JSON**, no como array. **3)** `DataTablePagination` ya no deshabilita sus botones mientras navega: una prueba que esperara `toBeDisabled()` durante la espera fallaría |
 | Pendiente | I-157 en el bloque siguiente. **I-159**. Revisión en un teléfono real |
 | Git | Rama `feature/premios-configurables`. Commit propio; hash en el reporte. **Sin push** |
 
@@ -2686,6 +2703,9 @@ features/weekly-results/  «Resultados de la semana» (D-194, D-195). week.ts,
                     /api/weekly-results/image y se protege A MANO (D-060). La
                     pantalla pide el PNG UNA vez y comparte y descarga ese
                     mismo Blob: no anadas un enlace `download` a la ruta.
+                    I-163 (D-223): next/og recibe su sharp de lib/og-renderer
+                    (gancho registrado en src/instrumentation.ts); si el
+                    optimizador bloqueo el SVG, rasteriza en un proceso hijo.
                     MENSAJE PROPIO (D-197): message.ts es PURO y SIN
                     importaciones —no le importes copy.ts, arrastraria las
                     loterias al navegador— y activeWeeklyResultsMessage elige

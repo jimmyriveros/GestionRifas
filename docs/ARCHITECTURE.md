@@ -1981,6 +1981,7 @@ Route Handler (Node): sesión → rol → week → las mismas dos lecturas → I
 | `image/assets.ts` · `image/render.ts` | `server-only`: fondo y fuentes del disco —una vez por proceso— y el PNG completo |
 | `components/` | `WeeklyResultsSection` (Suspense y error) · `WeeklyResultsSummary` (servidor) · `WeeklyResultsShare` (cliente; guarda el texto del mensaje, porque lo leen la vista previa, copiar y compartir) · `WeeklyResultsMessageEditor` (cliente; interruptor, área, volver y guardar) |
 | `app/api/weekly-results/image/route.ts` | La ruta protegida (`SECURITY` §5.3) |
+| `lib/og-renderer.ts` · `instrumentation.ts` | **I-163, D-223.** `instrumentation` registra, una vez y solo en Node, un gancho de módulos que le da a `@vercel/og` —y solo a él— `sharpForOg` en lugar de `sharp`. Usa el `sharp` del proceso y, si el optimizador de `/_next/image` ya le bloqueó el cargador SVG, rasteriza en un proceso hijo. **No se desbloquea ningún cargador**; no lo quites sin repetir las dos pruebas de D-223 |
 
 **Lo que Satori impone, y cuesta caro olvidar** (D-195). Cada fila salió de un render que falló:
 

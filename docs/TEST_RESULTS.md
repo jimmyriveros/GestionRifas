@@ -14435,9 +14435,7 @@ La nota «f. Restos que deja la E2E» de D-217 queda **resuelta** por este bloqu
 
 ## D-219 — El historial de abonos de la ficha del cliente pagina en la base (I-156, 2026-09-23, solo en local)
 
-**Sin migración.** Aplicación con `npm run dev:local` («`next dev contra LOCAL (127.0.0.1:54321)`»). **No se usó
-`npm run dev`**, aunque el encargo lo nombraba: hoy apunta al proyecto real (`.env.local`), y el encargo prohíbe
-acceder a producción.
+**Sin migración.** Se utilizó `npm run dev:local`, conectado a Supabase local. El servidor lo anunció: «`next dev contra LOCAL (127.0.0.1:54321)`».
 
 ### a. Reproducción, antes de corregir
 
@@ -14651,3 +14649,38 @@ D-209, anterior al lote; no reproducido hoy en `9acbfa8`). **Ningún fallo de `H
 
 **Error propio encontrado:** el commit `bc21cd0` dejó las filas de I-163 e I-164 de `KNOWN_ISSUES.md` empezando por
 una comilla invertida suelta —no se leían como filas—. Corregido.
+
+## D-223 — I-163 corregido (2026-09-24, solo en local)
+
+**Nada de esto es una verificación de producción.** Una carpeta por ejecución en el `scratchpad` de la sesión
+(`evidencia/NN-…`), con el mismo arnés que D-222. Todas con `npm run dev:local` o con `next build` + `next start` y las
+variables de Supabase **local** solo en el entorno del proceso. «md5 de antes» es `d9465f3c…` (1.704.170 bytes).
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 30 · 32 | **Antes**, imagen primero · dev y producción local | 200 · medianas 851 y 799 ms · 10 a la vez en 200 · md5 de antes en las dos |
+| 31 · 33 | **Antes**, optimizador primero · dev y producción local | **500 en 32/32** cada una, «Input buffer contains unsupported image format» |
+| 34–37 | Primera versión del arreglo: **resvg** | 200 en serie pero **4,26–4,34 s** de mediana; **10 a la vez: 200 y 500 mezclados** (las lecturas agotan su plazo con el proceso bloqueado); PNG distinto (0,69 % de píxeles > 8 niveles). **Descartada** |
+| 38 · 40 | Arreglo final, imagen primero · dev y producción local | 200 · medianas 837 y 798 ms · 10 a la vez en 200 · **md5 de antes** |
+| 35 · 39 | Optimizador primero en dev | **NO VÁLIDAS**: el arnés vaciaba `.next/cache/images` y en dev la caché está en `.next/dev/cache/images`; el optimizador respondió de caché y no cargó `sharp` |
+| 41 | Arreglo final, optimizador primero · producción local | 200 · mediana 932 ms · 10 a la vez en 200 · **md5 de antes** |
+| 42 · 44 | E2E nueva **sin** el arreglo, sin borrar `.next` | Pasa: **NO VÁLIDAS**. La 42 respondió de caché; en la 44, la caché de Turbopack conservaba `instrumentation.ts` borrado |
+| 43 · 45 | E2E nueva con el arreglo, sin borrar `.next` | Pasa |
+| 46 | E2E nueva **sin** el arreglo, **en frío** | **Falla**: 500 con el error de `sharp` |
+| 47 | E2E nueva con el arreglo, en frío | Pasa |
+| 48 · 49 | Arreglo final en dev, **en frío**: optimizador primero (`MISS`) · imagen primero | 200 · medianas 971 y 830 ms · 10 a la vez en 200 · **md5 de antes** |
+| 50 | `npm run verify` | ✅ exit 0, 1.645 unitarias en 86 archivos, lint 0 errores (los 2 avisos de siempre), build |
+| 51 | `npm run test:db` | ✅ 1.444 + 1 omitida, 59/59 |
+| 52 | `resultados-semana` y `-movil`, desde base limpia y en frío | ✅ **34/34** |
+| 53 | **E2E completa**, desde base limpia y en frío | **908/909** en 51 min. Único fallo: `ventas-por-fecha:163`, I-090 (55 ventas de hoy, misma firma que D-222 en las dos versiones). Las 18 de I-163 pasan |
+
+En los ocho casos de medida: `Content-Type: image/png`, `Cache-Control: private, no-store, max-age=0`,
+`Content-Disposition` con el nombre de la semana, **307** sin sesión y **403** para el dueño, antes y después.
+
+**Regresión unitaria:** `tests/unit/weekly-results-image-sharp.test.ts` falla sin el registro («Input buffer contains
+unsupported image format») y pasa con él (2/2).
+
+**Errores propios encontrados:** la primera versión (resvg) se midió y se descartó, no se entregó; el arnés vaciaba la
+caché de imágenes equivocada en dev hasta la corrida 43 (corregido: vacía las dos); y dos corridas «sin arreglo»
+parecieron pasar por la caché de Turbopack. Ninguno cambia un resultado de D-222: un `HIT` solo puede esconder I-163,
+nunca provocarlo.
