@@ -205,9 +205,17 @@ test.describe('Fila seleccionable en las tablas', () => {
     // La leyenda bajo los dos números: texto suelto, sin enlace ni botón dentro.
     // Los números en sí van DENTRO del enlace desde D-130, así que pulsarlos
     // probaría el enlace, no la fila.
-    await row.getByText('Diario · Semanal').click()
-
-    await page.waitForURL(`**/seller/tickets/${ticket.id}`)
+    //
+    // SE REINTENTA EL CLIC hasta que haya navegación (D-222). Medido en frío en
+    // las dos versiones: la fila se ve unos 330 ms antes de que React le enganche
+    // el manejador, y un clic en esa ventana se pierde —la fila no es un enlace—.
+    // Pasaba en 9acbfa8 igual que en HEAD (misma línea, mismo tiempo agotado).
+    // No se sube ningún tiempo: cada intento espera 2 s y el total no pasa del de
+    // la prueba.
+    await expect(async () => {
+      await row.getByText('Diario · Semanal').click()
+      await page.waitForURL(`**/seller/tickets/${ticket.id}`, { timeout: 2_000 })
+    }).toPass({ timeout: 30_000 })
     // El encabezado dice donde estas, no que boleta es (D-126). Que la fila
     // abrio LA boleta correcta lo demuestra la URL de arriba; que los numeros
     // siguen en la pantalla, la tarjeta.

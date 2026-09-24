@@ -13925,3 +13925,72 @@ explicar y **la publicación no se declara lista**.
 El encargo de D-219 pidió `npm run dev`. **Se ejecutó `npm run dev:local`**, y así consta: `npm run dev` es `next dev`
 leyendo `.env.local`, que apunta al proyecto real, y el mismo encargo prohibía acceder a producción. Lo que se ejecutó
 no se puede documentar como otra cosa.
+
+## D-222 — Los tres fallos sin explicar de D-221: causa medida de cada uno
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-24). **Solo en local.** Sin migración y
+sin cambios de la aplicación: solo dos pruebas. Nada de esto autoriza publicar.
+
+### Cómo se investigó
+
+Cada ejecución en su propio directorio (`scratchpad/evidencia/NN-…`), con commit, esquema, preparación de la base,
+**servidor propio arrancado por el arnés** —su PID y su línea de órdenes, para no reutilizar el de otra versión—,
+registro del servidor, JSON de Playwright, trazas y capturas. `.next` y la caché de imágenes se borran solo **antes**
+de arrancar el servidor. `9acbfa8` en un *worktree* con su `npm ci` y su esquema `0074`; `HEAD` con `0077`. Las
+corridas 03 y 23 son inválidas —Docker parado y una prueba que cambió de línea— y están marcadas como tales, no
+borradas.
+
+### I-163 — la imagen semanal: el optimizador de imágenes bloquea el cargador SVG de `sharp`
+
+| Hipótesis | Experimento | Resultado |
+|---|---|---|
+| H1: editar archivos vigilados mientras corre el servidor | 21 imágenes tras crear/borrar en `docs/`, cambiar `src/` ajeno y cambiar `weekly-results/copy.ts` | **Refutada**: 21/21 en 200, mismos 1.704.170 bytes |
+| H2: `/_next/image` carga `sharp` antes que `next/og` en el mismo proceso | Proceso nuevo, caché de imágenes vacía: optimizador primero / imagen primero | **Confirmada**, determinista y **en las dos versiones**: optimizador primero → **3/3 en 500** (`HEAD` y `9acbfa8`); imagen primero → 6/6 en 200 |
+
+**Qué recibió `sharp` y de dónde:** el SVG que genera `satori` dentro de `ImageResponse` (`next/og`), que en Node pasa
+a `sharp(new TextEncoder().encode(svg))`. **Por qué no lo reconoce:** `next/dist/server/image-optimizer.js`, al
+cargar `sharp` la primera vez, hace `sharp.block({ operation: ['VipsForeignLoad'] })` y solo desbloquea HEIF, JPEG,
+GIF, PNG, TIFF y WebP. El bloqueo es de **todo el proceso**, así que el cargador SVG queda fuera para `next/og`.
+Next 16.3.0. En la segunda pasada de D-221 se vio porque `.next` se había borrado y el optimizador tuvo que usar
+`sharp` de verdad al servir la imagen del catálogo (`getImageProps`, D-163) antes de la primera imagen semanal.
+
+**Anterior al lote y NO corregido:** combina D-163 y D-194, y se reproduce idéntico en `9acbfa8`. Es un **defecto
+real del producto** en cualquier proceso que optimice una imagen antes de generar la semanal. En Vercel el
+optimizador es un servicio aparte y **se espera** que no afecte; en un `next start` propio sí. **No se ha comprobado
+en producción.**
+
+### `filas-seleccionables:195` — el clic cae antes de la hidratación
+
+Medido en frío, tres corridas por versión: la fila se ve **~330 ms antes** de tener su manejador de clic
+(`HEAD` 286/377/349 ms; `9acbfa8` 327/337/326 ms). La prueba pulsa en cuanto la ve, y la fila no es un enlace: el
+clic se pierde. Falla en frío en las dos versiones, en la misma línea (210). **Anterior al lote.** `HEAD` pinta la
+lista ~300 ms más tarde en frío, sin cambiar la ventana. **Corrección de la prueba:** reintentar el clic hasta que
+haya navegación —2 s por intento, 30 s en total, dentro del tiempo de la prueba—. En frío, **3/3** (antes 2/2 fallos).
+
+### I-164 — `ventas-por-fecha:238`: la copia oculta del *streaming*
+
+Capturado con traza: en la llamada que falla, el estado vacío está en **`BODY > DIV#S:0[hidden]`** —donde React deja
+el contenido resuelto de un `Suspense` (`ReportsView.tsx:152`) hasta colocarlo— y un instante después en `<main>`.
+`getByText` sin acotar ve las dos y el modo estricto falla. **Reproducido en `9acbfa8`** con la misma firma: **5/90**
+frente a **4/90** en `HEAD`. **Anterior al lote.** **Corrección de la prueba:** acotar a `getByRole('main')` en sus dos
+usos; `HEAD` **60/60**.
+
+### Comparación completa, en frío y en secuencia
+
+| | `9acbfa8` (0074) | `HEAD` (0077 + las dos correcciones) |
+|---|---|---|
+| Resultado | 775/798 en 1,2 h | 887/908 en 1,3 h |
+| I-163 (18: `resultados-semana` y su versión móvil) | ✗ | ✗ |
+| `ventas-por-fecha:163` —I-090, **55 ventas de hoy en las dos**— | ✗ | ✗ |
+| `filas-seleccionables:195`, `premios-ganados:443`, `ventas-por-fecha:238` | ✗ | ✓ |
+| `catalogo-publico-movil:103` (I-106) | ✓ | ✗ |
+
+**No aparece ningún fallo de `HEAD` sin explicación.** `catalogo-publico-movil:103` es I-106: prueba y catálogo sin
+cambios en el lote y el mismo fallo registrado en la pasada completa de D-209, **anterior al lote**; esta vez no se
+reprodujo en `9acbfa8`, y esa es su única evidencia de versión anterior —un registro, no una ejecución de hoy—.
+
+### `npm run dev`
+
+El encargo de D-219 decía «Usa `npm run dev` y confirma que conecta a Supabase local». **Se ejecutó `npm run
+dev:local`, no `npm run dev`.** Lo que se ejecutó no se reescribe: `npm run dev` lee `.env.local`, que apunta al
+proyecto real, y el encargo prohibía acceder a producción. No se cambió `npm run dev` ni su configuración.

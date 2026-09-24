@@ -846,7 +846,8 @@ Tres cosas distintas, que no se mezclan:
 | Comprobación local | Resultado |
 |---|---|
 | `verify` · `test:db` | ✅ exit 0, 1.643 · ✅ 1.444 + 1 omitida (59/59), base recién sembrada |
-| E2E completa desde base limpia | ❌ **No superada.** Primera pasada 905/908, con sus tres fallos explicados —uno corregido en las pruebas de este lote—; segunda, tras la corrección, **885/908 con 21 fallos sin explicar** (I-163, `filas-seleccionables:195`) y antes otro (I-164). **La preparación local no está completa** |
+| E2E completa desde base limpia | ✅ **Explicada** (D-222). En frío y en secuencia: `9acbfa8` 775/798 y `HEAD` 887/908; **ningún fallo de `HEAD` sin causa**: los comunes son I-163 (18, anterior al lote, defecto del producto sin corregir) e I-090; el único solo de `HEAD`, I-106, anterior al lote por registro. Dos pruebas corregidas por causa medida (I-164, I-165) |
+| **Riesgo abierto, anterior al lote: I-163** | La imagen semanal falla (500) en un proceso que haya optimizado antes una imagen con `/_next/image`. Demostrado en local en las dos versiones. En Vercel el optimizador va aparte y **se espera** que no afecte: **no comprobado** |
 | Actualización `0074` → `0077` con `db push --local` sobre datos, con carga | ✅ una transacción por archivo; **6.546/6.546** llamadas del código viejo en 200 durante el push; 12 cifras de negocio idénticas |
 | Código `9acbfa8` con la base en `0077` | ✅ 229/230; el fallo reproducido en `0074` con los mismos datos (acumulación) |
 | Privilegios, escenarios A y B (I-132) | ✅ `verify-remote` 49/49 en los dos; B difiere de A solo en `search_tickets` con `service_role` |
@@ -873,7 +874,8 @@ autorización expresa** del dueño.
    * que existen los disparadores de eventos `pgrst_ddl_watch` y `pgrst_drop_watch`: son los que avisan a
      PostgREST, y la ausencia de hueco medida en local depende de ellos;
    * **el ACL actual de `search_tickets`**: se espera `service_role=X` además de `authenticated` (I-132). Si lo
-     tiene, publicar no cambia nada; si no, publicar se lo añade, y eso se decide antes.
+     tiene, publicar no cambia nada; si no, publicar se lo añade, y eso se decide antes. **Que `verify-remote`
+     pase no la convierte en aceptable**: ninguna de sus comprobaciones mira ese permiso. Sigue **pendiente**.
 5. `supabase db push --dry-run` debe listar **exactamente** `0075`, `0076` y `0077`, y nada más.
 6. **Respaldo** nuevo (`RUNBOOK` §5.1) inmediatamente antes, validado restaurándolo en local.
 7. **Sonda de solo lectura antes** (la de §2.2), aplicar con `supabase db push` y **la misma sonda después**. Medido

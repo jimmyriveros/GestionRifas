@@ -14611,3 +14611,43 @@ pasada completa. `ventas-por-fecha:238` tampoco (**I-164**, §g).
 **La preparación local NO está completa.** Hay fallos sin causa ni reproducción en la versión anterior —I-163,
 I-164 y `filas-seleccionables:195`—, y por la regla de D-221 eso impide declararla lista. Lo que falta está en
 `DEPLOYMENT` §3.3.a.
+
+## D-222 — Los tres fallos sin explicar de D-221 (2026-09-24, solo en local)
+
+**Nada de esto es una verificación de producción.** Evidencia completa, una carpeta por ejecución, en el
+`scratchpad` de la sesión (`evidencia/NN-etiqueta-version/`: `corrida.txt` con commit, esquema, preparación, PID y
+línea de órdenes del servidor; `servidor.log`; `playwright.log`; `resultados.json`; `test-results/` con trazas y
+capturas). Fuera del repositorio: son grandes y se pueden regenerar con `scratchpad/corrida.sh`. Los registros de las
+dos pasadas de D-221 se copiaron allí como `00-…`; sus `test-results` ya no existían.
+
+**Cómo se lee la columna «Árbol»:** `bc21cd0` limpio hasta la corrida 22; desde la 24, `bc21cd0` **más las dos
+correcciones de pruebas de D-222 sin confirmar** —el arnés registra el commit, no el árbol—.
+
+| N.º | Qué | Versión · esquema | Resultado |
+|---|---|---|---|
+| 03 | Sonda de cambios de archivos | `HEAD` | **INVÁLIDA**: Docker parado tras reiniciar el equipo; se reinició Docker Desktop y Supabase local |
+| 04 | H1: 21 imágenes tras cambiar archivos vigilados | `HEAD` · 0077 | 21/21 en 200 → **H1 refutada** |
+| 05 · 06 | H2: optimizador primero · imagen primero, caché de imágenes vaciada antes | `HEAD` · 0077 | **3/3 en 500** · 6/6 en 200 |
+| 07 · 08 | Lo mismo | `9acbfa8` · 0074 | **3/3 en 500** · 6/6 en 200 → **anterior al lote** |
+| 09–12 | `filas-seleccionables:195` en frío | `HEAD` ×2, `9acbfa8` ×2 | `HEAD` F·F, `9acbfa8` F·P; siempre línea 210 |
+| 13–18 | Ventana entre fila visible y fila con manejador, en frío | ×3 cada una | `HEAD` 286/377/349 ms; `9acbfa8` 327/337/326 ms |
+| 19 · 20 | `ventas-por-fecha:238` ×30 con traza | `HEAD` · `9acbfa8` | **2/30** fallan · 0/30. Traza: la copia en `BODY > DIV#S:0[hidden]` |
+| 21 · 22 | Lo mismo ×60 | `9acbfa8` · `HEAD` | **5/60** fallan (misma firma) · 2/60 |
+| 23 | Corrección de `:238` | `HEAD` | **INVÁLIDA**: «No tests found», la prueba cambió de línea |
+| 24–26 | `filas-seleccionables:195` corregida, en frío | `HEAD` | **3/3** |
+| 27 | `ventas-por-fecha:243` (la misma, corregida) ×60 | `HEAD` | **60/60** |
+| 28 | **E2E completa en frío** | `9acbfa8` · 0074 | 775/798, 23 fallos, 1,2 h |
+| 29 | **E2E completa en frío** | `HEAD` · 0077 | 887/908, 21 fallos, 1,3 h |
+
+**Comparación 28 frente a 29.** Comunes: las 18 de I-163 y `ventas-por-fecha:163` (I-090, **55** ventas de hoy en las
+dos). Solo en `9acbfa8`: `filas-seleccionables:195`, `premios-ganados:443` y `ventas-por-fecha:238`. Solo en `HEAD`:
+`catalogo-publico-movil:103` (I-106: prueba y catálogo sin cambios en el lote; mismo fallo en la pasada completa de
+D-209, anterior al lote; no reproducido hoy en `9acbfa8`). **Ningún fallo de `HEAD` queda sin explicación.**
+
+| Comando final | Resultado |
+|---|---|
+| `npm run verify` (con las dos pruebas corregidas) | ✅ exit 0, 1.643, lint 0 errores, build |
+| `npm run test:db` | No se repitió: nada de la base cambió desde D-221 (1.444 + 1) |
+
+**Error propio encontrado:** el commit `bc21cd0` dejó las filas de I-163 e I-164 de `KNOWN_ISSUES.md` empezando por
+una comilla invertida suelta —no se leían como filas—. Corregido.

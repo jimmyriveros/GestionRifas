@@ -29,7 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
-| **Próxima publicación — preparación local NO completa (D-221)** | **Documentado como publicado:** `0001`–`0074` y `9acbfa8`; última comprobación contra producción, `verify:remote` 46/46 el 2026-09-19. **Pendiente esperado:** `0075`–`0077` y D-211 a D-220 (no comprobado contra producción). **Medido en local:** transición sin fallos, `9acbfa8` compatible con `0077`, privilegios A/B, recuperación probada. **Falta:** explicar I-163, I-164 y `filas-seleccionables:195` —la segunda E2E completa dio 885/908—; después, los pasos de producción de `DEPLOYMENT` §3.3.a, cada uno con autorización. Fuera: I-159, I-160, I-161 |
+| **Próxima publicación — preparación local completa, con dos decisiones abiertas (D-222)** | **Documentado como publicado:** `0001`–`0074` y `9acbfa8`; última comprobación contra producción, `verify:remote` 46/46 el 2026-09-19. **Pendiente esperado:** `0075`–`0077` y D-211 a D-220 (no comprobado contra producción). **Medido en local:** transición sin fallos, `9acbfa8` compatible con `0077`, privilegios A/B, recuperación probada y **ningún fallo de E2E de `HEAD` sin causa** (D-222). **Abierto:** I-163 —defecto anterior al lote, sin corregir— y el ACL de `search_tickets` por confirmar. Nada de esto autoriza publicar |
 | **Códigos de rifa a partir de 1.000 (SOLO EN LOCAL, 2026-09-23, D-220, `0077`)** | **I-157 cerrada.** R999 → R1000 → R1001 sin recortar; ningún código existente cambia. Quedan I-160 (orden por código de texto, decisión pendiente) e I-161 |
 | **Historial de abonos de la ficha, paginado (SOLO EN LOCAL, 2026-09-23, D-219)** | **I-156 cerrada.** La ficha pagina sus abonos en la base y el detalle de boleta filtra los suyos en la base. `DataTablePagination` ya no suelta el foco y, con `scrollTargetId`, no devuelve arriba del todo. Queda **I-159** (boletas de la ficha, mismo corte). Sin migración |
 | **Estados del vendedor al buscar y limpieza de las pruebas de orden (SOLO EN LOCAL, 2026-09-23, D-218)** | Buscando, la frase de los estados de «Mis boletas» dice el orden de texto de `search_tickets` («primero Asignada»); sin buscar, el del enumerado. Las pruebas de orden ya no dejan rifas: dos pasadas seguidas, nueve recuentos idénticos. §1.c ya no presenta I-155 como pendiente. Sin migración |
@@ -168,7 +168,23 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-221, preparación LOCAL de la publicación de D-211 a D-220: **NO completa** (2026-09-23)
+## 1.a Último relevo significativo — D-222, los tres fallos sin explicar de D-221: causa medida de cada uno (**solo en local**, 2026-09-24)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **I-163**: causa demostrada —el optimizador de `/_next/image` hace `sharp.block` de todos los cargadores y el SVG de `next/og` ya no se reconoce—, **anterior al lote** (idéntico en `9acbfa8`) y **no corregido**: es un defecto del producto. **I-164** (`ventas-por-fecha:238`): la copia oculta `S:0` del *streaming*, anterior al lote (5/90 frente a 4/90), prueba corregida. **I-165** (`filas-seleccionables:195`): el clic antes de hidratar, ventana de ~330 ms en las dos versiones, prueba corregida. Comparación completa en frío y en secuencia: **ningún fallo de `HEAD` sin causa** |
+| Archivos | `tests/e2e/ventas-por-fecha.spec.ts` y `tests/e2e/filas-seleccionables.spec.ts`. Documentación: `DECISIONS` D-222, `TEST_RESULTS`, `KNOWN_ISSUES` I-090, I-163–I-165, `DEPLOYMENT` §3.3.a. Sin cambios de la aplicación |
+| Evidencia | `scratchpad/evidencia/NN-…` de la sesión, una carpeta por ejecución (29), con commit, esquema, servidor propio, registro, JSON, trazas y capturas; el arnés es `scratchpad/corrida.sh`. **No está en el repositorio**: si la sesión se pierde, se regenera con el arnés |
+| Decisiones | **D-222.** I-163 no se corrige por no ser del lote y exigir una decisión propia. Las dos pruebas se corrigen solo con causa medida: acotar a `main` y reintentar el clic, sin subir el tiempo de la prueba |
+| Verificación | Hipótesis H1 refutada (21/21), H2 confirmada en las dos versiones (3/3 en 500), ventana de hidratación medida (6 corridas), I-164 capturado con traza y reproducido en `9acbfa8`; correcciones 60/60 y 3/3 en frío; completas en frío `9acbfa8` 775/798 y `HEAD` 887/908; `verify` exit 0 |
+| Advertencias | **1)** **`npm run dev` se pidió y no se ejecutó**: se ejecutó `npm run dev:local`, y la documentación lo dice así; no se reescribe lo que se ejecutó. `npm run dev` lee `.env.local`, que apunta al proyecto real. **2)** Docker Desktop estaba parado al empezar (equipo reiniciado): la corrida 03 es inválida. **3)** El arnés registra el commit pero no el árbol de trabajo: desde la corrida 24, `HEAD` incluía las dos correcciones sin confirmar. **4)** Una E2E completa con la caché de imágenes vacía falla en las 18 de I-163: es esperado mientras I-163 siga abierto |
+| Pendiente | **Decidir I-163.** **Confirmar en solo lectura el ACL de `search_tickets`** (I-132): que el verificador pase no la hace aceptable. Después, los pasos de producción de `DEPLOYMENT` §3.3.a, cada uno con autorización. Fuera: I-159, I-160, I-161 |
+| Entorno (al entregar) | Supabase local en `0077` con los restos de la corrida 29; sin servidor; el *worktree* `scratchpad/wt-9acbfa8` sigue, con su `node_modules` |
+| Git | Rama `feature/premios-configurables`. Commit propio; hash en el reporte. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-221, preparación LOCAL de la publicación de D-211 a D-220: **NO completa** (2026-09-23)
 
 | Campo | Estado |
 |---|---|

@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-23 — **auditoría visual y listas, D-211 a D-221, SOLO EN LOCAL** (mantenimiento
+- **Actualizado:** 2026-09-23 — **auditoría visual y listas, D-211 a D-222, SOLO EN LOCAL** (mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas). Este archivo se quedó en D-210 mientras corrían
   diez bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
@@ -23,8 +23,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   que Vendedores, Rifas y Administradores no lean su lista entera) y `0077_raffle_short_code_mil.sql` (el
   código de rifa no se recorta a partir de la 1.000).
   **(4) Variables de entorno:** ninguna nueva.
-  **(5) Problemas que permanecen:** **I-163** e **I-164** —fallos de E2E sin explicar que impiden declarar
-  lista la publicación (D-221)—, **I-159**, **I-160**, **I-161**, **I-151**
+  **(5) Problemas que permanecen:** **I-163** —causa demostrada y anterior al lote, defecto del producto sin
+  corregir (D-222)— y el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
   y **I-059**; el resto de la auditoría visual, sin autorizar.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
   **Nada de esto está en producción**, y la rama no se ha fusionado.

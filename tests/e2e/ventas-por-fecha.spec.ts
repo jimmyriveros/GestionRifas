@@ -173,7 +173,12 @@ test.describe('Ventas por fecha — portal del vendedor', () => {
     await page.goto('/seller/reports')
 
     if (esperado === 0) {
-      await expect(page.getByText('No vendiste boletas en este período')).toBeVisible()
+      // En `main` (D-222, I-164): mientras React coloca el contenido del
+      // `Suspense`, existe también su copia oculta en `<div hidden id="S:0">`,
+      // fuera de `main`, y sin acotar el modo estricto encontraba dos.
+      await expect(
+        page.getByRole('main').getByText('No vendiste boletas en este período'),
+      ).toBeVisible()
       await expect(page.getByRole('table')).toHaveCount(0)
     } else {
       await expect(indicador(page, 'Boletas vendidas')).toContainText(String(esperado))
@@ -240,7 +245,12 @@ test.describe('Ventas por fecha — portal del vendedor', () => {
       `/seller/reports?report=sales-by-date&dateFrom=${DIA_VACIO}&dateTo=${DIA_VACIO}`,
     )
 
-    await expect(page.getByText('No vendiste boletas en este período')).toBeVisible()
+    // En `main` (D-222, I-164): mientras React coloca el contenido del `Suspense`,
+    // existe también su copia oculta en `<div hidden id="S:0">`, fuera de `main`,
+    // y sin acotar el modo estricto encontraba dos (medido: 5/90 y 4/90).
+    await expect(
+      page.getByRole('main').getByText('No vendiste boletas en este período'),
+    ).toBeVisible()
     await expect(page.getByRole('table')).toHaveCount(0)
   })
 
