@@ -1611,7 +1611,9 @@ omite del nombre para que `@vercel/og` no lo pida afuera (D-195). Una prueba gen
 proceso los cargadores de `sharp` que no necesita, SVG incluido. No se desbloquea ninguno: cuando el SVG de
 `@vercel/og` no puede cargarse, se rasteriza en un **proceso hijo** de Node con un guion fijo, que recibe solo ese
 SVG —compuesto por el servidor con los datos de arriba— por la entrada estándar y devuelve el PNG, con plazo de 30 s.
-El proceso hijo no recibe ningún parámetro de la petición.
+El proceso hijo no recibe ningún parámetro de la petición. **Si no arranca, termina antes de leer el SVG o agota el
+plazo, se le mata y se cierran sus canales**: la imagen responde 500 sin detalles y ningún error suyo llega al proceso
+del servidor como excepción sin capturar (corrección de D-223).
 
 **Sin limitador de intentos, a propósito** (D-194, Decisión 8). Cada imagen cuesta ~0,6 s de CPU a un
 vendedor autenticado y activo, que ya puede gastar lo mismo recargando cualquier pantalla. Un

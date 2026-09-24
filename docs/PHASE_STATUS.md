@@ -13,16 +13,20 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   en «Boletas» del personal con su lista blanca, sin cliente ni dinero (D-217); buscando, la frase de los
   estados del vendedor dice el orden efectivo, y las pruebas de orden ya no dejan rifas (D-218); el historial de abonos de la ficha pagina en la base
   (D-219, I-156); los códigos de rifa continúan R999 → R1000 sin recortarse (D-220, I-157); la imagen de «Resultados de la
-  semana» sale aunque el optimizador de imágenes haya trabajado antes en el mismo servidor (D-223, I-163).
-  **(2) Pruebas (D-223, la última):** `verify` **exit 0** (1.645 unitarias) · `test:db` **1.444 + 1 omitida**,
-  59/59 · **E2E completa en frío y desde base limpia: 908/909**, con el único fallo en I-090, anterior al lote. Detalle y errores encontrados, en
+  semana» sale aunque el optimizador de imágenes haya trabajado antes en el mismo servidor (D-223, I-163), y su
+  proceso hijo falla sin dejar excepciones sin capturar (corrección de D-223).
+  **(2) Pruebas (corrección de D-223, la última):** `verify` **exit 0** (1.658 unitarias) · `test:db` **1.444 + 1
+  omitida**, 59/59 · `resultados-semana` y `-movil` **34/34** desde base limpia y en frío; la E2E completa, de D-223:
+  **908/909**, con el único fallo en I-090, anterior al lote. Detalle y errores encontrados, en
   [`TEST_RESULTS.md`](TEST_RESULTS.md).
   **(3) Migraciones:** **77**, tres nuevas y **solo en local** — `0075_orden_de_listas.sql` (orden en
   `search_tickets` y `admin_list_tickets`) y `0076_orden_en_la_base.sql` (dos vistas y dos funciones para
   que Vendedores, Rifas y Administradores no lean su lista entera) y `0077_raffle_short_code_mil.sql` (el
   código de rifa no se recorta a partir de la 1.000).
   **(4) Variables de entorno:** ninguna nueva.
-  **(5) Problemas que permanecen:** I-163 **corregido en local** y sin comprobar en Vercel (D-223); el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
+  **(5) Problemas que permanecen:** I-163 **corregido en local** y sin comprobar en Vercel (D-223); **I-167**, por
+  decidir antes de publicar: sin `sharp` que cargar, D-223 deja en 500 todas las rutas; **I-166**, qué `sharp` carga un
+  artefacto empaquetado; el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
   y **I-059**; el resto de la auditoría visual, sin autorizar.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
   **Nada de esto está en producción**, y la rama no se ha fusionado.

@@ -14684,3 +14684,36 @@ unsupported image format») y pasa con él (2/2).
 caché de imágenes equivocada en dev hasta la corrida 43 (corregido: vacía las dos); y dos corridas «sin arreglo»
 parecieron pasar por la caché de Turbopack. Ninguno cambia un resultado de D-222: un `HIT` solo puede esconder I-163,
 nunca provocarlo.
+
+## Corrección de D-223 — el proceso hijo falla sin excepciones sin capturar, y `sharp` desde un artefacto aislado (2026-09-24, solo en local)
+
+**Nada de esto es una verificación de producción.** Evidencia en las carpetas `01`–`21` del `scratchpad` de la sesión
+`45bb7e68…` (`evidencia/NN-…`), fuera del repositorio. Servidor de desarrollo siempre con `npm run dev:local`
+—«next dev contra LOCAL (127.0.0.1:54321)»—; las compilaciones, con las variables de Supabase **local** solo en el
+entorno del proceso.
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 01 | **Antes:** la comprobación del encargo —script de Node, `cwd` sin `sharp`, SVG válido de 2 MB—, tres veces | **3/3** el proceso termina: «Unhandled 'error' event — Error: write EOF», sin llegar al `catch` |
+| 02 | Lo mismo con el arreglo | 3/3 rechaza con «terminó con 1 sin recibir la entrada completa (write EOF): … Cannot find module 'sharp'» y el proceso sale con 0 |
+| 03 · 06 · 07 | Las pruebas nuevas **con el código de `9e0dc31`** | La ejecución falla (Vitest: «Unhandled Errors … write EOF», exit 1) y, con la vigilancia de excepciones, **las dos pruebas del recorrido fallan** por sí mismas |
+| 04 | Mutación: sin el `kill` | Falla la del hijo colgado: «el hijo 29096 sigue vivo» |
+| 05 | Antes, por tamaño del SVG | 4 KB y 64 KB rechazan bien; **411.350 B (el SVG real) y 2 MB terminan el proceso** |
+| — | `og-renderer-child.test.ts` + `weekly-results-image-sharp.test.ts`, tres pasadas | ✅ **15/15** las tres, ~4,3 s |
+| 08 | `next build` con `NEXT_PRIVATE_STANDALONE=1` y sus trazas | ✅ exit 0. Las trazas listan el JS de `sharp`, su `.node` y `@img/sharp-wasm32`; **no las DLL de libvips**. El `sharp` del bundle, `.next/node_modules/sharp-<hash>`, enlace con ruta absoluta al repositorio |
+| 09 | Copia aislada: resolución | El hijo y el bundle resuelven dentro del artefacto; nativo `ERR_DLOPEN_FAILED`; carga el WebAssembly; con el optimizador, el SVG también queda bloqueado ahí |
+| 10 · 11 | Sonda HTTP, artefacto aislado (WebAssembly), con el arreglo | Optimizador `MISS`; imagen 200 en ~2,6 s (md5 `739e6158…`); sin `sharp` para el hijo, **500 en ~0,3 s** y `/login` 200, también 3 + 3 a la vez; al devolverlo, 200 con el mismo md5; servidor vivo |
+| 12 | Lo mismo con las DLL añadidas (nativo) | 200 en ~1,05 s con **el md5 de D-223, `d9465f3c…`**; mismos 500 y 200 al fallar; **0** excepciones sin capturar |
+| 13 | Píxeles, WebAssembly frente a nativo | 45,68 % de píxeles con alguna diferencia; **0,79 % con más de 8 niveles** (máximo 57): resvg 0.48.1 frente a librsvg 2.62.91 |
+| 14 · 15 | Artefacto nativo con el código de `9e0dc31` | Mismos estados, pero **4 `⨯ uncaughtException: Error: write EOF`**: el manejador global de Next lo contiene y el servidor sigue |
+| 16 | Coste de cargar `sharp`, cinco veces cada uno | Nativo ~81 ms y +14 MB; WebAssembly ~140 ms y +30 MB |
+| 19 · 20 | Artefacto **sin ningún `sharp`**, con el arreglo y con `9e0dc31` | **500 en todas las rutas** en los dos: «Failed to prepare server … loading instrumentation hook». Registrado como **I-167** |
+| 17 | `npm run verify` | ✅ exit 0: **1.658** unitarias en **87** archivos (+13), lint 0 errores (los 2 avisos de siempre), build |
+| 18 | `resultados-semana` y `-movil`, desde base limpia y en frío | ✅ **34/34** en 1,9 min; ningún «og-renderer» ni «uncaughtException» en el registro del servidor |
+| 21 | `npm run test:db`, sobre base recién sembrada | ✅ **1.444 + 1 omitida**, 59/59 (sin cambio de número: la corrección no toca la base) |
+
+**Errores propios encontrados:** el primer `next build` con el código anterior falló porque `next build` comprueba los
+tipos también en `tests/` y la prueba nueva usa la API nueva; se apartó la prueba solo para esa compilación y se
+restauraron los dos archivos con su hash. La suposición de partida —que en el servidor el defecto lo **terminaba**— era
+cierta para un proceso Node, **no para el de Next**, que tiene su propio manejador (filas 14 · 15); se corrigió en la
+documentación.

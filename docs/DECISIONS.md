@@ -14080,3 +14080,85 @@ No se accedió a producción. Sin comprobar: que `/_next/image` en Vercel sea un
 se da allí—, que `module.register` y `instrumentation` se comporten igual en el runtime de Vercel y que, si el camino
 del proceso hijo llegara a usarse allí, `sharp` se resuelva desde `process.cwd()` en la función. El trazado local sí
 incluye `sharp` en la ruta de la imagen.
+
+### Corrección de D-223 — el proceso hijo falla sin excepciones sin capturar, y `sharp` desde un artefacto aislado (2026-09-24)
+
+**Encargo del usuario, antes de cerrar I-163.** Solo en local, sin migración, sin acceso a producción.
+
+#### El defecto, reproducido antes de corregir
+
+`rasterizeSvgInChild` escribía el SVG en `child.stdin` sin oyente de `error` en ese canal. Si el hijo termina antes de
+leerlo entero —aquí, porque no resuelve `sharp`—, la escritura pendiente falla (`write EOF` en Windows; `EPIPE` en
+Linux) y ese `error` sin oyente se lanza como **excepción sin capturar**.
+
+| Comprobación | Resultado con el código de `9e0dc31` |
+|---|---|
+| La del encargo: script de Node, `cwd` sin `sharp`, SVG válido de 2 MB | **3/3**: el proceso termina con «Unhandled 'error' event — Error: write EOF», sin llegar al `catch` |
+| El mismo script, por tamaño | 4 KB y 64 KB rechazan bien; **411.350 bytes —el SVG real de la imagen semanal— y 2 MB terminan el proceso** |
+| Servidor `standalone` de Next, con el hijo sin `sharp` | La excepción ocurre (`⨯ uncaughtException: Error: write EOF`, 4 de 4 peticiones fallidas) pero **el servidor sigue**: Next registra un manejador global en `router-server.js` y en el servidor mínimo (`server.runtime.prod.js`) que la escribe y continúa. La petición responde 500 por el `close` |
+
+Es decir: en un proceso Node sin ese manejador —la comprobación aislada, Vitest— el defecto termina el proceso; en la
+aplicación lo contenía la red de seguridad de Next, que se puede quitar
+(`experimental.removeUncaughtErrorAndRejectionListeners`) y tras la cual Node no garantiza un estado sano.
+
+#### Qué cambia (`src/lib/og-renderer.ts`)
+
+`runChild` gobierna el proceso y `rasterizeSvgInChild` lo usa con el mismo guion de siempre:
+
+1. El proceso y sus **tres canales** tienen oyente de `error` toda su vida; la promesa se resuelve o se rechaza **una
+   sola vez**.
+2. **Fallo de arranque** —`spawn` que lanza en el acto, `error` con ENOENT (comando o directorio inexistente) o un hijo
+   sin canales (EMFILE)— rechaza.
+3. **Salida anticipada**: el fallo de escritura se anota y se espera al `close`, cuyo registro de errores dice el
+   porqué: «terminó con 1 sin recibir la entrada completa (write EOF): … Cannot find module 'sharp'». Un código 0 con la
+   entrada incompleta tampoco se da por bueno.
+4. **Plazo propio** (30 s, el de antes) en lugar de la opción `timeout` de `spawn`: rechaza en el acto, mata con
+   **SIGKILL** —también a un hijo que no atiende SIGTERM— y cierra los canales.
+
+**No cambia:** el guion del hijo, el gancho de módulos, `sharpForOg`, el plazo, el PNG y el bloqueo del optimizador:
+no se desbloquea ningún cargador. `rasterizeSvgInChild` acepta `cwd` y `timeoutMs` solo para las pruebas.
+
+**Descartado:** apoyarse en el manejador de Next (arriba); rechazar en cuanto falla la escritura, que perdería el
+motivo real del fallo; y la opción `timeout` de `spawn`, que solo manda una señal y deja la promesa esperando un
+`close` que puede no llegar.
+
+#### Pruebas
+
+* `tests/unit/og-renderer-child.test.ts` (12, procesos de verdad): el camino correcto —PNG **idéntico** al de `sharp`
+  en el propio proceso, y un SVG de 2 MB—, la reproducción del encargo, directorio y comando inexistentes, `spawn` que
+  lanza, salida anticipada, código distinto de 0, plazo vencido con el hijo real y con uno colgado que no atiende
+  SIGTERM, fallos y aciertos a la vez, y después de cada fallo **la siguiente imagen sale**. Cada prueba falla si algo
+  llega como excepción sin capturar, y comprueba que no queda ningún proceso ni tubería abiertos.
+* `weekly-results-image-sharp.test.ts` (+1): el recorrido entero con el bloqueo real del optimizador —`next/og`, el
+  hijo sin `sharp`, la imagen falla con el motivo— y la siguiente sale de 1080 × 1350.
+* **Vistas fallar:** con el código de `9e0dc31`, las dos pruebas del recorrido fallan con «excepciones sin capturar:
+  [Error: write EOF]»; sin el `kill`, la del hijo colgado falla con «el hijo … sigue vivo».
+
+#### `sharp` desde un artefacto empaquetado y aislado
+
+Build `standalone` con `NEXT_PRIVATE_STANDALONE=1` —sin tocar `next.config.ts`—, copiado **fuera del repositorio**
+con los enlaces resueltos, sin `.env` y sin ningún `node_modules` por encima. Medido en local, Windows:
+
+| Qué | Resultado |
+|---|---|
+| Las trazas de la instrumentación, de la ruta y del servidor | Listan el JS de `sharp`, su `.node` y `@img/sharp-wasm32` (JS y `.wasm` de 9 MB). **No listan las DLL de libvips** que el `.node` necesita |
+| `.next/standalone` tal cual | El `sharp` que usa `og-renderer` en el bundle es `.next/node_modules/sharp-<hash>`, un enlace **con ruta absoluta** al `node_modules` del repositorio: no está aislado |
+| La copia aislada | El hijo (desde `cwd`) y el bundle resuelven `sharp` **dentro del artefacto**. El nativo no carga (`ERR_DLOPEN_FAILED`) y `sharp` 0.35 cae a su versión WebAssembly, que el `package-lock` instala sin restricción de CPU |
+| WebAssembly frente a nativo | ~2,6 s frente a ~1,05 s por imagen; **otro PNG**: 0,79 % de los píxeles con más de 8 niveles de diferencia (máximo 57), porque rasteriza resvg 0.48.1 y no librsvg 2.62.91 |
+| La copia con las DLL añadidas | Nativo desde el artefacto: **PNG idéntico byte a byte al de D-223** (md5 `d9465f3c…`) |
+| Un hijo sin `sharp` en el artefacto, con el arreglo | 500 en ~0,3 s con el motivo en el registro; `/login` en 200, también con 3 + 3 peticiones a la vez; al devolverlo, 200 con el mismo md5. **0** excepciones sin capturar (con `9e0dc31`, 4) |
+| Cargar `sharp`, que D-223 hace al arrancar **cada** instancia | Nativo ~81 ms y +14 MB; WebAssembly ~140 ms y +30 MB |
+| **Sin ningún `sharp` que cargar** en el artefacto | **Todas las rutas responden 500** —`/login`, `/`, el catálogo, la imagen—: «Failed to prepare server … An error occurred while loading instrumentation hook: Failed to load external module sharp-…». `instrumentation` importa `og-renderer`, que importa `sharp` al cargarse. **Igual con el código de `9e0dc31`**: es de D-223, no de esta corrección. `9acbfa8` no tiene `instrumentation`; ahí, sin `sharp`, `next/og` cae a resvg (según su código, no medido) |
+
+**Riesgo para publicar, no corregido aquí (I-167).** La última fila no es un fallo del proceso hijo sino del
+diseño de D-223, y el encargo limitaba los cambios al hijo. Las trazas incluyen `sharp` para la instrumentación, así
+que solo se daría si la función de Vercel no pudiera cargarlo; pero entonces caería **toda la aplicación**, no la
+imagen. Dos salidas, **pendientes de decisión**: registrar el gancho dentro de un `try` en `instrumentation.ts`, para
+que sin `sharp` todo siga como en `9acbfa8`, o importar `sharp` solo al rasterizar.
+
+**Lo que requiere Vercel, sin comprobar:** qué `sharp` carga la función en Linux —si el paquete incluye
+`@img/sharp-libvips-linux-x64` o solo la versión WebAssembly, con otro aspecto y más lenta—; si `/_next/image` corre
+fuera del servidor —Next, al compilar en Vercel (`NOW_BUILDER`), excluye `image-optimizer.js` de las trazas «cuando se
+atiende fuera de next-server», y entonces I-163 no se da y el hijo no se usa—; cómo empaqueta el enlace `sharp-<hash>`;
+el `cwd` de la función; que permita `spawn` y la memoria de un segundo proceso; `module.register` e `instrumentation`
+en su runtime; y el coste de arranque de cargar `sharp` en cada instancia. Registrado en I-163, I-166 e I-167.

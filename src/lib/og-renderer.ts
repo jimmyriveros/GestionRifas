@@ -16,16 +16,19 @@
  *      paquete. Nadie más la recibe: el optimizador sigue con su `sharp`.
  *   2. `sharpForOg` usa el `sharp` real. Si el cargador está bloqueado, el SVG
  *      se rasteriza en un proceso hijo de Node, que carga su propio `sharp` sin
- *      bloqueos, y el PNG vuelve por la salida estándar.
+ *      bloqueos, y el PNG vuelve por la salida estándar. Si el hijo no arranca,
+ *      termina antes de leer el SVG o agota el plazo, la imagen falla con un
+ *      error y el servidor sigue atendiendo (`runChild`).
  *
  * Por qué no resvg, que `next/og` trae dentro: medido, tarda 4,3 s por imagen
  * frente a 0,8 s, y es síncrono; con diez peticiones a la vez bloqueaba el
  * proceso lo suficiente para que otras consultas agotaran su plazo (D-223).
  *
  * Lo registran `src/instrumentation.ts` (una vez, antes de atender peticiones)
- * y la prueba `tests/unit/weekly-results-image-sharp.test.ts`.
+ * y la prueba `tests/unit/weekly-results-image-sharp.test.ts`. Los fallos del
+ * proceso hijo los prueba `tests/unit/og-renderer-child.test.ts`.
  */
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { register } from 'node:module'
 
 import sharp from 'sharp'
@@ -65,26 +68,112 @@ function isBlockedLoader(error: unknown): boolean {
   return error instanceof Error && /unsupported image format/.test(error.message)
 }
 
-export function rasterizeSvgInChild(svg: Uint8Array, width: number): Promise<Buffer> {
+export interface ChildOptions {
+  /** Desde dónde resuelve el hijo `sharp`. Por defecto, el del servidor. */
+  cwd?: string
+  timeoutMs?: number
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** Termina el hijo si sigue vivo y cierra sus tres canales. */
+function stop(child: ChildProcess): void {
+  if (child.exitCode === null && child.signalCode === null) {
+    try {
+      child.kill('SIGKILL')
+    } catch {
+      // Si ni siquiera se puede matar, la promesa ya está rechazada.
+    }
+  }
+  child.stdin?.destroy()
+  child.stdout?.destroy()
+  child.stderr?.destroy()
+}
+
+/**
+ * Lanza `command`, le escribe `input` por la entrada estándar y resuelve con
+ * su salida estándar si termina con 0.
+ *
+ * Cualquier otro final —no arranca, termina antes de leer toda la entrada o
+ * con otro código, o agota el plazo— RECHAZA la promesa una sola vez y deja
+ * cerrados el hijo, sus canales y el temporizador. El proceso y sus tres
+ * canales tienen oyente de `error` toda su vida: un `error` sin oyente es una
+ * excepción sin capturar, que termina un proceso de Node y que en el servidor
+ * solo contendría el manejador global de Next.
+ *
+ * Si la escritura falla porque el hijo terminó antes de leerlo todo, se espera
+ * a su `close`, cuyo registro de errores dice por qué terminó (un `sharp` que no
+ * se resuelve, por ejemplo); el plazo acota esa espera.
+ *
+ * El plazo es propio y no la opción `timeout` de `spawn`: esa solo manda una
+ * señal y deja la promesa esperando un `close` que puede no llegar.
+ */
+export function runChild(
+  command: string,
+  args: readonly string[],
+  input: Uint8Array,
+  { cwd = process.cwd(), timeoutMs = CHILD_TIMEOUT_MS }: ChildOptions = {},
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['-e', CHILD_SCRIPT, String(width)], {
-      cwd: process.cwd(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-      timeout: CHILD_TIMEOUT_MS,
-      windowsHide: true,
-    })
+    let child: ChildProcess
+    try {
+      child = spawn(command, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+    } catch (error) {
+      reject(new Error(`og-renderer: no se pudo lanzar el proceso hijo: ${messageOf(error)}`))
+      return
+    }
+
+    let settled = false
+    const timer = setTimeout(() => {
+      fail(`el proceso hijo superó el plazo de ${timeoutMs} ms`)
+    }, timeoutMs)
+    const fail = (reason: string) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      stop(child)
+      reject(new Error(`og-renderer: ${reason}`))
+    }
+
+    child.on('error', (error) => fail(`no se pudo lanzar el proceso hijo: ${error.message}`))
+    const { stdin, stdout, stderr } = child
+    if (!stdin || !stdout || !stderr) return fail('el proceso hijo arrancó sin sus canales')
+
     const out: Buffer[] = []
     const err: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => out.push(chunk))
-    child.stderr.on('data', (chunk: Buffer) => err.push(chunk))
-    child.on('error', reject)
-    child.on('close', (code, signal) => {
-      if (code === 0) return resolve(Buffer.concat(out))
-      const detail = Buffer.concat(err).toString().trim()
-      reject(new Error(`og-renderer: el proceso hijo terminó con ${signal ?? code}: ${detail}`))
+    let inputError: Error | undefined
+    stdout.on('data', (chunk: Buffer) => out.push(chunk))
+    stderr.on('data', (chunk: Buffer) => err.push(chunk))
+    stdout.on('error', (error) => fail(`salida del proceso hijo: ${error.message}`))
+    stderr.on('error', (error) => fail(`errores del proceso hijo: ${error.message}`))
+    stdin.on('error', (error) => {
+      inputError ??= error
     })
-    child.stdin.end(Buffer.from(svg))
+
+    child.on('close', (code, signal) => {
+      if (settled) return
+      if (code === 0 && !inputError) {
+        settled = true
+        clearTimeout(timer)
+        return resolve(Buffer.concat(out))
+      }
+      const partial = inputError ? ` sin recibir la entrada completa (${inputError.message})` : ''
+      const detail = Buffer.concat(err).toString().trim()
+      fail(`el proceso hijo terminó con ${signal ?? code}${partial}: ${detail}`)
+    })
+
+    stdin.end(input)
   })
+}
+
+export function rasterizeSvgInChild(
+  svg: Uint8Array,
+  width: number,
+  options?: ChildOptions,
+): Promise<Buffer> {
+  return runChild(process.execPath, ['-e', CHILD_SCRIPT, String(width)], svg, options)
 }
 
 async function rasterize(svg: Uint8Array, width: number): Promise<Buffer> {
