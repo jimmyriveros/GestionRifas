@@ -841,40 +841,56 @@ Tres cosas distintas, que no se mezclan:
 | **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `9acbfa8`: D-211 a D-220, 16 commits a 2026-09-23 | Git local: `origin/main..HEAD` |
 | **Requiere confirmación contra producción** | Que producción siga en `0074` y en `9acbfa8`; que nadie haya aplicado ni desplegado nada desde el 2026-09-19; que `verify:remote` siga en verde. **Nada de esto se ha comprobado desde esa fecha** | — |
 
-**Lista de verificación, en este orden.** Cada paso que escribe en producción necesita **su propia autorización
-expresa** del dueño.
+**Preparación local — hecha y medida (D-221, 2026-09-23).** Nada de esto es una verificación de producción:
+
+| Comprobación local | Resultado |
+|---|---|
+| `verify` · `test:db` | ✅ exit 0, 1.643 · ✅ 1.444 + 1 omitida (59/59), base recién sembrada |
+| E2E completa desde base limpia | ❌ **No superada.** Primera pasada 905/908, con sus tres fallos explicados —uno corregido en las pruebas de este lote—; segunda, tras la corrección, **885/908 con 21 fallos sin explicar** (I-163, `filas-seleccionables:195`) y antes otro (I-164). **La preparación local no está completa** |
+| Actualización `0074` → `0077` con `db push --local` sobre datos, con carga | ✅ una transacción por archivo; **6.546/6.546** llamadas del código viejo en 200 durante el push; 12 cifras de negocio idénticas |
+| Código `9acbfa8` con la base en `0077` | ✅ 229/230; el fallo reproducido en `0074` con los mismos datos (acumulación) |
+| Privilegios, escenarios A y B (I-132) | ✅ `verify-remote` 49/49 en los dos; B difiere de A solo en `search_tickets` con `service_role` |
+| Recuperación | ✅ `supabase/recovery/0077_a_0074.sql` ensayado dos veces: esquema, privilegios y cuerpos idénticos a `0074` |
+
+**Lista de verificación para publicar, en este orden.** Cada paso que escribe en producción necesita **su propia
+autorización expresa** del dueño.
 
 1. **Base local limpia y E2E completa**: `npm run db:reset`, reiniciar Kong, `npm run seed:local` y
-   `npm run test:e2e` completa con `npm run dev:local` (nunca `npm run dev`, que apunta al proyecto real).
-2. **Tratamiento de cada fallo de la E2E**, uno por uno y por escrito en `TEST_RESULTS`:
-   * repetir el archivo **solo**, tras `db:reset` + `seed:local`;
-   * si pasa solo, comprobar que es un problema **ya registrado** —I-090 (acumulación en «Ventas por fecha»),
-     I-148 (premios con el servidor caliente), I-151 (selección con restos), I-075—, con **la misma firma**
-     (mismo archivo, misma línea, mismo tipo de diferencia);
-   * si falla solo, o su firma no coincide con ninguno registrado, **se detiene la publicación**: se
-     reproduce, se corrige en local y se repite desde el paso 1. Nunca se quita ni se salta una prueba
-     para seguir.
-3. `npm run verify` y `npm run test:db` en verde, este último sobre base recién sembrada.
-4. **Solo lectura en producción** (§9.1 de `RUNBOOK` como modelo): confirmar que la última migración aplicada es
-   `0074`, qué commit está servido y `verify:remote`. Si algo no coincide con la fila «Documentado como
-   publicado», **se detiene** y se explica la diferencia antes de seguir.
+   `npx playwright test` con `npm run dev:local` (nunca `npm run dev`, que lee `.env.local` y apunta al proyecto
+   real). Entre suites se vuelve a preparar la base: `test:db` la deja vacía.
+2. **Cada fallo de la E2E se explica antes de seguir.** Que pase aislado y se parezca a uno registrado **no basta**.
+   Se acepta como ajeno solo con **una** de estas dos cosas, escrita en `TEST_RESULTS`:
+   * **evidencia causal**: la causa medida (una cifra, una fila, una captura) y por qué no depende del cambio;
+   * **reproducción equivalente sobre la versión anterior**: el mismo fallo, en la misma línea, con el código de
+     `9acbfa8` —*worktree* aparte— o con el esquema devuelto a `0074` por el script de recuperación.
+   **Sin una de las dos, el fallo queda sin explicar y la publicación NO está lista.** Nunca se quita ni se salta
+   una prueba para seguir.
+3. `npm run verify` y `npm run test:db` en verde.
+4. **Solo lectura en producción**, con `RUNBOOK` §9.1 como modelo. Confirmar, antes de nada:
+   * que la última migración aplicada es `0074` y qué commit está servido (se espera `9acbfa8`);
+   * que `verify:remote` da **45 OK y 4 en rojo a propósito**, exactamente las cuatro de `0075`–`0077`
+     (medido así contra una base local en `0074`). Cualquier otro rojo **detiene** la publicación;
+   * que existen los disparadores de eventos `pgrst_ddl_watch` y `pgrst_drop_watch`: son los que avisan a
+     PostgREST, y la ausencia de hueco medida en local depende de ellos;
+   * **el ACL actual de `search_tickets`**: se espera `service_role=X` además de `authenticated` (I-132). Si lo
+     tiene, publicar no cambia nada; si no, publicar se lo añade, y eso se decide antes.
 5. `supabase db push --dry-run` debe listar **exactamente** `0075`, `0076` y `0077`, y nada más.
 6. **Respaldo** nuevo (`RUNBOOK` §5.1) inmediatamente antes, validado restaurándolo en local.
-7. **Privilegios de lo que crean** (I-132): el proyecto alojado concede `EXECUTE` a `service_role` en toda
-   función nueva y el local no. Leído en los archivos: `0075` **borra y vuelve a crear** `search_tickets` y
-   `admin_list_tickets` con firma nueva; `0076` crea las vistas `v_seller_ticket_list` y `v_org_member_list` y
-   las funciones `admin_list_sellers` y `admin_list_raffles`, y redefine las dos de `0075`; `0077` redefine
-   `raffles_set_short_code` (`create or replace`, conserva privilegios y se comprueba a sí misma). Ensayar el
-   escenario B y H7-05 como en D-207/D-208.
-8. Aplicar las migraciones **antes** del código (§2.2). **No son todas aditivas**: `0075` borra y recrea dos
-   funciones. Sus parámetros nuevos tienen valor por defecto y el código servido (`9acbfa8`) las llama con
-   argumentos con nombre que siguen existiendo, así que **se espera** que siga funcionando con la base nueva.
-   **Es una lectura del código, no una medición**: hay que comprobarlo en local —base con `0077`, código de
-   `9acbfa8`— antes de aplicar, y medir si queda un instante sin función hasta que PostgREST recarga su caché.
-   Con la sonda de solo lectura antes y después.
-9. Push a `main` y despliegue; comprobar el código **servido** (§6.1) y `verify:remote`.
-10. Revisión del dueño **con sesión** en un teléfono real: el control de orden (D-215 a D-218) y el historial
-    de abonos (D-219). Un agente no introduce contraseñas.
+7. **Sonda de solo lectura antes** (la de §2.2), aplicar con `supabase db push` y **la misma sonda después**. Medido
+   en local: cada archivo es una transacción, el código servido sigue respondiendo durante todo el push y ninguna
+   cifra de negocio cambia.
+8. `verify:remote` → **49/49**. Push a `main`, despliegue, código **servido** (§6.1) y `verify:remote` otra vez.
+9. Revisión del dueño **con sesión** en un teléfono real: el control de orden (D-215 a D-218) y el historial de
+   abonos (D-219). Un agente no introduce contraseñas.
+
+**Recuperación, en este orden:**
+
+* **Problema del código** → Instant Rollback al despliegue anterior en Vercel (§4.1), **sin tocar la base**: el
+  código de `9acbfa8` funciona con `0077` aplicada (medido en local, D-221).
+* **Problema de la base** → `supabase/recovery/0077_a_0074.sql` en una transacción —se niega si ya hay una rifa
+  `R1000` o mayor— y después `supabase migration repair --status reverted 0077 0076 0075`. Solo con el código
+  anterior servido, porque el nuevo llama a las firmas de `0075`. Ensayado en local; **nunca en producción**.
+* **Pérdida o daño de datos** → el respaldo del paso 6 (`RUNBOOK` §5). Ninguna de las tres migraciones escribe filas.
 
 **Registrados y NO incluidos en esta publicación** (no se implementan sin encargo): **I-159** (boletas de la ficha
 cortadas en 100), **I-160** (orden de los códigos de rifa como texto desde R1000; decisión pendiente) e **I-161**

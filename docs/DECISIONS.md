@@ -13847,3 +13847,81 @@ sus códigos y contadores— **idénticas** antes y después de aplicarla.
 | **El orden por código es de texto** | `R999 > R101 > R1001 > R1000 > R100 > R099` | Las listas de rifas y sus desplegables ordenan por código descendente como sustituto de «la más reciente primero» (así lo dice `raffles/queries.ts`), y a partir de la 1.000 esa intención se rompe: la rifa nueva cae entre la 101 y la 100. Arreglarlo es cambiar unas diez consultas —tres de PostgREST que no admiten expresiones, `admin_list_raffles`, `admin_list_tickets`, `search_tickets`, vistas e informes— para un caso que hoy está a 984 rifas. **Queda como I-160**, con la decisión pendiente: orden natural en todas partes, o solo en los órdenes por defecto |
 | El contador de boletas usa `lpad(n, 6, '0')` | Recortaría en la boleta 1.000.000 **de una misma rifa** | Otro tope, no el autorizado. La creación masiva es de 1.000 como máximo. **I-161** |
 | Ninguna validación, búsqueda ni formato de pantalla supone tres cifras | `R1000` visto en «Rifas», su detalle y «Boletas», a 1.280 y 320 px, **sin desbordes** | — |
+
+## D-221 — Preparación local de la publicación de D-211 a D-220: medida, no supuesta
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-23). **Solo en local.** No autoriza push,
+despliegue ni acceso a producción, y **nada de lo que sigue es una verificación de producción**.
+
+### 1. Cómo se aplica 0075, medido
+
+Base local en `0074` con datos (90 boletas, 51 clientes, 27 pagos, 509 filas de bitácora), `db push --local` —el
+mismo mecanismo que se usa contra el proyecto real— con `log_statement = 'all'` y una carga que llamaba **como el
+código de `9acbfa8`**: `search_tickets` y `admin_list_tickets` con sus argumentos de entonces, y altas de rifas en una
+organización desechable con el contador en 997.
+
+| Qué | Medido |
+|---|---|
+| Transacciones | **Una por archivo**: `BEGIN` … sentencias … inserción en `schema_migrations` … `COMMIT`. `0075` de 23:10:09.603 a 23:10:09.819 (216 ms). El `drop` y el `create` de cada función viven dentro: otra sesión ve la vieja hasta el `COMMIT` y la nueva después, nunca un hueco |
+| Caché de PostgREST (v14.15) | `pgrst_ddl_watch` emite `NOTIFY pgrst, 'reload schema'`, que PostgreSQL entrega **al confirmar**. PostgREST recibió tres avisos —uno por archivo— y recargó en ~200 ms cada vez, **sin dejar de atender** |
+| Llamadas durante los 9,5 s del `db push` | **6.546, todas 200**; latencia p50 4 ms, p99 8 ms, máximo 31 ms. En los 60 s completos, **45.134** lecturas sin un error |
+| Altas de rifas | Con la función de `0004`: `R998`, `R999`, **`R100`** y después `23505` en bucle —I-157 en vivo—; el primer código tras `0077`, `R1001`, llegó 407 ms después del último fallo |
+| Datos | Sonda de 12 cifras antes y después: **idénticas**; solo cambia `0074/74 → 0077/77` |
+
+**El «instante sin función» que D-220 dio por posible no existe** con este mecanismo: la corrección del encargo tenía
+razón. Queda por confirmar que el proyecto alojado tiene los mismos disparadores de eventos y la misma forma de aplicar
+(`DEPLOYMENT` §3.3.a).
+
+### 2. El código de 9acbfa8 con la base nueva
+
+`9acbfa8` en un *worktree* aparte, con sus propias E2E, sin tocar la rama: **230/230 sobre `0074`** y **229/230 sobre
+`0077`**. El fallo, `seller-clients.spec.ts:89`, se **reprodujo en la versión anterior**: con el esquema devuelto a
+`0074` y los mismos datos, falla en la misma línea. Causa, medida: el vendedor tenía 93 clientes y 28 van antes que el
+de la prueba por nombre —puesto 29, página 2—; la captura muestra 25 filas. Es acumulación, no las migraciones.
+
+### 3. Privilegios, con el privilegio por defecto del alojado (I-132)
+
+**Escenario A** (local normal): cambia exactamente lo esperado —las dos funciones recreadas con su ACL de siempre y la
+firma nueva; `admin_list_sellers` y `admin_list_raffles` para `authenticated` y `service_role`, no `anon`; las dos
+vistas `security_invoker`, `authenticated` solo lectura, `anon` nada—. **Escenario B** (`alter default privileges …
+to service_role`): idéntico **salvo `search_tickets`, que nace también ejecutable por `service_role`**: `0075` solo
+concede `authenticated` y el privilegio por defecto añade el resto. Es la divergencia de I-132, no abre ninguna puerta
+—`service_role` ya salta el RLS—, y se espera que la `search_tickets` actual de producción ya lo tenga por el mismo
+motivo. **No se tocó ninguna migración**; queda para confirmar en solo lectura.
+
+### 4. `verify-remote` no conocía 0076, y habría quedado en rojo tras publicar
+
+Medido contra la base local en `0077`: **2 fallos** —«Funciones INTERNAS ejecutables por authenticated» con
+`admin_list_sellers` y `admin_list_raffles`, y «Las 5 vistas» con 7—. D-214 las creó y no actualizó el verificador.
+Con evidencia de que son seguras (un vendedor obtiene cero filas, `list-order.test.ts`), **se actualizó el
+verificador, no los permisos**, y se añadieron tres comprobaciones: las vistas en `security_invoker`, las firmas de
+`0075`/`0076` y la regla de `0077`.
+
+| Base local | `verify-remote` |
+|---|---|
+| `0074` | **45 OK, 4 en rojo a propósito** —las cuatro de `0075`–`0077`—: es lo que se espera de producción antes de aplicarlas |
+| `0077`, escenario A | **49/49** |
+| `0077`, escenario B | **49/49** |
+
+### 5. Recuperación concreta: `supabase/recovery/0077_a_0074.sql`
+
+Generado de los propios archivos de migración —`0004`, `0049`, `0057`—, fuera de `supabase/migrations/` para que la
+CLI no lo aplique sola, en una transacción y con una guarda que se niega si ya existe una rifa `R1000` o mayor.
+Después, `supabase migration repair --status reverted 0077 0076 0075`. **Ensayado dos veces** sobre la base con
+datos: la sonda y las 247 entradas de funciones y vistas, **idénticas** a las de antes; los cuerpos de las tres
+funciones restauradas, **idénticos** a los de una `0074` recién creada.
+
+**Orden de recuperación, y por qué:** como el código de `9acbfa8` funciona con `0077` (§2), un problema de código se
+resuelve **volviendo al despliegue anterior sin tocar la base**. El script es solo para un problema de la base misma.
+
+### 6. Regla para aceptar un fallo de la E2E como ajeno
+
+Que un fallo pase aislado y se parezca a uno registrado **no basta**. Se exige **evidencia causal** —la causa medida,
+como en §2— **o una reproducción equivalente sobre la versión anterior**. Sin una de las dos, el fallo queda sin
+explicar y **la publicación no se declara lista**.
+
+### 7. `npm run dev`
+
+El encargo de D-219 pidió `npm run dev`. **Se ejecutó `npm run dev:local`**, y así consta: `npm run dev` es `next dev`
+leyendo `.env.local`, que apunta al proyecto real, y el mismo encargo prohibía acceder a producción. Lo que se ejecutó
+no se puede documentar como otra cosa.

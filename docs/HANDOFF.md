@@ -29,7 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
-| **Próxima publicación (preparada, NO autorizada)** | **Documentado como publicado:** `0001`–`0074` y el código `9acbfa8` (D-210); última comprobación contra producción, `verify:remote` 46/46 el 2026-09-19. **Pendiente esperado:** `0075`, `0076` y `0077` y el código D-211 a D-220 —expectativa documental y de Git, **no una comprobación remota**—. **Requiere confirmación en solo lectura** antes de nada. La lista de verificación, con la E2E completa sobre base limpia y qué hacer con cada fallo, está en `DEPLOYMENT` §3.3.a. Registrados y fuera: I-159, I-160, I-161 |
+| **Próxima publicación — preparación local NO completa (D-221)** | **Documentado como publicado:** `0001`–`0074` y `9acbfa8`; última comprobación contra producción, `verify:remote` 46/46 el 2026-09-19. **Pendiente esperado:** `0075`–`0077` y D-211 a D-220 (no comprobado contra producción). **Medido en local:** transición sin fallos, `9acbfa8` compatible con `0077`, privilegios A/B, recuperación probada. **Falta:** explicar I-163, I-164 y `filas-seleccionables:195` —la segunda E2E completa dio 885/908—; después, los pasos de producción de `DEPLOYMENT` §3.3.a, cada uno con autorización. Fuera: I-159, I-160, I-161 |
 | **Códigos de rifa a partir de 1.000 (SOLO EN LOCAL, 2026-09-23, D-220, `0077`)** | **I-157 cerrada.** R999 → R1000 → R1001 sin recortar; ningún código existente cambia. Quedan I-160 (orden por código de texto, decisión pendiente) e I-161 |
 | **Historial de abonos de la ficha, paginado (SOLO EN LOCAL, 2026-09-23, D-219)** | **I-156 cerrada.** La ficha pagina sus abonos en la base y el detalle de boleta filtra los suyos en la base. `DataTablePagination` ya no suelta el foco y, con `scrollTargetId`, no devuelve arriba del todo. Queda **I-159** (boletas de la ficha, mismo corte). Sin migración |
 | **Estados del vendedor al buscar y limpieza de las pruebas de orden (SOLO EN LOCAL, 2026-09-23, D-218)** | Buscando, la frase de los estados de «Mis boletas» dice el orden de texto de `search_tickets` («primero Asignada»); sin buscar, el del enumerado. Las pruebas de orden ya no dejan rifas: dos pasadas seguidas, nueve recuentos idénticos. §1.c ya no presenta I-155 como pendiente. Sin migración |
@@ -168,7 +168,22 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — D-220, códigos de rifa a partir de 1.000 (I-157, `0077`, **solo en local**, 2026-09-23)
+## 1.a Último relevo significativo — D-221, preparación LOCAL de la publicación de D-211 a D-220: **NO completa** (2026-09-23)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Medido en local** —nada de esto es una verificación de producción—: la aplicación de `0075`–`0077` (una transacción por archivo; el código de `9acbfa8` respondió 6.546/6.546 llamadas durante el push), la compatibilidad de `9acbfa8` con `0077` (229/230, el fallo reproducido en `0074`), los privilegios en los escenarios A y B (`search_tickets` con `service_role` en B, I-132), un script de recuperación probado y dos defectos de preparación corregidos: **`verify-remote` no conocía `0076`** (I-162) y **`orden-paginacion.spec.ts` no limpiaba** —60 pagos que rompían `ventas-por-fecha`—. **Dictamen: NO está lista**: la segunda E2E completa dio **885/908** con fallos sin explicar (I-163, `filas-seleccionables:195`) y antes quedó I-164 |
+| Archivos | `scripts/verify-remote.ts` (dos piezas de `0076` en la lista y tres comprobaciones nuevas), **nuevo** `supabase/recovery/0077_a_0074.sql`, `tests/e2e/orden-paginacion.spec.ts` (limpieza). Documentación: `DEPLOYMENT` §3.3.a, `DECISIONS` D-221, `TEST_RESULTS`, `KNOWN_ISSUES` I-132, I-162–I-164 |
+| Decisiones | **D-221.** Regla para aceptar un fallo de la E2E: evidencia causal o reproducción en la versión anterior; si no, no está lista. Recuperación: primero el despliegue anterior sin tocar la base; el script, solo si el problema es de la base |
+| Verificación | `verify` exit 0 (1.643) · `test:db` 1.444 + 1 · `9acbfa8` 230/230 en `0074` y 229/230 en `0077` · `verify-remote` local: 45 + 4 rojos en `0074`, 49/49 en `0077` A y B · E2E completa: **905/908** (3 explicados) y **885/908** (21 sin explicar) |
+| Advertencias | **1)** **`npm run dev` se pidió y no se ejecutó**: lee `.env.local`, que apunta al proyecto real. Se ejecutó `npm run dev:local`, y así consta en toda la documentación; no se puede escribir otra cosa. **2)** `log_statement` solo lo cambia `supabase_admin` **local**, y `alter system` no admite `psql -c` con varias sentencias. **3)** Playwright vacía `test-results` en cada ejecución: **guardar la captura de un fallo antes de repetir nada**. **4)** El *worktree* de `9acbfa8` sigue en `scratchpad/wt-9acbfa8` con su propio `node_modules` (Turbopack no admite el enlazado); `git worktree remove` cuando ya no haga falta. **5)** `verify-remote` dice «proyecto REAL» aunque se apunte a local: comprobar el host antes |
+| Pendiente | Explicar o reproducir en `9acbfa8` **I-163**, **I-164** y `filas-seleccionables:195` —probablemente una E2E completa de `9acbfa8` desde base limpia— y repetir la E2E completa de `HEAD`. Después, lo que pide `DEPLOYMENT` §3.3.a en producción, con autorización. Registrados y fuera: I-159, I-160, I-161 |
+| Entorno (al entregar) | Supabase local en `0077`, **con los restos de la segunda E2E**; sin servidor de desarrollo |
+| Git | Rama `feature/premios-configurables`. Commit propio; hash en el reporte. **Sin push** |
+
+---
+
+## 1.a.0 Relevo anterior — D-220, códigos de rifa a partir de 1.000 (I-157, `0077`, **solo en local**, 2026-09-23)
 
 | Campo | Estado |
 |---|---|

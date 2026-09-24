@@ -139,6 +139,10 @@ const CHECKS: Check[] = [
               -- historial, para el desplegable del personal. Solo su perfil y
               -- su nombre; un vendedor no obtiene ninguna fila
               'admin_prize_award_sellers',
+              -- 0076 (D-214): Vendedores y Rifas del personal, paginados en la base.
+              -- Acotadas por current_staff_org_ids(): un vendedor obtiene cero filas
+              -- medido en tests/db/list-order.test.ts
+              'admin_list_sellers', 'admin_list_raffles',
               'current_seller_org_ids', 'prize_award_coverage',
               'prize_award_history_start',
               'seller_prize_awards', 'seller_prize_award_totals',
@@ -377,10 +381,45 @@ const CHECKS: Check[] = [
     esperado: 0,
   },
   {
-    nombre: 'Las 5 vistas de saldos existen',
+    // Las 5 de saldos y, desde 0076 (D-214), las dos listas que ordena y pagina
+    // PostgREST: v_seller_ticket_list y v_org_member_list.
+    nombre: 'Las 7 vistas de lectura existen (5 de saldos + 2 de 0076)',
     sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind = 'v'`,
-    esperado: 5,
+    esperado: 7,
+  },
+  {
+    // D-214: las dos vistas nuevas heredan el RLS de quien consulta. Sin
+    // security_invoker, el personal leeria la cartera que D-198 cerro.
+    nombre: 'Las dos vistas de 0076 son security_invoker y anon no las lee',
+    sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public' and c.relkind = 'v'
+            and c.relname in ('v_seller_ticket_list', 'v_org_member_list')
+            and 'security_invoker=true' = any (c.reloptions)
+            and not has_table_privilege('anon', c.oid, 'SELECT')`,
+    esperado: 2,
+  },
+  {
+    // 0075 y 0076 (D-213, D-214): el orden pedido llega a la base. Las dos con
+    // su firma de diez parametros, y ninguna ejecutable por anon.
+    nombre: 'search_tickets y admin_list_tickets con la firma de orden (0075, 0076)',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('search_tickets', 'admin_list_tickets')
+            and p.pronargs = 10
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
+    esperado: 2,
+  },
+  {
+    // 0077 (D-220, I-157): R999 -> R1000, sin recortar. Y la funcion del
+    // disparador sigue sin ser ejecutable desde una sesion.
+    nombre: 'El codigo de rifa no se recorta desde R1000 (0077)',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = 'raffles_set_short_code'
+            and p.prosrc like '%greatest(3, length(v_digits))%'
+            and not has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
+    esperado: 1,
   },
   {
     nombre: 'Tablas de loterias existen (0036, 0039, 0061)',

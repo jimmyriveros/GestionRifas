@@ -5,6 +5,8 @@ import {
   createClientFor,
   createPaymentWithAllocation,
   loadSeedRefs,
+  purgeTestData,
+  purgeTestRaffles,
   serviceClient,
 } from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
@@ -111,13 +113,11 @@ test.describe('Pagos: el orden es del conjunto, no de la página', () => {
   })
 
   test.afterAll(async () => {
-    const svc = serviceClient()
-    if (paymentIds.length > 0) {
-      await svc.from('payment_allocations').delete().in('payment_id', paymentIds)
-      await svc.from('payments').delete().in('id', paymentIds)
-    }
-    if (ticketIds.length > 0) await svc.from('tickets').delete().in('id', ticketIds)
-    if (clientId) await svc.from('clients').delete().eq('id', clientId)
+    // Borrar con `svc` fallaba EN SILENCIO y dejaba 60 pagos y 60 boletas
+    // vendidas HOY: `ventas-por-fecha`, que corre despues, contaba 115 ventas
+    // del dia donde su escenario espera menos de 26 (medido, D-221). Una
+    // transaccion por `pg` que lanza si algo falla.
+    await purgeTestData({ clientIds: [clientId], ticketIds })
   })
 
   test.beforeEach(async ({ page }) => {
@@ -403,10 +403,8 @@ test.describe('Boletas: el orden entre paginas, con datos propios', () => {
   })
 
   test.afterAll(async () => {
-    if (!raffleId) return
-    const svc = serviceClient()
-    await svc.from('tickets').delete().eq('raffle_id', raffleId)
-    await svc.from('raffles').delete().eq('id', raffleId)
+    // La rifa no se borraba: la retiene su fila de `seller_commissions` (D-218).
+    await purgeTestRaffles({ raffleIds: [raffleId] })
   })
 
   test.beforeEach(async ({ page }) => {

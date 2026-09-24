@@ -14511,3 +14511,103 @@ Una rifa `R1000` temporal en la organización del semillero, con una boleta: «R
 | `npm run test:db` | ✅ **1.444 + 1 omitida**, 59/59 archivos (+10 sobre la línea base de 1.434) |
 | `npm run verify` | ✅ exit 0, 1.643 unitarias, lint 0 errores, build |
 | `owner-raffles`, `owner-tickets`, `premios*`, `formularios-alineacion` | ⚠️ **97/98**; el fallo es `premios-ganados:443` (I-148), que pasa al repetirlo |
+
+## D-221 — Preparación local de la publicación de D-211 a D-220 (2026-09-23, solo en local)
+
+**Nada de esto es una verificación de producción.** Aplicación con `npm run dev:local`; el código anterior, `9acbfa8`,
+en un *worktree* aparte con su propio `npm ci` (el enlace de `node_modules` lo rechazó Turbopack: «Symlink
+[project]/node_modules is invalid, it points out of the filesystem root»).
+
+### a. Línea base y compatibilidad de 9acbfa8
+
+| Código | Base | 16 archivos E2E de `9acbfa8` |
+|---|---|---|
+| `9acbfa8` | `0074` + semillero | ✅ **230/230** en 12,7 min |
+| `9acbfa8` | `0077` (con los datos de la anterior) | ⚠️ **229/230**: `seller-clients:89`. **Reproducido con el esquema devuelto a `0074` y los mismos datos**: falla igual, línea 105. Causa medida: 93 clientes del vendedor, 28 antes que el de la prueba por nombre → puesto 29, página 2; la captura tenía 25 filas |
+
+### b. Transición 0074 → 0077 con carga
+
+`db push --local` sobre la base con datos (90 boletas, 51 clientes, 27 pagos, 509 de bitácora), `log_statement = 'all'`
+—activado con `supabase_admin` **local**: `postgres` no puede— y una carga de 60 s con las llamadas de `9acbfa8`.
+
+| Medida | Resultado |
+|---|---|
+| `--dry-run` | Exactamente `0075`, `0076`, `0077` |
+| Transacciones | Una por archivo; `0075` de 23:10:09.603 a 23:10:09.819 |
+| PostgREST | Un aviso de recarga tras cada `COMMIT`, recargas de ~200 ms |
+| Durante el push (9,5 s) | **6.546/6.546** llamadas en 200; p50 4 ms, p99 8 ms, máx 31 ms |
+| En los 60 s | 45.134 lecturas sin error; altas de rifas `R998`, `R999`, `R100` y 56 × `23505` hasta `0077`; después `R1001`… |
+| Sonda de 12 cifras | Idéntica antes y después (tras borrar la organización desechable) |
+
+**Primer intento fallido, error propio:** `psql -c` con dos sentencias va en una transacción y `alter system` no se
+permite ahí; la cadena se cortó y el primer `db push` se aplicó **sin carga**. Se aprovechó para la comparación de
+datos y ACL y se repitió todo tras recuperar a `0074`. **Segundo error propio:** la limpieza de la organización
+desechable borraba la bitácora antes que las rifas, y borrar una rifa escribe bitácora; se deshizo entera y se
+reordenó.
+
+### c. Recuperación — `supabase/recovery/0077_a_0074.sql`
+
+| Ensayo | Resultado |
+|---|---|
+| Script + `migration repair --status reverted 0077 0076 0075`, sobre la base con datos | ✅ sonda **idéntica** y 247 funciones/vistas con ACL **idénticas** a `0074` |
+| Cuerpos de las tres funciones restauradas frente a una `0074` recién creada | ✅ **idénticos** (`md5(pg_get_functiondef)`) |
+| Segundo ensayo, para reproducir `seller-clients:89` | ✅ igual |
+
+### d. Privilegios (I-132)
+
+| Escenario | Resultado |
+|---|---|
+| A (local) antes/después | Cambia exactamente lo esperado |
+| B (`alter default privileges … to service_role`) frente a A | Idéntico **salvo `search_tickets`**, con `service_role=X` |
+| `verify-remote` contra `0077` **antes** de actualizarlo | ❌ **2 fallos**: `admin_list_sellers`/`admin_list_raffles` fuera de la lista, y 7 vistas donde esperaba 5 (**I-162**) |
+| Actualizado, contra `0074` | 45 OK + **4 en rojo a propósito** |
+| Actualizado, contra `0077` A y B | ✅ **49/49** y ✅ **49/49** |
+
+`verify-remote` se apuntó a local con `SUPABASE_DB_URL` en el entorno, comprobando antes el host efectivo
+(`127.0.0.1:54322`); su cabecera dice «proyecto REAL» aunque no lo sea.
+
+### e. Verificaciones del proyecto sobre HEAD
+
+| Comando | Resultado |
+|---|---|
+| `db:reset` + Kong + `seed:local`, `npm run verify` | ✅ exit 0, 1.643, lint 0 errores, build |
+| `npm run test:db` | ✅ 1.444 + 1 omitida, 59/59 |
+| `db:reset` + Kong + `seed:local`, **E2E completa** (primera pasada) | ⚠️ **905/908** en 52,8 min |
+
+### f. Los tres fallos de la primera pasada, uno por uno
+
+| Fallo | Evidencia | Veredicto |
+|---|---|---|
+| `back-navigation:25` —primera prueba, clic sin navegación— | **Reproducido en `9acbfa8`** en frío, misma línea 38. En `.next` borrado: `9acbfa8` F·P (60 s) y F·P (180 s); `HEAD` F·F (60 s), F·P (180 s) y F (180 s). Con 180 s tampoco navega: el clic se pierde en el primer arranque, no es lentitud. Archivo de prueba idéntico en las dos versiones | Ajeno al lote (I-075) |
+| `premios-ganados:443` —«Atrás» conserva `dateFrom`— | **Reproducido en `9acbfa8`**: 3 de 5 fallan en la línea 470; `HEAD`, 4 de 5. Antes, en `735eb67`, 4 de 5 | Ajeno al lote (I-148) |
+| `ventas-por-fecha:163` —«< 26» frente a 115— | **Causa medida y de ESTE lote**: 118 ventas de hoy, **60 de «Orden Pagos …»**, que crea `orden-paginacion.spec.ts` (D-213) y no borraba —sus `delete` con `svc` fallaban en silencio—. La pantalla mostró la cifra exacta: el producto está bien, la prueba nueva no | **Corregido**: `purgeTestData` y `purgeTestRaffles`. Medido: antes y después de `orden-paginacion`, ventas de hoy 8 → 8, clientes «Orden» 0 → 0, rifas 2 → 2, pagos 4 → 4 |
+
+### g. Un fallo que queda SIN EXPLICAR
+
+Tras corregir `orden-paginacion`, en `npx playwright test ventas-por-fecha` (los dos proyectos), **`ventas-por-fecha:238`
+falló una vez**: «strict mode violation», el texto «No vendiste boletas en este período» encontrado **dos veces**, una
+dentro de `<main>` y otra fuera. El código de informes **no cambió** en este lote. **No se reprodujo**: el archivo
+×3 en cada versión (54/54 y 54/54), en frío ×2 en cada versión (18/18), el comando exacto ×3 en cada versión
+(23/23) y 40 cargas sondeando el DOM desde el primer byte (0 dobles). La captura se perdió: Playwright vacía
+`test-results` en cada ejecución. **Hipótesis no demostrada**: un instante del renderizado en streaming. **Por la
+regla de D-221, sin causa ni reproducción, este fallo impide declarar lista la publicación.**
+
+### h. Segunda pasada completa, con `orden-paginacion` corregido
+
+Tras `db:reset` + Kong + `seed:local`: ❌ **885/908 en 1,3 h** —la primera había tardado 52,8 min—.
+
+| Fallos | Cuántos | Evidencia | Veredicto |
+|---|---|---|---|
+| `back-navigation:25` y `premios-ganados:443` | 2 | Los mismos de §f, reproducidos en `9acbfa8` | Ajenos (I-075, I-148) |
+| `catalogo-publico-movil:103` | 1 | Causa ya documentada: depende del orden de las pruebas, desde D-166 | Ajeno (I-106) |
+| `resultados-semana` (18) y `resultados-semana-movil` (2) | 20 | En la prueba 502 la ruta de la imagen empezó a responder «Input buffer contains unsupported image format» (`sharp`) y **ya no se recuperó**: fallaron todas las que piden la imagen. El JPG de fondo está intacto (mismo `md5` que en Git). El archivo solo, justo después: ✅ **29/29**. Sin causa y sin reproducción en la versión anterior | **SIN EXPLICAR** (**I-163**) |
+| `filas-seleccionables:195` | 1 | Tiempo agotado esperando la navegación tras pulsar la fila, en la misma pasada degradada | **SIN EXPLICAR** |
+
+`ventas-por-fecha:163` **no** falló en esta pasada: la corrección de `orden-paginacion` funcionó también dentro de la
+pasada completa. `ventas-por-fecha:238` tampoco (**I-164**, §g).
+
+### i. Dictamen
+
+**La preparación local NO está completa.** Hay fallos sin causa ni reproducción en la versión anterior —I-163,
+I-164 y `filas-seleccionables:195`—, y por la regla de D-221 eso impide declararla lista. Lo que falta está en
+`DEPLOYMENT` §3.3.a.
