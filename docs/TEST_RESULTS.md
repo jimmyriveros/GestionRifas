@@ -14929,3 +14929,97 @@ regular al escaparla (solo leía los JSON locales; se repitió desde un archivo,
 las migraciones, también entre comillas dobles, sustituyó `$$` por el PID y no encontró nada: repetido con comillas
 simples, solo `0077` se comprueba a sí misma; y el guion de lectura dice «de la CSP servida» también en su ensayo
 local, que no la lee (solo la etiqueta).
+
+---
+
+## D-228 — El puente: `9acbfa8` con Next 16.3.6 (2026-09-25, solo en local)
+
+**Solo Supabase local**: el *worktree* del puente no tiene `.env.local`; `dev:local` anunció «next dev contra LOCAL» en
+cada arranque; cada compilación se comprobó sin ninguna cita al host del proyecto real, y cada servidor dejó su
+consulta en el Kong local. Evidencia en `puente/evidencia/01…` del *scratchpad* de la sesión `710dce60…`, con los
+arneses en `herramientas/` (adaptados de los de D-222, D-224 y D-226). El commit medido es siempre
+**`e6c2c5f02f0f430665e20f35bda237da78cde5dc`**; Node local 20.20.2.
+
+### a. El puente y su diff
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 01 | `git worktree add -b fix/puente-next-16.3.6 … 9acbfa8` y `git checkout 00ee2f6 -- package.json package-lock.json` | Diff frente a `9acbfa8`: **2 archivos**; el de esos dos, idéntico byte a byte al de `9acbfa8..00ee2f6`. *Lock*: **14 entradas** (raíz, `next`, `@next/env`, 8 `@next/swc-*`, `@swc/helpers` 0.5.15 → 0.5.23, `eslint-config-next`, `@next/eslint-plugin-next`); `fastq` 1.20.1 |
+| 01 | Commit | `e6c2c5f`, identificador de versión `f6773cfc2306` |
+| 02 | `npm ci` | ✅ 578 paquetes en 27 s; árbol limpio después |
+
+### b. `verify`
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 03 | `verify` en Windows con el entorno del CI | Tipos ✅ y lint ✅; **se detuvo en las unitarias**: 1.521/1.522, `admin-privacy.test.ts:283` «Expected … Received …» con el mismo texto visible |
+| 04 | La misma prueba en el *worktree* de `9acbfa8`, **Next 16.3.0** | ❌ **igual**, 20/21. Causa medida: los dos *worktrees* tienen `eligibility.ts` con CRLF (`git ls-files --eol`: `w/crlf`) y la captura `([^\n]*)` termina en `\r`; en la copia principal ese archivo está en LF y la captura, sin `\r`. **I-171**, anterior al puente |
+| 05 | `verify` completo (se sigue tras un fallo, para medir la compilación) | Tipos ✅ (4 s), lint ✅ (0 errores, los 2 avisos de siempre), unitarias 1.521/1.522 (I-171), **compilación ✅** con «Next.js 16.3.6 (Turbopack)»: 842 archivos revisados, 5 citan `127.0.0.1:54321` y **0** el proyecto real |
+| 13 | Linux, `git archive` a secas | **INVÁLIDA para esto, error propio**: el tar llevaba CRLF (`core.autocrlf` también se aplica a `git archive`), y en Node 20 y 24 falló la misma prueba, 1.521/1.522 |
+| 14 | Linux con `git -c core.autocrlf=false archive` (0 bytes CR) | ✅ **1.522/1.522 con Node 20.20.2** y ✅ **1.522/1.522 con Node 24.21.0** (npm 11.19.0), `npm ci` en ~30 s cada uno. Compilación `standalone` con Node 24: ✅ 16.3.6, 75 MB, sin `.env`, 0 enlaces rotos, el optimizador del artefacto habilita otra vez el cargador SVG, `sharp` con librsvg 2.62.91 y libvips 8.18.6 |
+
+### c. La imagen semanal frente al optimizador de `/_next/image`
+
+Base `0074` con la semilla del puente (06: 33 boletas, 6 clientes, 4 pagos, 2 rifas; firmas de 8 parámetros). En cada
+corrida, servidor nuevo y cachés de imágenes vacías; 2 peticiones de calentamiento, 20 seguidas y 10 a la vez.
+
+| N.º | Dónde · orden | Resultado |
+|---|---|---|
+| 07 · 08 · 09 | Windows `next dev`: optimizador primero · imagen primero · imagen → optimizador → imagen | ✅ todo 200; PNG **`d9465f3c…`** (1.704.170 bytes, 1080 × 1350); mediana 902 · 887 · 927 ms; 10 a la vez en 3,6 · 3,6 · 3,5 s; optimizador `200 MISS` y después `HIT` |
+| 10 · 11 · 12 | Windows `next start` (`BUILD_ID 6VCq-2LZFkyryOQz8x4kv`, citado en el HTML): los mismos tres | ✅ todo 200; el mismo PNG; mediana 845 · 815 · 823 ms; 10 a la vez en 3,0–3,1 s |
+| 15 · 16 · 17 | Artefacto Linux aislado (Node 24.21.0, x86_64, solo `/app` y el reenvío): los mismos tres | ✅ todo 200; el mismo PNG; mediana 1.039 · 1.012 · 993 ms; 10 a la vez en ~3,5–3,6 s; `libvips` y `sharp` cargados desde `/app` |
+| Todas | Cabeceras y permisos | `private, no-store`, `image/png`; 307 sin sesión y 403 al dueño; 0 «unsupported image format», 0 `uncaughtException` y 0 `Error` en los registros |
+| Control negativo | D-222, corrida 07: `9acbfa8` con 16.3.0, la misma base y el mismo modo, optimizador primero | **500** las tres veces y 3 «unsupported image format». Con el puente, en ese mismo orden, 200 |
+
+**Dos líneas del arnés que no medían nada**, sin efecto en el resultado: el recuento de archivos del tar (`tar -tf C:/…`
+toma `C:` por un servidor) y el de procesos del contenedor, que buscaba `node` en `/proc/*/comm` cuando Node 24 se llama
+`MainThread`. El servidor es el PID 1 y siguió vivo, y el artefacto no trae el código del proceso hijo de D-223.
+
+### d. E2E completa y la explicación de cada fallo
+
+Criterio de `DEPLOYMENT` §3.3.a, paso 2: un fallo se acepta como ajeno solo con **evidencia causal** o con
+**reproducción equivalente en la versión anterior**. La versión anterior aquí es **`9acbfa8` con Next 16.3.0**, en el
+*worktree* de la sesión `10cf8911…`, que **solo se arrancó escuchando en local** (`-H localhost` → `::1`), por
+GHSA-p293. La referencia de esa versión en frío es la corrida 28 de D-222: **775/798**, con las 18 de I-163.
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 18 | **E2E completa del puente**, en frío (`.next` borrado), base recién sembrada en **`0074`**, 21:20–22:06 UTC | ⚠️ **794/798** en 44,9 min. **Las 18 de I-163 pasan.** Los 4 fallos, abajo, **explicados** |
+| 19 · 20 | `back-navigation` solo: en caliente · en frío | 9/9 en 30,8 s · **8/9**: `:25` otra vez, línea 38 |
+| 30 | `back-navigation` solo, en frío, **`9acbfa8` con 16.3.0** | **8/9**: `:25`, la **misma** línea 38 y el mismo `waitForURL` de 60 s |
+| 21 · 22 | `ventas-por-fecha` solo, base limpia: con la ruta compilándose · ya en caliente | 16/18 (`:238` y `:247`) · 17/18 (`:247`). `:163` pasa las dos veces |
+| 23 | Lo mismo en `9acbfa8` con 16.3.0 | **INVÁLIDA, error propio**: con `-H 127.0.0.1` y el navegador en `localhost`, la página no se hidrató —el registro tiene diez `GET /login?email=…`, el formulario enviado sin JavaScript— y las pruebas agotaron su plazo. Causa exacta sin medir; ningún aviso de bloqueo en el registro. Detenida |
+| 24 · 25 | `ventas-por-fecha` solo en `9acbfa8` con 16.3.0 (`::1`) | 18/18 y 18/18 |
+| 26 · 27 | **La copia oculta del `Suspense`, medida en el DOM** con un `MutationObserver`, 8 cargas de la pantalla de `:247` en cada versión | **Igual en las dos**: en 2 de 8 cargas la copia visible de `main` y la oculta (`<div hidden id="S:…">`) **coexisten** —62 y 70 ms con 16.3.6; 77 y 79 ms con 16.3.0—, y al final queda **siempre una sola**, visible y en `main`. Es pasajera: no queda nada colgado |
+| 28 · 29 | Solo `:247`, 12 veces: puente · `9acbfa8` con 16.3.0 | **4/12** fallos · **3/12** fallos, los dos con el mismo mensaje en la **misma** línea 250 |
+| 31 · 32 | `catalogo-publico-movil` solo · detrás de `ventas-por-fecha` | 15/15 · 33/33 |
+| 33 | **E2E completa del puente, escenario de recuperación**: en frío, datos sembrados en `0074` y `0075`–`0077` aplicadas encima con `migration up --local` desde la copia principal (`search_tickets` y `admin_list_tickets` con 10 parámetros, las dos funciones de `0076`), 22:47–23:32 UTC | ⚠️ **794/798** en 43,7 min. Los 4 fallos, abajo, **explicados**; `back-navigation:25` pasó esta vez |
+| 34 · 35 | `catalogo-publico-movil` solo, **sobre la base acumulada de la 33** (2.156 boletas, 30 rifas, `0077`), sin reiniciar: puente · `9acbfa8` con 16.3.0 | 15/15 · **14/15**: `:103`, la **misma** línea 118 y el mismo `toHaveURL(/q=0/)` |
+| 36 · 37 | Solo la de I-150, 10 veces: puente · `9acbfa8` con 16.3.0 | 1/10 · 0/10: muestra corta |
+| 38 · 39 | La misma, 30 veces | **2/30** · **2/30**, las cuatro con la **misma** cifra: 1024 px, «> 608», recibido 591 |
+| 40 | Base local devuelta a su estado normal | `db:reset` y `seed:local` **desde la copia principal**: `0077`, 33 boletas |
+
+| Fallo de la 18 | Causa y prueba | Veredicto |
+|---|---|---|
+| `back-navigation:25` | **I-075**: la primera prueba de una pasada en frío paga la compilación bajo demanda de cuatro rutas dentro de un solo plazo de 60 s. En el puente, en frío falla y en caliente pasa; en `9acbfa8` con 16.3.0, en frío, falla **igual** (30) | Anterior al puente: **reproducido** |
+| `ventas-por-fecha:163` | **I-090**: «esperado < 26, recibido 55» —las ventas de hoy que dejan las pruebas anteriores de la misma pasada—. Sola sobre base limpia pasa (21, 22), y en la referencia de `9acbfa8` (D-222, 28) falló la **misma** prueba | Anterior al puente: **reproducido** |
+| `ventas-por-fecha:247` | **I-164**: `getByText` sin acotar encuentra la copia oculta del `Suspense` además de la visible. El DOM hace lo mismo en las dos versiones (26, 27) y la prueba falla también con 16.3.0, 3 de 12 veces (29). En el lote, D-222 acotó a `main` la `:238`, pero no esta (`:257` en el lote) | Anterior al puente: **reproducido**. Defecto de la prueba: el aviso visible está donde debe |
+| `catalogo-publico-movil:103` (móvil) | **I-106**: no llega a `?q=0`, con la firma registrada (línea 118). Solo pasa 15/15 (31) y detrás de `ventas-por-fecha`, 33/33 (32): depende del estado que acumula una pasada completa. Con la base acumulada de la 33, `9acbfa8` con 16.3.0 falla igual (35) | Anterior al puente: **reproducido** |
+
+| Fallo de la 33 (`0077`) | Causa y prueba | Veredicto |
+|---|---|---|
+| `configuracion-cobro:744` | **I-150**: mide mientras la barra lateral cambia de ancho (200 ms) al pasar de 1440 a 1024 px. **2/30 en las dos versiones**, con la misma cifra (38, 39) | Anterior al puente: **reproducido** |
+| `ventas-por-fecha:163` · `:247` · `catalogo-publico-movil:103` | I-090, I-164 e I-106, con las mismas firmas que en la 18 | Los de arriba |
+
+**Balance.** Las dos pasadas del puente dan **794/798**, en `0074` y en `0077`; `9acbfa8` con 16.3.0 dio 775/798 en
+D-222. Los **cinco** fallos distintos que aparecieron están **reproducidos en `9acbfa8` con Next 16.3.0** con la misma
+firma. Ninguno depende del puente, y el puente con la base en `0077` responde igual que con `0074`.
+
+**Dos errores propios más**, sin efecto en ningún resultado: la limpieza de la corrida 23 buscaba procesos por su línea
+de comandos y el filtro coincidía con el propio comando, que cerró sus *shells* temporales —no se cerró nada más; Docker,
+la base y el puerto se comprobaron después—; y la 23 misma, arriba.
+
+### e. La fusión con el lote, ensayada sin escribir
+
+`git merge-tree --write-tree feature/premios-configurables fix/puente-next-16.3.6`: salida **0**, sin conflictos, base
+común `9acbfa8`; el árbol resultante, `d5e6fbccc405…`, es **el mismo** que el de `8d7766e`. Las ramas no se movieron.

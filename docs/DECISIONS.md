@@ -14433,7 +14433,8 @@ usuario, no hubo *push* ni despliegue. Evidencia (`evidencia/01…06`) en el *sc
 fuera del repositorio; resultados en `TEST_RESULTS`, D-227.
 
 **Estado de esta entrada:** §1–§5, **comprobado**. §6, **valoración del agente**. §7, **PROPUESTA NO APROBADA**: la
-decide el dueño. Ninguna parte autoriza publicar.
+decide el dueño. Ninguna parte autoriza publicar. *Actualizado el 2026-09-25, más tarde:* el dueño **aprobó la opción
+A** de §7 (nota al final de §7, que manda sobre este párrafo); la preparación está en D-228.
 
 ### 1. Procedencia, antes de mirar nada
 
@@ -14541,3 +14542,77 @@ promover. Tras publicar el lote, el anterior es `9acbfa8`: la reversión documen
     reversión, «Undo Rollback» antes del siguiente despliegue.
 
 Si la opción A no se aprueba, la publicación sigue lista con la C, que es la documentada.
+
+**Decisión del dueño, 2026-09-25, más tarde: aprobada la opción A.** Esta sección deja de ser una propuesta en ese
+punto: el puente se prepara, y su preparación y medidas están en **D-228**. Publicarlo y fusionarlo en la rama del lote
+siguen necesitando **su propia autorización**, igual que cualquier paso que escribe.
+
+---
+
+## D-228 — El puente: `9acbfa8` con Next 16.3.6, preparado y medido en local
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-25). **Solo en local y solo con Supabase
+local**: sin *push*, sin despliegue y sin tocar producción. Evidencia en `puente/evidencia/01…` del *scratchpad* de la
+sesión `710dce60…`, fuera del repositorio; resultados en `TEST_RESULTS`, D-228.
+
+**Qué es de quién.** **Del dueño:** la opción A de D-227 §7 —publicar el puente antes del lote— y que el puente lleve
+**solo** la subida de `next` y `eslint-config-next` a 16.3.6 con su *lock*. **Del agente**, con su porqué abajo: el
+nombre de la rama, cómo se construyó y midió, la compatibilidad con `0077` medida con la E2E **completa**, fusionar sin
+rebasar y no corregir en el puente la prueba de I-171. **Pendiente:** publicarlo (S0–S4) e incorporarlo al lote
+(I1–I3), cada paso con su autorización (`DEPLOYMENT` §3.3.a.1).
+
+### 1. El commit
+
+| | |
+|---|---|
+| SHA | **`e6c2c5f02f0f430665e20f35bda237da78cde5dc`**, rama local `fix/puente-next-16.3.6`, hijo directo de `9acbfa8` |
+| Cómo | *Worktree* nuevo desde `9acbfa8` y `git checkout 00ee2f6 -- package.json package-lock.json`: desde `9acbfa8`, `00ee2f6` es el **único** commit que toca esos dos archivos |
+| Diff frente a `9acbfa8` | **Dos archivos, y ninguno más** (`git diff --stat 9acbfa8 e6c2c5f`). El diff de esos dos es **idéntico byte a byte** al de `9acbfa8..00ee2f6` |
+| *Lock* | **14 entradas**: la raíz, `next`, `@next/env`, los ocho `@next/swc-*`, `@swc/helpers` 0.5.15 → 0.5.23, `eslint-config-next` y `@next/eslint-plugin-next`; `fastq` sigue en 1.20.1 (D-226 §5) |
+| Identificador de versión | **`f6773cfc2306`** |
+
+**Por qué `fix/`:** es el prefijo de las correcciones de este repositorio (`fix/i-102-…`, `fix/i-105-…`). **Por qué el
+commit va sin documentación:** el puente tiene que ser exactamente «`9acbfa8` + Next 16.3.6»; lo que se escribe sobre él
+vive en la rama del lote y entra en `main` con el lote.
+
+### 2. Lo medido
+
+| Comprobación | Resultado |
+|---|---|
+| `npm ci` en el *worktree* | 578 paquetes en 27 s; Next 16.3.6, `@swc/helpers` 0.5.23, `sharp` 0.35.4; el árbol sigue limpio |
+| `verify` en Windows, con el entorno del CI y sin `.env.local` | Tipos ✅, lint ✅ (0 errores, los 2 avisos de siempre), compilación ✅ con Next 16.3.6 y **0 archivos que citen el proyecto real**. Unitarias **1.521/1.522**: la que falla es **I-171**, un `\r` de la copia de Windows, reproducida igual en `9acbfa8` con 16.3.0 |
+| Unitarias en Linux, con los blobs de Git (LF) | ✅ **1.522/1.522 con Node 20** (el del CI) y **con Node 24** (el de Vercel) |
+| Imagen semanal, Windows `next dev` y `next start` | En los **tres** órdenes —optimizador primero, imagen primero, imagen → optimizador → imagen—: **todo 200**, siempre el PNG de referencia **`d9465f3c…`** (1.704.170 bytes, 1080 × 1350), mediana 815–927 ms, 10 a la vez en ~3,0–3,6 s, `private, no-store`, 307 sin sesión y 403 al dueño, 0 errores en el registro y la conexión local confirmada en el Kong local |
+| Imagen semanal, artefacto Linux **aislado** (Node 24, x86_64, solo `/app`) | Los mismos tres órdenes: **todo 200**, el mismo PNG, mediana 993–1.039 ms; `libvips` 8.18.6 y el `.node` de `sharp` cargados **desde el artefacto**; el optimizador del artefacto vuelve a habilitar el cargador SVG; sin `.env` |
+| Control negativo | El orden que rompía: `9acbfa8` con **16.3.0**, la misma base (`0074`, 33 boletas) y el mismo modo daba **500** tres veces, con «unsupported image format» (D-222, corrida 07). Con el puente, 200. No se volvió a levantar un servidor 16.3.0 (GHSA-p293 en la red local) |
+| E2E completa en frío, base limpia en `0074` | ⚠️ **794/798** en 44,9 min —`9acbfa8` con 16.3.0 dio **775/798** en D-222—: **las 18 de I-163 pasan**, y tres de los 4 fallos están **reproducidos en `9acbfa8` con 16.3.0**: I-075 (`back-navigation:25`, en frío), I-090 (`ventas-por-fecha:163`) e I-164 (`:247`, 4/12 frente a 3/12, con el DOM medido igual en las dos versiones). El cuarto, I-106 (`catalogo-publico-movil:103`), depende del estado acumulado: *ver la fila siguiente* |
+| E2E completa en frío, base migrada de `0074` a `0077` con datos —el escenario de recuperación— | ⚠️ **794/798** en 43,7 min, igual que en `0074`: I-150 (`configuracion-cobro:744`, **2/30 en las dos versiones** con la misma cifra), I-090, I-164 e I-106. **I-106 reproducido** con la base acumulada de esa pasada: `9acbfa8` con 16.3.0 falla `:103` en la misma línea (14/15) y el puente pasa 15/15. **Los cinco fallos distintos de las dos pasadas están reproducidos en `9acbfa8` con Next 16.3.0** |
+| Ensayo de la fusión con el lote (`git merge-tree`, sin escribir) | Salida 0, **sin conflictos**, y el árbol resultante (`d5e6fbc…`) es **idéntico** al de la punta del lote (`8d7766e`): fusionar no cambia ningún archivo |
+
+### 3. Decisiones del agente
+
+1. **La compatibilidad con `0077`, con la E2E completa.** D-221 midió `9acbfa8` sobre `0077` con 16 archivos E2E que no
+   quedaron escritos; en vez de adivinarlos se corre la suite entera, sobre datos creados en `0074` y migrados después
+   con `migration up` desde la copia principal: es el camino de producción.
+2. **I-171 no se corrige en el puente.** El puente es «`9acbfa8` + Next» y nada más; el CI y Vercel ven LF y la prueba
+   pasa (medido). Se registra y se deja para un encargo.
+3. **Fusionar, no rebasar.** `git merge --no-ff`: ningún commit del lote cambia de *hash*, que la documentación cita. El
+   ensayo con `merge-tree` demuestra que el resultado es el árbol que ya se probó.
+4. **Publicar por SHA, nunca desde la rama local `main`**, que está en `c48437a`, 31 commits por detrás de `origin/main`.
+5. **Sin `test:db`**: el puente no toca SQL, migraciones ni lo que esa suite ejercita, y el trabajo `db` del CI la
+   correrá sobre el PR antes de publicar.
+6. **Cada fallo de la E2E, reproducido en `9acbfa8` con Next 16.3.0**, no solo comparado con un registro: el
+   *worktree* anterior (sesión `10cf8911…`) se arrancó **solo escuchando en local**, `-H localhost` (`::1`), por
+   GHSA-p293. Con `-H 127.0.0.1` y el navegador en `localhost` no sirvió: la página no se hidrató —el login se envió
+   diez veces como un GET normal— y las pruebas agotaron su plazo. La causa exacta no se midió; con `-H localhost`
+   funciona.
+7. **Para `:247`, la frecuencia y el DOM, no una corrida.** Tres fallos seguidos del puente frente a dos aciertos de
+   16.3.0 parecían una regresión; con 12 repeticiones fueron 4 frente a 3, y un `MutationObserver` enseñó el mismo
+   comportamiento de la copia oculta en las dos versiones.
+
+**Errores propios**, en `TEST_RESULTS`, D-228: `git archive` sin `-c core.autocrlf=false` metió CRLF en la primera corrida
+Linux (13), que no representa lo que verá el CI; la primera reproducción en 16.3.0 escuchaba en `127.0.0.1` y no valió
+(23); una limpieza que buscaba procesos por su línea de comandos coincidió con su propio comando y cerró sus *shells*
+temporales —no se cerró nada más: se comprobaron Docker, la base y el puerto—; y dos líneas del arnés que no medían
+nada: un recuento con una ruta `C:` que `tar` tomó por un servidor, y otro de procesos que busca `node` cuando Node 24
+se llama `MainThread`.

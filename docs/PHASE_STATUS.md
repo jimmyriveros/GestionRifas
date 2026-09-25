@@ -6,7 +6,10 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 - **Actualizado:** 2026-09-25 — **auditoría visual y listas, D-211 a D-226, SOLO EN LOCAL** (mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas), **y producción comprobada en solo lectura antes de publicarlas
   (D-227)**: sirve `9acbfa8` con Next 16.3.0, tiene `0001`–`0074` y le faltan exactamente `0075`–`0077`;
-  `verify:remote` 45 OK y las 4 esperadas en rojo. Nada impide autorizar la publicación; no está autorizada. Este archivo se quedó en D-210 mientras corrían
+  `verify:remote` 45 OK y las 4 esperadas en rojo. Nada impide autorizar la publicación; no está autorizada. **Y el
+  puente (D-228)**, la opción A que eligió el dueño: `e6c2c5f`, `9acbfa8` con solo Next 16.3.6, **preparado y medido
+  en local** —E2E 794/798 en `0074` y en `0077`, sus cinco fallos reproducidos en `9acbfa8` con 16.3.0, la imagen
+  semanal en los tres órdenes y unitarias 1.522/1.522 en Linux—, **sin publicar ni fusionar**. Este archivo se quedó en D-210 mientras corrían
   diez bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
   **(1) Funcionalidades:** foco al cerrar una confirmación (D-212); las siete listas **ordenan y paginan en
@@ -39,7 +42,9 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   `next dev` y a `next start` —en Vercel no aplica según Next, sin comprobar—, que 16.3.6 **no** corrige; su prueba se
   sincronizó (D-226); **I-170**, producción en Next 16.3.0, dentro del rango de tres avisos críticos y sin explotabilidad
   demostrada en su configuración, hasta publicar 16.3.6 (D-226); el ACL de `search_tickets`, **comprobado**: ya tiene `service_role` y publicar no lo cambia (I-132, parte
-  general abierta; D-227); la reversión tras publicar vuelve a Next 16.3.0 salvo que se apruebe el puente de D-227 §7; **I-159**, **I-160**, **I-161**, **I-151**
+  general abierta; D-227); la reversión tras publicar vuelve a Next 16.3.0 hasta publicar el puente de D-228, ya aprobado y preparado; **I-171**
+  (una prueba unitaria que falla en una copia de Windows con CRLF) y la prueba hermana de I-164, sin acotar, las dos sin
+  corregir (D-228); **I-159**, **I-160**, **I-161**, **I-151**
   y **I-059**; el resto de la auditoría visual, sin autorizar.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
   **Nada de esto está en producción**, y la rama no se ha fusionado.
