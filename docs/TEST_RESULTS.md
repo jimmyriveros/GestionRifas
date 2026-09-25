@@ -14815,3 +14815,89 @@ sondas y la línea final. Y la numeración salta la `05`: el arnés cuenta las c
 **Regresión** (09): `npm run verify` con todo lo anterior, ✅ exit 0 —**1.661** unitarias en 88 archivos, lint 0
 errores (los 2 avisos de siempre) y compilación—. **No se repitió la E2E:** el único cambio fuera de `tests/db` es un
 comentario de `tests/e2e/db-setup.ts`.
+
+## D-226 — GHSA-vcvr-r3jv-pc5j: Next 16.3.6, exposición, proceso hijo retirado e I-168 sincronizada (2026-09-25, solo en local)
+
+**Nada de esto es una verificación de Vercel.** Evidencia en las carpetas `11`–`37` del `scratchpad` de la sesión
+`895a7155…`, fuera del repositorio. **Siempre Supabase local**: cada servidor de Windows dejó su consulta en el Kong
+local (`/catalogo/zz-sonda-local-…`, 404 y 2 llamadas a `public_catalog_seller`), el de desarrollo anunció
+«`next dev contra LOCAL`», cada compilación de producción se comprobó sin ninguna cita al host del proyecto real y el
+artefacto Linux no lleva `.env`.
+
+### a. La actualización y el parche
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 11 | `npm install --save-exact next@16.3.6 eslint-config-next@16.3.6` | ✅ `package.json`, 2 líneas. En el *lock*, 15 entradas: las 14 esperadas y **`fastq` 1.20.1 → 1.20.3**, que npm subió al reinstalar el subárbol de `@next/eslint-plugin-next`. **Devuelto a 1.20.1** (cumple `^1.6.0`) y `npm install` sin argumentos: 14 entradas |
+| 11 | `next/og` 16.3.0 frente a 16.3.6 | `index.node.js` e `index.edge.js` cambian; `render()` y `getSharp()`, idénticos. Mismas librerías empaquetadas. En los literales: atributos escapados, validación de nombres XML («Invalid XML … name») y el `<svg>` en línea y los estilos por el constructor que escapa |
+| 11 | `image-optimizer.js` | `VipsForeignLoadSvg` entra en los cargadores que se vuelven a habilitar; entradas vacías rechazadas en la caché. `socket: _req.socket` sigue (I-168) |
+| 11 | `npm audit` | Con 16.3.0: 6 avisos, entre ellos `next` **crítico** (GHSA-p293-qw3h-jr36 y GHSA-2xp9-vwfh-vxw4, <16.3.3). Con 16.3.6: 5, ninguno crítico ni de Next, **los mismos que ya estaban** |
+| — | El bloque de Next (I-053) | El generador de 16.3.6 escribe el mismo texto; `hasCurrentAgentRules` da `true` tras `next dev`; `AGENTS.md` y `CLAUDE.md`, idénticos |
+
+### b. La exposición (GHSA-vcvr-r3jv-pc5j)
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 13 | `HEAD` + Next 16.3.6: el SVG que Satori entrega a `sharp`, con un nombre de rifa normal y con uno hostil (`X"/><circle id="INYECCION" …`) | Ninguno trae marcado ni la palabra: el texto sale en trazados. 8 `<image>` en los dos (fondo e iconos) |
+| 13 | Lo mismo con un atributo de `<svg>` en línea —patrón que no usamos— · y con texto dentro de un `<svg>` en línea | Escapado (`&quot;`, `&lt;`) · Satori lo rechaza |
+| 14 | `9acbfa8` + Next 16.3.0, las mismas tres | Nombre hostil: igual, sin marcado. Atributo de `<svg>` en línea: **inyecta** `<circle id="INYECCION">` en el SVG anidado. Texto: rechazado |
+
+### c. El proceso hijo: demostrar antes de retirar
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 12 | Las tres pruebas de `og-renderer` con **16.3.6 y el código de D-224 sin tocar** | 16/18: **fallan** «el optimizador deja fuera el cargador SVG» (el SVG se rasteriza) y «si el proceso hijo falla…» (la imagen sale igual) |
+| 15 | Artefacto Linux con el código de D-224 | ✅ Next 16.3.6, el optimizador desbloquea el SVG, sin `.env`, 75 MB |
+| 17 | Primera sonda sobre él | **INVÁLIDA, error propio**: el optimizador respondió 400 porque la exportación copió `public` dentro de `public` (el `standalone` ya trae esa carpeta) y no estaban las imágenes del catálogo. Sin `sharp` cargado, el orden no se probaba. Se corrigió la exportación (`cp -a …/public/. /app/public/`) |
+| 18 | Repetida: optimizador primero (`200 MISS`) y el `sharp` del hijo retirado a mitad | ✅ 20 seguidas y 10 a la vez en 200; **PNG `d9465f3c…`**, el de referencia de D-224; sin `sharp` en el hijo, **200**; **0 procesos hijo**. Con 16.3.0 (D-224, 31): 37 hijos y 500 |
+| 20 | `getSharp` real del optimizador y un SVG, en cada versión | 16.3.0: «unsupported image format»; 16.3.6: se rasteriza |
+| 19 | Con el hijo retirado: `weekly-results-image-sharp` (vigía + imagen) y `og-renderer-sin-sharp` | ✅ 5/5, tres pasadas |
+
+### d. La imagen semanal con el código final
+
+| N.º | Dónde · orden | Resultado |
+|---|---|---|
+| 23 | Artefacto Linux final | ✅ 867 archivos, sin el código del hijo, con el gancho, imágenes del catálogo en su sitio |
+| 24 · 25 · 28 | Linux aislado (Node 24, x86_64): optimizador primero · imagen primero · imagen → optimizador → imagen | ✅ Todo 200, **PNG `d9465f3c…`**, 1.704.170 bytes, 1080 × 1350; mediana 1.029–1.039 ms; 10 a la vez en 3,6–3,7 s; 0 procesos hijo; `private, no-store`; 307 sin sesión; 403 el dueño; 0 errores en el registro |
+| 26 · 27 | Linux en frío sin ningún `sharp` · con `sharp` sin su parte nativa | ✅ Arranca en ~1 s; `/login`, catálogo (13 tarjetas), cuatro pantallas del vendedor y dos del dueño en 200; **solo la imagen** en 500 con su mensaje y `private, no-store`; la vista previa enseña su error; 0 excepciones. Devolver `sharp` sin reiniciar: sigue en 500 (I-167, igual que en D-224) |
+| 29 · 30 | Windows, `npm run dev:local`: optimizador primero · imagen primero (y después optimizador e imagen) | ✅ Todo 200, mismo PNG; mediana 922 · 837 ms; 10 a la vez en 3,6 · 3,1 s |
+| 31 · 32 | Windows, `next start` | **INVÁLIDAS, error propio**: `next build` comprueba los tipos de `tests/` y la sonda temporal de arranque en frío no compilaba; sin compilación, `next start` no arrancó y Playwright levantó su propio servidor de desarrollo. El arnés ahora aborta si falla la compilación y exige que el HTML cite el `BUILD_ID` |
+| 33 · 34 | Windows, `next start` (`BUILD_ID YP5YdjjZedHW5MoVbXrz5`, el HTML lo cita): optimizador primero · imagen primero | ✅ Todo 200, mismo PNG; mediana 818 · 842 ms; 10 a la vez en 3,0 · 3,2 s |
+
+Los permisos de la ruta (409 sin rifa y con resultados pendientes, 403 del personal, 400 con una semana inválida)
+los cubre `resultados-semana.spec.ts` dentro de la E2E completa (37).
+
+### e. I-168: la espera de `catalogo-panel:119`
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 21 | Flujo **anterior**, cuatro pasadas en frío (servidor nuevo, caché vacía) | **4 de 4** cierran la página con la petición del *hero* pedida y **sin terminar**; después, `200 MISS` (en estas cuatro el corte no cayó en la ventana que cuelga) |
+| 22 | Flujo **nuevo** (`waitForLoadState('load')`), igual | **4 de 4** la cierran **terminada** (`200 MISS`); después, `HIT` |
+
+### f. Verificaciones del proyecto
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 35 | `npm run verify` | ✅ exit 0: **1.648** unitarias en 87 archivos (−12 del archivo del hijo, −1 de la prueba que forzaba su fallo), lint 0 errores (los 2 avisos de siempre), compilación |
+| 36 | `npm run test:db` con su preparación | ✅ **1.444 + 1 omitida**, 59/59 |
+| 37 | **E2E completa**, en frío (`.next` borrado) y desde base recién sembrada, con `npm run dev:local` | ⚠️ **906/909** en 50,9 min. `catalogo-publico` entera en verde. Los tres fallos, abajo, **anteriores al cambio y explicados** |
+| 38 | Los dos archivos que fallaron, aislados tras `db:reset` + `seed:local` | `ventas-por-fecha` **18/18**. `back-navigation` 7/9: `:25` y `:127` agotan 60 s en la primera visita al detalle de una boleta mientras el servidor escribía «Finished filesystem cache database compaction in **71s**»; los dos detalles respondieron 200 después del plazo |
+| 39 | `back-navigation`, otra vez, con un servidor que ya no compacta | ✅ **9/9** en 28,6 s; el detalle de la boleta, en ~0,85 s |
+| 40 | Batería unitaria completa en Linux sobre la fuente final (Docker) | ✅ **1.648/1.648** en 87 archivos, con Node 20.20.2 y con Node 24.21.0 |
+
+**Los tres fallos de la 37:**
+
+| Prueba | Causa medida | Versión |
+|---|---|---|
+| `back-navigation:25` | **I-075**: la primera prueba de una pasada en frío agota sus 60 s esperando la primera navegación (`waitForURL`, línea 38), la misma firma que en la completa de D-224 (45) | Anterior; pasa en caliente (39) |
+| `ventas-por-fecha:163` | **I-090**: «esperado < 26», **recibido 55**. La pantalla dijo exactamente las 55 de la base (la comprobación de la línea 184 pasó); falla la cota. De las 55, 6 son del *seed* y 49 de unas 15 especificaciones anteriores de la misma pasada, y **44 las fechó con el día UTC** `createAssignedTicket`. A las 16:44 UTC ese día coincide con el de Bogotá; en la completa de D-224 (20:49 en Bogotá) ya era el siguiente y no contaban | Anterior; 18/18 aislada (38) |
+| `ventas-por-fecha:257` | **I-090**, la antigua `:247`: «Las fechas están al revés» encontró dos elementos, uno oculto, la copia del `Suspense` de I-164 | Anterior; 18/18 aislada (38) |
+
+Ninguna de las tres toca lo que cambia D-226 —Next, `og-renderer`, la espera de `catalogo-panel`—: dos son datos y una es
+tiempo de compilación en desarrollo.
+
+**Errores propios encontrados:** la exportación del artefacto Linux copió `public` dentro de `public` y dejó la corrida 17
+sin optimizador que medir (corregida y repetida en la 18); la compilación de las corridas 31 y 32 falló por una sonda
+temporal que no compilaba —`next build` comprueba los tipos de `tests/`— y Playwright sirvió la sonda con su propio
+servidor de desarrollo (repetidas en la 33 y la 34, con el arnés endurecido); y una orden con un *heredoc* no llegó a
+ejecutarse por las comillas del texto: se comprobó que `DECISIONS.md` no había cambiado y se añadió desde un archivo.

@@ -1,30 +1,25 @@
 // @vitest-environment node
 /**
- * I-163 (D-223): la imagen de «Resultados de la semana» tiene que salir aunque
- * el optimizador de imágenes de Next haya cargado `sharp` antes en el mismo
- * proceso.
+ * I-163 (D-223, D-226): la imagen de «Resultados de la semana» tiene que salir
+ * aunque el optimizador de imágenes de Next haya cargado `sharp` antes en el
+ * mismo proceso.
  *
  * El optimizador (`next/dist/server/image-optimizer`), la primera vez que carga
- * `sharp`, bloquea TODOS los cargadores de libvips y desbloquea solo HEIF, JPEG,
- * GIF, PNG, TIFF y WebP. El bloqueo es del proceso entero, así que el SVG que
- * genera Satori ya no tenía cargador cuando `next/og` se lo pasaba a `sharp`:
- * «Input buffer contains unsupported image format». Medido en local, en HEAD y
- * en 9acbfa8 (D-222).
+ * `sharp`, bloquea TODOS los cargadores de libvips y desbloquea una lista. Hasta
+ * Next 16.3.5 esa lista no traía el SVG, y el que genera Satori ya no tenía
+ * cargador cuando `next/og` se lo pasaba a `sharp` (D-222). D-223 lo rodeó con un
+ * proceso hijo; desde Next 16.3.6 la lista trae `VipsForeignLoadSvg` y el hijo se
+ * retiró (D-226), demostrado antes de quitarlo.
  *
- * El arreglo es `registerOgRenderer`, el mismo que registra
- * `src/instrumentation.ts`: la prueba no imita el registro, lo llama.
+ * Por eso la primera prueba es un VIGÍA: si una versión futura de Next vuelve a
+ * quitar el cargador SVG, falla aquí antes que en la pantalla. En ese caso no se
+ * relaja la prueba: se vuelve a evaluar I-163 (D-223, D-226).
  *
- * Se usa LA FUNCIÓN REAL del optimizador, no una imitación: si Next cambia su
- * bloqueo, esta prueba lo sigue midiendo. Va en su propio archivo porque el
- * bloqueo es global al proceso y Vitest aísla cada archivo en uno propio.
- *
- * Los fallos del proceso hijo, uno por uno, están en `og-renderer-child.test.ts`;
- * aquí se prueba el recorrido entero de una imagen que falla por el hijo.
+ * Se usa LA FUNCIÓN REAL del optimizador, no una imitación. Va en su propio
+ * archivo porque el bloqueo es global al proceso y Vitest aísla cada archivo en
+ * uno propio. El registro es `registerOgRenderer`, el mismo que
+ * `src/instrumentation.ts`: la prueba no lo imita, lo llama.
  */
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-
 import sharp from 'sharp'
 import { afterAll, describe, expect, it } from 'vitest'
 
@@ -80,13 +75,22 @@ afterAll(() => {
 })
 
 describe('I-163 — la imagen semanal con el optimizador de Next ya cargado', () => {
-  it('el optimizador deja fuera el cargador SVG de sharp en este proceso', async () => {
+  it('el optimizador deja disponible el cargador SVG de sharp en este proceso', async () => {
     optimizer.getSharp(null, 0)
     const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>')
-    await expect(sharp(svg).png().toBuffer()).rejects.toThrow(/unsupported image format/)
+    const png = await sharp(svg)
+      .png()
+      .toBuffer()
+      .catch((error: unknown) => {
+        throw new Error(
+          'El optimizador de Next volvió a quitar el cargador SVG de sharp: I-163 regresa y la ' +
+            `imagen semanal fallará tras usar /_next/image. Revisa D-223 y D-226. (${String(error)})`,
+        )
+      })
+    expect([...png.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
   })
 
-  it('aun así la imagen sale: PNG de 1080 × 1350', async () => {
+  it('la imagen sale: PNG de 1080 × 1350', async () => {
     optimizer.getSharp(null, 0)
     const png = await renderWeeklyResultsPng({
       raffleName: 'Rifa Navidad 2026',
@@ -94,39 +98,6 @@ describe('I-163 — la imagen semanal con el optimizador de Next ya cargado', ()
       results: results(),
     })
     expect(dimensiones(png)).toEqual({
-      firma: [137, 80, 78, 71, 13, 10, 26, 10],
-      ancho: 1080,
-      alto: 1350,
-    })
-  })
-
-  it('si el proceso hijo falla, esa imagen da un error y la siguiente sale', async () => {
-    optimizer.getSharp(null, 0)
-    const pedir = () =>
-      renderWeeklyResultsPng({ raffleName: 'Rifa Navidad 2026', week: AUG, results: results() })
-    // El fondo y las fuentes se leen una sola vez por proceso desde
-    // `process.cwd()`: tras esta primera imagen, cambiar de directorio solo le
-    // quita `sharp` al hijo. Su SVG, unos 400 KB, no cabe en la tubería.
-    await pedir()
-    const sinSharp = mkdtempSync(path.join(tmpdir(), 'og-renderer-sin-sharp-'))
-    const antes = process.cwd()
-    // Ninguna excepción sin capturar: en el servidor solo la contendría Next.
-    const escapadas: unknown[] = []
-    const anotar = (error: unknown) => escapadas.push(error)
-    process.on('uncaughtException', anotar)
-    try {
-      process.chdir(sinSharp)
-      await expect(pedir()).rejects.toThrow(
-        /el proceso hijo terminó con 1[\s\S]*Cannot find module 'sharp'/,
-      )
-      await new Promise((listo) => setImmediate(listo))
-    } finally {
-      process.off('uncaughtException', anotar)
-      process.chdir(antes)
-      rmSync(sinSharp, { recursive: true, force: true })
-    }
-    expect(escapadas, 'excepciones sin capturar').toEqual([])
-    expect(dimensiones(await pedir())).toEqual({
       firma: [137, 80, 78, 71, 13, 10, 26, 10],
       ancho: 1080,
       alto: 1350,

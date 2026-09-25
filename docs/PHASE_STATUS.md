@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-25 — **auditoría visual y listas, D-211 a D-225, SOLO EN LOCAL** (mantenimiento
+- **Actualizado:** 2026-09-25 — **auditoría visual y listas, D-211 a D-226, SOLO EN LOCAL** (mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas). Este archivo se quedó en D-210 mientras corrían
   diez bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
@@ -15,8 +15,12 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   (D-219, I-156); los códigos de rifa continúan R999 → R1000 sin recortarse (D-220, I-157); la imagen de «Resultados de la
   semana» sale aunque el optimizador de imágenes haya trabajado antes en el mismo servidor (D-223, I-163), y su
   proceso hijo falla sin dejar excepciones sin capturar (corrección de D-223); `sharp` se carga al generar la imagen,
-  no al arrancar, así que sin él solo falla la imagen (D-224, I-167).
-  **(2) Pruebas (D-225, la última):** `list-order` → `prize-award-history` sin restablecer, dos veces: 32/32 y 70/70, y
+  no al arrancar, así que sin él solo falla la imagen (D-224, I-167); **Next 16.3.6** por GHSA-vcvr-r3jv-pc5j y otros
+  dos avisos críticos, con la exposición evaluada, y con él el optimizador ya no quita el cargador SVG, así que el
+  proceso hijo de D-223 **se retiró** (D-226, I-170).
+  **(2) Pruebas (D-226, la última):** `verify` **exit 0** (1.648 unitarias) · `test:db` **1.444 + 1 omitida** · E2E completa
+  en frío **906/909** (I-075 e I-090, anteriores y explicados) · unitarias en Linux **1.648/1.648** · la imagen semanal, en el artefacto Linux aislado y en Windows (desarrollo y `next start`), en los dos
+  órdenes con el optimizador y siempre con el mismo PNG. **(D-225):** `list-order` → `prize-award-history` sin restablecer, dos veces: 32/32 y 70/70, y
   las 62 tablas idénticas tras cada `list-order` · `test:db` completo **1.444 + 1 omitida** · I-168 medida en `9acbfa8`
   en desarrollo y en `HEAD` con `next start`. **(D-224):** `verify` **exit 0** (1.661 unitarias) · `test:db` **1.444 + 1 omitida** en base limpia · E2E
   completa en frío **907/909** (I-075 e I-106, anteriores; una primera pasada, cortada por I-168, también anterior) · **en Linux** (Docker, Node 24 y 20): unitarias **1.661/1.661**, artefacto
@@ -27,11 +31,12 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   que Vendedores, Rifas y Administradores no lean su lista entera) y `0077_raffle_short_code_mil.sql` (el
   código de rifa no se recorta a partir de la 1.000).
   **(4) Variables de entorno:** ninguna nueva.
-  **(5) Problemas que permanecen:** I-163 **corregido en local** y sin comprobar en Vercel (D-223); **I-167** resuelta en
+  **(5) Problemas que permanecen:** I-163 **corregido en local** y, con Next 16.3.6, **resuelto en origen**, sin comprobar en Vercel (D-223, D-226); **I-167** resuelta en
   local (D-224) y sin comprobar en Vercel; **I-166**, acotada a Windows, sin comprobar en Vercel, como la versión de Node
   del despliegue; **I-169** resuelta en local (D-225); **I-168**, defecto de Next 16.3.0 anterior al lote que afecta a
-  `next dev` y a `next start` —en Vercel no aplica según Next, sin comprobar—, con una propuesta pendiente del dueño
-  (D-225); **GHSA-vcvr-r3jv-pc5j**, aviso crítico de `next/og` visto de paso y sin evaluar (D-225 §6); el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
+  `next dev` y a `next start` —en Vercel no aplica según Next, sin comprobar—, que 16.3.6 **no** corrige; su prueba se
+  sincronizó (D-226); **I-170**, producción en Next 16.3.0, dentro del rango de tres avisos críticos y sin explotabilidad
+  demostrada en su configuración, hasta publicar 16.3.6 (D-226); el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
   y **I-059**; el resto de la auditoría visual, sin autorizar.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
   **Nada de esto está en producción**, y la rama no se ha fusionado.

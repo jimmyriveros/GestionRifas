@@ -1168,6 +1168,13 @@ El reparto entre escritorio y móvil no es casual: la **URL larga** comprueba en
 entera, sería exigir que se recorte algo que no sobra — y fue un fallo real de la primera versión de
 esa prueba.
 
+**«Ver catálogo» espera el evento `load` antes de cerrar la página pública** (I-168, D-226). Cerrarla con la
+imagen del *hero* a medio pedir cortaba la primera petición a `/_next/image`, y un defecto de Next 16.3 deja
+esa imagen sin responder hasta reiniciar el servidor: `catalogo-publico` perdía entonces sus 18 pruebas de
+escritorio. El *hero* es `loading="eager"`, así que `load` es la condición observable de que llegó entera; no
+hay ninguna espera fija. **Es sincronización de la prueba, no un arreglo**: el defecto sigue en Next hasta que
+una versión estable traiga vercel/next.js#98168.
+
 ### 5.5 Que solo se descargue UNA composición del hero (`catalogo-publico*.spec.ts`, D-163)
 
 La afirmación central del rediseño —«el navegador no descarga las dos imágenes»— no se comprueba

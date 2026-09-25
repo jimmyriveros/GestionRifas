@@ -1607,13 +1607,18 @@ boletas, ni coincidencias, ni saldos, ni datos del vendedor, ni auditoría: la c
 omite del nombre para que `@vercel/og` no lo pida afuera (D-195). Una prueba genera un PNG real con
 `fetch` bloqueado.
 
-**El bloqueo del optimizador se respeta (I-163, D-223).** El optimizador de `/_next/image` bloquea en todo el
-proceso los cargadores de `sharp` que no necesita, SVG incluido. No se desbloquea ninguno: cuando el SVG de
-`@vercel/og` no puede cargarse, se rasteriza en un **proceso hijo** de Node con un guion fijo, que recibe solo ese
-SVG —compuesto por el servidor con los datos de arriba— por la entrada estándar y devuelve el PNG, con plazo de 30 s.
-El proceso hijo no recibe ningún parámetro de la petición. **Si no arranca, termina antes de leer el SVG o agota el
-plazo, se le mata y se cierran sus canales**: la imagen responde 500 sin detalles y ningún error suyo llega al proceso
-del servidor como excepción sin capturar (corrección de D-223).
+**`next/og` y GHSA-vcvr-r3jv-pc5j (D-226).** La imagen se compone con `ImageResponse` en Node: Satori produce un
+SVG y `sharp` —librsvg— lo rasteriza. Hasta Next 16.3.5, Satori no escapaba los atributos, el texto de un `<svg>` en
+línea ni los estilos, y un dato de un atacante en esos sitios podía meter marcado en el SVG. **Aquí no llega ninguno**:
+el único texto libre es el nombre de la rifa —solo lo escriben Dueño y Administrador— y entra como texto, que Satori
+convierte en trazados; los números los limita la base a cuatro cifras y los iconos son fijos. Demostrado en local con
+un nombre hostil, en 16.3.0 y en 16.3.6. Desde Next 16.3.6 Satori, además, lo escapa todo y valida los nombres XML.
+
+**El gancho no rodea el parche.** `sharpForOg` (`lib/og-renderer.ts`) hace la misma llamada que `@vercel/og` y
+recibe el SVG ya saneado. **Ya no hay proceso hijo** (D-226): existía porque el optimizador de `/_next/image` le
+quitaba al proceso el cargador SVG (I-163), y desde Next 16.3.6 el propio optimizador lo vuelve a habilitar. Un hijo
+con su propio `sharp`, además, rasterizaba sin los bloqueos de cargadores que pone Next. Nuestro código no desbloquea
+ninguno.
 
 **Sin limitador de intentos, a propósito** (D-194, Decisión 8). Cada imagen cuesta ~0,6 s de CPU a un
 vendedor autenticado y activo, que ya puede gastar lo mismo recargando cualquier pantalla. Un

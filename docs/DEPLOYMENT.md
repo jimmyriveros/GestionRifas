@@ -831,14 +831,14 @@ publicar esta corrección, incluyendo rama, PR, `main` y el despliegue automáti
 
 ### 3.3 Despliegues futuros
 
-#### 3.3.a Próxima publicación: D-211 a D-220 (preparada, NO autorizada)
+#### 3.3.a Próxima publicación: D-211 a D-226, con Next 16.3.6 (preparada, NO autorizada)
 
 Tres cosas distintas, que no se mezclan:
 
 | | Qué | Fuente |
 |---|---|---|
 | **Documentado como publicado** | Migraciones `0001`–`0074`; código `9acbfa8` (D-210), el último release registrado; `verify:remote` **46/46** el 2026-09-19 a las 21:15 UTC, **la última comprobación contra producción que consta** | §2 y §3.2.n |
-| **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `9acbfa8`: D-211 a D-220, 16 commits a 2026-09-23 | Git local: `origin/main..HEAD` |
+| **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `9acbfa8`: D-211 a D-220, 16 commits a 2026-09-23, y después D-221 a D-226, que añaden la **subida de `next` y `eslint-config-next` a 16.3.6** por tres avisos críticos (I-170, D-226) | Git local: `origin/main..HEAD` |
 | **Requiere confirmación contra producción** | Que producción siga en `0074` y en `9acbfa8`; que nadie haya aplicado ni desplegado nada desde el 2026-09-19; que `verify:remote` siga en verde. **Nada de esto se ha comprobado desde esa fecha** | — |
 
 **Preparación local — hecha y medida (D-221, 2026-09-23).** Nada de esto es una verificación de producción:
@@ -847,7 +847,8 @@ Tres cosas distintas, que no se mezclan:
 |---|---|
 | `verify` · `test:db` | ✅ exit 0, 1.643 · ✅ 1.444 + 1 omitida (59/59), base recién sembrada |
 | E2E completa desde base limpia | ✅ **908/909** en frío con I-163 corregido (D-223); el único fallo, I-090, anterior al lote. Antes, **explicada** (D-222). En frío y en secuencia: `9acbfa8` 775/798 y `HEAD` 887/908; **ningún fallo de `HEAD` sin causa**: los comunes son I-163 (18, anterior al lote, defecto del producto sin corregir) e I-090; el único solo de `HEAD`, I-106, anterior al lote por registro. Dos pruebas corregidas por causa medida (I-164, I-165) |
-| **I-163, corregido en local (D-223)** | La imagen semanal fallaba (500) en un proceso que hubiera optimizado antes una imagen con `/_next/image`. Corregido sin desbloquear ningún cargador: medido en dev y en producción local, los dos órdenes, PNG idéntico. Su proceso hijo falla ya **sin excepciones sin capturar** (corrección de D-223) y **`sharp` se carga al generar la imagen, no al arrancar** (I-167 resuelta en local, D-224): sin `sharp`, solo la imagen responde 500. **Ensayado en Linux** (Docker, Node 24 y 20, x86_64): el artefacto aislado lleva libvips y el servidor y el hijo lo cargan desde dentro; PNG idéntico al de referencia. **Sin comprobar en Vercel**: tras publicar, pedir la imagen semanal desde la cuenta de un vendedor y confirmar 200 (paso 10) |
+| **I-163, corregido en local (D-223)** | La imagen semanal fallaba (500) en un proceso que hubiera optimizado antes una imagen con `/_next/image`. Corregido sin desbloquear ningún cargador: medido en dev y en producción local, los dos órdenes, PNG idéntico. Su proceso hijo falla ya **sin excepciones sin capturar** (corrección de D-223) y **`sharp` se carga al generar la imagen, no al arrancar** (I-167 resuelta en local, D-224): sin `sharp`, solo la imagen responde 500. **Ensayado en Linux** (Docker, Node 24 y 20, x86_64): el artefacto aislado lleva libvips y el servidor y el hijo lo cargan desde dentro; PNG idéntico al de referencia. **Sin comprobar en Vercel**: tras publicar, pedir la imagen semanal desde la cuenta de un vendedor y confirmar 200 (paso 10). **Desde D-226**, con Next 16.3.6 el optimizador vuelve a habilitar el cargador SVG y el proceso hijo se retiró; el artefacto Linux aislado de 16.3.6 da el mismo PNG en los dos órdenes, con 0 procesos hijo |
+| **Next 16.3.6 (D-226, I-170)** | `next` y `eslint-config-next` de 16.3.0 a 16.3.6, con 14 entradas del *lock* y ninguna dependencia más. Corrige GHSA-vcvr-r3jv-pc5j (`next/og`) y, de paso, GHSA-2xp9-vwfh-vxw4 y GHSA-p293-qw3h-jr36. Evaluado: producción está en el rango de los tres, **sin explotabilidad demostrada en su configuración**. Resultados en `TEST_RESULTS`, D-226 |
 | Actualización `0074` → `0077` con `db push --local` sobre datos, con carga | ✅ una transacción por archivo; **6.546/6.546** llamadas del código viejo en 200 durante el push; 12 cifras de negocio idénticas |
 | Código `9acbfa8` con la base en `0077` | ✅ 229/230; el fallo reproducido en `0074` con los mismos datos (acumulación) |
 | Privilegios, escenarios A y B (I-132) | ✅ `verify-remote` 49/49 en los dos; B difiere de A solo en `search_tickets` con `service_role` |
@@ -889,14 +890,16 @@ autorización expresa** del dueño.
     registros de la función, ningún «unsupported image format», «og-renderer», «no se pudo cargar sharp»,
     «uncaughtException» ni «loading instrumentation hook». Si la imagen responde 500 con «no se pudo cargar sharp», la
     función no trae `sharp` o su libvips: el resto de la aplicación sigue en pie (I-167), y el arreglo es de
-    empaquetado, no de datos. Una imagen que sale no prueba el camino del proceso hijo: si el optimizador va aparte,
-    como se espera, el hijo no se usa. **Anotar** en `TEST_RESULTS` la versión de Node del despliegue, que en local no
-    consta (D-224). Si falla, es un problema del código: Instant Rollback, sin tocar la base.
+    empaquetado, no de datos. **Anotar** en `TEST_RESULTS` la versión de Node del despliegue, que en local no consta
+    (D-224), y que el código servido lleva **Next 16.3.6** (I-170). En lectura y con autorización, comprobar también
+    que `/_next/image` no lo sirve `next-server` —se espera que no, según el código de Next—: es lo que falta para
+    descartar en producción I-168 y GHSA-2xp9. Si falla, es un problema del código: Instant Rollback, sin tocar la base.
 
 **Recuperación, en este orden:**
 
 * **Problema del código** → Instant Rollback al despliegue anterior en Vercel (§4.1), **sin tocar la base**: el
-  código de `9acbfa8` funciona con `0077` aplicada (medido en local, D-221).
+  código de `9acbfa8` funciona con `0077` aplicada (medido en local, D-221). Ese despliegue lleva **Next 16.3.0**:
+  volver a él devuelve producción al rango de los tres avisos de I-170 hasta corregir y volver a publicar.
 * **Problema de la base** → `supabase/recovery/0077_a_0074.sql` en una transacción —se niega si ya hay una rifa
   `R1000` o mayor— y después `supabase migration repair --status reverted 0077 0076 0075`. Solo con el código
   anterior servido, porque el nuevo llama a las firmas de `0075`. Ensayado en local; **nunca en producción**.

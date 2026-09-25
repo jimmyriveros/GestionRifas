@@ -14314,3 +14314,110 @@ ImageResponse» (crítico, CVSS 9.5; 16.2.0–16.3.5), cuando se pasan valores c
 atributos o estilos SVG de la implementación de Node. Este proyecto usa esa implementación en la imagen semanal, con Next
 16.3.0. **No se evaluó ni se tocó nada**: queda señalado para que el dueño decida. Actualizar a 16.3.6 **no** corrige
 I-168.
+
+## D-226 — GHSA-vcvr-r3jv-pc5j: Next 16.3.6, la exposición medida y el proceso hijo de D-223 retirado
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-25). **Solo en local**: sin acceso a
+producción, sin *push* y sin despliegue. Evidencia en `TEST_RESULTS`, D-226.
+
+### 1. El aviso y lo que cambia 16.3.6
+
+**GHSA-vcvr-r3jv-pc5j** (CVE-2026-94545; crítico, CVSS 4.0 9,5 con requisitos de ataque presentes): ejecución remota
+de código en la implementación de **Node** de `next/og` `ImageResponse` cuando la aplicación mete valores de un
+atacante en el contenido, los atributos o los estilos SVG. Afecta a Next **16.2.0–16.3.5**; la de Edge, no. El aviso
+no nombra la dependencia culpable ni enlaza el parche, así que **se localizó comparando los paquetes** de 16.3.0 y
+16.3.6 por sus literales, que el empaquetador no renombra:
+
+* **Mismas librerías empaquetadas** (Satori 0.25.0, resvg-wasm 2.4.0, escape-html 1.0.3): el parche está **dentro**
+  del paquete. La Satori de 16.3.6 **escapa los valores de atributo** —antes los escribía tal cual—, construye con su
+  función que escapa el texto y los atributos de un `<svg>` en línea y los estilos, en vez de concatenarlos, y
+  **valida los nombres XML** («Invalid XML … name»).
+* **`render()` y `getSharp()` de `@vercel/og` no cambian**: la misma `import("sharp")` y la misma llamada,
+  `sharp(svg).resize(width).png().toBuffer()`, sin opciones.
+* **El optimizador** (`image-optimizer.js`) añade **`VipsForeignLoadSvg`** a los cargadores que vuelve a habilitar
+  tras bloquearlos todos, y rechaza entradas vacías en su caché de disco.
+* **No trae vercel/next.js#98168**: `socket: _req.socket` sigue ahí. I-168 continúa.
+
+### 2. La exposición, entrada por entrada
+
+La única `ImageResponse` de la aplicación es la imagen de «Resultados de la semana». **Su código es idéntico en
+`9acbfa8` —lo publicado— y en `HEAD`**, salvo `og-renderer` e `instrumentation`.
+
+| Entrada | De dónde sale | Quién la controla | Cómo entra en el SVG |
+|---|---|---|---|
+| `raffles.name` | La rifa del catálogo del vendedor, por RLS | **Dueño y Administrador** de esa organización (`raffles_insert_staff`, `raffles_update_staff`); 2–120 caracteres, cualquiera | Como **texto** dentro de `div`, en mayúsculas y sin los caracteres que la fuente no trae. Satori lo convierte en **trazados**: nunca aparece como marcado |
+| `lottery_results.winning_number` | Resultados `confirmed` | La base lo limita a `^[0-9]{4}$` | Texto → trazados |
+| `lottery_code` | Enumerado de la base | — | Elige uno de seis iconos fijos de lucide |
+| La semana | El parámetro `week`, validado | — | Fechas formateadas → trazados |
+| Fuentes, fondo e iconos | Archivos del repositorio | — | Fijos; los `<svg>` en línea de los iconos solo llevan constantes |
+
+El mensaje propio del vendedor **no se dibuja**. La ruta exige una sesión de **vendedor activo** (401/403; sin sesión,
+el `proxy` redirige con 307).
+
+**Demostrado en local** (carpetas 13 y 14), capturando el SVG que Satori entrega a `sharp`:
+
+| | Nuestra imagen, nombre hostil (`X"/><circle id="INYECCION" …`) | Patrón que NO usamos: atributo de un `<svg>` en línea con un dato |
+|---|---|---|
+| `9acbfa8`, Next 16.3.0 | Sin marcado; la palabra no aparece | **Inyecta** `<circle id="INYECCION">` en el SVG anidado |
+| `HEAD`, Next 16.3.6 | Igual | **Escapado** (`&quot;`, `&lt;`) |
+
+Texto dentro de un `<svg>` en línea: Satori lo rechaza en las dos. **Conclusión: la versión publicada es una versión
+afectada —el mecanismo existe y se reproduce—, pero en esta aplicación no se ha demostrado ningún camino para que un
+dato de un atacante llegue al marcado SVG.** El único texto libre lo escribe el personal y entra como trazados.
+
+### 3. Otros dos avisos críticos que afectan a 16.3.0
+
+`npm audit` sobre el *lock* anterior los enseña; los dos se corrigieron en **16.3.3**, así que 16.3.6 los incluye:
+
+* **GHSA-2xp9-vwfh-vxw4** —ejecución remota sin autenticación en la API de optimización con archivos AVIF (libheif de
+  `sharp`)—: exige que el optimizador procese un AVIF. **No hay ninguno** en el proyecto y `remotePatterns` está vacío,
+  así que nadie puede dárselo. Además, según el código de Next, en Vercel `/_next/image` no lo sirve `next-server`.
+* **GHSA-p293-qw3h-jr36** (CVE-2026-75604) —ejecución remota sin autenticación **en servidores Windows**—: Vercel usa
+  Linux. **Sí afectaba a los servidores de desarrollo de este equipo** con 16.3.0, que escuchan en la red local. El
+  repositorio ya está en 16.3.6; el *worktree* de `9acbfa8` sigue en 16.3.0.
+
+Los otros cinco avisos de `npm audit` —`vitest`/`@vitest/mocker`, `fast-uri`, `js-yaml` y `nanoid`, ninguno crítico—
+**ya estaban** con 16.3.0 y no se tocan: el encargo excluye actualizaciones generales.
+
+### 4. ¿Necesita producción una corrección urgente independiente?
+
+**No, según la evaluación**: ninguno de los tres avisos tiene un camino demostrado en la configuración de producción.
+Pero los tres son críticos y producción está en su rango (I-170), así que la recomendación es **no retrasar** la
+publicación de 16.3.6. Si el lote D-211 a D-226 fuera a retrasarse, la salida independiente sería `9acbfa8` más las dos
+líneas de `package.json` y su *lock*, sin migraciones ni el resto del lote, con su propia regresión. **No se preparó ni
+se publicó nada**: lo decide el dueño.
+
+### 5. La actualización
+
+* `next` y `eslint-config-next` de `16.3.0` a **`16.3.6`**, exactas como estaban. En el *lock*, **14 entradas**:
+  `next`, `@next/env`, los ocho `@next/swc-*`, `@swc/helpers` (0.5.15 → 0.5.23, que fija Next),
+  `eslint-config-next` y `@next/eslint-plugin-next`. **npm subió además `fastq`** (1.20.1 → 1.20.3) al reinstalar el
+  subárbol de `@next/eslint-plugin-next`; no era necesario —1.20.1 cumple `^1.6.0`— y **se devolvió** a 1.20.1.
+* **El bloque de Next** (I-053): el generador de 16.3.6 escribe el mismo texto, `hasCurrentAgentRules` da `true` tras
+  ejecutar `next dev` y `AGENTS.md` y `CLAUDE.md` siguen idénticos. No hubo nada que sincronizar.
+
+### 6. D-223 y D-224 frente al parche
+
+**El gancho no rodea ni sustituye el parche.** Intercepta la `import("sharp")` de `@vercel/og`, que no cambió, y
+`sharpForOg` recibe el SVG **después** de Satori, con la misma llamada. El proceso hijo tampoco lo rodeaba —recibía el
+mismo SVG—, pero **16.3.6 lo deja sin función**, y se demostró antes de retirarlo:
+
+| Demostración, con el código de D-224 sin tocar | Resultado |
+|---|---|
+| `weekly-results-image-sharp.test.ts` con el `getSharp` real de 16.3.6 | La prueba que exigía el bloqueo **falla**: el SVG se rasteriza. La que forzaba el fallo del hijo también: la imagen sale igual |
+| Artefacto Linux aislado, optimizador primero (`MISS`) y el `sharp` del hijo retirado | **200, mismo PNG y 0 procesos hijo.** Con 16.3.0 (D-224) eran 37 hijos y, sin su `sharp`, 500 |
+| La misma comprobación con el optimizador real de cada versión | 16.3.0: «unsupported image format»; 16.3.6: se rasteriza |
+
+**Se retiró el hijo** —`runChild`, `rasterizeSvgInChild`, su guion, `isBlockedLoader` y `og-renderer-child.test.ts`—,
+también porque rasterizaba con un `sharp` **sin los bloqueos de cargadores de Next**: si algún día se hubiera
+activado, lo habría hecho fuera de esa protección. **Se quedan** el gancho, la carga diferida de `sharp` (I-167) y el
+fallo sin resvg (D-224). La primera prueba de `weekly-results-image-sharp.test.ts` pasa a ser una **vigía**: si una
+versión futura de Next vuelve a quitar el cargador SVG, falla con un mensaje que manda a este registro, y entonces se
+reevalúa I-163 en vez de relajar la prueba.
+
+### 7. I-168: sincronización de la prueba, no un arreglo
+
+`catalogo-panel:119` espera el evento **`load`** de la página pública antes de cerrarla; el *hero* es
+`loading="eager"`, así que `load` llega con la imagen completa. Medido en frío, cuatro pasadas por flujo: con el flujo
+anterior, **4 de 4** cerraban con la petición del *hero* sin terminar; con el nuevo, **4 de 4** la cierran terminada
+(`MISS`) y la siguiente es `HIT`. **El defecto sigue en Next** (§1): esto solo evita que la prueba lo dispare.

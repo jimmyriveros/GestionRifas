@@ -126,6 +126,11 @@ test.describe('la tarjeta con el catálogo activo', () => {
     await publica.waitForLoadState('domcontentloaded')
     expect(publica.url()).toContain(`/catalogo/${CATALOG_SLUG}`)
     await expect(publica.getByRole('heading', { level: 1 })).toContainText('NÚMEROS DISPONIBLES')
+    // I-168 (D-226): cerrar la página con la imagen del hero a medio pedir cortaba la
+    // primera petición a `/_next/image`, y un defecto de Next 16.3 deja esa imagen sin
+    // responder hasta reiniciar el servidor. El hero es `loading="eager"`, así que `load`
+    // llega cuando está completa. Es sincronización de la prueba: el defecto sigue en Next.
+    await publica.waitForLoadState('load')
     await publica.close()
   })
 
