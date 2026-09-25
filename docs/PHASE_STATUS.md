@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-24 — **auditoría visual y listas, D-211 a D-223, SOLO EN LOCAL** (mantenimiento
+- **Actualizado:** 2026-09-25 — **auditoría visual y listas, D-211 a D-225, SOLO EN LOCAL** (mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas). Este archivo se quedó en D-210 mientras corrían
   diez bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
@@ -16,7 +16,9 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   semana» sale aunque el optimizador de imágenes haya trabajado antes en el mismo servidor (D-223, I-163), y su
   proceso hijo falla sin dejar excepciones sin capturar (corrección de D-223); `sharp` se carga al generar la imagen,
   no al arrancar, así que sin él solo falla la imagen (D-224, I-167).
-  **(2) Pruebas (D-224, la última):** `verify` **exit 0** (1.661 unitarias) · `test:db` **1.444 + 1 omitida** en base limpia · E2E
+  **(2) Pruebas (D-225, la última):** `list-order` → `prize-award-history` sin restablecer, dos veces: 32/32 y 70/70, y
+  las 62 tablas idénticas tras cada `list-order` · `test:db` completo **1.444 + 1 omitida** · I-168 medida en `9acbfa8`
+  en desarrollo y en `HEAD` con `next start`. **(D-224):** `verify` **exit 0** (1.661 unitarias) · `test:db` **1.444 + 1 omitida** en base limpia · E2E
   completa en frío **907/909** (I-075 e I-106, anteriores; una primera pasada, cortada por I-168, también anterior) · **en Linux** (Docker, Node 24 y 20): unitarias **1.661/1.661**, artefacto
   aislado con libvips y PNG idéntico al de referencia, y arranque en frío sin `sharp` con las rutas en 200. Detalle y errores encontrados, en
   [`TEST_RESULTS.md`](TEST_RESULTS.md).
@@ -27,7 +29,9 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** I-163 **corregido en local** y sin comprobar en Vercel (D-223); **I-167** resuelta en
   local (D-224) y sin comprobar en Vercel; **I-166**, acotada a Windows, sin comprobar en Vercel, como la versión de Node
-  del despliegue; **I-168** e **I-169**, dos defectos de las pruebas, anteriores y sin corregir; el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
+  del despliegue; **I-169** resuelta en local (D-225); **I-168**, defecto de Next 16.3.0 anterior al lote que afecta a
+  `next dev` y a `next start` —en Vercel no aplica según Next, sin comprobar—, con una propuesta pendiente del dueño
+  (D-225); **GHSA-vcvr-r3jv-pc5j**, aviso crítico de `next/og` visto de paso y sin evaluar (D-225 §6); el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
   y **I-059**; el resto de la auditoría visual, sin autorizar.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
   **Nada de esto está en producción**, y la rama no se ha fusionado.

@@ -23,6 +23,9 @@
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+// El mismo ayudante que limpia las rifas de las E2E (D-218): borra por id, en una
+// transaccion, con lo que cuelga de la rifa, y lanza si no puede (I-169).
+import { purgeTestRaffles } from '../e2e/db-setup'
 import { DB_URL, loadSeedContext, signInAs, USERS, type Client } from './helpers'
 
 let ctx: Awaited<ReturnType<typeof loadSeedContext>>
@@ -79,11 +82,17 @@ beforeAll(async () => {
   if (error) throw error
 })
 
+/*
+  I-169. Borrar las boletas y la rifa con `svc` no bastaba, y fallaba en
+  silencio porque nadie miraba el `error`: al insertar las boletas,
+  `tickets_sync_commission` crea la fila de `seller_commissions` de esta rifa, y
+  `seller_commissions_raffle_org_fk` es `on delete restrict`. La rifa se quedaba
+  —activa y de todo 2026— y tumbaba H12 de `prize-award-history` cuando corria
+  despues. El ayudante borra tambien esa fila y la bitacora de la rifa y sus
+  boletas, y lanza si la rifa no se va.
+*/
 afterAll(async () => {
-  if (raffleId) {
-    await ctx.svc.from('tickets').delete().eq('raffle_id', raffleId)
-    await ctx.svc.from('raffles').delete().eq('id', raffleId)
-  }
+  await purgeTestRaffles({ raffleIds: [raffleId] })
 })
 
 type Orden = { column: string; direction: 'asc' | 'desc' }
@@ -280,12 +289,10 @@ describe('una lista de mas de 1.000 filas se puede recorrer entera', () => {
     if (error) throw error
   }, 60_000)
 
+  // Lo mismo que la rifa de arriba (I-169), con 1.100 boletas.
   afterAll(async () => {
-    if (raffleGrande) {
-      await ctx.svc.from('tickets').delete().eq('raffle_id', raffleGrande)
-      await ctx.svc.from('raffles').delete().eq('id', raffleGrande)
-    }
-  })
+    await purgeTestRaffles({ raffleIds: [raffleGrande] })
+  }, 60_000)
 
   it('la pagina 43 —desplazamiento 1.050— trae filas de verdad', async () => {
     const { data, error, count } = await seller1
@@ -482,6 +489,10 @@ describe('mas de 1.000 filas en los listados del personal', () => {
   let db: PgClient
   let rifasAntes = 0
   let vendedoresAntes = 0
+  // Lo que crea este bloque, por id: la limpieza borra esto y nada mas.
+  let rifasCreadas: string[] = []
+  let cuentasCreadas: string[] = []
+  let membresiasCreadas: string[] = []
 
   beforeAll(async () => {
     db = new PgClient({ connectionString: DB_URL })
@@ -505,14 +516,16 @@ describe('mas de 1.000 filas en los listados del personal', () => {
       solo se esquiva para poder medir lo que se vino a medir.
     */
     await db.query(`alter table raffles disable trigger raffles_set_short_code`)
-    await db.query(
+    const rifas = await db.query<{ id: string }>(
       `insert into raffles (organization_id, name, short_code, ticket_price, status,
                             start_date, end_date, created_by)
        select $1, $2 || ' ' || g, 'M' || lpad(g::text, 5, '0'), 120000, 'draft',
               '2026-01-01', '2026-12-31', $3
-       from generate_series(1, $4) g`,
+       from generate_series(1, $4) g
+       returning id`,
       [ctx.demoOrg.id, MARCA, ctx.ids.owner, CUANTAS],
     )
+    rifasCreadas = rifas.rows.map((fila) => fila.id)
     await db.query(`alter table raffles enable trigger raffles_set_short_code`)
 
     /*
@@ -520,15 +533,17 @@ describe('mas de 1.000 filas en los listados del personal', () => {
       membresia. El perfil NO se inserta: `on_auth_user_created` lo crea solo
       al dar de alta la cuenta, asi que aqui solo se le pone el nombre.
     */
-    await db.query(
+    const cuentas = await db.query<{ id: string }>(
       `insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
                                email_confirmed_at, created_at, updated_at)
        select gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
               'authenticated', 'authenticated', $1 || '-' || g || '@local.test', '',
               now(), now(), now()
-       from generate_series(1, $2) g`,
+       from generate_series(1, $2) g
+       returning id`,
       [MARCA, CUANTAS],
     )
+    cuentasCreadas = cuentas.rows.map((fila) => fila.id)
 
     // El nombre se pone con ceros delante para que el orden alfabetico y el
     // numerico coincidan: asi comparar dos paginas consecutivas dice algo.
@@ -541,27 +556,55 @@ describe('mas de 1.000 filas en los listados del personal', () => {
       [MARCA],
     )
 
-    await db.query(
+    const membresias = await db.query<{ id: string }>(
       `insert into memberships (organization_id, profile_id, role, is_active)
        select $1, p.id, 'seller', true from profiles p
-        where p.email like $2 || '-%@local.test'`,
-      [ctx.demoOrg.id, MARCA],
+        where p.id = any($2::uuid[])
+       returning id`,
+      [ctx.demoOrg.id, cuentasCreadas],
     )
+    membresiasCreadas = membresias.rows.map((fila) => fila.id)
   }, 120_000)
 
+  /*
+    Por id, no por la marca del nombre (I-169). Las rifas son borradores sin
+    boletas y las borra el ayudante de arriba, con su bitacora. Las personas van
+    en una transaccion: la cuenta arrastra su perfil en cascada; la membresia no
+    tiene nada colgando, pero deja `membership.create` y `membership.delete` en
+    la bitacora, que se borra al final porque borrar tambien escribe.
+  */
   afterAll(async () => {
     if (!db) return
-    await db.query(`delete from raffles where organization_id = $1 and name like $2 || '%'`, [
-      ctx.demoOrg.id,
-      MARCA,
-    ])
-    await db.query(
-      `delete from memberships m using profiles p
-        where p.id = m.profile_id and p.email like $1 || '-%@local.test'`,
-      [MARCA],
-    )
-    await db.query(`delete from auth.users where email like $1 || '-%@local.test'`, [MARCA])
-    await db.end()
+    try {
+      await purgeTestRaffles({ raffleIds: rifasCreadas })
+      await db.query('begin')
+      try {
+        const membresias = await db.query('delete from memberships where id = any($1::uuid[])', [
+          membresiasCreadas,
+        ])
+        const cuentas = await db.query('delete from auth.users where id = any($1::uuid[])', [
+          cuentasCreadas,
+        ])
+        await db.query('delete from audit_logs where entity_id = any($1::uuid[])', [
+          membresiasCreadas,
+        ])
+        if (
+          membresias.rowCount !== membresiasCreadas.length ||
+          cuentas.rowCount !== cuentasCreadas.length
+        ) {
+          throw new Error(
+            `list-order: se borraron ${membresias.rowCount} de ${membresiasCreadas.length} ` +
+              `membresias y ${cuentas.rowCount} de ${cuentasCreadas.length} cuentas`,
+          )
+        }
+        await db.query('commit')
+      } catch (error) {
+        await db.query('rollback')
+        throw error
+      }
+    } finally {
+      await db.end()
+    }
   }, 120_000)
 
   it('«Rifas» cuenta las 1.100, no 1.000', async () => {

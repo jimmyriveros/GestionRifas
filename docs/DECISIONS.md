@@ -13738,6 +13738,11 @@ miraban el `error`**. Comprobado en SQL, con `postgres` y con `service_role`: `s
 la retiene, porque el disparador `raffles_sync_commission` crea una fila de `seller_commissions` al insertar la
 rifa. Con pagos, `commission_ledger` hace lo mismo. Cada pasada dejaba una rifa vacía por bloque.
 
+> **Nota (2026-09-25, D-225):** la fila la crea `tickets_sync_commission` al insertar las **boletas**, no
+> `raffles_sync_commission` al insertar la rifa: ese disparador solo actúa al cambiar el precio (`0025`), y 1.100
+> rifas sin boletas no crean ninguna (medido). La conclusión —sin borrar esa fila, la rifa no se va— no cambia; el
+> comentario de `purgeTestRaffles` ya dice lo correcto.
+
 **`purgeTestRaffles`** (`tests/e2e/db-setup.ts`): una transacción por `pg` que borra, **por identificador y solo
 de esas rifas**, los pagos de sus boletas o de los clientes que la prueba creó, sus asignaciones, avisos, boletas,
 `commission_ledger`, `seller_commissions`, clientes, la rifa y, al final, las filas de `audit_logs` de todos esos
@@ -14240,3 +14245,72 @@ Registrado en I-166 e I-167; lo que hay que mirar tras publicar, en `DEPLOYMENT`
 primera E2E se cortó por un cuelgue del optimizador de desarrollo que **no introduce** este cambio —reproducido igual con
 el código de `02d4ac9`, I-168—, y una pasada de `test:db` falló por el orden de dos archivos de prueba, I-169. Ninguno
 se corrigió: no son de este encargo.
+
+## D-225 — La limpieza de `list-order` (I-169), e I-168 delimitada: no es solo de desarrollo
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-25). **Solo en local**, sin migración, sin
+acceso a producción. **La aplicación no cambia**: solo pruebas y documentación. Evidencia en `TEST_RESULTS`, D-225.
+
+### 1. I-169 es del lote pendiente
+
+`list-order.test.ts` nació en `35b1147` (D-213): pertenece al lote de D-211 a D-224 que espera publicación, aunque su
+defecto se viera por primera vez en la regresión de D-224.
+
+### 2. Las dos rifas se borran con `purgeTestRaffles`
+
+La prueba de base importa el ayudante de las E2E (`tests/e2e/db-setup.ts`, D-218). Es **la primera importación entre
+las dos suites**, y se hace a propósito: es la única pieza que borra una rifa de prueba con lo que cuelga de ella —su
+fila de `seller_commissions`, sus boletas, sus avisos, su bitácora—, por id, en una transacción, y **lanza** si la rifa
+no se va. Solo importa `supabase-js`, `pg` y `ws`; nada de Playwright.
+
+**Descartado:** moverlo a una carpeta compartida —toca `db-setup.ts` y las cinco E2E que lo importan, fuera del
+encargo— y copiar su patrón
+dentro de la prueba —una segunda lista de «qué cuelga de una rifa» que se desviaría de la primera en cuanto alguien
+añadiera una tabla—.
+
+Su comentario atribuía la fila de comisión a `raffles_sync_commission` al insertar la rifa; la crea
+`tickets_sync_commission` al insertar las boletas. Se corrigió el comentario y se anotó en D-218.
+
+### 3. El bloque de 1.100 rifas y 1.100 vendedores borra por id, con su bitácora
+
+Guarda los identificadores que crea (`returning id`) y borra **solo esos**: las rifas con el mismo ayudante; las
+personas en una transacción —membresías, cuentas (el perfil cae en cascada) y la bitácora de las membresías, al final
+porque borrar también escribe—, comprobando cuántas filas borra. Antes borraba por la marca del nombre y dejaba **4.400
+filas de `audit_logs` por pasada**. Se amplió porque el encargo pedía demostrar que no queda nada de lo que crean las
+pruebas, y la primera medición enseñó esas filas.
+
+**No se tocó** que ese bloque desactive `raffles_set_short_code` mientras inserta (D-214, I-157): no es de I-169.
+
+### 4. Lo que queda, sin corregir
+
+`prize-award-history` deja por su cuenta, en cada pasada, perfiles, identidades y comisiones sin dueño —limpia en modo
+`replica`, que salta las cascadas—, avisos y bitácora (`KNOWN_ISSUES`, I-169). Medido: con ese residuo, dos pasadas
+seguidas dan 70/70 y `test:db` completo pasa; **no se comprobó** si se acumula en algún recuento de otras suites al
+repetir muchas pasadas. **No se abrió como pendiente nuevo**: el encargo lo excluía. Lo decide el dueño.
+
+### 5. I-168: anterior al lote y también de `next start`
+
+Medido con la petición cortada de D-224, servidor nuevo y caché vacía en cada corte y la conexión local confirmada en
+cada servidor: **`9acbfa8` en desarrollo** cuelga la clave hasta ~57 ms y **`HEAD` compilado con `next start`**, hasta
+~45 ms; en `next start`, la clave **sigue colgada a los 130 s**. La causa está en Next 16.3.0 —la respuesta simulada del
+optimizador hereda el socket del navegador— y **ya está reportada y corregida**: vercel/next.js#96538, arreglado por
+vercel/next.js#98168 (fusionado el 2026-09-10), **solo en `16.4.0-canary.27` y posteriores**. Según el código de Next y
+el propio reporte, en Vercel `/_next/image` no lo atiende `next-server`; **sin comprobar en Vercel**.
+
+**Por instrucción del encargo, al afectar también a la compilación de producción no se cambió nada.** Propuesta
+acotada, **pendiente del dueño**:
+
+| Qué | Por qué | Alcance |
+|---|---|---|
+| **Recomendado:** que `catalogo-panel:119` espere el evento `load` de la página pública antes de cerrarla | El *hero* es `loading="eager"`, así que `load` llega cuando la imagen está completa: es una condición observable, sin esperas fijas, y la prueba deja de cortar la imagen. Lo que la prueba comprueba —el enlace abre la página correcta— no cambia | Una línea en una prueba |
+| **Recomendado:** actualizar Next cuando una versión **estable** traiga #98168 | Es el arreglo de verdad, para `next dev` y `next start` | Encargo propio, con su regresión |
+| Tras publicar, con autorización y en lectura: comprobar que en Vercel `/_next/image` no lo sirve `next-server` | Es lo único que falta para descartar el efecto en producción | Una comprobación en `DEPLOYMENT` §3.3.a, paso 10 |
+| **No recomendado:** una versión *canary*, parchear Next dentro de `node_modules`, o servir el *hero* sin optimizar | `CLAUDE.md` §5 no admite versiones previas sin razón; un parche se pierde en cada instalación; y el *hero* sin optimizar cambia el peso y el diseño de D-163 | — |
+
+### 6. Visto de paso, fuera del encargo
+
+Las notas de Next **16.3.6** (2026-09-22) corrigen **GHSA-vcvr-r3jv-pc5j**, «Remote Code Execution in next/og
+ImageResponse» (crítico, CVSS 9.5; 16.2.0–16.3.5), cuando se pasan valores controlados por un atacante al contenido,
+atributos o estilos SVG de la implementación de Node. Este proyecto usa esa implementación en la imagen semanal, con Next
+16.3.0. **No se evaluó ni se tocó nada**: queda señalado para que el dueño decida. Actualizar a 16.3.6 **no** corrige
+I-168.

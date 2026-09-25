@@ -14759,3 +14759,59 @@ corrección de D-223 se leyó la reserva WebAssembly de Windows como un comporta
 *extraneous*.
 
 Y en las regresiones: la E2E 41 se leyó primero como un posible efecto de D-224 —la carga diferida hace más lenta la primera imagen— y **solo se aceptó como ajena tras reproducirla con el código anterior** (49). I-106 e I-169 se comprobaron igual, con la versión anterior o con un orden controlado, y ninguna de las tres se corrigió: no son de este encargo.
+
+## D-225 — I-169 corregida e I-168 delimitada (2026-09-25, solo en local)
+
+**Nada de esto es una verificación de Vercel.** Evidencia en las carpetas `00`–`10` del `scratchpad` de la sesión
+`895a7155…`, fuera del repositorio (no hay `05`: el arnés numera contando carpetas). **Siempre Supabase local:** cada
+foto de la base comprueba que su `system_identifier` es el del contenedor `supabase_db_Rifas` (`docker exec`), y cada
+servidor de la aplicación, que el **Kong local** registra la consulta que dispara una petición a
+`/catalogo/zz-sonda-local-N` (404 y 2 llamadas a `public_catalog_seller` en todos los servidores). En desarrollo,
+además, el rótulo «`next dev contra LOCAL (127.0.0.1:54321)`».
+
+### I-169 — la limpieza de `list-order`
+
+La foto cuenta las filas de 62 tablas (`public`, `auth`, `storage`, `cron`, `net`, `vault`); las sesiones de Auth, su
+bitácora y las de `cron`/`net` se informan aparte, como ruido.
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 00 | Estado al empezar | Las dos rifas `d995` que dejó la pasada anterior y 12 filas de `seller_commissions` sin rifa |
+| 01 · 02 | Base recién sembrada. **Sin corregir:** `list-order` → foto → `prize-award-history`, sin restablecer | 32/32, pero **quedan «Rifa orden j7ve» y «Rifa mil j7ve»**, 2 filas de comisión y **6.722 de `audit_logs`**: 2.322 de las dos rifas y sus 1.160 boletas, y 4.400 del bloque de 1.100 rifas y 1.100 vendedores. Después, **68/70**: H12-01 y H12-02, «otra rifa cubre la semana de la prueba» |
+| 03 | Base recién sembrada. **Corregido:** `list-order` → `prize-award-history` → `list-order` → `prize-award-history`, sin restablecer en ningún momento | **32/32 · 70/70 · 32/32 · 70/70**. Tras cada `list-order`, **las 62 tablas idénticas** a las de antes; ni rifas de la prueba ni comisiones sin rifa |
+| 04 | `npm run test:db` completo, con su preparación (`db:reset`, Kong, `seed:local`) | ✅ **1.444 + 1 omitida**, 59/59, 134,7 s. Al terminar, ninguna rifa de `list-order` |
+
+**Lo que deja `prize-award-history`, medido y sin corregir** (no es de este encargo): en cada pasada, 5 perfiles y 5
+identidades sin cuenta, 6 filas de `seller_commissions` sin rifa —su limpieza borra en `session_replication_role =
+replica`, que salta las cascadas—, 60 avisos y 67–71 filas de bitácora. Idéntico en las dos pasadas de la 03 y antes de
+la corrección; explica las 12 filas sin rifa de la 00. No afecta a `list-order` ni a H12.
+
+### I-168 — la petición cortada, en `9acbfa8` y en producción local
+
+El cliente de D-224 (`cliente.cjs`, mismo SHA-256): pide el *hero* (`w=1920`, cabecera `Accept` de Chrome), corta la
+conexión a los N ms, vuelve a pedir la misma clave con 30 s de límite y pide otra (`w=1080`). **Servidor nuevo y cachés
+de imágenes vacías en cada corte**; la cifra es la del corte real, medida por el cliente.
+
+| N.º | Versión y modo | Sin cortar | La clave queda colgada | Responde (`HIT`) |
+|---|---|---|---|---|
+| 06 | **`9acbfa8` en desarrollo** (*worktree* limpio, sin `.env.local`; `npm run dev:local`) | `MISS` 1.331 ms · `HIT` 16 ms | 40 · 48 · 57 ms | 71 · 90 · 137 · 171 ms |
+| 07 | **`HEAD` con `next build` + `next start`** (código idéntico a `1940a41`; variables locales en el entorno; `BUILD_ID Z2luyQs382Cgqz9b0VBdi`: 866 archivos, 5 citan `127.0.0.1:54321` y **0** el host del proyecto real) | `MISS` 1.354 ms · `HIT` 5 ms | 26 · 38 · 45 ms | 65 · 92 · 122 ms |
+| 08 | `HEAD` con `next start`, la misma compilación: ¿se recupera sola? | — | Cortada a 27 ms: **sin respuesta a los 2 s (30 s), 65 s y 130 s** | Otra anchura, 200 a los 140 s |
+
+En todos los cortes, la otra anchura responde 200 `MISS` en 179–292 ms. Next y `sharp` son los mismos en las dos
+versiones (16.3.0 y 0.35.4), y `next.config.ts`, `package.json`, el *lock* y `proxy.ts` no cambian entre `9acbfa8` y
+`HEAD`.
+
+**Conclusión:** anterior a todo el lote y **no exclusivo de desarrollo**. La causa está en el código de Next 16.3.0 y
+coincide con vercel/next.js#96538 (cerrado), corregido por vercel/next.js#98168 solo en `16.4.0-canary.27` y
+posteriores. Según el encargo, al afectar también a la compilación de producción **no se cambió nada**: ni la prueba,
+ni Next, ni la imagen. Propuesta en D-225.
+
+**Errores propios encontrados:** edité `i168.sh` mientras bash lo ejecutaba en segundo plano; bash lee el guion por
+desplazamiento al salir de un bucle, así que se devolvió a su contenido exacto antes de que el bucle terminara —iba por
+el corte de 30 ms— y la variante nueva se guardó aparte (`i168b.sh`). La corrida 06 salió completa: sus ocho cortes, sus
+sondas y la línea final. Y la numeración salta la `05`: el arnés cuenta las carpetas y la `00` también cuenta.
+
+**Regresión** (09): `npm run verify` con todo lo anterior, ✅ exit 0 —**1.661** unitarias en 88 archivos, lint 0
+errores (los 2 avisos de siempre) y compilación—. **No se repitió la E2E:** el único cambio fuera de `tests/db` es un
+comentario de `tests/e2e/db-setup.ts`.

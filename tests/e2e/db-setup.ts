@@ -245,8 +245,8 @@ export async function createPaymentsInBulk(
  * Borra RIFAS CREADAS POR UNA PRUEBA, con todo lo que cuelga de ellas.
  *
  * POR QUE HACE FALTA. `svc.from('raffles').delete()` NO bastaba, y fallaba en
- * silencio porque nadie miraba su `error`: el disparador `raffles_sync_commission`
- * crea una fila de `seller_commissions` al insertar la rifa, y esa fila la
+ * silencio porque nadie miraba su `error`: el disparador `tickets_sync_commission`
+ * crea una fila de `seller_commissions` al insertar sus boletas, y esa fila la
  * referencia (`seller_commissions_raffle_org_fk`, `on delete restrict`). La rifa
  * se quedaba, vacia, en cada pasada (medido el 2026-09-23 en `orden-movil` y
  * `orden-personal-movil`). Con pagos pasa lo mismo con `commission_ledger`.
