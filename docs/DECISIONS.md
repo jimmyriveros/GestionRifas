@@ -14162,3 +14162,81 @@ fuera del servidor —Next, al compilar en Vercel (`NOW_BUILDER`), excluye `imag
 atiende fuera de next-server», y entonces I-163 no se da y el hijo no se usa—; cómo empaqueta el enlace `sharp-<hash>`;
 el `cwd` de la función; que permita `spawn` y la memoria de un segundo proceso; `module.register` e `instrumentation`
 en su runtime; y el coste de arranque de cargar `sharp` en cada instancia. Registrado en I-163, I-166 e I-167.
+
+> **Nota posterior (D-224, 2026-09-25):** I-167 se corrigió en local por decisión del dueño —`sharp` se carga al generar
+> la imagen— y el ensayo en Linux resolvió en local lo que esta entrada dejaba abierto sobre el empaquetado. El coste
+> de arranque de la tabla de arriba ya no existe: `sharp` no se carga al arrancar.
+
+## D-224 — `sharp` se carga al generar la imagen (I-167), y el empaquetado ensayado en Linux (I-166)
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-24/25). **Solo en local**, sin migración,
+sin acceso a producción. **Nada de esto está comprobado en Vercel.**
+
+### La decisión es del dueño
+
+«Cargar `sharp` cuando se necesita generar la imagen, sin convertirlo en requisito para arrancar toda la plataforma.
+Conserva la solución existente donde sea posible.» De las dos salidas que proponía I-167, esta es la elegida; la otra
+—registrar el gancho dentro de un `try` en `instrumentation.ts`— queda descartada.
+
+### Qué cambia (`src/lib/og-renderer.ts`)
+
+* El archivo ya no importa `sharp` al cargarse. `loadSharp()` lo importa la primera vez que `sharpForOg` rasteriza, con
+  una sola promesa compartida por las peticiones que lleguen a la vez.
+* Si no se puede cargar, la imagen rechaza con «og-renderer: no se pudo cargar sharp: …» y el error original en
+  `cause`; la ruta responde su 500 de siempre, con el mensaje para el usuario y el motivo solo en el registro. El
+  intento fallido no se guarda: la siguiente imagen lo repite.
+* **No se añadió ninguna reserva.** Sin `sharp`, la imagen falla; no se sustituye por resvg —descartado en D-223— ni por
+  nada que la dé por buena.
+
+**Sin cambios:** `instrumentation.ts`, el gancho de módulos, el proceso hijo y su corrección, el bloqueo del
+optimizador y el PNG.
+
+### I-167, medido
+
+| Comprobación | Resultado |
+|---|---|
+| `tests/unit/og-renderer-sin-sharp.test.ts`, con `sharp` inexistente | El archivo se importa y registra su gancho **sin intentar cargarlo**; la imagen rechaza con el motivo; cada imagen vuelve a intentarlo. **Con el código de `02d4ac9`, 3/3 fallan** |
+| Arranque en frío sin **ningún** `sharp` —Windows `standalone` y Linux en Docker— | El servidor arranca en ~1 s. Responden 200 `/login`, el catálogo (13 tarjetas), el panel, boletas, clientes y «Resultados de la semana» del vendedor, y el panel y las boletas del dueño; `/` sin sesión, 307. La imagen: **500** `{"error":"No se pudo preparar la imagen. Inténtalo de nuevo."}`, `private, no-store`, y la vista previa enseña su error. En el registro, el motivo; **0** «instrumentation hook», **0** excepciones sin capturar. Antes del cambio, **500 en todas las rutas** |
+| Lo mismo con `sharp` presente pero **sin su parte nativa** | Igual; el motivo registrado es «Could not load the "sharp" module using the linux-x64 runtime» |
+| Devolver `sharp` **sin reiniciar** | La imagen **sigue en 500**, en las dos variantes y las dos plataformas: Node recuerda en ese proceso el paquete que no encontró o el módulo que falló al cargarse. **Reiniciando**, 200 con el PNG de siempre |
+
+### I-166, el ensayo en Linux
+
+`node:24-bookworm` —Node **v24.21.0**, npm 11.19.0, glibc 2.36, x86_64— para instalar, compilar y ejecutar;
+`node:20-bookworm` —v20.20.2, la del CI— para repetir las pruebas. La fuente, **868 archivos del repositorio** sin
+`node_modules` ni `.next`; `npm ci` en Linux, con sus propias dependencias.
+
+| Qué | Medido en local |
+|---|---|
+| Lo que instala npm en Linux | `@img/sharp-linux-x64` y, **en otro paquete**, `@img/sharp-libvips-linux-x64` (`libvips-cpp.so.8.18.6`). **No instala `@img/sharp-wasm32`**: en Windows está *extraneous* —solo lo piden los paquetes de FreeBSD y WebContainers— y npm 10 lo instaló igual. La reserva WebAssembly que se vio en Windows era accidental |
+| Las trazas, también con `NOW_BUILDER=1` (lo que Next detecta como Vercel) | La ruta de la imagen y la instrumentación listan `libvips-cpp.so` y el `.node` de Linux. Con `NOW_BUILDER`, la traza del servidor pierde `sharp` y el optimizador, «que se atiende fuera de next-server» |
+| El enlace `.next/node_modules/sharp-<hash>` | **Relativo** (`../../node_modules/sharp`); en Windows era un *junction* con ruta absoluta |
+| El artefacto, en un contenedor que solo monta `/app` (no existe la fuente) | El servidor (PID 1) y **30 procesos hijo** cargan `libvips-cpp.so` y el `.node` desde `/app`; renderizador **librsvg 2.62.91** |
+| Aspecto y dimensiones | **PNG idéntico byte a byte al de Windows** (md5 `d9465f3c…`, 1.704.170 bytes), 1080 × 1350, en proceso y por el hijo |
+| Tiempos y concurrencia | En proceso: mediana 1.062 ms en 20 seguidas; 10 a la vez, todas 200 en 3,58 s. Por el hijo (optimizador primero): 1.341 ms y 3,01 s |
+| Un hijo sin `sharp`, en el artefacto | 500 en 217 ms, `/login` 200, también 3 + 3 a la vez; al devolverlo, 200 con el mismo md5; 0 excepciones |
+| Las pruebas del proceso hijo en Linux | 18/18 en tres pasadas, en Node 24 y en Node 20. Con el código de `9e0dc31` fallan con «excepciones sin capturar: [Error: **write EPIPE**]» |
+| Toda la batería unitaria en Linux | **1.661/1.661** en 88 archivos, en Node 20 y en Node 24 |
+
+**No se cambió el empaquetado.** En Linux no falta ningún archivo; el hueco de las DLL de libvips es **solo de
+Windows**, que no es un destino de despliegue, y corregirlo pediría configuración propia de una plataforma que no se
+publica.
+
+### Lo que el ensayo NO demuestra: requiere Vercel
+
+* **La versión de Node del proyecto.** `engines.node` es `>=20.19.0`, un rango abierto; la documentación de Vercel ofrece
+  `24.x`, pero no consta qué versión elige para ese rango ni cuál fija el proyecto. Se ensayó con 24 y se repitieron las
+  pruebas con 20.
+* **La plataforma.** Se supone x86_64 (la región `iad1` consta en un registro de D-149); Vercel compila sobre Amazon
+  Linux 2023 (glibc 2.34) y el ensayo usó Debian 12 (2.36).
+* **El empaquetado real de la función** de `/api/weekly-results/image`: que salga de su traza, con libvips, y cómo trata
+  el enlace `sharp-<hash>`.
+* **El `cwd` de la función**, que permita `spawn` y la memoria de un segundo proceso.
+* Que `/_next/image` vaya **fuera del servidor**, y que `module.register` e `instrumentation` funcionen en su runtime.
+
+Registrado en I-166 e I-167; lo que hay que mirar tras publicar, en `DEPLOYMENT` §3.3.a.
+
+**Regresiones** (`TEST_RESULTS`): `verify` 1.661 · `test:db` 1.444 + 1 · E2E completa 907/909, con I-075 e I-106. Una
+primera E2E se cortó por un cuelgue del optimizador de desarrollo que **no introduce** este cambio —reproducido igual con
+el código de `02d4ac9`, I-168—, y una pasada de `test:db` falló por el orden de dos archivos de prueba, I-169. Ninguno
+se corrigió: no son de este encargo.

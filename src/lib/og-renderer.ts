@@ -20,6 +20,11 @@
  *      termina antes de leer el SVG o agota el plazo, la imagen falla con un
  *      error y el servidor sigue atendiendo (`runChild`).
  *
+ * `sharp` se carga al generar la primera imagen, NUNCA al importar este archivo
+ * (I-167): `instrumentation` lo importa al arrancar cada instancia, y un `sharp`
+ * que falta o no carga su parte nativa dejaba en 500 todas las rutas. Ahora solo
+ * falla la imagen, con el motivo en el registro de la ruta.
+ *
  * Por qué no resvg, que `next/og` trae dentro: medido, tarda 4,3 s por imagen
  * frente a 0,8 s, y es síncrono; con diez peticiones a la vez bloqueaba el
  * proceso lo suficiente para que otras consultas agotaran su plazo (D-223).
@@ -31,7 +36,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { register } from 'node:module'
 
-import sharp from 'sharp'
+import type sharpModule from 'sharp'
 
 const GLOBAL_KEY = 'rifas.ogSharp'
 const FLAG = Symbol.for('rifas.ogRendererRegistered')
@@ -176,7 +181,30 @@ export function rasterizeSvgInChild(
   return runChild(process.execPath, ['-e', CHILD_SCRIPT, String(width)], svg, options)
 }
 
+let loadingSharp: Promise<typeof sharpModule> | null = null
+
+/**
+ * El `sharp` del proceso, cargado una vez y solo cuando hace falta una imagen
+ * (I-167). Si no se puede cargar, rechaza con el motivo y no guarda el fallo:
+ * la siguiente imagen lo vuelve a intentar. Medido: Node sí recuerda, dentro del
+ * mismo proceso, el paquete que no encontró o que falló al cargarse, así que
+ * devolverlo exige una instancia nueva.
+ */
+function loadSharp(): Promise<typeof sharpModule> {
+  loadingSharp ??= import('sharp').then(
+    (loaded) => loaded.default,
+    (error: unknown) => {
+      loadingSharp = null
+      throw new Error(`og-renderer: no se pudo cargar sharp: ${messageOf(error)}`, {
+        cause: error,
+      })
+    },
+  )
+  return loadingSharp
+}
+
 async function rasterize(svg: Uint8Array, width: number): Promise<Buffer> {
+  const sharp = await loadSharp()
   try {
     return await sharp(svg).resize(width).png().toBuffer()
   } catch (error) {

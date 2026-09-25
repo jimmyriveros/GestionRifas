@@ -847,7 +847,7 @@ Tres cosas distintas, que no se mezclan:
 |---|---|
 | `verify` · `test:db` | ✅ exit 0, 1.643 · ✅ 1.444 + 1 omitida (59/59), base recién sembrada |
 | E2E completa desde base limpia | ✅ **908/909** en frío con I-163 corregido (D-223); el único fallo, I-090, anterior al lote. Antes, **explicada** (D-222). En frío y en secuencia: `9acbfa8` 775/798 y `HEAD` 887/908; **ningún fallo de `HEAD` sin causa**: los comunes son I-163 (18, anterior al lote, defecto del producto sin corregir) e I-090; el único solo de `HEAD`, I-106, anterior al lote por registro. Dos pruebas corregidas por causa medida (I-164, I-165) |
-| **I-163, corregido en local (D-223)** | La imagen semanal fallaba (500) en un proceso que hubiera optimizado antes una imagen con `/_next/image`. Corregido sin desbloquear ningún cargador: medido en dev y en producción local, los dos órdenes, PNG idéntico. Su proceso hijo falla ya **sin excepciones sin capturar** y resuelve `sharp` dentro de un `standalone` aislado (corrección de D-223). **Sin comprobar en Vercel**: tras publicar, pedir la imagen semanal desde la cuenta de un vendedor y confirmar 200. **Antes de publicar, decidir I-167**: si la función no pudiera cargar `sharp`, D-223 dejaría en 500 todas las rutas (medido en local) |
+| **I-163, corregido en local (D-223)** | La imagen semanal fallaba (500) en un proceso que hubiera optimizado antes una imagen con `/_next/image`. Corregido sin desbloquear ningún cargador: medido en dev y en producción local, los dos órdenes, PNG idéntico. Su proceso hijo falla ya **sin excepciones sin capturar** (corrección de D-223) y **`sharp` se carga al generar la imagen, no al arrancar** (I-167 resuelta en local, D-224): sin `sharp`, solo la imagen responde 500. **Ensayado en Linux** (Docker, Node 24 y 20, x86_64): el artefacto aislado lleva libvips y el servidor y el hijo lo cargan desde dentro; PNG idéntico al de referencia. **Sin comprobar en Vercel**: tras publicar, pedir la imagen semanal desde la cuenta de un vendedor y confirmar 200 (paso 10) |
 | Actualización `0074` → `0077` con `db push --local` sobre datos, con carga | ✅ una transacción por archivo; **6.546/6.546** llamadas del código viejo en 200 durante el push; 12 cifras de negocio idénticas |
 | Código `9acbfa8` con la base en `0077` | ✅ 229/230; el fallo reproducido en `0074` con los mismos datos (acumulación) |
 | Privilegios, escenarios A y B (I-132) | ✅ `verify-remote` 49/49 en los dos; B difiere de A solo en `search_tickets` con `service_role` |
@@ -885,12 +885,13 @@ autorización expresa** del dueño.
 9. Revisión del dueño **con sesión** en un teléfono real: el control de orden (D-215 a D-218) y el historial de
    abonos (D-219). Un agente no introduce contraseñas.
 10. **La imagen semanal en Vercel (I-163, D-223)**: con la sesión de un vendedor, abrir «Resultados de la semana» y
-    confirmar que la imagen sale y cuánto tarda (~1 s con el `sharp` nativo, ~2,6 s con el WebAssembly, medido en
-    local; I-166); en los registros de la función, ningún «unsupported image format», «og-renderer»,
-    «uncaughtException» ni «loading instrumentation hook». **Lo último, en cualquier ruta**: si la función no carga
-    `sharp`, D-223 las deja todas en 500 (I-167). Una imagen que sale no prueba el camino del proceso hijo: si el
-    optimizador va aparte, como se espera, el hijo no se usa. Si falla, es un problema del código: Instant Rollback,
-    sin tocar la base.
+    confirmar que la imagen sale y cuánto tarda (~1 s con el `sharp` nativo en el ensayo Linux de D-224); en los
+    registros de la función, ningún «unsupported image format», «og-renderer», «no se pudo cargar sharp»,
+    «uncaughtException» ni «loading instrumentation hook». Si la imagen responde 500 con «no se pudo cargar sharp», la
+    función no trae `sharp` o su libvips: el resto de la aplicación sigue en pie (I-167), y el arreglo es de
+    empaquetado, no de datos. Una imagen que sale no prueba el camino del proceso hijo: si el optimizador va aparte,
+    como se espera, el hijo no se usa. **Anotar** en `TEST_RESULTS` la versión de Node del despliegue, que en local no
+    consta (D-224). Si falla, es un problema del código: Instant Rollback, sin tocar la base.
 
 **Recuperación, en este orden:**
 

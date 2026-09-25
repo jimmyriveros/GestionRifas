@@ -14717,3 +14717,45 @@ tipos también en `tests/` y la prueba nueva usa la API nueva; se apartó la pru
 restauraron los dos archivos con su hash. La suposición de partida —que en el servidor el defecto lo **terminaba**— era
 cierta para un proceso Node, **no para el de Next**, que tiene su propio manejador (filas 14 · 15); se corrigió en la
 documentación.
+
+## D-224 — `sharp` se carga al generar la imagen (I-167) y el empaquetado ensayado en Linux (I-166) (2026-09-25, solo en local)
+
+**Nada de esto es una verificación de Vercel.** Evidencia en las carpetas `22`–`41` del `scratchpad` de la sesión
+`45bb7e68…`, fuera del repositorio. Linux: imágenes oficiales `node:24-bookworm` (v24.21.0, npm 11.19.0, digest
+`64af3819…`) y `node:20-bookworm` (v20.20.2, npm 10.8.2, digest `8f693eaa…`), las dos `linux/amd64` con glibc 2.36. La
+fuente para Linux, 868 archivos del repositorio sin `node_modules` ni `.next`; `npm ci` dentro del contenedor.
+
+| N.º | Qué | Resultado |
+|---|---|---|
+| 22 | `og-renderer-sin-sharp.test.ts` con el código de `02d4ac9` (importación estática) | **3/3 fallan**: el archivo ni siquiera se importa. Con el cambio, 3/3 pasan |
+| 23 | `standalone` de Windows con el cambio | ✅ build; la traza de la instrumentación sigue listando `sharp`, que ahora solo se carga al rasterizar |
+| 24 | Primera sonda de arranque en frío | **Inválida, error propio**: el desmontaje de la sonda llamaba a `desmontar()` antes que a `desmontarCatalogo()` y la base rechazó un catálogo publicado sin rifa (`memberships_public_catalog_complete`). Se corrigió el orden y se restauró la base |
+| 25 · 26 | Windows, en frío: sin ningún `sharp` · con `sharp` sin su parte nativa | Servidor en ~1 s; `/login`, catálogo (13 tarjetas), panel, boletas, clientes y «Resultados de la semana» del vendedor, panel y boletas del dueño: **200**; `/` sin sesión, 307. Imagen: **500** con el mensaje para el usuario y `private, no-store`; la vista previa enseña su error. Motivo en el registro (4); 0 «instrumentation hook», 0 excepciones. Devolver `sharp` sin reiniciar: sigue en 500 |
+| 27 | `npm ci` en Linux (Node 24) | ✅ 30 s. Instala `@img/sharp-linux-x64` y `@img/sharp-libvips-linux-x64`; **no** `@img/sharp-wasm32`, *extraneous* en Windows. npm 11 no ejecutó los scripts de `esbuild` y `unrs-resolver` (ajeno a `sharp`) |
+| 28 | `next build` en Linux, `standalone` | ✅ 24 s. Las trazas de la instrumentación, la ruta y el servidor **incluyen `libvips-cpp.so.8.18.6`** y el `.node`; el enlace `sharp-<hash>`, relativo |
+| 29 | Exportación a un volumen propio | 75 MB, sin `.env`, un enlace relativo y ninguno roto; `sharp` desde `/app` carga libvips del artefacto |
+| 30 | Linux aislado, **imagen primero** | Contenedor con solo `/app` (no existe la fuente). PID 1 carga libvips desde `/app`. **PNG md5 `d9465f3c…`, idéntico al de Windows**; 1080 × 1350; 20 seguidas en 200, mediana 1.062 ms; 10 a la vez en 200, 3,58 s; cabeceras de siempre; 307 sin sesión, 403 el dueño |
+| 31 | Linux aislado, **optimizador primero** y el hijo sin `sharp` a mitad | Optimizador `MISS`; 37 hijos vistos, los que cargaron `sharp` lo hicieron desde `/app`; mismo md5; mediana 1.341 ms; 10 a la vez en 3,01 s. Sin `sharp` para el hijo: 500 en 217 ms, `/login` 200, también 3 + 3 a la vez; devuelto, 200 con el mismo md5; 0 excepciones |
+| 32 · 33 | Linux, en frío: sin ningún `sharp` · sin su parte nativa | Lo mismo que 25 · 26; el motivo registrado en la segunda es «Could not load the "sharp" module using the linux-x64 runtime» |
+| 34 | La copia de 33, ya restaurada, **reiniciada** | 200 con el mismo md5, mediana 1.026 ms: la recuperación exige una instancia nueva |
+| 35 | `next build` en Linux con `NOW_BUILDER=1` | ✅. La ruta de la imagen y la instrumentación siguen listando libvips y el `.node`; la traza del servidor, sin `sharp` ni el optimizador |
+| 36 · 40 | Las tres pruebas de `og-renderer` en Linux, tres pasadas y con el archivo final | ✅ **18/18** en Node 24 y en Node 20, siempre |
+| 37 | Las dos pruebas del recorrido con el código de `9e0dc31`, en Linux | Fallan en Node 24 y 20: «excepciones sin capturar: [Error: **write EPIPE**]» |
+| 38 | Toda la batería unitaria en Linux | ✅ **1.661/1.661** en 88 archivos, en Node 20 (15,6 s) y en Node 24 (13,1 s) |
+| 39 | `npm run verify` en Windows | ✅ exit 0: **1.661** unitarias en 88 archivos (+3), lint 0 errores (los 2 avisos de siempre), build |
+| 41 | E2E completa, en frío y desde base limpia, con `npm run dev:local` | **Interrumpida en la 100/909**: además de I-075, las **18** de `catalogo-publico` (escritorio) agotaron sus 60 s porque la imagen del *hero* (`/_next/image`, `w=1920`) nunca respondió. Es **I-168**, reproducida y **anterior** a D-224 (48 · 49) |
+| 42 | El optimizador en frío, primera petición directa, con el código actual | 200 `MISS` en 0,22 s: la carga diferida no lo cuelga por sí sola |
+| 43 · 44 | El tramo que falló, en frío: `catalogo-panel` + `catalogo-publico` · los 8 archivos previos en orden | ✅ **58/58** · **124/125**, solo I-075: el cuelgue no se repite |
+| 45 | **E2E completa otra vez**, en frío y desde base limpia | **907/909** en 50,7 min. Fallos: `back-navigation:25` (**I-075**, línea 38, compilación en frío) y `catalogo-publico-movil:103` (**I-106**). `catalogo-publico` de escritorio, entera en verde |
+| 46 · 47 | `catalogo-publico-movil` sola, sobre la base que dejó la 45 (2.156 boletas), con el código actual · con el de `02d4ac9` | **14/15 en las dos**, con la misma firma en `:103` (`toHaveURL /q=0/`): I-106 no depende de D-224 |
+| 48 · 49 | La petición del *hero* como la de Chrome, **cortada a los N ms**, y después la misma otra vez; servidor nuevo y caché vacía en cada corte · con el código actual y con el de `02d4ac9` | Cortada a ~46 ms (actual) o ~30–43 ms (`02d4ac9`): **la siguiente con la misma clave queda sin respuesta** (30 s), y otra clave responde. Desde ~74–92 ms, `HIT`. **Mismo comportamiento en las dos versiones**: es I-168 |
+| 50 | `npm run test:db` sobre base recién sembrada | ❌ **1.442 + 1 omitida y 2 fallos**: H12-01 y H12-02 de `prize-award-history`, «otra rifa cubre la semana de la prueba: [Rifa orden …, Rifa mil …]». Es **I-169** |
+| 51 | Orden controlado, base limpia: `prize-award-history` sola → `list-order` sola → `prize-award-history` | 70/70 → 32/32, **pero deja 2 rifas** (su borrado choca con `seller_commissions_raffle_org_fk`, `RESTRICT`) → **H12-01 y H12-02 fallan**. Determinista |
+| 52 | `npm run test:db` otra vez, base limpia | ✅ **1.444 + 1 omitida**, 59/59: esta vez Vitest ejecutó `prize-award-history` antes que `list-order`. Las 2 rifas vuelven a quedar al final |
+
+**Errores propios encontrados:** la sonda 24, por el orden del desmontaje (arriba); el arnés de Linux perdió la fila de
+commit en la corrida 30 porque `git -C /d/…` no funciona con `MSYS_NO_PATHCONV` (se anotó a mano y se corrigió); y en la
+corrección de D-223 se leyó la reserva WebAssembly de Windows como un comportamiento de `sharp`, cuando era un paquete
+*extraneous*.
+
+Y en las regresiones: la E2E 41 se leyó primero como un posible efecto de D-224 —la carga diferida hace más lenta la primera imagen— y **solo se aceptó como ajena tras reproducirla con el código anterior** (49). I-106 e I-169 se comprobaron igual, con la versión anterior o con un orden controlado, y ninguna de las tres se corrigió: no son de este encargo.
