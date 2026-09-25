@@ -1,6 +1,9 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-19, más tarde (§3.2.n: D-210 **desplegado**, `9acbfa8` servido). Antes, ese mismo día (§2 y §2.2: `0073` y `0074` **aplicadas** a las 17:53 UTC; §3.2.m: `6401bd0`
+**Actualizado:** 2026-09-25 (§2 y §3.3.a: producción **comprobada en solo lectura** antes de publicar D-211 a D-226
+—D-227—: `9acbfa8` servido, `0001`–`0074`, pendientes exactamente `0075`–`0077`, `verify:remote` 45 + 4 esperados; con
+la propuesta concreta de publicación y la recuperación que conserva Next 16.3.6, **no aprobada**; §4.1: qué hace Vercel
+después de un *Instant Rollback*). Antes, 2026-09-19, más tarde (§3.2.n: D-210 **desplegado**, `9acbfa8` servido). Antes, ese mismo día (§2 y §2.2: `0073` y `0074` **aplicadas** a las 17:53 UTC; §3.2.m: `6401bd0`
 **desplegado** a las 17:57 UTC y comprobado técnicamente; §3.2.l: el CI en rojo era I-140, ya corregida). Antes, ese
 mismo día (§2.2: la promoción de `0073` y `0074` **autorizada**, y su reversión **comprobada** en
 local con el código anterior; §4.1: antes de volver a un despliegue, comprobar que sabe leer los datos nuevos). Antes,
@@ -34,7 +37,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 | Migraciones (**74** aplicadas, hasta `0074`, desde el 2026-09-19 a las 17:53 UTC; antes, **72** desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
 | **`0050` aplicada el 2026-09-08** (D-176) | La invitación al grupo de WhatsApp. **Aditiva y sin una sola sentencia de datos**: tres columnas nuevas en `memberships` que nacen nulas o en `false`, tres CHECK y una RPC; no toca ninguna tabla, política, función ni restricción existente. Promovida con el procedimiento completo: respaldo en `Rifas-backups/2026-09-08-pre-0050/` (4,1 MB, 19 tablas, **0** identidades de Auth), sonda de solo lectura **antes**, `db push --dry-run` confirmando que **solo** aparecía `0050`, aplicación **antes** del despliegue y la **misma sonda después**. **Las 30 cifras de negocio salieron idénticas** —981 boletas, 540 clientes, 352 pagos, $32.780.000 abonados, 4.816 de bitácora— y lo único que se movió fue el número de migración, las tres columnas y la RPC. Comprobado además que `memberships_update_staff` **sigue siendo la única política de escritura**, que la RPC **no es ejecutable por `anon`** y que **0 filas** tienen algo escrito en las columnas nuevas |
 | **`0073` y `0074`: APLICADAS el 2026-09-19** (D-209), de 17:53:21 a 17:53:39 UTC | Bre-B y «Otros» en las cuentas para recibir pagos, con autorización expresa del dueño y el procedimiento de §2.2; su código, `6401bd0`, desde las 17:57:44 UTC (§3.2.m). Van en ese orden y en dos archivos —un valor de enumerado no se usa en la transacción que lo añade (`55P04`)—, **antes** del código: el código desplegado funciona con la base nueva (medido) y el nuevo no funciona con la vieja. La `0074` no escribe datos: una columna nula, dos CHECK, un índice reconstruido, dos funciones y dos RPC con firma nueva, y se comprueba a sí misma. `verify:remote` tendrá **dos comprobaciones en rojo a propósito** hasta aplicarlas. Orden completo en §2.2 |
-| **`0075`, `0076` y `0077`: PENDIENTES — se espera que NO estén en producción** (anotado el 2026-09-23, **sin consultar producción**) | Existen solo en la rama `feature/premios-configurables`: `origin/main` —la referencia local, del último `fetch`— es `9acbfa8` y trae `0001`–`0074`. `0075` y `0076` son el orden y la paginación en la base (D-213, D-214); `0077`, el código de rifa desde R1000 (D-220). **Es una expectativa documental, no una comprobación remota**: lo primero de la próxima publicación es confirmarlo en solo lectura (§3.3) |
+| **`0075`, `0076` y `0077`: PENDIENTES — confirmado contra producción en solo lectura el 2026-09-25** (D-227) | `supabase_migrations.schema_migrations` tiene **`0001`–`0074`**, con los mismos nombres que el repositorio, y le faltan **exactamente** estas tres; `origin/main` es `9acbfa8`. `0075` y `0076` son el orden y la paginación en la base (D-213, D-214); `0077`, el código de rifa desde R1000 (D-220). Hasta el 2026-09-23 esta fila era una expectativa documental; en la puerta se vuelve a mirar (§3.3.a, P0 de la propuesta) |
 | RLS, RPC, vistas, auditoría | Igual que en local **hasta `0074`**. Lo que añaden `0075`–`0077` solo existe en local |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
@@ -839,7 +842,7 @@ Tres cosas distintas, que no se mezclan:
 |---|---|---|
 | **Documentado como publicado** | Migraciones `0001`–`0074`; código `9acbfa8` (D-210), el último release registrado; `verify:remote` **46/46** el 2026-09-19 a las 21:15 UTC, **la última comprobación contra producción que consta** | §2 y §3.2.n |
 | **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `9acbfa8`: D-211 a D-220, 16 commits a 2026-09-23, y después D-221 a D-226, que añaden la **subida de `next` y `eslint-config-next` a 16.3.6** por tres avisos críticos (I-170, D-226) | Git local: `origin/main..HEAD` |
-| **Requiere confirmación contra producción** | Que producción siga en `0074` y en `9acbfa8`; que nadie haya aplicado ni desplegado nada desde el 2026-09-19; que `verify:remote` siga en verde. **Nada de esto se ha comprobado desde esa fecha** | — |
+| **Comprobado contra producción, en solo lectura, el 2026-09-25 (20:30–20:36 UTC)** | Producción en **`0074`** y sirviendo **`9acbfa8`** con Next **16.3.0**; ningún despliegue ni migración desde el 2026-09-19; `verify:remote` **45 OK + las 4 de `0075`–`0077` en rojo**, y ninguna más; `search_tickets` ya con `service_role=X`; los dos disparadores de PostgREST, activos; Node **24.x** por configuración. **Dictamen: nada impide autorizar la publicación.** Se repite en la puerta (P0 de la propuesta) | D-227 y `TEST_RESULTS`, D-227 |
 
 **Preparación local — hecha y medida (D-221, 2026-09-23).** Nada de esto es una verificación de producción:
 
@@ -868,7 +871,10 @@ autorización expresa** del dueño.
    **Sin una de las dos, el fallo queda sin explicar y la publicación NO está lista.** Nunca se quita ni se salta
    una prueba para seguir.
 3. `npm run verify` y `npm run test:db` en verde.
-4. **Solo lectura en producción**, con `RUNBOOK` §9.1 como modelo. Confirmar, antes de nada:
+4. **Solo lectura en producción**, con `RUNBOOK` §9.1 como modelo. ✅ **Hecho el 2026-09-25 (D-227)**, con los cuatro
+   puntos de abajo como se esperaba: `0074` y `9acbfa8`; 45 + 4; los dos disparadores, activos; y `search_tickets` **ya**
+   con `service_role=X`, así que publicar **no cambia** quién la ejecuta (I-132 sigue abierta en su parte general). Se
+   repite justo antes de escribir. Confirmar, antes de nada:
    * que la última migración aplicada es `0074` y qué commit está servido (se espera `9acbfa8`);
    * que `verify:remote` da **45 OK y 4 en rojo a propósito**, exactamente las cuatro de `0075`–`0077`
      (medido así contra una base local en `0074`). Cualquier otro rojo **detiene** la publicación;
@@ -890,8 +896,9 @@ autorización expresa** del dueño.
     registros de la función, ningún «unsupported image format», «og-renderer», «no se pudo cargar sharp»,
     «uncaughtException» ni «loading instrumentation hook». Si la imagen responde 500 con «no se pudo cargar sharp», la
     función no trae `sharp` o su libvips: el resto de la aplicación sigue en pie (I-167), y el arreglo es de
-    empaquetado, no de datos. **Anotar** en `TEST_RESULTS` la versión de Node del despliegue, que en local no consta
-    (D-224), y que el código servido lleva **Next 16.3.6** (I-170). En lectura y con autorización, comprobar también
+    empaquetado, no de datos. **Anotar** en `TEST_RESULTS` la versión de Node del despliegue —**24.x** por el ajuste del
+    proyecto y por `engines` `>=20.19.0` (D-227); la exacta solo se ve con `node -v` en la construcción o registrando
+    `process.version`, y no se cambia nada para verla— y que el código servido lleva **Next 16.3.6** (I-170). En lectura y con autorización, comprobar también
     que `/_next/image` no lo sirve `next-server` —se espera que no, según el código de Next—: es lo que falta para
     descartar en producción I-168 y GHSA-2xp9. Si falla, es un problema del código: Instant Rollback, sin tocar la base.
 
@@ -899,11 +906,36 @@ autorización expresa** del dueño.
 
 * **Problema del código** → Instant Rollback al despliegue anterior en Vercel (§4.1), **sin tocar la base**: el
   código de `9acbfa8` funciona con `0077` aplicada (medido en local, D-221). Ese despliegue lleva **Next 16.3.0**:
-  volver a él devuelve producción al rango de los tres avisos de I-170 hasta corregir y volver a publicar.
+  volver a él devuelve producción al rango de los tres avisos de I-170 hasta corregir y volver a publicar. **Para que
+  la reversión conserve 16.3.6**, hay que publicar antes un puente —`9acbfa8` con solo Next 16.3.6, sin migraciones—
+  que pase a ser el despliegue inmediatamente anterior: opción A de D-227 §7, con su preparación. **Es una propuesta,
+  no aprobada**; sin ella, la reversión es esta. Después de cualquier reversión, los *push* a `main` dejan de publicarse
+  solos hasta «Undo Rollback» (§4.1).
 * **Problema de la base** → `supabase/recovery/0077_a_0074.sql` en una transacción —se niega si ya hay una rifa
   `R1000` o mayor— y después `supabase migration repair --status reverted 0077 0076 0075`. Solo con el código
   anterior servido, porque el nuevo llama a las firmas de `0075`. Ensayado en local; **nunca en producción**.
 * **Pérdida o daño de datos** → el respaldo del paso 6 (`RUNBOOK` §5). Ninguna de las tres migraciones escribe filas.
+
+**Propuesta concreta para la ventana de publicación (D-227, 2026-09-25) — preparada, NO autorizada.** Es la lista de
+arriba con los valores medidos hoy. **Cada puerta que escribe se autoriza por separado**; el agente no inicia sesión,
+no escribe contraseñas y no pulsa la reversión. Cualquier resultado distinto del esperado **detiene** y se reporta;
+nada se corrige en producción. Sigue el orden de `RUNBOOK` §9.3, ya ejecutado en una puerta real. `<REF>` es la
+referencia de 20 letras (`zqwu…`), confirmada antes contra la CSP.
+
+| # | Puerta | Qué se hace | Se sigue solo si |
+|---|---|---|---|
+| P0 | Solo lectura, justo antes | Repetir D-227 §1–§4. Fuera de las horas UTC 3, 4, 5, 6, 12, 13, 15 y 16, con `lottery_sync_lock` libre y ningún recordatorio en los 30 min siguientes; la franja más tranquila medida es 07:00–10:59 UTC (`RUNBOOK` §9.0) | Todo como el 2026-09-25: `0074`, el despliegue previsto, 45 + 4 y la misma ACL |
+| PA | Solo si el dueño aprueba la opción A de D-227 §7 | Publicar el puente S y comprobarlo, con su preparación (D-227 §7, pasos 1–9) | S servido, 45 + 4 y la imagen semanal con sesión |
+| P1 | Delta esperado, en local (`RUNBOOK` §9.3, paso 1, con `0074`) | `gate-snapshot.ts p1-base --production --project-ref <REF>` · `npx supabase db reset --local --version 0074` · `gate-mirror-privileges.ts <foto p1-base>` · `gate-snapshot.ts p1-l0 --local` y su comparación `--structure-only` con `p1-base` · `npx supabase migration up --local` · `gate-snapshot.ts p1-l1 --local --base <p1-l0>` · `gate-compare.ts <p1-l0> <p1-l1> --structure-only --save-delta delta-esperado-0075-0077.json`. Ensayar también, en local, la comparación de la puerta (`gate-compare.ts <p1-l0> <p1-l1> --local --operation migrations --migrations 0075,0076,0077 --expected-delta …`) y `verify-remote` contra esa base. Después, la base local a la normalidad: `db reset`, Kong, Auth y `seed:local` | `p1-base` frente a `p1-l0`: **solo** los 2 secretos del Vault y `supabase_functions`. Delta: funciones **+4 −2** —las firmas de 8 parámetros de `search_tickets` y `admin_list_tickets` por las de 10, y `admin_list_sellers` y `admin_list_raffles`—, el cuerpo de `raffles_set_short_code`, **+2 vistas** y **+3 migraciones**; ni tablas, ni columnas, ni restricciones, ni índices, ni políticas; `search_tickets` con `{postgres, service_role, authenticated}`. Ensayo local: CONTINUAR y 49/49 |
+| P2 | Línea base | `gate-snapshot.ts p1-antes --production --project-ref <REF>` y la comparación `p1-base` → `p1-antes` con `--operation none` | CONTINUAR, o cada fila explicada por la «Opción A» |
+| P3 | Respaldo | `RUNBOOK` §5.1 en `Rifas-backups/<fecha>-antes-0075-0077/`: 0 nombres `"auth".` cualificados, 0 `INSERT INTO "auth"`, 0 credenciales; validado restaurándolo en local (§5.2) frente a `p1-antes`; después, la base local a la normalidad | La restauración trae las mismas filas |
+| P4 | Migraciones pendientes | `npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"` | **Exactamente** `0075`, `0076` y `0077`, en orden |
+| P5 | Migraciones, antes del código | `npx supabase db push --yes --db-url "$SUPABASE_DB_URL"` y `npx supabase migration list --db-url "$SUPABASE_DB_URL"` | Sin error —la autocomprobación de `0077` no aborta— y `0001`–`0077` iguales en los dos entornos |
+| P6 | Después de migrar, en lectura | `npm run verify:remote` · `gate-snapshot.ts p1-despues --production --project-ref <REF> --base <p1-antes>` · `gate-compare.ts <p1-antes> <p1-despues> --production --project-ref <REF> --operation migrations --migrations 0075,0076,0077 --expected-delta delta-esperado-0075-0077.json --report informe-p1.json` · ACL de `search_tickets` · errores de ejecución del código servido | **49/49**; **CONTINUAR** con 0 filas tocadas —ninguna de las tres escribe datos— y la actividad explicada; la misma ACL que antes; sin errores |
+| P7 | Código | PR a `main` con el CI **2/2 sobre el mismo SHA**; `main` por avance rápido, sin `force`; **un** despliegue y ninguno más | READY |
+| P8 | Servido | `sha256(commit)[0:12]` en los fragmentos (§6.1); `16.3.6` declarado en el fragmento del cliente y «Detected Next.js version: 16.3.6» en la construcción; `verify:remote` 49/49; CSP con un proyecto y HSTS; sin errores de ejecución; `list_deployments`: el inmediatamente anterior es el destino previsto de la reversión —`9acbfa8`, o S con la opción A— y tiene `isRollbackCandidate` | Todo en verde |
+| P9 | La imagen semanal (paso 10) | **El dueño**, con la sesión de un vendedor y en su teléfono: «Configuración» → «Resultados de la semana»; la imagen en ~1 s, y compartir y descargar. **El agente**, en lectura: registros de `/api/weekly-results/image` sin las cinco frases del paso 10, y registros agrupados por ruta sin `/_next/image` servido por la función —lo sirve Vercel, no `next-server`, lo que descarta en producción I-168 y GHSA-2xp9—; anotar Node 24.x y Next 16.3.6 | 200 y ninguna de esas líneas |
+| P10 | Teléfono real, con sesión del dueño | Vendedor: cambiar el orden de «Mis boletas» y «Mis clientes», buscar y ver que la frase dice el orden que sale (D-215, D-216, D-218); el historial de abonos de la ficha, paginado (D-219). Personal: el orden de «Boletas», sin cliente ni dinero (D-217) | Lo que se ve coincide con lo que dice |
 
 **Registrados y NO incluidos en esta publicación** (no se implementan sin encargo): **I-159** (boletas de la ficha
 cortadas en 100), **I-160** (orden de los códigos de rifa como texto desde R1000; decisión pendiente) e **I-161**
@@ -940,6 +972,12 @@ migraciones se quedan, y un código viejo puede no fallar y aun así enseñar ma
 cuenta Bre-B como «· Ana Torres», sin forma ni llave, también en el mensaje que lee el cliente (§2.2). En Hobby, además,
 solo se puede volver al despliegue **inmediatamente anterior**, así que cualquier despliegue nuevo a producción mueve ese
 punto.
+
+**Y después de volver** (documentación de Vercel, leída el 2026-09-25, D-227): Vercel **deja de asignar** los dominios de
+producción a los despliegues nuevos, así que un arreglo empujado a `main` **se construye pero no se publica** hasta
+«Undo Rollback» en el panel o `vercel promote <despliegue>`. La reversión no reconstruye: sirve el despliegue anterior
+con sus variables y sus cron de entonces. Y la pulsa **el dueño**: el conector de Vercel de los agentes no tiene
+permisos de escritura comprobados.
 
 ### 4.2 Base de datos
 

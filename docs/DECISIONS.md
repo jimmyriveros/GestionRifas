@@ -14421,3 +14421,123 @@ reevalúa I-163 en vez de relajar la prueba.
 `loading="eager"`, así que `load` llega con la imagen completa. Medido en frío, cuatro pasadas por flujo: con el flujo
 anterior, **4 de 4** cerraban con la petición del *hero* sin terminar; con el nuevo, **4 de 4** la cierran terminada
 (`MISS`) y la siguiente es `HIT`. **El defecto sigue en Next** (§1): esto solo evita que la prueba lo dispare.
+
+---
+
+## D-227 — Producción comprobada en solo lectura antes de publicar D-211 a D-226, y la recuperación que conserva Next 16.3.6
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-25). **Solo lectura en producción**, con
+autorización expresa y limitada a: código servido y migraciones, `verify:remote`, permisos de `search_tickets`,
+disparadores de recarga de PostgREST y configuración de Node en Vercel. **Nada se escribió**, no se inició sesión como
+usuario, no hubo *push* ni despliegue. Evidencia (`evidencia/01…06`) en el *scratchpad* de la sesión `710dce60…`,
+fuera del repositorio; resultados en `TEST_RESULTS`, D-227.
+
+**Estado de esta entrada:** §1–§5, **comprobado**. §6, **valoración del agente**. §7, **PROPUESTA NO APROBADA**: la
+decide el dueño. Ninguna parte autoriza publicar.
+
+### 1. Procedencia, antes de mirar nada
+
+| Qué | Resultado |
+|---|---|
+| CSP de `https://gestion-rifas.vercel.app/login` | Nombra **un** proyecto, `zqwu…`: el mismo de `NEXT_PUBLIC_SUPABASE_URL` y de `SUPABASE_DB_URL` (pooler de sesión, puerto 5432) |
+| Conexión | `readOnly` de `scripts/gate-db.ts` con la referencia **de la CSP**, no de `.env.local`: se niega si la cadena nombra otro proyecto. `repeatable read`, `transaction_read_only = on`, PostgreSQL 17.6, no réplica |
+| Consultas | Ensayadas antes contra la base local, con el mismo guion |
+
+### 2. Código servido
+
+| Qué | Resultado |
+|---|---|
+| Producción en Vercel | `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`, `9acbfa8`, creado 2026-09-19 21:09:38 UTC y READY a las 21:10:10. Es el **último** despliegue de producción. El anterior, `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y` (`6401bd0`); los dos con `isRollbackCandidate` |
+| Lo que sirve el dominio | 15 fragmentos JS; `484ebe210458` —`sha256(9acbfa8)[0:12]`— en uno, y ningún identificador de otro commit |
+| Next | «Detected Next.js version: 16.3.0» en la construcción y `16.3.0` declarado en el fragmento del cliente: **I-170 confirmada en producción** |
+| Git | `origin/main` = `9acbfa8` (`git ls-remote`) |
+| Después del 2026-09-19 | **Ningún** despliegue de producción. Cuatro previsualizaciones de la rama, todas en ERROR en `check:env` por faltar las tres variables de Supabase en Preview: D-066 e I-022 funcionando; la última, `3db7548`, a las 21:20:09 UTC. Ajustes del proyecto sin cambios desde las 21:10:11 UTC |
+
+### 3. Migraciones y `verify:remote`
+
+* **74 aplicadas, `0001`–`0074`**, con los mismos nombres que el repositorio. **Pendientes, exactamente
+  `0075_orden_de_listas`, `0076_orden_en_la_base` y `0077_raffle_short_code_mil`**. Ninguna aplicada que el repositorio
+  no tenga.
+* Lo que tocan, tal como está: el cuerpo de `search_tickets`, `admin_list_tickets` y `raffles_set_short_code` es
+  **idéntico** al de su última migración (`0049`, `0057`, `0004`; md5 sin retornos de carro), así que nadie las cambió a
+  mano; ningún objeto depende de las dos que `0075` borra; las vistas y funciones de `0076` no existen; el disparador
+  `raffles_set_short_code` está activo y su función no la ejecutan `anon` ni `authenticated` —la autocomprobación de
+  `0077` pasará—.
+* **`verify:remote` (20:35:36–20:35:44 UTC): 45 OK y 4 en rojo, exactamente las de `0075`–`0077`**: «Las 7 vistas de
+  lectura existen» (5), «Las dos vistas de 0076 son security_invoker…» (0), «search_tickets y admin_list_tickets con la
+  firma de orden» (0) y «El código de rifa no se recorta desde R1000» (0). Es lo medido contra una base local en `0074`
+  en D-221.
+
+### 4. `search_tickets` frente a `SECURITY` §4.5 e I-132
+
+| Qué | Producción |
+|---|---|
+| Firma | Una sola, `search_tickets(text, uuid, uuid, uuid, ticket_inventory_status, ticket_payment_status, integer, integer)`, `SECURITY INVOKER`, `search_path` fijo |
+| ACL | `{postgres=X, service_role=X, authenticated=X}`. `anon` y PUBLIC, no |
+| Privilegio por defecto de `postgres` en `public` | Funciones `{postgres=X, service_role=X}` y secuencias con `rwU` para `anon` y `authenticated`: lo registrado en I-132 el 2026-09-18, sin cambios. Tablas, igual que en local |
+| Qué puede ya `service_role` | `BYPASSRLS` y `SELECT` directo sobre `tickets`, `clients`, `profiles`, `memberships`, `payments`, `payment_allocations` y `raffles` |
+| Quién la llama | Solo `listTickets` (`features/tickets/queries.ts`), con el cliente de **sesión**. Ningún código la llama con la clave de servicio |
+
+**Consecuencia.** `0075` la borra y la crea con diez parámetros; en el proyecto alojado nace con `service_role` por el
+privilegio por defecto —el escenario B de D-221— y `0076` la redefine con `create or replace`, que conserva la ACL.
+**Queda exactamente como hoy: publicar no cambia quién la ejecuta.** Frente a `SECURITY` §4.5 es un permiso de más
+—nadie lo usa—, pero no abre nada: la función corre con los privilegios de quien llama y solo lee `tickets`,
+`clients` y `raffles`, que `service_role` ya lee sin ella. Pertenece a la parte abierta de I-132 (las funciones anteriores con `service_role` solo en
+producción) y **no bloquea**. `admin_list_tickets` lleva `service_role` por contrato (D-198) y `0075` lo repite.
+
+### 5. PostgREST y Node en Vercel
+
+| Qué | Resultado |
+|---|---|
+| `pgrst_ddl_watch` (`ddl_command_end`) y `pgrst_drop_watch` (`sql_drop`) | Existen, activos (`O`), de `supabase_admin`, con `extensions.pgrst_ddl_watch()` y `extensions.pgrst_drop_watch()`; **cuerpos idénticos a los locales**. Emiten `NOTIFY pgrst, 'reload schema'` ante `CREATE`/`ALTER FUNCTION`, `CREATE VIEW`, `COMMENT` y la eliminación de funciones y vistas: todo lo de `0075`–`0077` que cambia la API. Es la condición de la medida sin hueco de D-221 §1, con el mismo mecanismo de aplicación (una transacción por archivo) |
+| Versión de Node | Ajuste del proyecto **24.x**; `engines.node` `>=20.19.0`, que manda sobre el ajuste y que Vercel resuelve a **la última 24.x** (su tabla: 24.x por defecto, 22.x y 20.x). La construcción avisa de que ese rango subirá solo con el siguiente mayor, y muestra el mismo aviso `allow-scripts` de `esbuild` y `unrs-resolver` que D-224 vio con el npm de Node 24. **La versión exacta no se puede leer en solo lectura**: Vercel indica `node -v` en la construcción o registrar `process.version` |
+| Resto de la configuración | Región `iad1`; construcción con 2 núcleos y 8 GB y Vercel CLI 59.23.2; `fluid: true` en `vercel.json`. El lote **no cambia** `vercel.json`, `next.config.ts` ni el CI: añade `src/instrumentation.ts` y `src/lib/og-renderer.ts` |
+| Variables de entorno | El conector de Vercel no tiene permiso para listarlas (403) y no se insistió: la construcción de producción pasó `check:env` sin ninguno de sus avisos opcionales (VAPID y despachador) |
+
+### 6. Valoración
+
+**No hay nada en producción que impida autorizar la publicación**: el estado real coincide con el documentado en todo lo
+comprobado y no aparece ninguna discrepancia que obligue a repetir baterías locales. Lo que falta es de la propia
+publicación —respaldo, ensayo del delta con los privilegios de ese día, `db push`, código y comprobaciones con sesión—
+y está en `DEPLOYMENT` §3.3.a.
+
+### 7. Recuperación que conserva Next 16.3.6 — **PROPUESTA, NO APROBADA**
+
+**Lo que dice Vercel** (documentación leída el 2026-09-25): en Hobby, *Instant Rollback* vuelve **solo al despliegue
+inmediatamente anterior**; reasigna los dominios sin reconstruir; **después de un rollback, los nuevos *push* a `main`
+dejan de publicarse solos** hasta «Undo Rollback» o `vercel promote`; y un despliegue ya promovido no se vuelve a
+promover. Tras publicar el lote, el anterior es `9acbfa8`: la reversión documentada devuelve **Next 16.3.0**.
+
+| Opción | Cómo | Recuperación | Coste |
+|---|---|---|---|
+| **A. Puente primero** (la recomendada) | Publicar antes **S** = `9acbfa8` + `package.json` y `package-lock.json` de `00ee2f6` —solo Next 16.3.6, sin migraciones—, y después el lote con S fusionada | *Instant Rollback* a S: inmediata y con 16.3.6 | Un despliegue más, un commit de fusión, una E2E completa y dos CI |
+| B. Recuperación hacia delante preparada | Un commit **R** encima del del lote con el árbol de S; ante un fallo, avance rápido de `main` a R | Una construcción (31 s la de `9acbfa8`, más la cola) | Las mismas medidas que S; R caduca si el lote recibe otro commit |
+| C. La documentada | *Instant Rollback* a `9acbfa8` | Inmediata, con 16.3.0 (I-170, sin explotabilidad demostrada) hasta volver a publicar | Ninguno |
+
+**Preparación de A**, cada paso que escribe con su autorización:
+
+1. Rama desde `9acbfa8` con `git checkout 00ee2f6 -- package.json package-lock.json`: desde `9acbfa8` solo `00ee2f6`
+   tocó esos dos archivos. El *lock* debe diferir en las 14 entradas de D-226 §5, con `fastq` en 1.20.1.
+2. En un *worktree* nuevo: `npm ci` y `npm run verify` —tipos, lint con `eslint-config-next` 16.3.6, unitarias y
+   compilación—.
+3. E2E completa contra Supabase local en `0074`, desde base limpia y con la regla de D-221 para los fallos. Referencia:
+   `9acbfa8` en D-222, 775/798, con las 18 de I-163; con 16.3.6 deberían pasar, y hay que medirlo.
+4. S con la base en `0077`, como D-221 §2 hizo con `9acbfa8` (229/230): S será el destino de la reversión con la base ya
+   migrada.
+5. La imagen semanal de S con `next start` y en el artefacto Linux, en los dos órdenes del optimizador, contra el PNG de
+   referencia de D-224 y D-226.
+6. *Push* de la rama y CI 2/2 sobre su SHA.
+7. Avance rápido `9acbfa8..S`, S servido (su identificador y `16.3.6` en el fragmento), `verify:remote` 45 + 4, imagen
+   semanal con sesión y sin errores de ejecución. **Cierra I-170 aunque el lote se retrase**: es la salida independiente
+   de D-226 §4.
+8. Fusionar S en `feature/premios-configurables` —los dos lados cambian igual esos dos archivos: sin conflicto y con el
+   árbol de `00ee2f6` más la documentación— y CI sobre ese SHA. **No se rebasa el lote**: la documentación cita sus
+   *hashes*.
+9. Entre S y el lote, **ningún otro despliegue a producción**: un commit de solo documentación en `main` movería el
+   punto de reversión, como pasó con `6da9bcb` (`RUNBOOK` §9.1). Antes y después del lote, `list_deployments` debe dar S
+   como inmediatamente anterior y `isRollbackCandidate`.
+10. **Quién pulsa la reversión: el dueño, desde el panel de Vercel.** El conector de este agente no tiene permisos de
+    escritura comprobados (403 al listar variables) y no se probó ninguna herramienta que escriba. Tras cualquier
+    reversión, «Undo Rollback» antes del siguiente despliegue.
+
+Si la opción A no se aprueba, la publicación sigue lista con la C, que es la documentada.

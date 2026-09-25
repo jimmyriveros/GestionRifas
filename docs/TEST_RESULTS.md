@@ -14901,3 +14901,31 @@ sin optimizador que medir (corregida y repetida en la 18); la compilación de la
 temporal que no compilaba —`next build` comprueba los tipos de `tests/`— y Playwright sirvió la sonda con su propio
 servidor de desarrollo (repetidas en la 33 y la 34, con el arnés endurecido); y una orden con un *heredoc* no llegó a
 ejecutarse por las comillas del texto: se comprobó que `DECISIONS.md` no había cambiado y se añadió desde un archivo.
+
+---
+
+## D-227 — Producción en solo lectura antes de publicar D-211 a D-226 (2026-09-25, 20:30–20:36 UTC)
+
+**Solo lectura**, con autorización expresa del dueño para estas comprobaciones y ninguna más: nada escrito, ninguna
+sesión de usuario, ningún *push* ni despliegue. **No se repitió ninguna batería local**: no apareció ninguna
+discrepancia que lo justificara. Evidencia en `evidencia/01…06` del *scratchpad* de la sesión `710dce60…`, fuera del
+repositorio. Ningún dato de cliente salió de estas lecturas.
+
+| N.º | Qué | Cómo | Resultado |
+|---|---|---|---|
+| — | Git | `git status`, `git ls-remote origin` | `HEAD` = `00ee2f6`, sin cambios posteriores; los tres archivos del usuario sin tocar. `origin/main` = `9acbfa8`. Desde `9acbfa8`, solo `00ee2f6` toca `package.json` y `package-lock.json` |
+| 01 | Procedencia y código servido | `GET /login` sin sesión, 15 fragmentos JS; identificador de cada commit del repositorio | CSP con **un** proyecto (`zqwu…`), igual a los dos de `.env.local`. Servido `484ebe210458` = **`9acbfa8`**, en 1 fragmento; ningún otro. Next **16.3.0** declarado en el fragmento del cliente |
+| — | Vercel, en lectura (conector) | `get_project`, `list_deployments`, `get_deployment`, `list_deployment_events` | Producción `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT` (`9acbfa8`, READY 2026-09-19 21:10:10 UTC), la última; anterior `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y` (`6401bd0`); ambas `isRollbackCandidate`. Después, solo 4 previsualizaciones de la rama en ERROR por `check:env` (Preview sin Supabase, I-022). Construcción: «Detected Next.js version: 16.3.0», `iad1`, 2 núcleos / 8 GB, Vercel CLI 59.23.2, aviso de `engines` `>=20.19.0`. Proyecto: `nodeVersion` **24.x** |
+| — | Variables de entorno | `filter_project_envs` | **403**: el conector no puede listarlas. No se insistió; no hacían falta |
+| — | Versión de Node | Documentación de Vercel | `engines` manda sobre el ajuste; `>=20.0.0` → **la última 24.x** (disponibles 24.x, 22.x, 20.x). La exacta no se puede leer sin `node -v` en la construcción o `process.version` |
+| 02 | Ensayo de las consultas | `prod-lectura.ts --local` | ✅ corren; local en `0077`, `search_tickets` de 10 parámetros con `{postgres, authenticated}` |
+| 03 | Catálogo de producción | `prod-lectura.ts`, `readOnly` con la referencia de la CSP | `transaction_read_only = on`. **74** migraciones, `0001`–`0074`, nombres iguales; pendientes **exactamente `0075`, `0076`, `0077`**. `search_tickets` (8 parámetros, `SECURITY INVOKER`): **`{postgres=X, service_role=X, authenticated=X}`**. `admin_list_tickets`, igual por contrato. `raffles_set_short_code`: `{postgres, service_role}`. Sin dependencias de las dos funciones que borra `0075`; ni las vistas ni las funciones de `0076`. `pgrst_ddl_watch` y `pgrst_drop_watch`, activos |
+| 04 | Comparación | `comparar-cuerpos.cjs` | Cuerpos de las tres funciones **iguales** a `0049`, `0057` y `0004`; los de `pgrst_*_watch` y los disparadores de eventos, **iguales** a local. Privilegios por defecto: solo difieren funciones y secuencias de `postgres` en `public` (I-132) y el esquema `supabase_functions`, que solo existe en la pila local |
+| 05 | `npm run verify:remote` (20:35:36–20:35:44) | Contra el mismo proyecto | **45 OK y 4 en rojo**, las cuatro de `0075`–`0077` y ninguna más. Exit 1, esperado |
+| 06 | Qué ya tiene `service_role` | `prod-service-role.ts`, local y producción | `BYPASSRLS` y `SELECT` sobre siete tablas de negocio, entre ellas las tres que lee `search_tickets` (`tickets`, `clients` y `raffles`); las siete con RLS forzado. Nadie llama a `search_tickets` con la clave de servicio (`grep`) |
+
+**Errores propios encontrados:** una comparación escrita en `node -e` dentro de comillas dobles rompió la expresión
+regular al escaparla (solo leía los JSON locales; se repitió desde un archivo, 04); un `grep` de los bloques `do $$` en
+las migraciones, también entre comillas dobles, sustituyó `$$` por el PID y no encontró nada: repetido con comillas
+simples, solo `0077` se comprueba a sí misma; y el guion de lectura dice «de la CSP servida» también en su ensayo
+local, que no la lee (solo la etiqueta).

@@ -4,7 +4,9 @@ Estado del producto y registro de lo entregado por fase. El relevo del último a
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
 - **Actualizado:** 2026-09-25 — **auditoría visual y listas, D-211 a D-226, SOLO EN LOCAL** (mantenimiento
-  posterior a la Fase 9, sin fase ni etiqueta nuevas). Este archivo se quedó en D-210 mientras corrían
+  posterior a la Fase 9, sin fase ni etiqueta nuevas), **y producción comprobada en solo lectura antes de publicarlas
+  (D-227)**: sirve `9acbfa8` con Next 16.3.0, tiene `0001`–`0074` y le faltan exactamente `0075`–`0077`;
+  `verify:remote` 45 OK y las 4 esperadas en rojo. Nada impide autorizar la publicación; no está autorizada. Este archivo se quedó en D-210 mientras corrían
   diez bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
   **(1) Funcionalidades:** foco al cerrar una confirmación (D-212); las siete listas **ordenan y paginan en
@@ -32,11 +34,12 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   código de rifa no se recorta a partir de la 1.000).
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** I-163 **corregido en local** y, con Next 16.3.6, **resuelto en origen**, sin comprobar en Vercel (D-223, D-226); **I-167** resuelta en
-  local (D-224) y sin comprobar en Vercel; **I-166**, acotada a Windows, sin comprobar en Vercel, como la versión de Node
-  del despliegue; **I-169** resuelta en local (D-225); **I-168**, defecto de Next 16.3.0 anterior al lote que afecta a
+  local (D-224) y sin comprobar en Vercel; **I-166**, acotada a Windows, sin comprobar en Vercel —que usa Node 24.x por configuración, sin
+  la versión exacta (D-227)—; **I-169** resuelta en local (D-225); **I-168**, defecto de Next 16.3.0 anterior al lote que afecta a
   `next dev` y a `next start` —en Vercel no aplica según Next, sin comprobar—, que 16.3.6 **no** corrige; su prueba se
   sincronizó (D-226); **I-170**, producción en Next 16.3.0, dentro del rango de tres avisos críticos y sin explotabilidad
-  demostrada en su configuración, hasta publicar 16.3.6 (D-226); el ACL de `search_tickets` por confirmar (I-132); **I-159**, **I-160**, **I-161**, **I-151**
+  demostrada en su configuración, hasta publicar 16.3.6 (D-226); el ACL de `search_tickets`, **comprobado**: ya tiene `service_role` y publicar no lo cambia (I-132, parte
+  general abierta; D-227); la reversión tras publicar vuelve a Next 16.3.0 salvo que se apruebe el puente de D-227 §7; **I-159**, **I-160**, **I-161**, **I-151**
   y **I-059**; el resto de la auditoría visual, sin autorizar.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —incluidas las filas **Entorno** y **Git**— y §1.c.
   **Nada de esto está en producción**, y la rama no se ha fusionado.
