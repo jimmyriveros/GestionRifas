@@ -14559,7 +14559,9 @@ sesión `710dce60…`, fuera del repositorio; resultados en `TEST_RESULTS`, D-22
 **solo** la subida de `next` y `eslint-config-next` a 16.3.6 con su *lock*. **Del agente**, con su porqué abajo: el
 nombre de la rama, cómo se construyó y midió, la compatibilidad con `0077` medida con la E2E **completa**, fusionar sin
 rebasar y no corregir en el puente la prueba de I-171. **Pendiente:** publicarlo (S0–S4) e incorporarlo al lote
-(I1–I3), cada paso con su autorización (`DEPLOYMENT` §3.3.a.1).
+(I1–I3), cada paso con su autorización (`DEPLOYMENT` §3.3.a.1). *Actualizado el 2026-09-26:* **publicado** (§4, S4
+cerrada con la revisión del dueño) e **incorporado al lote en local** (§5, fusión `5f5dace`); I3 pasa a la puerta del
+lote, que sigue sin autorizar.
 
 ### 1. El commit
 
@@ -14630,7 +14632,41 @@ fusión con su rama; **la reversión, si hiciera falta, la ejecuta el dueño des
 | S3 | `9acbfa8..e6c2c5f` por avance rápido a las 00:14:28 UTC; **`dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` READY a las 00:15:38**; CI de `main` **2/2** (run `36204096124`) |
 | S4 | `f6773cfc2306` servido y Next **16.3.6** en el cliente; 40/40 rutas iguales que antes, 0 × 5xx; 7/7 cabeceras; 0 secretos; 45 + 4; catálogo idéntico; 0 errores en la función. Punto de reversión: **`dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`** (`9acbfa8`) |
 | Pendiente | **La imagen semanal con la sesión de un vendedor, del dueño**; y, con su propia autorización, I1–I3 |
+| S4, cierre (el mismo día) | ✅ **El dueño**, con su sesión de vendedor y en su teléfono: la imagen en ~1 s, descargada, sin errores. **Registros**, en solo lectura: la imagen en 200 dos veces; en todo el despliegue, 0 errores, avisos o 5xx y ninguna de las cinco frases del paso 10. **`/_next/image` lo sirve Vercel**, no `next-server`: I-168 y GHSA-2xp9 no aplican en producción |
 
 **Cómo se esperó el CI sin sondearlo.** La aplicación de escritorio vinculó el PR y `get_status` lee su caché; entre
 lecturas se hizo trabajo real o un temporizador de cuatro minutos, y la confirmación final fue **una** lectura de
 `gh run view`. No se activó el auto-arreglo, que el dueño no pidió.
+
+**Lo que el cierre de S4 NO demuestra.** El puente es `9acbfa8` con Next 16.3.6: no lleva el código del lote. Dos de las
+cinco frases —«og-renderer» y «no se pudo cargar sharp»— solo existen en ese código, así que su ausencia aquí no
+prueba nada sobre él; la imagen del lote, con su gancho y su carga diferida de `sharp` (D-223, D-224), se comprueba en
+P9. Lo que sí queda para siempre es lo de la plataforma: `/_next/image` fuera de la función no depende del código, y el
+lote no cambia la versión de Next, `next.config.ts` ni `vercel.json`.
+
+### 5. El puente en la rama del lote (I1–I2, 2026-09-26, solo en local)
+
+**Autorización expresa del dueño** para I1–I3: fusionar `e6c2c5f` en la rama del lote sin rebase ni reescribir commits,
+comprobar que no entra nada inesperado, conservar la evidencia y dejar lista la siguiente puerta. **No** incluye *push*,
+migraciones ni otro despliegue.
+
+| | Resultado |
+|---|---|
+| I1 | `merge-tree` repetido contra la punta de ese momento, `628cbdc`: sin conflictos y árbol `a66808f8…`, **el mismo** |
+| I2 | `git merge --no-ff` → **`5f5dace2c484628f2a23269fa829bd321b14bb1a`**, padres `628cbdc` y `e6c2c5f`. **0 archivos cambiados**; la historia del primer padre, idéntica —351 commits, ningún *hash* nuevo—; `9acbfa8`, `00ee2f6`, `e6c2c5f` y `origin/main`, ancestros; fuera de `docs/`, **0 archivos** distintos de `00ee2f6`, el último árbol probado entero |
+| I3 | **No se hizo** |
+
+**Decisiones del agente:**
+
+1. **I3 no se ejecuta.** El dueño autorizó «I1–I3», pero también que la autorización **no incluye *push***, e I3 es
+   empujar la rama. Manda la exclusión explícita. I3 pasa a ser **PB** de la puerta del lote.
+2. **PB va antes de tocar la base.** El PR y el CI 2/2 sobre la punta exacta, antes de P1: si el CI falla, la puerta se
+   detiene sin haber migrado. En D-208 el CI se puso en rojo **después** de desplegar (I-140). Y un commit más encima de
+   esa punta obliga a repetir PB: el CI tiene que ser el del SHA que se publica.
+3. **Un PR nuevo.** Los #1 y #2 salieron de `feature/premios-configurables` y están fusionados; el lote lleva su propio
+   PR.
+4. **Sin `verify` ni `test:db` ahora.** La fusión no cambia ningún archivo y la documentación no la lee ningún código ni
+   ninguna prueba (medido con `grep`: solo comentarios y un mensaje). Los resultados de `00ee2f6` siguen valiendo para
+   este código, y el CI los vuelve a medir en PB.
+5. **El mensaje de la fusión** dice qué autoriza, que no cambia archivos y que no hubo rebase: la documentación cita
+   commits del lote por su *hash*, y este commit es la prueba de que siguen siendo esos.

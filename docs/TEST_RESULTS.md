@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (el puente de D-228 EN PRODUCCIÓN, `e6c2c5f`, 2026-09-26)** | **1.522/1.522** en Linux, Node 20 y 24; CI 2/2 en el PR #3 | sin cambio de esquema: siguen `0001`–`0074` | Local: **794/798** en `0074` y en `0077`, los cinco fallos reproducidos en `9acbfa8` con 16.3.0. En vivo: 40/40 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `f6773cfc2306` servido y Next 16.3.6 | `verify:remote` **45 + 4** esperados | ✅ **En producción.** Avance rápido `9acbfa8..e6c2c5f`. Reversión: `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`. Pendiente del dueño: la imagen semanal con sesión |
+| **Post-9 vigente (S4 del puente cerrada y el puente fusionado en la rama del lote, esto último solo en local, 2026-09-26)** | sin cambio: la fusión y la documentación no tocan código | sin cambio de esquema | Producción: la imagen semanal con la sesión del dueño en ~1 s; registros del despliegue con 2 × 200 en la imagen, **0** errores, avisos o 5xx y **0** de las cinco frases; `/_next/image` lo sirve Vercel. Fusión `5f5dace`: árbol **idéntico** al de `628cbdc` y **0 archivos fuera de `docs/`** distintos de `00ee2f6`, el último árbol probado entero (D-226) | no se corrió: ningún archivo de código cambió; lo corre el CI en PB | ✅ **S4 cerrada; I1–I2 hechos.** I3 pasa a PB de la puerta del lote. **Nada empujado** |
+| Post-9 anterior (el puente de D-228 EN PRODUCCIÓN, `e6c2c5f`, 2026-09-26) | **1.522/1.522** en Linux, Node 20 y 24; CI 2/2 en el PR #3 | sin cambio de esquema: siguen `0001`–`0074` | Local: **794/798** en `0074` y en `0077`, los cinco fallos reproducidos en `9acbfa8` con 16.3.0. En vivo: 40/40 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `f6773cfc2306` servido y Next 16.3.6 | `verify:remote` **45 + 4** esperados | ✅ **En producción.** Avance rápido `9acbfa8..e6c2c5f`. Reversión: `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`. Pendiente del dueño: la imagen semanal con sesión |
 | Post-9 anterior (D-210 EN PRODUCCIÓN, `9acbfa8`, 2026-09-19) | sin cambio de número | sin cambio de esquema | Previas: **19/19** de alineación. PR #2 CI **2/2**; `main` CI **2/2**. En vivo **27/27** rutas, 7/7 cabeceras, 0 secretos, `484ebe210458` servido | `verify:remote` **46/46** | ✅ **En producción.** Avance rápido `6401bd0..9acbfa8`. Reversión: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`. Pendiente del dueño: sesión |
 | Post-9 anterior (alineación de campos, D-210, y la prueba de oscuro corregida, solo en local, 2026-09-19) | sin cambio | sin cambio | **19/19** (`formularios-alineacion` 16, `formularios-alineacion-movil` 3). La de oscuro **falló** en `73f3e83` al exigir `.dark` (`false`); con la clase aplicada después del diálogo, pasa, y sin activarla la sonda ve el token claro | eslint de las specs ✅ | ✅ **Solo local.** La evidencia «oscuro» de `73f3e83` no valía; detalle en la nota posterior de D-210 |
 | Post-9 anterior (alineación de campos en la misma fila, D-210, solo en local, 2026-09-19) | **1.522 ✅** en 80 archivos (sin cambio de número) | **1.402 ✅ y 1 omitida** en 57 archivos (sin cambio de esquema) | **18/18** nuevas (`formularios-alineacion` 15, `formularios-alineacion-movil` 3). La de Día/Hora **falló con 14 px** antes de `content-start` y pasó después. Relacionadas: crear recordatorio ✅, crear rifa configurable ✅. ⚠️ La casilla «oscuro» de esa pasada **no activaba `.dark`** | ✅ `verify` exit 0 · lint 0 errores y los 2 avisos de siempre | ✅ **Solo local.** Causa corroborada: `FormItem` en `grid` repartía el hueco extra. Figma no se tocó |
@@ -15077,4 +15078,33 @@ migraciones, permisos, configuración, el lote ni la fusión con la rama del lot
 | Vercel | El inmediatamente anterior de producción es **`dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`** (`9acbfa8`) con `isRollbackCandidate`: **es el punto de reversión del puente** |
 | Registros de la función del despliegue nuevo | **0** errores y **0** 5xx; las 40 rutas del barrido, con sus códigos |
 | CI de `main` | Run **`36204096124`** (`push`) sobre `e6c2c5f`: ✅ **2/2** —«Typecheck, lint, unitarias, build» 00:14:35–00:17:05 y «Migraciones desde cero + pruebas de base de datos» 00:14:33–00:20:36 UTC— |
-| **La imagen semanal con sesión de vendedor, en un teléfono real** | ⏳ **Pendiente del dueño.** No se da por comprobada hasta su confirmación |
+| **La imagen semanal con sesión de vendedor, en un teléfono real** | ⏳ **Pendiente del dueño.** No se da por comprobada hasta su confirmación. ✅ *Confirmada después, el mismo día*: ver «S4 — cierre» |
+
+### S4 — cierre: la imagen con la sesión del dueño y sus registros (solo lectura, hasta las 01:04 UTC)
+
+| Qué | Resultado |
+|---|---|
+| **El dueño**, con su sesión de vendedor y en su teléfono | ✅ «La imagen apareció correctamente y pude descargarla. Tardó aproximadamente un segundo y no vi errores» |
+| `/api/weekly-results/image` en los registros de `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` | **200** a las 00:52:58 y a las 00:55:05 UTC, `cache=MISS` —las dos de la sesión del dueño—, y **307** a las 00:16:29, del barrido sin sesión de S4. La pantalla, `/seller/settings/weekly-results`: cinco entradas en 200 —de la función y del proxy— entre las 00:52:52 y las 00:55:11 |
+| Todo el despliegue, de 00:14 a 01:04 UTC | **0** entradas de nivel error, aviso o fatal; **0** respuestas 5xx. Búsqueda de texto de las cinco frases del paso 10 (`DEPLOYMENT` §3.3.a) —«unsupported», «og-renderer», «sharp», «uncaught», «instrumentation»—: **0** en cada una. «og-renderer» y «no se pudo cargar sharp» son del código del lote, que el puente no lleva: con el puente no demuestran nada, y se repiten en P9 |
+| `/_next/image` | Petición sin sesión a las 00:59:47 UTC a la imagen del *hero* del catálogo con `w=1920` —la clave que dispara I-168—: **200**, `image/webp`, `Server: Vercel`, `X-Matched-Path` con la ruta de la imagen original y `X-Vercel-Cache: HIT`; **ninguna** cabecera `x-nextjs-*`. La ruta **no aparece** en los registros de la función ni del proxy: **la sirve Vercel, no `next-server`**. I-168 y GHSA-2xp9 no aplican en producción |
+| Node | 24.x por el ajuste del proyecto (D-227). La versión exacta no se registró: no se cambió nada para verla |
+| Método | `get_runtime_logs` de Vercel filtrado por el despliegue, sin datos de cliente: rutas, códigos y recuentos. Una lectura con `group_by=level` devolvió una tabla vacía; el recuento de niveles se hizo con el filtro `level`. Evidencia: `puerta-s/evidencia/s4-05-registros-imagen.txt` |
+
+### I1–I2 — el puente entra en la rama del lote (2026-09-26, solo en local)
+
+**Autorización expresa del dueño** para I1–I3: fusionar `e6c2c5f` en la rama del lote, sin rebase ni reescribir
+commits, y comprobar que no entra ningún cambio inesperado. **No** incluye *push*, migraciones ni otro despliegue: por
+eso **I3 no se hizo** (empuja la rama) y pasa a PB de la puerta del lote.
+
+| Qué | Resultado |
+|---|---|
+| Antes | Rama `feature/premios-configurables` en `628cbdc`; árbol limpio salvo los tres archivos del usuario. La lista de commits del primer padre, guardada (`i2-commits-antes.txt`) |
+| I1, `git merge-tree --write-tree --name-only feature/premios-configurables fix/puente-next-16.3.6` | Salida **0**, sin conflictos; árbol **`a66808f821bbc264495ef7cd0b6f3c3663d8cabe`**, el mismo que el de `628cbdc` |
+| I2, `git merge --no-ff fix/puente-next-16.3.6` | **`5f5dace2c484628f2a23269fa829bd321b14bb1a`**, padres `628cbdc` y `e6c2c5f`; árbol `a66808f8…`, el de `628cbdc` y el del ensayo |
+| Cambios que mete la fusión | **0 archivos** frente a su primer padre |
+| Historia | La del primer padre, **idéntica** a la de antes: 351 commits, ninguno cambió de *hash*. `9acbfa8`, `00ee2f6`, `e6c2c5f` y `origin/main` son ancestros de la fusión |
+| Dependencias | `package.json` y `package-lock.json`: **0** diferencias con el puente y con `00ee2f6`. Entre el puente y la fusión tampoco cambian `next.config.ts`, `vercel.json` ni `.github/` |
+| Código frente al último árbol probado entero | Fuera de `docs/`, **0 archivos** distintos de `00ee2f6`, donde D-226 midió `verify` (1.648), `test:db` (1.444 + 1), la E2E completa (906/909, explicada) y las unitarias en Linux con Node 20 y 24. Ningún código ni prueba lee los documentos: la fusión y la documentación no pueden cambiar esos resultados, y por eso no se repitieron |
+| `main` | `origin/main..5f5dace`: **28** commits, todos descendientes de `origin/main` (`e6c2c5f`): `main` puede avanzar sin `force`. La rama remota del lote, `3db7548`, es ancestro: su empuje también es avance rápido |
+| Nada empujado | `origin/main` y `origin/feature/premios-configurables` sin tocar; los tres archivos del usuario, intactos |

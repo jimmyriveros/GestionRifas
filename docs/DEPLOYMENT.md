@@ -1,6 +1,10 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-26 (§3.2.o y §3.3.a.1: **el puente EN PRODUCCIÓN** —`e6c2c5f`, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`,
+**Actualizado:** 2026-09-26, más tarde (§3.2.o y §3.3.a.1: **S4 cerrada** —el dueño vio y descargó la imagen semanal
+con su sesión, y los registros de esa petición están limpios— e **I1–I2 hechos en local**: la fusión `5f5dace` mete el
+puente en la historia del lote **sin cambiar ningún archivo**; §3.3.a: la puerta del lote **preparada, NO autorizada**,
+con el puente como punto de reversión y el empuje de la rama —I3— dentro de ella, como PB). Antes, ese mismo día
+(§3.2.o y §3.3.a.1: **el puente EN PRODUCCIÓN** —`e6c2c5f`, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`,
 READY a las 00:15:38 UTC—, por avance rápido tras el CI 2/2; S4 técnico en verde; falta la revisión del dueño de la
 imagen semanal con su sesión; el lote y su fusión, sin hacer). Antes, 2026-09-25, más tarde (§3.3.a.1: **el puente** —`9acbfa8` con Next 16.3.6, `e6c2c5f`—, opción A de
 D-227 aprobada por el dueño, **preparado y medido en local** —D-228—, con el procedimiento exacto para publicarlo y
@@ -863,6 +867,18 @@ del despliegue nuevo: **0** errores y **0** 5xx.
 > (S4). **No se da por comprobada** hasta que la confirme. **El commit de documentación de esta puerta** se queda en la
 > rama del lote y **no** se empuja: desplegaría otra versión y movería el punto de reversión.
 
+**S4 cerrada el mismo día** (`TEST_RESULTS`, puerta S). **El dueño**, con su sesión de vendedor y en su teléfono: la
+imagen apareció en ~1 s, la descargó y no vio errores. **Los registros de esa petición**, en solo lectura:
+`/api/weekly-results/image` respondió **200** a las 00:52:58 y a las 00:55:05 UTC —y 307 sin sesión en el barrido de
+las 00:16:29—; en todo el despliegue, **0** entradas de error, aviso o fatal, **0** respuestas 5xx y **ninguna** de las
+cinco frases del paso 10 de §3.3.a. Dos de esas frases —«og-renderer» y «no se pudo cargar sharp»— son del código del
+lote, que el puente no lleva: **para el lote se buscan otra vez en P9**. **`/_next/image` lo sirve Vercel, no
+`next-server`**: la imagen del *hero* del catálogo con `w=1920` —la clave que dispara I-168— respondió 200 con
+`Server: Vercel`, `X-Matched-Path` y `X-Vercel-Cache: HIT`, sin cabeceras `x-nextjs-*`, y esa ruta no aparece en los
+registros de la función ni del proxy. **I-168 y GHSA-2xp9 no aplican en producción.** Node: 24.x por el ajuste del
+proyecto (D-227); la versión exacta no se registró. La documentación de esta puerta llega a `main` **con el lote**, no
+antes.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Próxima publicación: D-211 a D-226, con Next 16.3.6 (preparada, NO autorizada)
@@ -871,9 +887,9 @@ Tres cosas distintas, que no se mezclan:
 
 | | Qué | Fuente |
 |---|---|---|
-| **Documentado como publicado** | Migraciones `0001`–`0074`; código `9acbfa8` (D-210), el último release registrado; `verify:remote` **46/46** el 2026-09-19 a las 21:15 UTC, **la última comprobación contra producción que consta** | §2 y §3.2.n |
-| **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `9acbfa8`: D-211 a D-220, 16 commits a 2026-09-23, y después D-221 a D-226, que añaden la **subida de `next` y `eslint-config-next` a 16.3.6** por tres avisos críticos (I-170, D-226) | Git local: `origin/main..HEAD` |
-| **Comprobado contra producción, en solo lectura, el 2026-09-25 (20:30–20:36 UTC)** | Producción en **`0074`** y sirviendo **`9acbfa8`** con Next **16.3.0**; ningún despliegue ni migración desde el 2026-09-19; `verify:remote` **45 OK + las 4 de `0075`–`0077` en rojo**, y ninguna más; `search_tickets` ya con `service_role=X`; los dos disparadores de PostgREST, activos; Node **24.x** por configuración. **Dictamen: nada impide autorizar la publicación.** Se repite en la puerta (P0 de la propuesta) | D-227 y `TEST_RESULTS`, D-227 |
+| **Documentado como publicado** | Migraciones `0001`–`0074`; código **`e6c2c5f`** —el puente, `9acbfa8` con Next 16.3.6 (D-228)—, el último release registrado; `verify:remote` **45 + las 4 de `0075`–`0077`** en S4, el 2026-09-26, **la última comprobación contra producción que consta**. *Antes del puente:* `9acbfa8` (D-210) y 46/46 el 2026-09-19 | §2, §3.2.n y §3.2.o |
+| **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `e6c2c5f`: D-211 a D-226 y su documentación. **La subida a Next 16.3.6 ya está publicada** con el puente: el lote trae los mismos `package.json` y `package-lock.json`, y tampoco cambia `next.config.ts`, `vercel.json` ni `.github/` (medido el 2026-09-26). Desde el 2026-09-26 el puente ya está en la historia del lote (fusión `5f5dace`) | Git local: `origin/main..HEAD` |
+| **Comprobado contra producción, en solo lectura, el 2026-09-25 (20:30–20:36 UTC)** | Producción en **`0074`** y sirviendo **`9acbfa8`** con Next **16.3.0**; ningún despliegue ni migración desde el 2026-09-19; `verify:remote` **45 OK + las 4 de `0075`–`0077` en rojo**, y ninguna más; `search_tickets` ya con `service_role=X`; los dos disparadores de PostgREST, activos; Node **24.x** por configuración. **Dictamen: nada impide autorizar la publicación.** Se repite en la puerta (P0 de la propuesta). *Repetido en S0 y S4 de la puerta del puente, el 2026-09-26, con el mismo resultado; desde entonces sirve `e6c2c5f` con Next 16.3.6* | D-227, D-228 y sus `TEST_RESULTS` |
 
 **Preparación local — hecha y medida (D-221, 2026-09-23).** Nada de esto es una verificación de producción:
 
@@ -931,12 +947,17 @@ autorización expresa** del dueño.
     proyecto y por `engines` `>=20.19.0` (D-227); la exacta solo se ve con `node -v` en la construcción o registrando
     `process.version`, y no se cambia nada para verla— y que el código servido lleva **Next 16.3.6** (I-170). En lectura y con autorización, comprobar también
     que `/_next/image` no lo sirve `next-server` —se espera que no, según el código de Next—: es lo que falta para
-    descartar en producción I-168 y GHSA-2xp9. Si falla, es un problema del código: Instant Rollback, sin tocar la base.
+    descartar en producción I-168 y GHSA-2xp9. *Comprobado con el puente el 2026-09-26* (§3.2.o): lo sirve Vercel. El
+    lote no cambia la versión de Next, `next.config.ts` ni `vercel.json`, así que en P9 basta con ver que sigue igual. Si falla, es un problema del código: Instant Rollback, sin tocar la base.
 
 **Recuperación, en este orden:**
 
-* **Problema del código** → Instant Rollback al despliegue anterior en Vercel (§4.1), **sin tocar la base**: el
-  código de `9acbfa8` funciona con `0077` aplicada (medido en local, D-221). Ese despliegue lleva **Next 16.3.0**:
+* **Problema del código** → *Instant Rollback* al despliegue inmediatamente anterior (§4.1), **sin tocar la base**.
+  **Desde el 2026-09-26 ese despliegue es el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` (`e6c2c5f`: `9acbfa8` con
+  Next **16.3.6**), mientras no se despliegue nada más antes del lote: volver a él **conserva el parche de I-170** y
+  funciona con `0077` aplicada —E2E completa **794/798** sobre `0077`, con sus cinco fallos reproducidos en `9acbfa8`
+  con 16.3.0 (D-228)—. Lo pulsa el dueño desde el panel; después, «Undo Rollback» antes de volver a desplegar (§4.1).
+  *Lo que sigue en este punto es la historia de cómo se llegó ahí:* el código de `9acbfa8` funciona con `0077` aplicada (medido en local, D-221). Ese despliegue lleva **Next 16.3.0**:
   volver a él devuelve producción al rango de los tres avisos de I-170 hasta corregir y volver a publicar. **Para que
   la reversión conserve 16.3.6**, hay que publicar antes un puente —`9acbfa8` con solo Next 16.3.6, sin migraciones—
   que pase a ser el despliegue inmediatamente anterior: opción A de D-227 §7. **Aprobada por el dueño el 2026-09-25 y
@@ -948,36 +969,42 @@ autorización expresa** del dueño.
   anterior servido, porque el nuevo llama a las firmas de `0075`. Ensayado en local; **nunca en producción**.
 * **Pérdida o daño de datos** → el respaldo del paso 6 (`RUNBOOK` §5). Ninguna de las tres migraciones escribe filas.
 
-**Propuesta concreta para la ventana de publicación (D-227, 2026-09-25) — preparada, NO autorizada.** Es la lista de
-arriba con los valores medidos hoy. **Cada puerta que escribe se autoriza por separado**; el agente no inicia sesión,
+**Propuesta concreta para la ventana de publicación (D-227, 2026-09-25; actualizada el 2026-09-26 con el puente
+publicado y fusionado, D-228 §5) — preparada, NO autorizada.** Es la lista de arriba con los valores medidos. **Cada puerta que escribe se autoriza por separado**; el agente no inicia sesión,
 no escribe contraseñas y no pulsa la reversión. Cualquier resultado distinto del esperado **detiene** y se reporta;
 nada se corrige en producción. Sigue el orden de `RUNBOOK` §9.3, ya ejecutado en una puerta real. `<REF>` es la
 referencia de 20 letras (`zqwu…`), confirmada antes contra la CSP.
 
 | # | Puerta | Qué se hace | Se sigue solo si |
 |---|---|---|---|
-| P0 | Solo lectura, justo antes | Repetir D-227 §1–§4. Fuera de las horas UTC 3, 4, 5, 6, 12, 13, 15 y 16, con `lottery_sync_lock` libre y ningún recordatorio en los 30 min siguientes; la franja más tranquila medida es 07:00–10:59 UTC (`RUNBOOK` §9.0) | Todo como el 2026-09-25: `0074`, el despliegue previsto, 45 + 4 y la misma ACL |
-| PA | El puente —opción A de D-227 §7, **aprobada por el dueño el 2026-09-25**— | Publicarlo y comprobarlo (§3.3.a.1, S0–S4: **hecho el 2026-09-26**, falta la revisión del dueño con sesión) y fusionarlo en la rama del lote (I1–I3: **pendiente**), **antes** de P1 | Puente servido, 45 + 4, la imagen semanal con sesión, y el lote con el puente en su historia |
+| P0 | Solo lectura, justo antes | Repetir D-227 §1–§4 y `git ls-remote origin refs/heads/main`. Fuera de las horas UTC 3, 4, 5, 6, 12, 13, 15 y 16, con `lottery_sync_lock` libre y ningún recordatorio en los 30 min siguientes; la franja más tranquila medida es 07:00–10:59 UTC (`RUNBOOK` §9.0) | Todo como en S4 del puente (2026-09-26): `0074`; servido **`f6773cfc2306`** (`e6c2c5f`, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`) y **nada desplegado después**; `origin/main` = `e6c2c5f`; 45 + 4; la misma ACL |
+| PA | El puente —opción A de D-227 §7, **aprobada por el dueño el 2026-09-25**— | ✅ **Hecho.** S0–S4 el 2026-09-26, con S4 cerrada por la revisión del dueño; I1–I2 en local el mismo día: fusión **`5f5dace`**, sin cambiar ningún archivo (§3.3.a.1). I3 pasa a PB | ✅ Puente servido, 45 + 4, la imagen semanal con sesión y el puente en la historia del lote |
+| PB | La rama del lote en GitHub y su CI (I3) | **Antes de escribir en la base.** `git push origin feature/premios-configurables`: avance rápido desde `3db7548`, sin `force`. PR **nuevo** `feature/premios-configurables` → `main` —los #1 y #2 salieron de esa rama y están fusionados—. Vercel crea una previsualización que falla en `check:env` (I-022): esperado. **El SHA de la punta es el que se publica en P7**: un commit más encima obliga a repetir PB | CI **2/2** sobre ese SHA exacto; `git merge-base --is-ancestor e6c2c5f <SHA>`; `git diff --stat e6c2c5f <SHA> -- package.json package-lock.json next.config.ts vercel.json .github` **vacío**. Un rojo **detiene antes de migrar**: en D-208 el CI se puso en rojo después de desplegar (I-140) |
 | P1 | Delta esperado, en local (`RUNBOOK` §9.3, paso 1, con `0074`) | `gate-snapshot.ts p1-base --production --project-ref <REF>` · `npx supabase db reset --local --version 0074` · `gate-mirror-privileges.ts <foto p1-base>` · `gate-snapshot.ts p1-l0 --local` y su comparación `--structure-only` con `p1-base` · `npx supabase migration up --local` · `gate-snapshot.ts p1-l1 --local --base <p1-l0>` · `gate-compare.ts <p1-l0> <p1-l1> --structure-only --save-delta delta-esperado-0075-0077.json`. Ensayar también, en local, la comparación de la puerta (`gate-compare.ts <p1-l0> <p1-l1> --local --operation migrations --migrations 0075,0076,0077 --expected-delta …`) y `verify-remote` contra esa base. Después, la base local a la normalidad: `db reset`, Kong, Auth y `seed:local` | `p1-base` frente a `p1-l0`: **solo** los 2 secretos del Vault y `supabase_functions`. Delta: funciones **+4 −2** —las firmas de 8 parámetros de `search_tickets` y `admin_list_tickets` por las de 10, y `admin_list_sellers` y `admin_list_raffles`—, el cuerpo de `raffles_set_short_code`, **+2 vistas** y **+3 migraciones**; ni tablas, ni columnas, ni restricciones, ni índices, ni políticas; `search_tickets` con `{postgres, service_role, authenticated}`. Ensayo local: CONTINUAR y 49/49 |
 | P2 | Línea base | `gate-snapshot.ts p1-antes --production --project-ref <REF>` y la comparación `p1-base` → `p1-antes` con `--operation none` | CONTINUAR, o cada fila explicada por la «Opción A» |
 | P3 | Respaldo | `RUNBOOK` §5.1 en `Rifas-backups/<fecha>-antes-0075-0077/`: 0 nombres `"auth".` cualificados, 0 `INSERT INTO "auth"`, 0 credenciales; validado restaurándolo en local (§5.2) frente a `p1-antes`; después, la base local a la normalidad | La restauración trae las mismas filas |
 | P4 | Migraciones pendientes | `npx supabase db push --dry-run --db-url "$SUPABASE_DB_URL"` | **Exactamente** `0075`, `0076` y `0077`, en orden |
 | P5 | Migraciones, antes del código | `npx supabase db push --yes --db-url "$SUPABASE_DB_URL"` y `npx supabase migration list --db-url "$SUPABASE_DB_URL"` | Sin error —la autocomprobación de `0077` no aborta— y `0001`–`0077` iguales en los dos entornos |
 | P6 | Después de migrar, en lectura | `npm run verify:remote` · `gate-snapshot.ts p1-despues --production --project-ref <REF> --base <p1-antes>` · `gate-compare.ts <p1-antes> <p1-despues> --production --project-ref <REF> --operation migrations --migrations 0075,0076,0077 --expected-delta delta-esperado-0075-0077.json --report informe-p1.json` · ACL de `search_tickets` · errores de ejecución del código servido | **49/49**; **CONTINUAR** con 0 filas tocadas —ninguna de las tres escribe datos— y la actividad explicada; la misma ACL que antes; sin errores |
-| P7 | Código | PR a `main` con el CI **2/2 sobre el mismo SHA**; `main` por avance rápido, sin `force`; **un** despliegue y ninguno más | READY |
-| P8 | Servido | `sha256(commit)[0:12]` en los fragmentos (§6.1); `16.3.6` declarado en el fragmento del cliente y «Detected Next.js version: 16.3.6» en la construcción; `verify:remote` 49/49; CSP con un proyecto y HSTS; sin errores de ejecución; `list_deployments`: el inmediatamente anterior es el destino previsto de la reversión —`9acbfa8`, o S con la opción A— y tiene `isRollbackCandidate` | Todo en verde |
-| P9 | La imagen semanal (paso 10) | **El dueño**, con la sesión de un vendedor y en su teléfono: «Configuración» → «Resultados de la semana»; la imagen en ~1 s, y compartir y descargar. **El agente**, en lectura: registros de `/api/weekly-results/image` sin las cinco frases del paso 10, y registros agrupados por ruta sin `/_next/image` servido por la función —lo sirve Vercel, no `next-server`, lo que descarta en producción I-168 y GHSA-2xp9—; anotar Node 24.x y Next 16.3.6 | 200 y ninguna de esas líneas |
+| P7 | Código | Justo antes, `git ls-remote origin refs/heads/main` = `e6c2c5f`. `git push origin <SHA de PB>:refs/heads/main`: avance rápido **desde `e6c2c5f`**, sin `force` y **nunca** la rama local `main`, que sigue en `c48437a`; **un** despliegue y ninguno más | READY sobre ese SHA; CI de `main` 2/2 |
+| P8 | Servido | `sha256(commit)[0:12]` en los fragmentos (§6.1); `16.3.6` declarado en el fragmento del cliente y «Detected Next.js version: 16.3.6» en la construcción; `verify:remote` 49/49; CSP con un proyecto y HSTS; sin errores de ejecución; `list_deployments`: el inmediatamente anterior es **el puente, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`**, con `isRollbackCandidate` | Todo en verde |
+| P9 | La imagen semanal (paso 10) | **El dueño**, con la sesión de un vendedor y en su teléfono: «Configuración» → «Resultados de la semana»; la imagen en ~1 s, y compartir y descargar. **El agente**, en lectura: registros de `/api/weekly-results/image` sin las cinco frases del paso 10 —«og-renderer» y «no se pudo cargar sharp» solo pueden salir con el código del lote: con el puente no probaban nada—, y `/_next/image` todavía servido por Vercel, no por la función, **como ya se comprobó con el puente** (I-168 y GHSA-2xp9); anotar Node 24.x y Next 16.3.6 | 200 y ninguna de esas líneas |
 | P10 | Teléfono real, con sesión del dueño | Vendedor: cambiar el orden de «Mis boletas» y «Mis clientes», buscar y ver que la frase dice el orden que sale (D-215, D-216, D-218); el historial de abonos de la ficha, paginado (D-219). Personal: el orden de «Boletas», sin cliente ni dinero (D-217) | Lo que se ve coincide con lo que dice |
 
 **Registrados y NO incluidos en esta publicación** (no se implementan sin encargo): **I-159** (boletas de la ficha
 cortadas en 100), **I-160** (orden de los códigos de rifa como texto desde R1000; decisión pendiente) e **I-161**
 (código interno de boleta a 6 cifras).
 
-#### 3.3.a.1 El puente: `9acbfa8` con Next 16.3.6 (opción A de D-227, **aprobada**; preparado en D-228; **EN PRODUCCIÓN desde el 2026-09-26, 00:15 UTC**)
+#### 3.3.a.1 El puente: `9acbfa8` con Next 16.3.6 (opción A de D-227, **aprobada**; preparado en D-228; **EN PRODUCCIÓN desde el 2026-09-26, 00:15 UTC**; **fusionado en la rama del lote en local**, `5f5dace`)
 
 > **Puerta S ejecutada el 2026-09-26** con autorización expresa del dueño: S0–S4 como abajo, registro en §3.2.o y
 > `TEST_RESULTS`. Falta **solo** la revisión del dueño de la imagen semanal con su sesión. **I1–I4 siguen sin hacer**:
 > la fusión con la rama del lote necesita su propia autorización.
+>
+> **Actualizado el mismo día:** **S4 cerrada** con la revisión del dueño —la imagen en ~1 s, descargada— y los
+> registros de esa petición (§3.2.o). **I1–I2 hechos en local**, con su autorización: fusión **`5f5dace`**, resultados
+> al final de esta sección. **I3 no se hizo**: empuja la rama, y esa autorización excluía cualquier *push*; pasa a ser
+> **PB** de la puerta del lote (§3.3.a). I4 es esa puerta, preparada y **no autorizada**.
 
 El dueño eligió el 2026-09-25 la opción A: publicar **antes del lote** un puente con el código de hoy y Next 16.3.6, para
 que, si el lote falla, el *Instant Rollback* de Hobby vuelva a un despliegue con el parche. Preparado y medido en local
@@ -1013,6 +1040,16 @@ commit existente cambia de *hash*, y la documentación los cita.
 | I2 | Fusionar | En la copia principal, rama `feature/premios-configurables`, árbol limpio salvo los tres archivos del usuario: `git merge --no-ff fix/puente-next-16.3.6 -m "merge: el puente e6c2c5f (Next 16.3.6 sobre 9acbfa8) entra en el lote"` | Sin conflictos; `git diff HEAD^1 HEAD` vacío; `git merge-base --is-ancestor e6c2c5f HEAD` y `--is-ancestor 00ee2f6 HEAD` |
 | I3 | CI | Empujar la rama y CI 2/2 sobre ese SHA | 2/2 |
 | I4 | La puerta del lote | §3.3.a, P0–P10, con `main` por avance rápido de `e6c2c5f` al commit de fusión | El inmediatamente anterior en producción es el del puente |
+
+**Resultado de I1–I2, 2026-09-26, solo en local** (evidencia en `puerta-s/evidencia/i2-*` del *scratchpad* de la
+sesión `710dce60…`):
+
+| # | Resultado |
+|---|---|
+| I1 | Repetido contra la punta de ese momento, `628cbdc`: salida **0**, sin conflictos; árbol **`a66808f8…`**, idéntico al de `628cbdc` |
+| I2 | `git merge --no-ff fix/puente-next-16.3.6`, con el mensaje «merge: el puente e6c2c5f (Next 16.3.6 sobre 9acbfa8) entra en el lote» → **`5f5dace2c484628f2a23269fa829bd321b14bb1a`**, padres `628cbdc` y `e6c2c5f`. Árbol **`a66808f8…`, el mismo de `628cbdc` y del ensayo**: `git diff HEAD^1 HEAD` vacío. La historia del primer padre, **idéntica** a la de antes —351 commits, ninguno cambió de *hash*—. `9acbfa8`, `00ee2f6`, `e6c2c5f` y `origin/main` son ancestros. `package.json` y `package-lock.json`: 0 diferencias con el puente y con `00ee2f6`. **Fuera de `docs/`, 0 archivos distintos de `00ee2f6`**, el último árbol probado entero (D-226). `origin/main..5f5dace`: 28 commits, todos descendientes de `origin/main`: `main` puede avanzar sin `force` |
+| I3 | **No se hizo**: empujar la rama no estaba autorizado. Pasa a **PB** de §3.3.a |
+| I4 | Preparada en §3.3.a, **no autorizada** |
 
 #### 3.3.b Cómo se despliega
 
