@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-25, más tarde (§3.3.a.1: **el puente** —`9acbfa8` con Next 16.3.6, `e6c2c5f`—, opción A de
+**Actualizado:** 2026-09-26 (§3.2.o y §3.3.a.1: **el puente EN PRODUCCIÓN** —`e6c2c5f`, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`,
+READY a las 00:15:38 UTC—, por avance rápido tras el CI 2/2; S4 técnico en verde; falta la revisión del dueño de la
+imagen semanal con su sesión; el lote y su fusión, sin hacer). Antes, 2026-09-25, más tarde (§3.3.a.1: **el puente** —`9acbfa8` con Next 16.3.6, `e6c2c5f`—, opción A de
 D-227 aprobada por el dueño, **preparado y medido en local** —D-228—, con el procedimiento exacto para publicarlo y
 fusionarlo en el lote; **no publicado**). Antes, ese mismo día (§2 y §3.3.a: producción **comprobada en solo lectura** antes de publicar D-211 a D-226
 —D-227—: `9acbfa8` servido, `0001`–`0074`, pendientes exactamente `0075`–`0077`, `verify:remote` 45 + 4 esperados; con
@@ -834,6 +836,33 @@ publicar esta corrección, incluyendo rama, PR, `main` y el despliegue automáti
 > introduce contraseñas. Quedan pendientes del dueño. **El commit de documentación posterior** se queda en la rama y
 > **no** se empuja a `main`: desplegaría otra versión y, en Hobby, movería el punto de reversión lejos de `6401bd0`.
 
+### 3.2.o Release del puente: `9acbfa8` con Next 16.3.6 (D-228, puerta S) — 2026-09-26
+
+**Sin migración.** Solo `next` y `eslint-config-next` a 16.3.6 sobre el código que ya estaba publicado (§3.3.a.1).
+Autorización expresa del dueño para la puerta S: S0, rama, PR, CI 2/2, avance rápido y S4. **No** incluye el lote ni
+la fusión con su rama.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`e6c2c5f02f0f430665e20f35bda237da78cde5dc`**, el autorizado: el mismo SHA del PR #3 con el CI en verde |
+| Commit anterior en producción | `9acbfa85b84806c157dc75d828b6aba5e6e622e3` |
+| Integración | **Avance rápido** `9acbfa8..e6c2c5f`, 1 commit, **sin fusión, sin `force` y sin la rama local `main`**: `git push origin e6c2c5f…:refs/heads/main` a las **00:14:28 UTC**. GitHub marca el PR #3 fusionado por ese avance rápido, sin commit de fusión |
+| Despliegue Vercel | **`dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`**, `gestion-rifas-gjcaojg8r-jimmyriveros-projects.vercel.app`: creado a las 00:14:31, **READY a las 00:15:38 UTC**, con el alias `gestion-rifas.vercel.app`; el único de producción que disparó ese empuje. Construcción: «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6», `npm` cambió 7 paquetes, `check:env` sin avisos, Vercel CLI 59.25.4, `iad1` |
+| Despliegue anterior (**punto de reversión**) | `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT` (`9acbfa8`, Next 16.3.0), con `isRollbackCandidate`. *Instant Rollback* de Hobby, **sin tocar la base**; lo pulsa el dueño |
+| **Migraciones** | **NINGUNA.** Siguen **74** |
+| Dependencias y configuración | Solo `next` y `eslint-config-next` 16.3.6 con su *lock*; ni `vercel.json`, ni `next.config.ts`, ni `.github/`, ni variables |
+| CI | En el PR, run **`36203558362`** sobre `e6c2c5f`: ✅ **2/2** (00:06–00:11 UTC). En `main`, run **`36204096124`**: ✅ **2/2** (00:14–00:20 UTC) |
+
+**Verificación en vivo (S4):** servido **`f6773cfc2306`** (1 de 15 fragmentos) y el anterior, `484ebe210458`,
+**desaparecido**; el fragmento del cliente declara **16.3.6** (antes 16.3.0). **40 rutas iguales que la línea base**
+tomada en S0 —4 × 200, 33 × 307, 2 × 401, 1 × 404— y **ningún 5xx**; **7/7** cabeceras, CSP por *nonce*; **0 secretos** en
+971 KB. `verify:remote` **45 + las 4 de `0075`–`0077`**, y el catálogo **idéntico** al de S0. Registros de la función
+del despliegue nuevo: **0** errores y **0** 5xx.
+
+> **Pendiente del dueño, con su sesión de vendedor:** la imagen de «Resultados de la semana» en un teléfono real
+> (S4). **No se da por comprobada** hasta que la confirme. **El commit de documentación de esta puerta** se queda en la
+> rama del lote y **no** se empuja: desplegaría otra versión y movería el punto de reversión.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Próxima publicación: D-211 a D-226, con Next 16.3.6 (preparada, NO autorizada)
@@ -911,8 +940,9 @@ autorización expresa** del dueño.
   volver a él devuelve producción al rango de los tres avisos de I-170 hasta corregir y volver a publicar. **Para que
   la reversión conserve 16.3.6**, hay que publicar antes un puente —`9acbfa8` con solo Next 16.3.6, sin migraciones—
   que pase a ser el despliegue inmediatamente anterior: opción A de D-227 §7. **Aprobada por el dueño el 2026-09-25 y
-  preparada** (D-228, §3.3.a.1: `e6c2c5f`), **no publicada**: mientras no se publique, la reversión sigue siendo esta.
-  Después de cualquier reversión, los *push* a `main` dejan de publicarse solos hasta «Undo Rollback» (§4.1).
+  publicada el 2026-09-26** (D-228, §3.2.o): hoy sirve `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` (`e6c2c5f`), así que **cuando
+  se publique el lote, su punto de reversión será el puente**, con 16.3.6, siempre que no se despliegue nada más entre
+  medias. Después de cualquier reversión, los *push* a `main` dejan de publicarse solos hasta «Undo Rollback» (§4.1).
 * **Problema de la base** → `supabase/recovery/0077_a_0074.sql` en una transacción —se niega si ya hay una rifa
   `R1000` o mayor— y después `supabase migration repair --status reverted 0077 0076 0075`. Solo con el código
   anterior servido, porque el nuevo llama a las firmas de `0075`. Ensayado en local; **nunca en producción**.
@@ -927,7 +957,7 @@ referencia de 20 letras (`zqwu…`), confirmada antes contra la CSP.
 | # | Puerta | Qué se hace | Se sigue solo si |
 |---|---|---|---|
 | P0 | Solo lectura, justo antes | Repetir D-227 §1–§4. Fuera de las horas UTC 3, 4, 5, 6, 12, 13, 15 y 16, con `lottery_sync_lock` libre y ningún recordatorio en los 30 min siguientes; la franja más tranquila medida es 07:00–10:59 UTC (`RUNBOOK` §9.0) | Todo como el 2026-09-25: `0074`, el despliegue previsto, 45 + 4 y la misma ACL |
-| PA | El puente —opción A de D-227 §7, **aprobada por el dueño el 2026-09-25**— | Publicarlo y comprobarlo (§3.3.a.1, S0–S4) y fusionarlo en la rama del lote (I1–I3), **antes** de P1 | Puente servido, 45 + 4, la imagen semanal con sesión, y el lote con el puente en su historia |
+| PA | El puente —opción A de D-227 §7, **aprobada por el dueño el 2026-09-25**— | Publicarlo y comprobarlo (§3.3.a.1, S0–S4: **hecho el 2026-09-26**, falta la revisión del dueño con sesión) y fusionarlo en la rama del lote (I1–I3: **pendiente**), **antes** de P1 | Puente servido, 45 + 4, la imagen semanal con sesión, y el lote con el puente en su historia |
 | P1 | Delta esperado, en local (`RUNBOOK` §9.3, paso 1, con `0074`) | `gate-snapshot.ts p1-base --production --project-ref <REF>` · `npx supabase db reset --local --version 0074` · `gate-mirror-privileges.ts <foto p1-base>` · `gate-snapshot.ts p1-l0 --local` y su comparación `--structure-only` con `p1-base` · `npx supabase migration up --local` · `gate-snapshot.ts p1-l1 --local --base <p1-l0>` · `gate-compare.ts <p1-l0> <p1-l1> --structure-only --save-delta delta-esperado-0075-0077.json`. Ensayar también, en local, la comparación de la puerta (`gate-compare.ts <p1-l0> <p1-l1> --local --operation migrations --migrations 0075,0076,0077 --expected-delta …`) y `verify-remote` contra esa base. Después, la base local a la normalidad: `db reset`, Kong, Auth y `seed:local` | `p1-base` frente a `p1-l0`: **solo** los 2 secretos del Vault y `supabase_functions`. Delta: funciones **+4 −2** —las firmas de 8 parámetros de `search_tickets` y `admin_list_tickets` por las de 10, y `admin_list_sellers` y `admin_list_raffles`—, el cuerpo de `raffles_set_short_code`, **+2 vistas** y **+3 migraciones**; ni tablas, ni columnas, ni restricciones, ni índices, ni políticas; `search_tickets` con `{postgres, service_role, authenticated}`. Ensayo local: CONTINUAR y 49/49 |
 | P2 | Línea base | `gate-snapshot.ts p1-antes --production --project-ref <REF>` y la comparación `p1-base` → `p1-antes` con `--operation none` | CONTINUAR, o cada fila explicada por la «Opción A» |
 | P3 | Respaldo | `RUNBOOK` §5.1 en `Rifas-backups/<fecha>-antes-0075-0077/`: 0 nombres `"auth".` cualificados, 0 `INSERT INTO "auth"`, 0 credenciales; validado restaurándolo en local (§5.2) frente a `p1-antes`; después, la base local a la normalidad | La restauración trae las mismas filas |
@@ -943,7 +973,11 @@ referencia de 20 letras (`zqwu…`), confirmada antes contra la CSP.
 cortadas en 100), **I-160** (orden de los códigos de rifa como texto desde R1000; decisión pendiente) e **I-161**
 (código interno de boleta a 6 cifras).
 
-#### 3.3.a.1 El puente: `9acbfa8` con Next 16.3.6 (opción A de D-227, **aprobada**; preparado en D-228, **NO publicado**)
+#### 3.3.a.1 El puente: `9acbfa8` con Next 16.3.6 (opción A de D-227, **aprobada**; preparado en D-228; **EN PRODUCCIÓN desde el 2026-09-26, 00:15 UTC**)
+
+> **Puerta S ejecutada el 2026-09-26** con autorización expresa del dueño: S0–S4 como abajo, registro en §3.2.o y
+> `TEST_RESULTS`. Falta **solo** la revisión del dueño de la imagen semanal con su sesión. **I1–I4 siguen sin hacer**:
+> la fusión con la rama del lote necesita su propia autorización.
 
 El dueño eligió el 2026-09-25 la opción A: publicar **antes del lote** un puente con el código de hoy y Next 16.3.6, para
 que, si el lote falla, el *Instant Rollback* de Hobby vuelva a un despliegue con el parche. Preparado y medido en local

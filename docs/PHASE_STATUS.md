@@ -9,7 +9,9 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   `verify:remote` 45 OK y las 4 esperadas en rojo. Nada impide autorizar la publicación; no está autorizada. **Y el
   puente (D-228)**, la opción A que eligió el dueño: `e6c2c5f`, `9acbfa8` con solo Next 16.3.6, **preparado y medido
   en local** —E2E 794/798 en `0074` y en `0077`, sus cinco fallos reproducidos en `9acbfa8` con 16.3.0, la imagen
-  semanal en los tres órdenes y unitarias 1.522/1.522 en Linux—, **sin publicar ni fusionar**. Este archivo se quedó en D-210 mientras corrían
+  semanal en los tres órdenes y unitarias 1.522/1.522 en Linux—; **EN PRODUCCIÓN desde el 2026-09-26 a las 00:15:38
+  UTC** (`dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`), por avance rápido tras el CI 2/2, con S4 técnico en verde: **I-170
+  resuelta**. Falta la imagen semanal con la sesión del dueño; el lote y su fusión con el puente, sin hacer. Este archivo se quedó en D-210 mientras corrían
   diez bloques de mantenimiento; **su detalle vive en [`HANDOFF.md`](HANDOFF.md) §1.a y §1.a.0**, uno por
   bloque, y no se copia aquí. Los seis puntos de `CLAUDE.md` §34.3, resumidos para el conjunto:
   **(1) Funcionalidades:** foco al cerrar una confirmación (D-212); las siete listas **ordenan y paginan en

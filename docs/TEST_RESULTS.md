@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-210 EN PRODUCCIÓN, `9acbfa8`, 2026-09-19)** | sin cambio de número | sin cambio de esquema | Previas: **19/19** de alineación. PR #2 CI **2/2**; `main` CI **2/2**. En vivo **27/27** rutas, 7/7 cabeceras, 0 secretos, `484ebe210458` servido | `verify:remote` **46/46** | ✅ **En producción.** Avance rápido `6401bd0..9acbfa8`. Reversión: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`. Pendiente del dueño: sesión |
+| **Post-9 vigente (el puente de D-228 EN PRODUCCIÓN, `e6c2c5f`, 2026-09-26)** | **1.522/1.522** en Linux, Node 20 y 24; CI 2/2 en el PR #3 | sin cambio de esquema: siguen `0001`–`0074` | Local: **794/798** en `0074` y en `0077`, los cinco fallos reproducidos en `9acbfa8` con 16.3.0. En vivo: 40/40 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `f6773cfc2306` servido y Next 16.3.6 | `verify:remote` **45 + 4** esperados | ✅ **En producción.** Avance rápido `9acbfa8..e6c2c5f`. Reversión: `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`. Pendiente del dueño: la imagen semanal con sesión |
+| Post-9 anterior (D-210 EN PRODUCCIÓN, `9acbfa8`, 2026-09-19) | sin cambio de número | sin cambio de esquema | Previas: **19/19** de alineación. PR #2 CI **2/2**; `main` CI **2/2**. En vivo **27/27** rutas, 7/7 cabeceras, 0 secretos, `484ebe210458` servido | `verify:remote` **46/46** | ✅ **En producción.** Avance rápido `6401bd0..9acbfa8`. Reversión: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`. Pendiente del dueño: sesión |
 | Post-9 anterior (alineación de campos, D-210, y la prueba de oscuro corregida, solo en local, 2026-09-19) | sin cambio | sin cambio | **19/19** (`formularios-alineacion` 16, `formularios-alineacion-movil` 3). La de oscuro **falló** en `73f3e83` al exigir `.dark` (`false`); con la clase aplicada después del diálogo, pasa, y sin activarla la sonda ve el token claro | eslint de las specs ✅ | ✅ **Solo local.** La evidencia «oscuro» de `73f3e83` no valía; detalle en la nota posterior de D-210 |
 | Post-9 anterior (alineación de campos en la misma fila, D-210, solo en local, 2026-09-19) | **1.522 ✅** en 80 archivos (sin cambio de número) | **1.402 ✅ y 1 omitida** en 57 archivos (sin cambio de esquema) | **18/18** nuevas (`formularios-alineacion` 15, `formularios-alineacion-movil` 3). La de Día/Hora **falló con 14 px** antes de `content-start` y pasó después. Relacionadas: crear recordatorio ✅, crear rifa configurable ✅. ⚠️ La casilla «oscuro» de esa pasada **no activaba `.dark`** | ✅ `verify` exit 0 · lint 0 errores y los 2 avisos de siempre | ✅ **Solo local.** Causa corroborada: `FormItem` en `grid` repartía el hueco extra. Figma no se tocó |
 | Post-9 anterior (la promoción de Bre-B y «Otros» e I-140 corregida: EN PRODUCCIÓN, D-209, 2026-09-19) | **1.522 ✅** sin cambios; CI **2/2** en el PR (`35457272858`) y en `main` (`35459633957`) | **1.402 ✅ y 1 omitida**, también en **dos pasadas seguidas sobre la misma base**; en el CI, con `admin-privacy` después de las suites de premios, ✅. I-140: reproducida, corregida y cuatro mutaciones detectadas | ⚠️ **778/779** en 46,1 min: la fallida es **I-090** (`:163`, recibido 54); las 8 de Bre-B y «Otros», en verde. Las E2E de cuentas y recordatorios, **46/47** con I-150 (3 de 10 también en `318357c`) | ✅ `verify` exit 0 · `verify:remote` **44 + 2 en rojo** antes y **46/46** después, en producción | ✅ **En producción**: `0073` y `0074` a las 17:53 UTC con respaldo validado y CONTINUAR en cada comparación; `6401bd0` servido a las 17:57 UTC, en vivo en verde y sin errores de ejecución. **Pendiente del dueño:** las comprobaciones con sesión |
@@ -15023,3 +15024,57 @@ la base y el puerto se comprobaron después—; y la 23 misma, arriba.
 
 `git merge-tree --write-tree feature/premios-configurables fix/puente-next-16.3.6`: salida **0**, sin conflictos, base
 común `9acbfa8`; el árbol resultante, `d5e6fbccc405…`, es **el mismo** que el de `8d7766e`. Las ramas no se movieron.
+Repetido tras el commit de documentación `6ee00eb`: salida 0 y árbol `5527ae9ce576…`, el mismo que el de esa punta.
+
+---
+
+## D-228 — Puerta S: el puente en producción (2026-09-26)
+
+**Autorización expresa del dueño** para publicar **solo** `e6c2c5f02f0f430665e20f35bda237da78cde5dc`: S0, empujar la rama y
+abrir el PR, esperar el CI 2/2, publicar por avance rápido sin `force` ni la rama local `main`, y S4. **No** incluye
+migraciones, permisos, configuración, el lote ni la fusión con la rama del lote. Evidencia en `puerta-s/evidencia/` del
+*scratchpad* de la sesión `710dce60…`, fuera del repositorio. Ningún dato de cliente salió de estas lecturas.
+
+### S0 — solo lectura, 00:03–00:08 UTC
+
+| Qué | Resultado |
+|---|---|
+| Ventana | Hora UTC **00**, fuera de 3, 4, 5, 6, 12, 13, 15 y 16. Candado del sincronizador **libre**, **0** corridas sin terminar (la última, el 25/09 a las 05:02); **2** recordatorios activos y **0** que venzan en 30 min (el próximo, el 26/09 a las 23:50 UTC) |
+| Git y GitHub | `origin/main` = **`9acbfa8`** (`git ls-remote`); `main` sin protección ni reglas; ningún PR abierto; `gh` con permiso `repo` |
+| Procedencia y código servido | La CSP nombra un proyecto, el de `.env.local`; servido **`484ebe210458`** = `9acbfa8` |
+| Catálogo | `0001`–`0074`, pendientes exactamente `0075`–`0077`; migraciones, funciones y sus ACL, dependencias, disparador, vistas, privilegios por defecto, disparadores de eventos y sus cuerpos: **iguales que en D-227** |
+| `verify:remote` | **45 OK y las 4 de `0075`–`0077`** en rojo |
+| Vercel | La última de producción sigue siendo `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT` (`9acbfa8`); nada posterior |
+| Barrido en vivo, sin sesión (línea base) | 40 rutas: 4 × 200, 33 × 307 a `/login`, 2 × 401 (`/api/lottery/sync`, `/api/push/dispatch`), 1 × 404 (catálogo inexistente); **0 × 5xx**. **7/7** cabeceras, CSP con *nonce*; 15 fragmentos, 969 KB; Next **16.3.0**; **0** apariciones de la clave de servicio, de la contraseña de la base o de los literales `SUPABASE_SERVICE_ROLE_KEY` y `service_role` |
+
+### S1–S2 — la rama y el PR
+
+| Qué | Resultado |
+|---|---|
+| `git push origin fix/puente-next-16.3.6` | Rama nueva en remoto, en **`e6c2c5f`**; `main` intacta en `9acbfa8` |
+| PR | [jimmyriveros/GestionRifas#3](https://github.com/jimmyriveros/GestionRifas/pull/3), `fix/puente-next-16.3.6` → `main` |
+| Previsualización de Vercel | `dpl_8RKFQ3BhXQkd5z55iFdfzfvDCxnE`, **ERROR** en `check:env`: faltan las tres variables de Supabase en Preview. **Es I-022 funcionando**, igual que las previsualizaciones anteriores; es la comprobación «Vercel» del PR, **no el CI** |
+| CI del PR | Run **`36203558362`** (`pull_request`) sobre **`e6c2c5f`**: ✅ **2/2** —«Typecheck, lint, unitarias, build» 00:06:14–00:08:40 y «Migraciones desde cero + pruebas de base de datos» 00:06:14–00:11:44 UTC—. Leído con `get_status` de la aplicación y una sola lectura de `gh run view`, sin sondeos en bucle |
+
+### S3 — publicar
+
+| Qué | Resultado |
+|---|---|
+| Justo antes | 00:14:16 UTC, hora 00; `origin/main` = `9acbfa8`; candado libre, 0 corridas sin terminar y 0 recordatorios en 30 min |
+| `git push origin e6c2c5f02f0f430665e20f35bda237da78cde5dc:refs/heads/main` | ✅ `9acbfa8..e6c2c5f`, **avance rápido**, 00:14:28 UTC. Sin `force`; la rama local `main` sigue en `c48437a`, sin tocar |
+| GitHub | PR #3 **MERGED** a las 00:14:30, sin commit de fusión (su «commit de fusión» es `e6c2c5f`) |
+| Vercel | **`dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`**, producción, creado 00:14:31 y **READY 00:15:38 UTC**, alias `gestion-rifas.vercel.app`. Construcción: «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6 (Turbopack)», `npm` «changed 7 packages», `check:env` sin avisos opcionales, compilado en 15,0 s y TypeScript en 22,7 s |
+| El dominio | Sirve `f6773cfc2306` desde las **00:15:57 UTC** (primera comprobación después de READY), y el identificador anterior ya no aparece |
+
+### S4 — comprobar, 00:16–00:18 UTC
+
+| Qué | Resultado |
+|---|---|
+| Procedencia y código servido | CSP con un proyecto, el de `.env.local`; **`f6773cfc2306` = `e6c2c5f`** en 1 de 15 fragmentos; `484ebe210458` **desaparecido** |
+| Barrido en vivo frente a la línea base de S0 | **40 rutas, 0 distintas**: 4 × 200, 33 × 307, 2 × 401, 1 × 404, **0 × 5xx**. **7/7** cabeceras, CSP con *nonce*. El fragmento del cliente declara **16.3.6** (antes 16.3.0). **0** secretos en 971 KB |
+| `verify:remote` | **45 OK y las 4 de `0075`–`0077`** en rojo: la base no cambió |
+| Catálogo | Migraciones, funciones y sus ACL, disparadores de eventos y sus cuerpos, privilegios por defecto y pendientes: **iguales que en S0** |
+| Vercel | El inmediatamente anterior de producción es **`dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`** (`9acbfa8`) con `isRollbackCandidate`: **es el punto de reversión del puente** |
+| Registros de la función del despliegue nuevo | **0** errores y **0** 5xx; las 40 rutas del barrido, con sus códigos |
+| CI de `main` | Run **`36204096124`** (`push`) sobre `e6c2c5f`: ✅ **2/2** —«Typecheck, lint, unitarias, build» 00:14:35–00:17:05 y «Migraciones desde cero + pruebas de base de datos» 00:14:33–00:20:36 UTC— |
+| **La imagen semanal con sesión de vendedor, en un teléfono real** | ⏳ **Pendiente del dueño.** No se da por comprobada hasta su confirmación |

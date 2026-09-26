@@ -14616,3 +14616,21 @@ Linux (13), que no representa lo que verá el CI; la primera reproducción en 16
 temporales —no se cerró nada más: se comprobaron Docker, la base y el puerto—; y dos líneas del arnés que no medían
 nada: un recuento con una ruta `C:` que `tar` tomó por un servidor, y otro de procesos que busca `node` cuando Node 24
 se llama `MainThread`.
+
+### 4. Puerta S: el puente en producción (2026-09-26)
+
+**Autorización expresa del dueño** para publicar **solo** `e6c2c5f`: S0, rama y PR, CI 2/2 sobre ese commit, avance
+rápido sin `force` ni la rama local `main`, y S4. **No** incluye migraciones, permisos, configuración, el lote ni la
+fusión con su rama; **la reversión, si hiciera falta, la ejecuta el dueño desde el panel**.
+
+| Paso | Resultado |
+|---|---|
+| S0 | Igual que en D-227: `9acbfa8` servido, `0001`–`0074`, 45 + 4, catálogo idéntico; hora UTC 00, candado libre y ningún recordatorio en 30 min |
+| S1–S2 | Rama empujada; PR #3; CI **2/2** sobre `e6c2c5f` (run `36203558362`). La previsualización de Vercel falló en `check:env`: I-022, esperado |
+| S3 | `9acbfa8..e6c2c5f` por avance rápido a las 00:14:28 UTC; **`dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` READY a las 00:15:38**; CI de `main` **2/2** (run `36204096124`) |
+| S4 | `f6773cfc2306` servido y Next **16.3.6** en el cliente; 40/40 rutas iguales que antes, 0 × 5xx; 7/7 cabeceras; 0 secretos; 45 + 4; catálogo idéntico; 0 errores en la función. Punto de reversión: **`dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`** (`9acbfa8`) |
+| Pendiente | **La imagen semanal con la sesión de un vendedor, del dueño**; y, con su propia autorización, I1–I3 |
+
+**Cómo se esperó el CI sin sondearlo.** La aplicación de escritorio vinculó el PR y `get_status` lee su caché; entre
+lecturas se hizo trabajo real o un temporizador de cuatro minutos, y la confirmación final fue **una** lectura de
+`gh run view`. No se activó el auto-arreglo, que el dueño no pidió.
