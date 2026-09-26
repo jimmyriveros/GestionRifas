@@ -3,7 +3,31 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-26 — **auditoría visual y listas, D-211 a D-226, SOLO EN LOCAL** (mantenimiento
+- **Actualizado:** 2026-09-26, madrugada UTC — **el lote D-211 a D-226 EN PRODUCCIÓN (D-229)**, mantenimiento
+  posterior a la Fase 9, sin fase ni etiqueta nuevas, con autorización expresa del dueño para la puerta del lote
+  (`DEPLOYMENT` §3.3.a, P0–P10). **P0–P8 hechas; P9 y P10, pendientes del dueño con sus sesiones.**
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** lo de D-211 a D-226, **servido** —orden y paginación en la base, control de orden en el
+  teléfono en los dos portales, historial de abonos paginado, códigos de rifa desde R1000 y la imagen semanal con
+  `sharp` diferido—, sobre Next 16.3.6. `6943b7f` desde las 01:37:51 UTC (`dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`), por
+  avance rápido desde el puente.
+  **(2) Pruebas:** CI **2/2** en el PR #4 y en `main` sobre `6943b7f`; ensayo local del delta **CONTINUAR** y 49/49;
+  respaldo **validado** en local (31 tablas y 11.938 filas iguales); en producción, `verify:remote` **49/49**, la
+  comparación por fila **CONTINUAR** con 0 filas tocadas, 40/40 rutas iguales, 0 × 5xx, 7/7 cabeceras, 0 secretos y 0
+  errores en los registros. Errores propios: dos lecturas de la CSP sin conexión con Vercel, repetidas sin efecto
+  (`TEST_RESULTS`, D-229).
+  **(3) Migraciones:** **77 en producción** desde las 01:34:57 UTC: `0075` (orden en `search_tickets` y
+  `admin_list_tickets`), `0076` (dos vistas y dos funciones para Vendedores, Rifas y Administradores) y `0077` (el código
+  de rifa no se recorta desde R1000).
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** P9 —la imagen semanal del lote con la sesión de un vendedor, y sus registros— y P10
+  —el orden y la paginación con sesión—, del dueño; I-163, I-166 e I-167 **sin comprobar en Vercel con sesión** hasta
+  P9; la parte general de I-132; I-159, I-160, I-161, I-171 y la prueba hermana de I-164, sin encargo; I-151 e I-059; el
+  resto de la auditoría visual, sin autorizar. Reversión del código: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`,
+  sin tocar la base; la pulsa el dueño.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, incluidas las filas **Entorno** y **Git**.
+
+- Antes — 2026-09-26 — **auditoría visual y listas, D-211 a D-226, SOLO EN LOCAL** (mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas), **y producción comprobada en solo lectura antes de publicarlas
   (D-227)**: servía entonces `9acbfa8` con Next 16.3.0, tiene `0001`–`0074` y le faltan exactamente `0075`–`0077`;
   `verify:remote` 45 OK y las 4 esperadas en rojo. Nada impide autorizar la publicación; no está autorizada. **Y el

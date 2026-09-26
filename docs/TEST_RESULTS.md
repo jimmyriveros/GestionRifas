@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (S4 del puente cerrada y el puente fusionado en la rama del lote, esto último solo en local, 2026-09-26)** | sin cambio: la fusión y la documentación no tocan código | sin cambio de esquema | Producción: la imagen semanal con la sesión del dueño en ~1 s; registros del despliegue con 2 × 200 en la imagen, **0** errores, avisos o 5xx y **0** de las cinco frases; `/_next/image` lo sirve Vercel. Fusión `5f5dace`: árbol **idéntico** al de `628cbdc` y **0 archivos fuera de `docs/`** distintos de `00ee2f6`, el último árbol probado entero (D-226) | no se corrió: ningún archivo de código cambió; lo corre el CI en PB | ✅ **S4 cerrada; I1–I2 hechos.** I3 pasa a PB de la puerta del lote. **Nada empujado** |
+| **Post-9 vigente (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P8, D-229, 2026-09-26)** | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 (con sesión), pendientes del dueño** | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
+| Post-9 anterior (S4 del puente cerrada y el puente fusionado en la rama del lote, esto último solo en local, 2026-09-26) | sin cambio: la fusión y la documentación no tocan código | sin cambio de esquema | Producción: la imagen semanal con la sesión del dueño en ~1 s; registros del despliegue con 2 × 200 en la imagen, **0** errores, avisos o 5xx y **0** de las cinco frases; `/_next/image` lo sirve Vercel. Fusión `5f5dace`: árbol **idéntico** al de `628cbdc` y **0 archivos fuera de `docs/`** distintos de `00ee2f6`, el último árbol probado entero (D-226) | no se corrió: ningún archivo de código cambió; lo corre el CI en PB | ✅ **S4 cerrada; I1–I2 hechos.** I3 pasa a PB de la puerta del lote. **Nada empujado** |
 | Post-9 anterior (el puente de D-228 EN PRODUCCIÓN, `e6c2c5f`, 2026-09-26) | **1.522/1.522** en Linux, Node 20 y 24; CI 2/2 en el PR #3 | sin cambio de esquema: siguen `0001`–`0074` | Local: **794/798** en `0074` y en `0077`, los cinco fallos reproducidos en `9acbfa8` con 16.3.0. En vivo: 40/40 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `f6773cfc2306` servido y Next 16.3.6 | `verify:remote` **45 + 4** esperados | ✅ **En producción.** Avance rápido `9acbfa8..e6c2c5f`. Reversión: `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`. Pendiente del dueño: la imagen semanal con sesión |
 | Post-9 anterior (D-210 EN PRODUCCIÓN, `9acbfa8`, 2026-09-19) | sin cambio de número | sin cambio de esquema | Previas: **19/19** de alineación. PR #2 CI **2/2**; `main` CI **2/2**. En vivo **27/27** rutas, 7/7 cabeceras, 0 secretos, `484ebe210458` servido | `verify:remote` **46/46** | ✅ **En producción.** Avance rápido `6401bd0..9acbfa8`. Reversión: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`. Pendiente del dueño: sesión |
 | Post-9 anterior (alineación de campos, D-210, y la prueba de oscuro corregida, solo en local, 2026-09-19) | sin cambio | sin cambio | **19/19** (`formularios-alineacion` 16, `formularios-alineacion-movil` 3). La de oscuro **falló** en `73f3e83` al exigir `.dark` (`false`); con la clase aplicada después del diálogo, pasa, y sin activarla la sonda ve el token claro | eslint de las specs ✅ | ✅ **Solo local.** La evidencia «oscuro» de `73f3e83` no valía; detalle en la nota posterior de D-210 |
@@ -15108,3 +15109,99 @@ eso **I3 no se hizo** (empuja la rama) y pasa a PB de la puerta del lote.
 | Código frente al último árbol probado entero | Fuera de `docs/`, **0 archivos** distintos de `00ee2f6`, donde D-226 midió `verify` (1.648), `test:db` (1.444 + 1), la E2E completa (906/909, explicada) y las unitarias en Linux con Node 20 y 24. Ningún código ni prueba lee los documentos: la fusión y la documentación no pueden cambiar esos resultados, y por eso no se repitieron |
 | `main` | `origin/main..5f5dace`: **28** commits, todos descendientes de `origin/main` (`e6c2c5f`): `main` puede avanzar sin `force`. La rama remota del lote, `3db7548`, es ancestro: su empuje también es avance rápido |
 | Nada empujado | `origin/main` y `origin/feature/premios-configurables` sin tocar; los tres archivos del usuario, intactos |
+
+## D-229 — La puerta del lote: `0075`–`0077` y `6943b7f` en producción (2026-09-26, P0–P8)
+
+**Autorización expresa del dueño** para P0, PB y P1–P10 de `DEPLOYMENT` §3.3.a sobre
+`6943b7f80cff9754f0d24a20a9df6e6a3e960c7d`, con sus condiciones (D-229). **No** incluye revertir migraciones, restaurar
+datos sobre producción ni una reversión automática del despliegue. Evidencia en `lote/evidencia/` del *scratchpad* de la
+sesión `816b8f15…`, fuera del repositorio; fotos e informes `foto-lote-*` e `informe-lote-*` en `build/gate/`. Ningún
+dato de cliente salió de estas lecturas. Horas en UTC.
+
+### P0 — solo lectura, 01:23–01:25
+
+| Qué | Resultado |
+|---|---|
+| Ventana | Hora **01**, fuera de 3, 4, 5, 6, 12, 13, 15 y 16. Candado del sincronizador **libre**, **0** corridas sin terminar (la última, el 25/09 a las 05:02); **2** recordatorios activos y **0** en 30 min (el próximo, el 26/09 a las 23:50) |
+| Procedencia y código servido | La CSP nombra un proyecto, el de `.env.local`; servido **`f6773cfc2306`** = `e6c2c5f` en 1 de 15 fragmentos |
+| Catálogo frente a S4 | Migraciones, funciones y sus ACL, dependencias, disparador, vistas, privilegios por defecto, disparadores de eventos y sus cuerpos, y pendientes: **iguales**. `0001`–`0074`; pendientes exactamente `0075`–`0077`; `search_tickets` con `{postgres, service_role, authenticated}` |
+| `verify:remote` | **45 OK y las 4 de `0075`–`0077`** en rojo |
+| Barrido en vivo frente a S4 | **40 rutas, 0 distintas**, 0 × 5xx; 7/7 cabeceras; Next 16.3.6; 0 secretos en 971 KB |
+| Git y Vercel | `origin/main` = **`e6c2c5f`**; el último de producción, **`dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`**, READY y candidato; nada desplegado después |
+
+### PB — la rama, el PR y el CI, 01:25–01:32
+
+| Qué | Resultado |
+|---|---|
+| Antes de empujar | `HEAD` = rama = **`6943b7f`**; ancestros `3db7548`, `e6c2c5f`, `9acbfa8` y `00ee2f6`; `git diff --stat e6c2c5f 6943b7f -- package.json package-lock.json next.config.ts vercel.json .github` **vacío**; fuera de `docs/`, **0** archivos distintos de `00ee2f6`; `origin/main..6943b7f`: 29 commits |
+| `git push origin 6943b7f…:refs/heads/feature/premios-configurables` | `3db7548..6943b7f`, **avance rápido**, 01:25:30; sin `force` |
+| PR | [jimmyriveros/GestionRifas#4](https://github.com/jimmyriveros/GestionRifas/pull/4), `feature/premios-configurables` → `main`; vinculado a la aplicación, sin auto-arreglo ni fusión automática |
+| Previsualización de Vercel | `dpl_BvF5Hu4idhpVbWCMV9mJzGP59gQ6`, **ERROR** en `check:env`: faltan las tres variables de Supabase en Preview (leído en su registro). **I-022 funcionando**; es la comprobación «Vercel» del PR, **no el CI** |
+| CI del PR | Run **`36208409406`** sobre **`6943b7f`**: ✅ **2/2** —«Typecheck, lint, unitarias, build» 01:26:10–01:28:41 y «Migraciones desde cero + pruebas de base de datos» 01:26:10–01:32:16—. Leído con `get_status` y dos lecturas de `gh`, sin sondeos en bucle |
+
+### P1 — el delta esperado, en local, 01:27–01:28
+
+| Qué | Resultado |
+|---|---|
+| `lote-base`, producción (01:27:21) | 74 migraciones; 1.277 boletas, 692 clientes, 548 pagos, $48.505.000 pagados, 6.521 filas de bitácora |
+| Base local a `0074` y privilegios de producción | `db reset --local --version 0074`; `gate-mirror-privileges.ts`: **55** sentencias (50 funciones, 2 secuencias, 3 por defecto), las mismas que en D-209 |
+| `lote-base` frente a `lote-l0`, solo estructura | **Solo** el Vault (−2) y `supabase_functions` (+3) |
+| `migration up`, `lote-l0` → `lote-l1` | Funciones **+4 −2 ~1** —las firmas de 10 parámetros de `search_tickets` y `admin_list_tickets` por las de 8, `admin_list_sellers`, `admin_list_raffles` y el cuerpo de `raffles_set_short_code`—, **+2 vistas** y **+3 migraciones**. La foto cuenta además «tablas +2» y «columnas +38»: son **las dos vistas** —`tipo: v`— y sus columnas, porque agrupa todas las relaciones; ninguna tabla ni columna real. Las cuatro funciones nuevas con `{authenticated, postgres, service_role}` → `delta-esperado-0075-0077.json` |
+| Ensayo de la comparación de la puerta (`--local --operation migrations`) | **CONTINUAR**, 0 diferencias con lo ensayado, 0 filas |
+| `verify-remote` contra esa base local | **49/49** |
+
+### P2–P3 — línea base y respaldo, 01:27–01:34
+
+| Qué | Resultado |
+|---|---|
+| `lote-base` → `lote-antes` (01:29:08), `none` | **CONTINUAR**, 0 filas |
+| Respaldo, 01:29:45–01:31:18 | `Rifas-backups/2026-09-26-antes-0075-0077/`: `roles.sql` 370 B, `schema.sql` 645.456 B, `data.sql` 5.590.752 B (31 tablas con `INSERT`). **0** `"auth".` cualificados, **0** `INSERT INTO "auth"`, **0** credenciales, **0** contraseñas en los roles. `pg_dump` avisó de las llaves circulares de `memberships` y de `raffle_prizes`/`raffle_prize_versions`: la restauración no lo notó |
+| `lote-antes` → `lote-previa` (01:31:55), `none` | **CONTINUAR**, 0 filas |
+| Validación, solo en local, 01:32:28–01:32:42 | `DROP SCHEMA public CASCADE` en `supabase_db_Rifas`; `roles.sql` con su único error esperado (`log_min_messages`); `schema.sql` y `data.sql` con `ON_ERROR_STOP`, salida 0. **31 tablas y 11.938 filas iguales a `lote-previa`**, huella a huella. Estructura igual salvo lo del entorno: migraciones locales (+3), Vault (−2), privilegios por defecto de la pila, el esquema `public` recreado, 31 funciones de `pg_trgm`, el ACL de `raffle_prize_transitions` escrito de otra forma, los paréntesis de un CHECK y los dos disparadores de `auth.users` (`RUNBOOK` §5.2) |
+| Base local a la normalidad, 01:32:55–01:33:41 | `db reset`, Kong reiniciado, Auth en 200 y `seed:local`: sin datos de producción en el equipo |
+
+### P4–P6 — las migraciones, 01:34–01:36
+
+| Qué | Resultado |
+|---|---|
+| Justo antes (01:34:23) | Candado libre, 0 corridas sin terminar, 0 recordatorios en 30 min |
+| `db push --dry-run` (01:34:24) | **Exactamente** `0075_orden_de_listas.sql`, `0076_orden_en_la_base.sql` y `0077_raffle_short_code_mil.sql`; sin semillas ni roles |
+| `db push --yes` | **01:34:40.850–01:34:57.820**, salida 0, las tres en orden; `migration list`: `0001`–`0077` iguales en los dos entornos |
+| `verify:remote` | ✅ **49/49** |
+| `lote-despues` (01:35:23, con base `lote-antes`) → comparación `--operation migrations --migrations 0075,0076,0077 --expected-delta` | **CONTINUAR**: migraciones nuevas exactamente las tres, **0** diferencias con lo ensayado, ninguna tabla nueva, **0** filas tocadas; las cifras de control, idénticas |
+| Catálogo después | 77 aplicadas, ninguna pendiente; las cinco funciones con `{postgres, service_role, authenticated}` —`raffles_set_short_code`, sin `authenticated`— y ninguna con `anon`; `search_tickets`, **la misma ACL** que en P0; las dos vistas; el disparador activo; disparadores de eventos, sus cuerpos y privilegios por defecto, iguales |
+| El puente sobre la base nueva, 01:20–01:36 | **0** registros de error, aviso o fatal; **0** × 5xx |
+
+### P7 — el código, 01:36–01:43
+
+| Qué | Resultado |
+|---|---|
+| Justo antes (01:36:50) | Ventana libre; `origin/main` = `e6c2c5f`; la rama local `main`, en `c48437a`, sin usar |
+| `git push origin 6943b7f…:refs/heads/main` | ✅ `e6c2c5f..6943b7f`, **avance rápido**, 01:36:57; sin `force` |
+| GitHub | PR #4 **MERGED** a las 01:36:59, sin commit de fusión |
+| Vercel | **`dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`**, producción, creado 01:37:01 y **READY 01:37:51**, alias `gestion-rifas.vercel.app`, el único. Construcción: «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6 (Turbopack)», caché del puente y dependencias «up to date», `check:env` sin avisos, 33 s |
+| CI de `main` | Run **`36209027409`** sobre `6943b7f`: ✅ **2/2** —01:37:39–01:40:08 y 01:37:03–01:43:20— |
+
+### P8 — comprobar, 01:38–01:44
+
+| Qué | Resultado |
+|---|---|
+| Procedencia y código servido | CSP con un proyecto, HSTS; **`72d03cf65c19` = `6943b7f`** en 1 de 15 fragmentos; `f6773cfc2306` **desaparecido** |
+| Barrido en vivo frente a P0 | **40 rutas, 0 distintas**: 4 × 200, 33 × 307, 2 × 401, 1 × 404, **0 × 5xx**; **7/7** cabeceras, CSP con *nonce*; Next **16.3.6** en el cliente; **0** secretos en 971 KB |
+| `verify:remote` | ✅ **49/49** |
+| La base tras el despliegue | `lote-despues` → `lote-p8` (01:38:48), `none`: **CONTINUAR**, sin cambios de estructura ni filas |
+| Vercel | El inmediatamente anterior de producción es **el puente, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`**, con `isRollbackCandidate`; el de `9acbfa8`, ya no |
+| Registros del despliegue nuevo, 01:37–01:44 | **0** error, aviso o fatal; **0** × 5xx; «instrumentation», «sharp», «og-renderer», «uncaught» y «unsupported»: **0** cada una. Línea base: la imagen del lote todavía no se había pedido. El recuento por código anuncia 5 valores y enseña 4; el filtro de 5xx devuelve 0 |
+| `/_next/image` (01:40:16) | La imagen del *hero* con `w=1920`: **200**, `Server: Vercel`, `X-Matched-Path`, `X-Vercel-Cache: HIT`, **0** cabeceras `x-nextjs-*`: la sigue sirviendo Vercel, como con el puente |
+| Node | 24.x por el ajuste del proyecto (aviso de `engines` en la construcción); la versión exacta no se registró |
+
+### P9–P10 — con sesión
+
+⏳ **Pendientes del dueño**, en su teléfono y con sus sesiones. No se dan por comprobadas hasta que confirme el
+resultado; después se leen, en solo lectura, los registros de `/api/weekly-results/image` del despliegue nuevo.
+
+### Errores propios
+
+| Qué | Consecuencia |
+|---|---|
+| Dos lecturas de la CSP agotaron el tiempo de conexión con Vercel: la de la ventana de P0 (01:24) y la previa a `lote-previa` (01:31) | Ninguna llegó a la base. Se repitieron; el guion de la referencia ganó hasta cuatro intentos. En la segunda, la comparación que venía detrás terminó en 1, sin veredicto, por falta de foto, y se repitió entera |

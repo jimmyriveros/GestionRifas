@@ -1,6 +1,10 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-26, más tarde (§3.2.o y §3.3.a.1: **S4 cerrada** —el dueño vio y descargó la imagen semanal
+**Actualizado:** 2026-09-26, madrugada UTC (§2, §2.2, §3.2.p y §3.3.a: **la puerta del lote EJECUTADA, P0–P8**, con
+autorización expresa del dueño —`0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC con respaldo validado, 49/49 y
+CONTINUAR; `6943b7f` publicado por avance rápido desde el puente, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`, READY a las
+01:37:51 UTC; punto de reversión, **el puente**—; **P9 y P10, pendientes del dueño con su sesión**). Antes, ese mismo
+día, más tarde (§3.2.o y §3.3.a.1: **S4 cerrada** —el dueño vio y descargó la imagen semanal
 con su sesión, y los registros de esa petición están limpios— e **I1–I2 hechos en local**: la fusión `5f5dace` mete el
 puente en la historia del lote **sin cambiar ningún archivo**; §3.3.a: la puerta del lote **preparada, NO autorizada**,
 con el puente como punto de reversión y el empuje de la rama —I3— dentro de ella, como PB). Antes, ese mismo día
@@ -42,11 +46,11 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Elemento | Estado |
 |---|---|
-| Migraciones (**74** aplicadas, hasta `0074`, desde el 2026-09-19 a las 17:53 UTC; antes, **72** desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
+| Migraciones (**77** aplicadas, hasta `0077`, desde el 2026-09-26 a las 01:34:57 UTC; antes, **74** desde el 2026-09-19 y **72** desde el 2026-09-18; esta fila decía «50» hasta entonces) | Aplicadas y verificadas con `npm run verify:remote`. La cifra se quedó en «21» durante varias promociones; se corrigió al aplicar `0040` (2026-08-31) y `0041` (2026-09-01, D-156), y se mantiene desde entonces: `0042` (09-01), `0043`+`0044` (09-02), `0045` (09-02), `0046` (09-03), `0047` (09-03, D-168) y **`0048` (09-05, D-169)**, esta última con la migración aplicada **antes** del despliegue. y **`0049` (09-05, D-170)**, también con la migración por delante del despliegue. **`0049` es la primera desde `0027` que ESCRIBE DATOS** —la carga inicial del paz y salvo—, y por eso se promovió con el procedimiento reforzado que conviene repetir en cualquier migración con sentencias de datos: sonda de **solo lectura antes** (boletas, asignadas, cuántas recibirán el cambio, distribución por estado y totales de ventas, abonos, pagos y comisiones), `db push --dry-run` comprobando que **solo** aparece la migración nueva, aplicarla **antes** del despliegue, y **repetir la misma sonda después comparando bloque a bloque**: cambiaron exactamente dos cosas, la bitácora (+750, una por boleta) y el número de migración |
 | **`0050` aplicada el 2026-09-08** (D-176) | La invitación al grupo de WhatsApp. **Aditiva y sin una sola sentencia de datos**: tres columnas nuevas en `memberships` que nacen nulas o en `false`, tres CHECK y una RPC; no toca ninguna tabla, política, función ni restricción existente. Promovida con el procedimiento completo: respaldo en `Rifas-backups/2026-09-08-pre-0050/` (4,1 MB, 19 tablas, **0** identidades de Auth), sonda de solo lectura **antes**, `db push --dry-run` confirmando que **solo** aparecía `0050`, aplicación **antes** del despliegue y la **misma sonda después**. **Las 30 cifras de negocio salieron idénticas** —981 boletas, 540 clientes, 352 pagos, $32.780.000 abonados, 4.816 de bitácora— y lo único que se movió fue el número de migración, las tres columnas y la RPC. Comprobado además que `memberships_update_staff` **sigue siendo la única política de escritura**, que la RPC **no es ejecutable por `anon`** y que **0 filas** tienen algo escrito en las columnas nuevas |
 | **`0073` y `0074`: APLICADAS el 2026-09-19** (D-209), de 17:53:21 a 17:53:39 UTC | Bre-B y «Otros» en las cuentas para recibir pagos, con autorización expresa del dueño y el procedimiento de §2.2; su código, `6401bd0`, desde las 17:57:44 UTC (§3.2.m). Van en ese orden y en dos archivos —un valor de enumerado no se usa en la transacción que lo añade (`55P04`)—, **antes** del código: el código desplegado funciona con la base nueva (medido) y el nuevo no funciona con la vieja. La `0074` no escribe datos: una columna nula, dos CHECK, un índice reconstruido, dos funciones y dos RPC con firma nueva, y se comprueba a sí misma. `verify:remote` tendrá **dos comprobaciones en rojo a propósito** hasta aplicarlas. Orden completo en §2.2 |
-| **`0075`, `0076` y `0077`: PENDIENTES — confirmado contra producción en solo lectura el 2026-09-25** (D-227) | `supabase_migrations.schema_migrations` tiene **`0001`–`0074`**, con los mismos nombres que el repositorio, y le faltan **exactamente** estas tres; `origin/main` es `9acbfa8`. `0075` y `0076` son el orden y la paginación en la base (D-213, D-214); `0077`, el código de rifa desde R1000 (D-220). Hasta el 2026-09-23 esta fila era una expectativa documental; en la puerta se vuelve a mirar (§3.3.a, P0 de la propuesta) |
-| RLS, RPC, vistas, auditoría | Igual que en local **hasta `0074`**. Lo que añaden `0075`–`0077` solo existe en local |
+| **`0075`, `0076` y `0077`: APLICADAS el 2026-09-26**, de 01:34:40 a 01:34:57 UTC (D-229) | Con autorización expresa del dueño y la puerta del lote (§3.3.a, P0–P6): respaldo validado, `db push --dry-run` con exactamente esas tres, `verify:remote` **49/49** y la comparación por fila **CONTINUAR** con 0 filas tocadas. Orden y resultados en §2.2. `0075` y `0076` son el orden y la paginación en la base (D-213, D-214); `0077`, el código de rifa desde R1000 (D-220). *Hasta ese día esta fila decía «PENDIENTES», confirmado en solo lectura el 2026-09-25 (D-227)* |
+| RLS, RPC, vistas, auditoría | Igual que en local **hasta `0077`** |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
 ### 2.1 Configuración de Auth que hay que revisar (una sola vez)
@@ -246,6 +250,25 @@ sirviendo `318357c` contra una base local en la `0074`, con una Nequi, una Bre-B
 | **A. No existe ninguna cuenta `breb` ni `other`** —se comprueba justo antes, en solo lectura: `select count(*) from seller_payment_accounts where kind in ('breb', 'other')`— | *Instant Rollback* al despliegue **inmediatamente anterior**, el único que permite Hobby: `dpl_Fn6UBZjA6vTPbjViHDaV6GGWuemE` (`318357c`). **La base no se toca**: `0073` y `0074` se quedan, porque el código anterior funciona con ellas —altas, ediciones, archivar, volver a usar y ordenar, medido—. La pantalla del código anterior no ofrece esas dos formas, así que desde ella el recuento no crece |
 | **B. Existe al menos una** | **No se vuelve a ciegas.** Se corrige **hacia delante**: un commit nuevo sobre el código de D-209, con su CI y su despliegue, que conserva las cuentas y sus llaves. Si un fallo obliga a detener la versión nueva antes de tener esa corrección, volver a `318357c` es **una decisión del dueño** con estas cifras delante: cuántas cuentas y de cuántos vendedores se verían sin llave —la misma consulta, agrupada por `seller_id`— y el aviso a esos vendedores de que no peguen el recordatorio hasta que vuelva la versión nueva. Las llaves siguen en la base y reaparecen enteras con ella |
 | **Siempre** | **No** se borran cuentas ni llaves para poder volver; **no** se revierte la `0074` —su nota exige **cero** cuentas `breb` y `other`— y un valor de enumerado no se quita, así que la `0073` se queda siempre; **no** se restaura un respaldo sobre producción como respuesta automática a un fallo (`RUNBOOK` §5.2). Si la recuperación exige algo destructivo, se detiene y se consulta |
+
+#### `0075`, `0076` y `0077` — orden en la base y R1000 (D-213, D-214, D-220): **EJECUTADA el 2026-09-26**
+
+**La base de producción pasa de 74 a 77 migraciones**, **antes** del código, dentro de la puerta del lote (§3.3.a, P1–P6)
+y con autorización expresa del dueño. Evidencia en `lote/evidencia/` del *scratchpad* de la sesión `816b8f15…`, fuera
+del repositorio; detalle en `TEST_RESULTS`, D-229.
+
+| Qué | Resultado |
+|---|---|
+| Delta esperado, en local (01:27–01:28 UTC) | Base local a `0074` con los **55** privilegios de producción de ese momento (50 funciones, 2 secuencias, 3 por defecto): frente a producción, **solo** el Vault (−2) y `supabase_functions` (+3). `migration up`: funciones **+4 −2 ~1** (`raffles_set_short_code`), **+2 vistas** —que la foto también cuenta como relaciones, con sus 38 columnas: ninguna tabla ni columna real— y **+3 migraciones**; `search_tickets` nace con `{authenticated, postgres, service_role}`. Ensayo de la comparación de la puerta: **CONTINUAR**; `verify-remote` contra esa base: **49/49** |
+| Línea base (01:27:21 → 01:29:08 UTC) | `lote-base` → `lote-antes`, `--operation none`: **CONTINUAR**, 0 filas |
+| Respaldo (01:29:45–01:31:18 UTC) | `Rifas-backups/2026-09-26-antes-0075-0077/`: `roles.sql` 370 B, `schema.sql` 645.456 B y `data.sql` 5.590.752 B (31 tablas con datos). **0** nombres `"auth".` cualificados, **0** `INSERT INTO "auth"`, **0** credenciales. `lote-antes` → `lote-previa` (01:31:55): **CONTINUAR**, 0 filas |
+| Validación, solo en local (01:32:28–01:32:42 UTC) | Solo el error esperado de `roles.sql`; `schema.sql` y `data.sql` sin errores; **31 tablas y 11.938 filas iguales a `lote-previa`**. Estructura igual salvo lo del entorno, lo mismo que en D-209. Después, `db reset`, Kong y `seed:local`: sin datos de producción en el equipo |
+| `db push --dry-run` (01:34:24 UTC) | **Exactamente** `0075`, `0076` y `0077`, en orden; sin semillas ni roles |
+| `db push --yes` | Aplicadas de **01:34:40 a 01:34:57 UTC**, salida 0: la autocomprobación de `0077` no abortó. `migration list`: `0001`–`0077` iguales en los dos entornos |
+| `npm run verify:remote` | ✅ **49/49**, con las cuatro que estaban en rojo a propósito |
+| Comparación por fila (`lote-antes` → `lote-despues`, `--operation migrations`) | **CONTINUAR**: **0** diferencias con el delta ensayado, ninguna tabla nueva y **0 filas tocadas**; cifras de negocio idénticas |
+| ACL y PostgREST | `search_tickets`, `admin_list_tickets`, `admin_list_sellers` y `admin_list_raffles`: `{postgres, service_role, authenticated}`, sin `anon`. `search_tickets`, **igual que antes**: publicar no cambió quién la ejecuta (I-132 sigue abierta en su parte general). Disparadores de eventos, sus cuerpos y los privilegios por defecto, **iguales que en P0** |
+| El código servido sobre la base nueva | Entre la migración y el despliegue sirvió el puente, compatible con `0077` (D-228): **0** registros de error, aviso o fatal y **0** respuestas 5xx |
 
 ---
 
@@ -879,15 +902,54 @@ registros de la función ni del proxy. **I-168 y GHSA-2xp9 no aplican en producc
 proyecto (D-227); la versión exacta no se registró. La documentación de esta puerta llega a `main` **con el lote**, no
 antes.
 
+### 3.2.p Release del lote D-211 a D-226 (D-229, puerta del lote) — 2026-09-26
+
+**Con migraciones**: `0075`–`0077`, aplicadas **antes** del código (§2.2). Autorización expresa del dueño para P0, PB y
+P1–P10 de §3.3.a sobre **`6943b7f80cff9754f0d24a20a9df6e6a3e960c7d`**: comprobaciones previas, empujar la rama, abrir el
+PR, CI, respaldo validado, **exclusivamente** `0075`–`0077` y publicar ese commit. **No** incluye revertir migraciones,
+restaurar datos sobre producción ni una reversión automática del despliegue.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`6943b7f80cff9754f0d24a20a9df6e6a3e960c7d`**, el autorizado: el mismo SHA del PR #4 con el CI en verde. Ningún commit se añadió durante la puerta |
+| Commit anterior en producción | `e6c2c5f02f0f430665e20f35bda237da78cde5dc`, el puente |
+| Integración | **Avance rápido** `e6c2c5f..6943b7f`, 29 commits, **sin fusión, sin `force` y sin la rama local `main`** —que sigue en `c48437a`—: `git push origin 6943b7f…:refs/heads/main` a las **01:36:57 UTC**. GitHub marca el PR #4 fusionado a las 01:36:59, sin commit de fusión |
+| Despliegue Vercel | **`dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`**, `gestion-rifas-gmkxrw89k-jimmyriveros-projects.vercel.app`: creado a las 01:37:01, **READY a las 01:37:51 UTC**, con el alias `gestion-rifas.vercel.app`; el único de producción que disparó ese empuje. Construcción: «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6 (Turbopack)», dependencias «up to date» (caché del puente), `check:env` sin avisos, 33 s, Vercel CLI 59.25.4, `iad1` |
+| Despliegue anterior (**punto de reversión**) | **El puente, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`** (`e6c2c5f`, Next 16.3.6), con `isRollbackCandidate`; `dpl_7zSz…` (`9acbfa8`) dejó de serlo, como corresponde en Hobby. *Instant Rollback*, **sin tocar la base**: el puente funciona con `0077` (D-228). Lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1) |
+| **Migraciones** | `0075`, `0076` y `0077`, de 01:34:40 a 01:34:57 UTC (§2.2). Siguen **77** |
+| Dependencias y configuración | **Sin cambios** frente al puente: ni `package.json`, ni `package-lock.json`, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni variables |
+| CI | En el PR, run **`36208409406`** sobre `6943b7f`: ✅ **2/2** (01:26:10–01:32:16 UTC). En `main`, run **`36209027409`**: ✅ **2/2** (01:37:03–01:43:20 UTC) |
+
+**Verificación en vivo (P8, 01:38–01:40 UTC):** servido **`72d03cf65c19`** (1 de 15 fragmentos) y el del puente,
+`f6773cfc2306`, **desaparecido**; el fragmento del cliente declara **16.3.6**. **40 rutas iguales que en P0** —4 × 200,
+33 × 307, 2 × 401, 1 × 404— y **ningún 5xx**; **7/7** cabeceras, CSP por *nonce* con un proyecto y HSTS; **0 secretos** en
+971 KB. `verify:remote` **49/49**; la base, **sin cambios** tras el despliegue (`lote-despues` → `lote-p8`, `none`:
+CONTINUAR, 0 filas). Registros del despliegue nuevo, hasta las 01:44 UTC: **0** errores, avisos o fatal, **0** 5xx y
+**0** apariciones de las cinco frases del paso 10 —línea base: la imagen del lote todavía no se había pedido—.
+**`/_next/image` lo sigue sirviendo Vercel**: la imagen del *hero* con `w=1920` respondió 200 con
+`Server: Vercel`, `X-Matched-Path` y `X-Vercel-Cache: HIT`, sin cabeceras `x-nextjs-*`.
+
+> **Pendiente del dueño, con sus sesiones y en su teléfono: P9 y P10** (§3.3.a). **No se dan por comprobadas** hasta
+> que confirme el resultado; la lectura de los registros de `/api/weekly-results/image` con el código del lote —las
+> cinco frases del paso 10— se hace **después** de su prueba. **El commit de documentación de esta puerta** se queda
+> en la rama del lote y **no** se empuja: desplegaría otra versión y movería el punto de reversión lejos del puente.
+
 ### 3.3 Despliegues futuros
 
-#### 3.3.a Próxima publicación: D-211 a D-226, con Next 16.3.6 (preparada, NO autorizada)
+#### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P8**; P9 y P10, pendientes del dueño)
+
+> **Ejecutada el 2026-09-26, de 01:23 a 01:44 UTC**, con autorización expresa del dueño para P0, PB y P1–P10 sobre
+> `6943b7f`: P0 igual que en S4; PB con el PR #4 y el CI **2/2**; P1 **CONTINUAR** y 49/49 en local; P3 con el respaldo
+> **validado** (31 tablas y 11.938 filas iguales); P4 exactamente `0075`–`0077`; P5–P6 **49/49** y **CONTINUAR** con 0
+> filas tocadas; P7 por avance rápido desde el puente; P8 en verde, con **el puente como punto de reversión**. Registro
+> en §2.2, §3.2.p y `TEST_RESULTS` (D-229). **P9 y P10 las comprueba el dueño con sus sesiones**: hasta que confirme,
+> no se dan por hechas. Lo que sigue en esta sección es el procedimiento tal como se preparó y se siguió.
 
 Tres cosas distintas, que no se mezclan:
 
 | | Qué | Fuente |
 |---|---|---|
-| **Documentado como publicado** | Migraciones `0001`–`0074`; código **`e6c2c5f`** —el puente, `9acbfa8` con Next 16.3.6 (D-228)—, el último release registrado; `verify:remote` **45 + las 4 de `0075`–`0077`** en S4, el 2026-09-26, **la última comprobación contra producción que consta**. *Antes del puente:* `9acbfa8` (D-210) y 46/46 el 2026-09-19 | §2, §3.2.n y §3.2.o |
+| **Documentado como publicado** | *Desde el 2026-09-26, 01:37 UTC:* migraciones `0001`–`0077` y código **`6943b7f`**, el lote (§3.2.p); `verify:remote` **49/49** en P8. *Hasta entonces:* migraciones `0001`–`0074`; código **`e6c2c5f`** —el puente, `9acbfa8` con Next 16.3.6 (D-228)—, el último release registrado; `verify:remote` **45 + las 4 de `0075`–`0077`** en S4, el 2026-09-26, **la última comprobación contra producción que consta**. *Antes del puente:* `9acbfa8` (D-210) y 46/46 el 2026-09-19 | §2, §3.2.n y §3.2.o |
 | **Pendiente, esperado** | Migraciones **`0075`, `0076` y `0077`**; el código de la rama desde `e6c2c5f`: D-211 a D-226 y su documentación. **La subida a Next 16.3.6 ya está publicada** con el puente: el lote trae los mismos `package.json` y `package-lock.json`, y tampoco cambia `next.config.ts`, `vercel.json` ni `.github/` (medido el 2026-09-26). Desde el 2026-09-26 el puente ya está en la historia del lote (fusión `5f5dace`) | Git local: `origin/main..HEAD` |
 | **Comprobado contra producción, en solo lectura, el 2026-09-25 (20:30–20:36 UTC)** | Producción en **`0074`** y sirviendo **`9acbfa8`** con Next **16.3.0**; ningún despliegue ni migración desde el 2026-09-19; `verify:remote` **45 OK + las 4 de `0075`–`0077` en rojo**, y ninguna más; `search_tickets` ya con `service_role=X`; los dos disparadores de PostgREST, activos; Node **24.x** por configuración. **Dictamen: nada impide autorizar la publicación.** Se repite en la puerta (P0 de la propuesta). *Repetido en S0 y S4 de la puerta del puente, el 2026-09-26, con el mismo resultado; desde entonces sirve `e6c2c5f` con Next 16.3.6* | D-227, D-228 y sus `TEST_RESULTS` |
 
@@ -995,7 +1057,7 @@ referencia de 20 letras (`zqwu…`), confirmada antes contra la CSP.
 cortadas en 100), **I-160** (orden de los códigos de rifa como texto desde R1000; decisión pendiente) e **I-161**
 (código interno de boleta a 6 cifras).
 
-#### 3.3.a.1 El puente: `9acbfa8` con Next 16.3.6 (opción A de D-227, **aprobada**; preparado en D-228; **EN PRODUCCIÓN desde el 2026-09-26, 00:15 UTC**; **fusionado en la rama del lote en local**, `5f5dace`)
+#### 3.3.a.1 El puente: `9acbfa8` con Next 16.3.6 (opción A de D-227, **aprobada**; preparado en D-228; **EN PRODUCCIÓN desde el 2026-09-26, 00:15 UTC**; **fusionado en la rama del lote**, `5f5dace`; **punto de reversión del lote desde las 01:37 UTC**, §3.2.p)
 
 > **Puerta S ejecutada el 2026-09-26** con autorización expresa del dueño: S0–S4 como abajo, registro en §3.2.o y
 > `TEST_RESULTS`. Falta **solo** la revisión del dueño de la imagen semanal con su sesión. **I1–I4 siguen sin hacer**:
@@ -1038,8 +1100,8 @@ commit existente cambia de *hash*, y la documentación los cita.
 |---|---|---|---|
 | I1 | Ensayo, sin escribir | `git merge-tree --write-tree --name-only feature/premios-configurables fix/puente-next-16.3.6` y `git diff --stat feature/premios-configurables <árbol que devuelve>` | Salida **0** (sin conflictos) y diferencia **vacía**: la fusión no cambia ningún archivo. Medido el 2026-09-25 contra `8d7766e` (árbol `d5e6fbc…`, igual al de la punta). **Se repite justo antes de fusionar**, contra la punta de ese momento: cada commit de documentación cambia el árbol esperado |
 | I2 | Fusionar | En la copia principal, rama `feature/premios-configurables`, árbol limpio salvo los tres archivos del usuario: `git merge --no-ff fix/puente-next-16.3.6 -m "merge: el puente e6c2c5f (Next 16.3.6 sobre 9acbfa8) entra en el lote"` | Sin conflictos; `git diff HEAD^1 HEAD` vacío; `git merge-base --is-ancestor e6c2c5f HEAD` y `--is-ancestor 00ee2f6 HEAD` |
-| I3 | CI | Empujar la rama y CI 2/2 sobre ese SHA | 2/2 |
-| I4 | La puerta del lote | §3.3.a, P0–P10, con `main` por avance rápido de `e6c2c5f` al commit de fusión | El inmediatamente anterior en producción es el del puente |
+| I3 | CI | Empujar la rama y CI 2/2 sobre ese SHA | 2/2 · ✅ *Hecho como PB el 2026-09-26*: rama en `6943b7f`, PR #4, CI 2/2 |
+| I4 | La puerta del lote | §3.3.a, P0–P10, con `main` por avance rápido de `e6c2c5f` al commit de fusión | El inmediatamente anterior en producción es el del puente · ✅ *P0–P8 el 2026-09-26*: `main` en `6943b7f`, que desciende de la fusión; el anterior es el puente (§3.2.p). P9–P10, del dueño |
 
 **Resultado de I1–I2, 2026-09-26, solo en local** (evidencia en `puerta-s/evidencia/i2-*` del *scratchpad* de la
 sesión `710dce60…`):

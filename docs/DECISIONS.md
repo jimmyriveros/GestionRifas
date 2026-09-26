@@ -14561,7 +14561,8 @@ nombre de la rama, cómo se construyó y midió, la compatibilidad con `0077` me
 rebasar y no corregir en el puente la prueba de I-171. **Pendiente:** publicarlo (S0–S4) e incorporarlo al lote
 (I1–I3), cada paso con su autorización (`DEPLOYMENT` §3.3.a.1). *Actualizado el 2026-09-26:* **publicado** (§4, S4
 cerrada con la revisión del dueño) e **incorporado al lote en local** (§5, fusión `5f5dace`); I3 pasa a la puerta del
-lote, que sigue sin autorizar.
+lote, que sigue sin autorizar. *Actualizado el 2026-09-26, más tarde:* I3 se hizo como PB y el lote está publicado, con
+el puente como punto de reversión (**D-229**).
 
 ### 1. El commit
 
@@ -14670,3 +14671,63 @@ migraciones ni otro despliegue.
    este código, y el CI los vuelve a medir en PB.
 5. **El mensaje de la fusión** dice qué autoriza, que no cambia archivos y que no hubo rebase: la documentación cita
    commits del lote por su *hash*, y este commit es la prueba de que siguen siendo esos.
+
+---
+
+## D-229 — La puerta del lote: `0075`–`0077` y `6943b7f` en producción
+
+**Fase:** mantenimiento posterior a la Fase 9 (encargo del usuario, 2026-09-26). **Escribe en producción**, con
+autorización expresa del dueño para P0, PB y P1–P10 de `DEPLOYMENT` §3.3.a sobre
+**`6943b7f80cff9754f0d24a20a9df6e6a3e960c7d`**. Evidencia en `lote/evidencia/` del *scratchpad* de la sesión `816b8f15…`,
+fuera del repositorio, y fotos e informes en `build/gate/` (`foto-lote-*`, `informe-lote-*`), que no se versiona;
+resultados en `TEST_RESULTS`, D-229.
+
+**Qué es de quién.** **Del dueño:** la autorización y sus condiciones —producción y `origin/main` en el puente, con
+`0074` y nada desplegado después; CI 2/2 sobre ese SHA antes de tocar la base; el ensayo local y el respaldo validado
+en local antes de migrar; un *dry-run* con solo `0075`–`0077`; 49/49 y CONTINUAR antes del código; avance rápido del
+SHA sin `force`, sin la rama local `main` y sin commits nuevos; comprobar lo servido, Next 16.3.6, los registros y el
+puente como candidato de reversión—; y que **no** se revierten migraciones, no se restauran datos sobre producción ni se
+revierte el despliegue de forma automática. **Del agente**, con su porqué abajo: el orden de P1–P3 mientras corría el
+CI, la base de la foto «después», una comparación más tras desplegar y el nombre de las fotos. **Pendiente:** P9 y P10,
+del dueño con sus sesiones; y, después de su prueba, la lectura de los registros de la imagen semanal.
+
+### 1. Resultado (2026-09-26, UTC)
+
+| Puerta | Resultado |
+|---|---|
+| P0, 01:23–01:25 | Igual que en S4: servido `f6773cfc2306` (`e6c2c5f`); `0001`–`0074` con pendientes exactamente `0075`–`0077`; catálogo idéntico al de S4; `verify:remote` 45 + las 4 esperadas; 40/40 rutas iguales; `origin/main` = `e6c2c5f`; el último de producción, el puente, y nada después. Ventana: hora 01, candado libre, 0 corridas sin terminar, 0 recordatorios en 30 min |
+| PB, 01:25–01:32 | Rama por avance rápido `3db7548..6943b7f`; PR #4; CI **2/2** sobre `6943b7f` (run `36208409406`); `e6c2c5f` ancestro; configuración frente al puente y código frente a `00ee2f6`, sin diferencias. La previsualización, en `check:env` (I-022) |
+| P1, 01:27–01:28 | Delta con los privilegios de producción: funciones +4 −2 ~1, +2 vistas, +3 migraciones; ensayo **CONTINUAR** y `verify-remote` local **49/49** |
+| P2–P3, 01:27–01:33 | Línea base CONTINUAR; respaldo de 01:29:45 a 01:31:18, sin identidades ni credenciales, **validado**: 31 tablas y 11.938 filas iguales a la foto de producción tomada justo después |
+| P4–P6, 01:34–01:36 | *Dry-run* con exactamente las tres; aplicadas de **01:34:40 a 01:34:57**; `0001`–`0077` iguales; **49/49**; **CONTINUAR** con 0 diferencias y 0 filas tocadas; la misma ACL de `search_tickets`; el puente, sin errores sobre la base nueva |
+| P7, 01:36–01:43 | `e6c2c5f..6943b7f` a las 01:36:57; **`dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`** READY a las 01:37:51; CI de `main` **2/2** (run `36209027409`) |
+| P8, 01:38–01:44 | `72d03cf65c19` servido y el del puente desaparecido; Next 16.3.6 en el cliente y en la construcción; 40/40 rutas iguales que en P0, 0 × 5xx; 7/7 cabeceras; 0 secretos; **49/49**; la base sin cambios tras el despliegue; 0 errores en los registros; `/_next/image`, de Vercel; **el anterior es el puente**, con `isRollbackCandidate` |
+| P9–P10 | ⏳ **Del dueño.** No se dan por comprobadas hasta su resultado |
+
+### 2. Decisiones del agente
+
+1. **P1–P3 mientras corría el CI de PB.** Ninguna escribe en producción —fotos de solo lectura, el respaldo y la base
+   local—, así que adelantarlas no toca la condición del dueño: la base se modificó a las 01:34:40, dos minutos después
+   del 2/2 (01:32:16).
+2. **La foto «después» se toma con base en `lote-antes`, no en `lote-previa`.** Es la orden literal de P6 y cubre toda la
+   ventana desde la línea base, respaldo incluido; `lote-antes` → `lote-previa` ya había dado CONTINUAR con 0 filas. D-209
+   usó la «previa»: las dos sirven, y esta abarca más.
+3. **Una comparación más, después de desplegar** (`lote-despues` → `lote-p8`, `none`), como la puerta 2 de D-209:
+   demuestra que el despliegue no escribió en la base. P8 no la pedía; salió CONTINUAR con 0 filas.
+4. **Fotos `lote-*`, no `p1-*`.** En `build/gate/` ya hay fotos `p1-*` de la puerta del 2026-09-18; un nombre propio
+   evita tomar una por otra. La herramienta comprueba la procedencia igual.
+5. **El delta cuenta las dos vistas como «tablas».** La foto agrupa en «tablas» todas las relaciones (`relkind` r, p, v,
+   m, S y f) con sus columnas: las dos entradas nuevas son `tipo: v`, las de `0076`. No hay ninguna tabla ni columna real
+   nueva, que es lo que esperaba §3.3.a; comprobado antes de migrar.
+6. **El relevo va en un commit local, sin empujar.** Empujarlo a `main` desplegaría otra versión y movería el punto de
+   reversión lejos del puente (D-228 §4).
+
+### 3. Lo que esta puerta NO demuestra
+
+* **La imagen semanal del lote en Vercel.** Con su gancho de instrumentación y la carga diferida de `sharp` (D-223,
+  D-224) todavía no se ha pedido con sesión: es P9. Que los registros no tengan ninguna de las cinco frases dice que
+  ninguna petición falló hasta las 01:44, no que la imagen salga.
+* **Lo que se ve con sesión**: el orden y la paginación de P10.
+
+**Incidencias propias**, sin efecto: dos lecturas de la CSP agotaron el tiempo de conexión con Vercel (01:24 y 01:31
+UTC) antes de conectar con la base; se repitieron, y el guion que lee la referencia ganó reintentos.
