@@ -1,6 +1,9 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-26, madrugada UTC (§2, §2.2, §3.2.p y §3.3.a: **la puerta del lote EJECUTADA, P0–P8**, con
+**Actualizado:** 2026-09-26, mañana (§3.2.p y §3.3.a: **P9 y P10 confirmadas por el dueño** con sus sesiones —la
+imagen semanal en 2–3 s, descargar y compartir; el orden y la paginación—; **la lectura de los registros de la imagen,
+sin hacer**: la API de registros solo deja leer la última hora y esa petición ya no estaba). Antes, ese mismo día,
+madrugada UTC (§2, §2.2, §3.2.p y §3.3.a: **la puerta del lote EJECUTADA, P0–P8**, con
 autorización expresa del dueño —`0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC con respaldo validado, 49/49 y
 CONTINUAR; `6943b7f` publicado por avance rápido desde el puente, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`, READY a las
 01:37:51 UTC; punto de reversión, **el puente**—; **P9 y P10, pendientes del dueño con su sesión**). Antes, ese mismo
@@ -929,21 +932,33 @@ CONTINUAR, 0 filas). Registros del despliegue nuevo, hasta las 01:44 UTC: **0** 
 **`/_next/image` lo sigue sirviendo Vercel**: la imagen del *hero* con `w=1920` respondió 200 con
 `Server: Vercel`, `X-Matched-Path` y `X-Vercel-Cache: HIT`, sin cabeceras `x-nextjs-*`.
 
-> **Pendiente del dueño, con sus sesiones y en su teléfono: P9 y P10** (§3.3.a). **No se dan por comprobadas** hasta
-> que confirme el resultado; la lectura de los registros de `/api/weekly-results/image` con el código del lote —las
-> cinco frases del paso 10— se hace **después** de su prueba. **El commit de documentación de esta puerta** se queda
-> en la rama del lote y **no** se empuja: desplegaría otra versión y movería el punto de reversión lejos del puente.
+> **El commit de documentación de esta puerta** se queda en la rama del lote y **no** se empuja: desplegaría otra
+> versión y movería el punto de reversión lejos del puente.
+
+**P9 y P10, el mismo día, con las sesiones del dueño y en su teléfono** (`TEST_RESULTS`, D-229):
+
+| Comprobación | Resultado |
+|---|---|
+| P9 — la imagen de «Resultados de la semana», con sesión de vendedor | ✅ Apareció en **2–3 s**, que el dueño da por correcto; «Descargar imagen» y «Compartir imagen», correctos; ningún error. Con el puente había tardado ~1 s: la diferencia **no se midió** |
+| P9 — los registros de `/api/weekly-results/image` con el código del lote | ❌ **Sin hacer.** La API de registros de este plan solo deja leer **la última hora** —una ventana anterior responde `ExceedsBillingLimitError`— y la petición del dueño ya había salido de ella. En la hora legible (12:57–13:58 UTC): **0** errores, avisos o fatal, **0** 5xx y **0** de las cinco frases, pero **ninguna** petición a la imagen. Que la imagen saliera descarta los fallos que la dejan en 500 (I-163, I-167); no demuestra la ausencia de las cinco frases en su registro |
+| P10 — «Mis boletas» | ✅ El orden; y, buscando, se conserva el orden elegido y la opción que lo restablece dice «Las que mejor coinciden» |
+| P10 — «Mis clientes» | ✅ El orden |
+| P10 — el historial de abonos de la ficha | ✅ Pagina |
+| P10 — «Boletas» del personal | ✅ El orden |
+| P10 — un orden que el teléfono no ofrece, llegado de la pantalla grande o de un enlace guardado —la frase que lo describe, también buscando: «primero Asignada» (D-216, D-218)— | ⏸️ **No probado**: no estaba en el recorrido del teléfono |
 
 ### 3.3 Despliegues futuros
 
-#### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P8**; P9 y P10, pendientes del dueño)
+#### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**; sin hacer, la lectura de los registros de la imagen)
 
 > **Ejecutada el 2026-09-26, de 01:23 a 01:44 UTC**, con autorización expresa del dueño para P0, PB y P1–P10 sobre
 > `6943b7f`: P0 igual que en S4; PB con el PR #4 y el CI **2/2**; P1 **CONTINUAR** y 49/49 en local; P3 con el respaldo
 > **validado** (31 tablas y 11.938 filas iguales); P4 exactamente `0075`–`0077`; P5–P6 **49/49** y **CONTINUAR** con 0
 > filas tocadas; P7 por avance rápido desde el puente; P8 en verde, con **el puente como punto de reversión**. Registro
-> en §2.2, §3.2.p y `TEST_RESULTS` (D-229). **P9 y P10 las comprueba el dueño con sus sesiones**: hasta que confirme,
-> no se dan por hechas. Lo que sigue en esta sección es el procedimiento tal como se preparó y se siguió.
+> en §2.2, §3.2.p y `TEST_RESULTS` (D-229). **P9 y P10, confirmadas por el dueño el mismo día** con sus sesiones
+> (§3.2.p); **sin hacer**, la lectura de los registros de la imagen —fuera de la ventana de una hora que deja leer la
+> API— y, **sin probar**, los órdenes descritos que llegan de la pantalla grande. Lo que sigue en esta sección es el
+> procedimiento tal como se preparó y se siguió.
 
 Tres cosas distintas, que no se mezclan:
 
@@ -1050,7 +1065,7 @@ referencia de 20 letras (`zqwu…`), confirmada antes contra la CSP.
 | P6 | Después de migrar, en lectura | `npm run verify:remote` · `gate-snapshot.ts p1-despues --production --project-ref <REF> --base <p1-antes>` · `gate-compare.ts <p1-antes> <p1-despues> --production --project-ref <REF> --operation migrations --migrations 0075,0076,0077 --expected-delta delta-esperado-0075-0077.json --report informe-p1.json` · ACL de `search_tickets` · errores de ejecución del código servido | **49/49**; **CONTINUAR** con 0 filas tocadas —ninguna de las tres escribe datos— y la actividad explicada; la misma ACL que antes; sin errores |
 | P7 | Código | Justo antes, `git ls-remote origin refs/heads/main` = `e6c2c5f`. `git push origin <SHA de PB>:refs/heads/main`: avance rápido **desde `e6c2c5f`**, sin `force` y **nunca** la rama local `main`, que sigue en `c48437a`; **un** despliegue y ninguno más | READY sobre ese SHA; CI de `main` 2/2 |
 | P8 | Servido | `sha256(commit)[0:12]` en los fragmentos (§6.1); `16.3.6` declarado en el fragmento del cliente y «Detected Next.js version: 16.3.6» en la construcción; `verify:remote` 49/49; CSP con un proyecto y HSTS; sin errores de ejecución; `list_deployments`: el inmediatamente anterior es **el puente, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`**, con `isRollbackCandidate` | Todo en verde |
-| P9 | La imagen semanal (paso 10) | **El dueño**, con la sesión de un vendedor y en su teléfono: «Configuración» → «Resultados de la semana»; la imagen en ~1 s, y compartir y descargar. **El agente**, en lectura: registros de `/api/weekly-results/image` sin las cinco frases del paso 10 —«og-renderer» y «no se pudo cargar sharp» solo pueden salir con el código del lote: con el puente no probaban nada—, y `/_next/image` todavía servido por Vercel, no por la función, **como ya se comprobó con el puente** (I-168 y GHSA-2xp9); anotar Node 24.x y Next 16.3.6 | 200 y ninguna de esas líneas |
+| P9 | La imagen semanal (paso 10) | **El dueño**, con la sesión de un vendedor y en su teléfono: «Configuración» → «Resultados de la semana»; la imagen en ~1 s, y compartir y descargar. **El agente**, en lectura: registros de `/api/weekly-results/image` sin las cinco frases del paso 10 —«og-renderer» y «no se pudo cargar sharp» solo pueden salir con el código del lote: con el puente no probaban nada—, y `/_next/image` todavía servido por Vercel, no por la función, **como ya se comprobó con el puente** (I-168 y GHSA-2xp9); anotar Node 24.x y Next 16.3.6. *Aprendido el 2026-09-26 (D-229):* la API de registros de este plan solo deja leer **la última hora**, así que esa lectura va **justo después** de la prueba del dueño, que avisa al terminarla | 200 y ninguna de esas líneas |
 | P10 | Teléfono real, con sesión del dueño | Vendedor: cambiar el orden de «Mis boletas» y «Mis clientes», buscar y ver que la frase dice el orden que sale (D-215, D-216, D-218); el historial de abonos de la ficha, paginado (D-219). Personal: el orden de «Boletas», sin cliente ni dinero (D-217) | Lo que se ve coincide con lo que dice |
 
 **Registrados y NO incluidos en esta publicación** (no se implementan sin encargo): **I-159** (boletas de la ficha
@@ -1101,7 +1116,7 @@ commit existente cambia de *hash*, y la documentación los cita.
 | I1 | Ensayo, sin escribir | `git merge-tree --write-tree --name-only feature/premios-configurables fix/puente-next-16.3.6` y `git diff --stat feature/premios-configurables <árbol que devuelve>` | Salida **0** (sin conflictos) y diferencia **vacía**: la fusión no cambia ningún archivo. Medido el 2026-09-25 contra `8d7766e` (árbol `d5e6fbc…`, igual al de la punta). **Se repite justo antes de fusionar**, contra la punta de ese momento: cada commit de documentación cambia el árbol esperado |
 | I2 | Fusionar | En la copia principal, rama `feature/premios-configurables`, árbol limpio salvo los tres archivos del usuario: `git merge --no-ff fix/puente-next-16.3.6 -m "merge: el puente e6c2c5f (Next 16.3.6 sobre 9acbfa8) entra en el lote"` | Sin conflictos; `git diff HEAD^1 HEAD` vacío; `git merge-base --is-ancestor e6c2c5f HEAD` y `--is-ancestor 00ee2f6 HEAD` |
 | I3 | CI | Empujar la rama y CI 2/2 sobre ese SHA | 2/2 · ✅ *Hecho como PB el 2026-09-26*: rama en `6943b7f`, PR #4, CI 2/2 |
-| I4 | La puerta del lote | §3.3.a, P0–P10, con `main` por avance rápido de `e6c2c5f` al commit de fusión | El inmediatamente anterior en producción es el del puente · ✅ *P0–P8 el 2026-09-26*: `main` en `6943b7f`, que desciende de la fusión; el anterior es el puente (§3.2.p). P9–P10, del dueño |
+| I4 | La puerta del lote | §3.3.a, P0–P10, con `main` por avance rápido de `e6c2c5f` al commit de fusión | El inmediatamente anterior en producción es el del puente · ✅ *P0–P8 el 2026-09-26*: `main` en `6943b7f`, que desciende de la fusión; el anterior es el puente (§3.2.p). P9–P10, confirmadas por el dueño el mismo día, salvo la lectura de los registros de la imagen |
 
 **Resultado de I1–I2, 2026-09-26, solo en local** (evidencia en `puerta-s/evidencia/i2-*` del *scratchpad* de la
 sesión `710dce60…`):

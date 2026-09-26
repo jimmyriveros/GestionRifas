@@ -14689,7 +14689,9 @@ SHA sin `force`, sin la rama local `main` y sin commits nuevos; comprobar lo ser
 puente como candidato de reversión—; y que **no** se revierten migraciones, no se restauran datos sobre producción ni se
 revierte el despliegue de forma automática. **Del agente**, con su porqué abajo: el orden de P1–P3 mientras corría el
 CI, la base de la foto «después», una comparación más tras desplegar y el nombre de las fotos. **Pendiente:** P9 y P10,
-del dueño con sus sesiones; y, después de su prueba, la lectura de los registros de la imagen semanal.
+del dueño con sus sesiones; y, después de su prueba, la lectura de los registros de la imagen semanal. *Actualizado
+el mismo día:* P9 y P10, **confirmadas por el dueño**; la lectura de los registros, **sin hacer**, porque ya no se
+podían leer (§4).
 
 ### 1. Resultado (2026-09-26, UTC)
 
@@ -14702,7 +14704,7 @@ del dueño con sus sesiones; y, después de su prueba, la lectura de los registr
 | P4–P6, 01:34–01:36 | *Dry-run* con exactamente las tres; aplicadas de **01:34:40 a 01:34:57**; `0001`–`0077` iguales; **49/49**; **CONTINUAR** con 0 diferencias y 0 filas tocadas; la misma ACL de `search_tickets`; el puente, sin errores sobre la base nueva |
 | P7, 01:36–01:43 | `e6c2c5f..6943b7f` a las 01:36:57; **`dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`** READY a las 01:37:51; CI de `main` **2/2** (run `36209027409`) |
 | P8, 01:38–01:44 | `72d03cf65c19` servido y el del puente desaparecido; Next 16.3.6 en el cliente y en la construcción; 40/40 rutas iguales que en P0, 0 × 5xx; 7/7 cabeceras; 0 secretos; **49/49**; la base sin cambios tras el despliegue; 0 errores en los registros; `/_next/image`, de Vercel; **el anterior es el puente**, con `isRollbackCandidate` |
-| P9–P10 | ⏳ **Del dueño.** No se dan por comprobadas hasta su resultado |
+| P9–P10, el mismo día | ✅ **Confirmadas por el dueño**, con sus sesiones y en su teléfono: la imagen semanal en 2–3 s, descargar y compartir; el orden de «Mis boletas» —buscando, conserva el orden elegido y restablece a «Las que mejor coinciden»—, el de «Mis clientes» y el de «Boletas» del personal; el historial de abonos, paginado. ❌ **Sin hacer:** la lectura de los registros de la imagen (§4) |
 
 ### 2. Decisiones del agente
 
@@ -14726,8 +14728,36 @@ del dueño con sus sesiones; y, después de su prueba, la lectura de los registr
 
 * **La imagen semanal del lote en Vercel.** Con su gancho de instrumentación y la carga diferida de `sharp` (D-223,
   D-224) todavía no se ha pedido con sesión: es P9. Que los registros no tengan ninguna de las cinco frases dice que
-  ninguna petición falló hasta las 01:44, no que la imagen salga.
-* **Lo que se ve con sesión**: el orden y la paginación de P10.
+  ninguna petición falló hasta las 01:44, no que la imagen salga. *El mismo día, el dueño la generó* (§4); lo que
+  sigue sin demostrarse es **el registro de esa petición**.
+* **Lo que se ve con sesión**: el orden y la paginación de P10. *Confirmado por el dueño* (§4), salvo los órdenes que
+  llegan de la pantalla grande.
 
 **Incidencias propias**, sin efecto: dos lecturas de la CSP agotaron el tiempo de conexión con Vercel (01:24 y 01:31
 UTC) antes de conectar con la base; se repitieron, y el guion que lee la referencia ganó reintentos.
+
+### 4. P9 y P10, el mismo día
+
+**Del dueño**, con sus sesiones y en su teléfono: la imagen de «Resultados de la semana» **apareció en 2–3 s** —«tiempo
+correcto»—, y «Descargar imagen» y «Compartir imagen» funcionaron; el orden de «Mis boletas», también buscando —se
+conserva el orden elegido y la opción que lo restablece dice «Las que mejor coinciden»—; el orden de «Mis clientes»; el
+historial de abonos de la ficha, paginado; y el orden de «Boletas» del personal. Ningún otro error.
+
+**Del agente**, en solo lectura, a las 13:55–13:58 UTC: la API de registros de este plan **solo deja leer la última
+hora** —la ventana se recorta a 12:56–13:56 y una anterior responde `ExceedsBillingLimitError`—, y la petición de la
+imagen del dueño ya no estaba en ella. En la hora legible: 203 entradas, todas del despliegue del lote; **0** errores,
+avisos o fatal; **0** 5xx; **0** de las cinco frases; **ninguna** petición a la imagen. Producción, sin cambios: sigue
+`6943b7f` y el puente sigue como candidato.
+
+**Decisiones del agente:**
+
+1. **P9 se cierra solo en su parte del dueño.** La lectura de los registros de la imagen **no se hizo** y no se sustituye
+   por la hora legible, que no la contiene. Que la imagen saliera descarta los fallos que la dejan en 500 —I-163 y un
+   `sharp` que no carga (I-167)—, pero no demuestra que su registro esté libre de las cinco frases.
+2. **Los 2–3 s se anotan como observación**, no como fallo: el dueño los da por correctos, con el puente fueron ~1 s y
+   la causa **no se midió** —sin registros no hay duración de la función—. No se abre ninguna incidencia.
+3. **Los órdenes descritos que llegan de la pantalla grande** o de un enlace guardado —«Rifa, de la Z a la A», y
+   buscando, «Estado de la boleta, primero Asignada» (D-216, D-218)— **no se probaron**: el recorrido del teléfono no
+   los pedía. Quedan como no probados, no como fallidos.
+4. **Para la próxima puerta**, en `DEPLOYMENT` §3.3.a (P9): el dueño avisa al terminar su prueba y la lectura de los
+   registros va dentro de la hora siguiente.
