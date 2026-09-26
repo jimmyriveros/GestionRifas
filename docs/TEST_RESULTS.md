@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P10, D-229, 2026-09-26)** | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 con las sesiones del dueño: correctas** —la imagen semanal en 2–3 s, descargar, compartir, orden y paginación—; **los registros de la imagen, sin leer**: la API solo deja leer la última hora | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
+| **Post-9 vigente (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P10, D-229, 2026-09-26)** | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 con las sesiones del dueño: correctas** —la imagen semanal en 2–3 s, descargar, compartir, orden y paginación—; los registros de la imagen, **leídos en una segunda prueba** (17:38 UTC, iPhone): dos 200 desde `6943b7f`, sin errores; la duración, no disponible | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
 | Post-9 anterior (S4 del puente cerrada y el puente fusionado en la rama del lote, esto último solo en local, 2026-09-26) | sin cambio: la fusión y la documentación no tocan código | sin cambio de esquema | Producción: la imagen semanal con la sesión del dueño en ~1 s; registros del despliegue con 2 × 200 en la imagen, **0** errores, avisos o 5xx y **0** de las cinco frases; `/_next/image` lo sirve Vercel. Fusión `5f5dace`: árbol **idéntico** al de `628cbdc` y **0 archivos fuera de `docs/`** distintos de `00ee2f6`, el último árbol probado entero (D-226) | no se corrió: ningún archivo de código cambió; lo corre el CI en PB | ✅ **S4 cerrada; I1–I2 hechos.** I3 pasa a PB de la puerta del lote. **Nada empujado** |
 | Post-9 anterior (el puente de D-228 EN PRODUCCIÓN, `e6c2c5f`, 2026-09-26) | **1.522/1.522** en Linux, Node 20 y 24; CI 2/2 en el PR #3 | sin cambio de esquema: siguen `0001`–`0074` | Local: **794/798** en `0074` y en `0077`, los cinco fallos reproducidos en `9acbfa8` con 16.3.0. En vivo: 40/40 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `f6773cfc2306` servido y Next 16.3.6 | `verify:remote` **45 + 4** esperados | ✅ **En producción.** Avance rápido `9acbfa8..e6c2c5f`. Reversión: `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`. Pendiente del dueño: la imagen semanal con sesión |
 | Post-9 anterior (D-210 EN PRODUCCIÓN, `9acbfa8`, 2026-09-19) | sin cambio de número | sin cambio de esquema | Previas: **19/19** de alineación. PR #2 CI **2/2**; `main` CI **2/2**. En vivo **27/27** rutas, 7/7 cabeceras, 0 secretos, `484ebe210458` servido | `verify:remote` **46/46** | ✅ **En producción.** Avance rápido `6401bd0..9acbfa8`. Reversión: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`. Pendiente del dueño: sesión |
@@ -15215,16 +15215,35 @@ dato de cliente salió de estas lecturas. Horas en UTC.
 
 | Qué | Resultado |
 |---|---|
-| Los registros de `/api/weekly-results/image` —las cinco frases del paso 10— | ❌ **No se pudieron leer.** La API de registros de este plan solo deja leer la última hora: pedida desde las 01:37, la ventana se recorta a 12:56–13:56, y una de 01:37 a 12:30 responde `400 ExceedsBillingLimitError`. Las entradas del barrido de P8 (01:38) ya no están, y tampoco las de la prueba del dueño |
+| Los registros de `/api/weekly-results/image` —las cinco frases del paso 10— | ❌ **No se pudieron leer.** La API de registros de este plan solo deja leer la última hora: pedida desde las 01:37, la ventana se recorta a 12:56–13:56, y una de 01:37 a 12:30 responde `400 ExceedsBillingLimitError`. Las entradas del barrido de P8 (01:38) ya no están, y tampoco las de la prueba del dueño. ✅ *Hecho por la tarde, con una segunda prueba*: ver la subsección siguiente |
 | La hora legible, 12:57–13:58 | 203 entradas, todas de `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`: pantallas del vendedor y del personal. **0** errores, avisos o fatal; **0** × 5xx; «instrumentation», «sharp», «og-renderer», «uncaught» y «unsupported»: **0** cada una. **Ninguna** petición a la imagen ni a su pantalla |
 | Producción | Sigue `6943b7f` (`dpl_8A5q…`); el puente, READY y candidato de reversión; `origin/main` = `6943b7f` |
 
 **No probado**, porque el recorrido del teléfono no lo pedía: un orden que el teléfono no ofrece, llegado de la pantalla
 grande o de un enlace guardado, y la frase que lo describe también buscando —«primero Asignada»— (D-216, D-218).
 
+### P9 — segunda prueba y sus registros (17:38–17:43 UTC)
+
+**Del dueño**, en un iPhone: abrió la imagen semanal y la descargó, y funcionó; al volver al módulo después de
+descargarla, la imagen volvió a cargar bien, algo más despacio, sin ningún error.
+
+**Del agente**, en solo lectura, de 17:40 a 17:43, dentro de la hora:
+
+| Qué | Resultado |
+|---|---|
+| `/api/weekly-results/image` | ✅ **200** a las **17:38:58** y a las **17:39:12**, las dos `cache=MISS`; cada una justo después de cargar `/seller/settings/weekly-results` (17:38:57 y 17:39:10). Antes, dos cargas más de la pantalla, a las 17:37:26 y 17:37:27 |
+| Despliegue | `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` en todas las líneas; `get_deployment`: `6943b7f80cff…`, READY, con el alias de producción. Sigue siendo el último de producción y el puente, el inmediatamente anterior y candidato |
+| Niveles y códigos, 17:00–17:42 | **0** error, aviso o fatal; **0** × 5xx |
+| Las cinco frases | «sharp», «og-renderer», «unsupported» y «uncaught», 17:00–17:42: **0** cada una. «instrumentation»: la búsqueda sin acotar agotó su tiempo sin devolver nada; repetida acotada al despliegue, 17:30–17:42: **0** |
+| `get_runtime_errors` desde 01:37 (preagregado, hasta 7 días) | Ruta `/api/weekly-results/image`: **ninguna** agrupación de errores, también a la altura de la prueba de la mañana. En todo el proyecto, una sola: `AuthApiError: Invalid Refresh Token: Refresh Token Not Found`, ruta `/middleware`, 8 veces, **1** usuario, primera el **2026-08-10** —anterior al lote— y última a las 13:57:33 UTC; **no** asociada a la imagen y **sin investigar** |
+| Duración | **No disponible**: las líneas no la traen, y `get_project_trace` solo sirve para peticiones de la CLI. La hora de cada línea no es una duración |
+
+**P9 queda cerrada** con esta petición (D-229 §5). **No revisado a mano:** la imagen en otros teléfonos o navegadores,
+su duración y los órdenes que llegan de la pantalla grande (D-216, D-218).
+
 ### Errores propios
 
 | Qué | Consecuencia |
 |---|---|
 | Dos lecturas de la CSP agotaron el tiempo de conexión con Vercel: la de la ventana de P0 (01:24) y la previa a `lote-previa` (01:31) | Ninguna llegó a la base. Se repitieron; el guion de la referencia ganó hasta cuatro intentos. En la segunda, la comparación que venía detrás terminó en 1, sin veredicto, por falta de foto, y se repitió entera |
-| El recorrido de P9–P10 no le pedía al dueño **avisar al terminar**, y la lectura de los registros llegó horas después, cuando la API ya no la devolvía | La parte de P9 del agente —las cinco frases en el registro de la imagen— quedó **sin hacer**. Corregido para la próxima puerta en `DEPLOYMENT` §3.3.a (P9) |
+| El recorrido de P9–P10 no le pedía al dueño **avisar al terminar**, y la lectura de los registros llegó horas después, cuando la API ya no la devolvía | La parte de P9 del agente —las cinco frases en el registro de la imagen— quedó **sin hacer** con la primera prueba; se hizo por la tarde, con una segunda que el dueño avisó al terminar. Corregido para la próxima puerta en `DEPLOYMENT` §3.3.a (P9) |

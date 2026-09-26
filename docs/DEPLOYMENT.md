@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-26, mañana (§3.2.p y §3.3.a: **P9 y P10 confirmadas por el dueño** con sus sesiones —la
+**Actualizado:** 2026-09-26, tarde (§3.2.p y §3.3.a: **P9 cerrada** con una segunda prueba del dueño —un iPhone, a las
+17:38 UTC— leída dentro de la hora: dos 200 desde `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`), sin errores, 5xx ni
+ninguna de las cinco frases; la duración no la exponen los registros). Antes, ese mismo día, mañana (§3.2.p y §3.3.a: **P9 y P10 confirmadas por el dueño** con sus sesiones —la
 imagen semanal en 2–3 s, descargar y compartir; el orden y la paginación—; **la lectura de los registros de la imagen,
 sin hacer**: la API de registros solo deja leer la última hora y esa petición ya no estaba). Antes, ese mismo día,
 madrugada UTC (§2, §2.2, §3.2.p y §3.3.a: **la puerta del lote EJECUTADA, P0–P8**, con
@@ -940,24 +942,25 @@ CONTINUAR, 0 filas). Registros del despliegue nuevo, hasta las 01:44 UTC: **0** 
 | Comprobación | Resultado |
 |---|---|
 | P9 — la imagen de «Resultados de la semana», con sesión de vendedor | ✅ Apareció en **2–3 s**, que el dueño da por correcto; «Descargar imagen» y «Compartir imagen», correctos; ningún error. Con el puente había tardado ~1 s: la diferencia **no se midió** |
-| P9 — los registros de `/api/weekly-results/image` con el código del lote | ❌ **Sin hacer.** La API de registros de este plan solo deja leer **la última hora** —una ventana anterior responde `ExceedsBillingLimitError`— y la petición del dueño ya había salido de ella. En la hora legible (12:57–13:58 UTC): **0** errores, avisos o fatal, **0** 5xx y **0** de las cinco frases, pero **ninguna** petición a la imagen. Que la imagen saliera descarta los fallos que la dejan en 500 (I-163, I-167); no demuestra la ausencia de las cinco frases en su registro |
+| P9 — los registros de `/api/weekly-results/image` con el código del lote | ✅ **Hechos por la tarde, con una segunda prueba del dueño** —en un iPhone: abrir la imagen, descargarla y volver al módulo—, leída dentro de la hora: **17:38:58** y **17:39:12 UTC**, las dos **200** desde `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`), `cache=MISS`, cada una justo después de cargar su pantalla. De 17:00 a 17:42: **0** errores, avisos o fatal, **0** 5xx y **0** de las cinco frases; y desde el despliegue, **ninguna** agrupación de errores en esa ruta (`get_runtime_errors`). **La duración no está disponible**: los registros no la traen. *La prueba de la mañana no se pudo leer*: la API de registros de este plan solo deja leer la última hora —una ventana anterior responde `ExceedsBillingLimitError`— |
 | P10 — «Mis boletas» | ✅ El orden; y, buscando, se conserva el orden elegido y la opción que lo restablece dice «Las que mejor coinciden» |
 | P10 — «Mis clientes» | ✅ El orden |
 | P10 — el historial de abonos de la ficha | ✅ Pagina |
 | P10 — «Boletas» del personal | ✅ El orden |
 | P10 — un orden que el teléfono no ofrece, llegado de la pantalla grande o de un enlace guardado —la frase que lo describe, también buscando: «primero Asignada» (D-216, D-218)— | ⏸️ **No probado**: no estaba en el recorrido del teléfono |
+| P9 — variantes | ⏸️ **No revisadas a mano**: la imagen en otros teléfonos o navegadores, y la duración de la función, que los registros no exponen. El dueño notó que, al volver al módulo después de descargarla, la imagen tarda algo más en cargar, sin error |
 
 ### 3.3 Despliegues futuros
 
-#### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**; sin hacer, la lectura de los registros de la imagen)
+#### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
 
 > **Ejecutada el 2026-09-26, de 01:23 a 01:44 UTC**, con autorización expresa del dueño para P0, PB y P1–P10 sobre
 > `6943b7f`: P0 igual que en S4; PB con el PR #4 y el CI **2/2**; P1 **CONTINUAR** y 49/49 en local; P3 con el respaldo
 > **validado** (31 tablas y 11.938 filas iguales); P4 exactamente `0075`–`0077`; P5–P6 **49/49** y **CONTINUAR** con 0
 > filas tocadas; P7 por avance rápido desde el puente; P8 en verde, con **el puente como punto de reversión**. Registro
 > en §2.2, §3.2.p y `TEST_RESULTS` (D-229). **P9 y P10, confirmadas por el dueño el mismo día** con sus sesiones
-> (§3.2.p); **sin hacer**, la lectura de los registros de la imagen —fuera de la ventana de una hora que deja leer la
-> API— y, **sin probar**, los órdenes descritos que llegan de la pantalla grande. Lo que sigue en esta sección es el
+> (§3.2.p); la lectura de los registros de la imagen, **hecha por la tarde** con una segunda prueba leída dentro de la
+> hora; **sin probar**, los órdenes descritos que llegan de la pantalla grande. Lo que sigue en esta sección es el
 > procedimiento tal como se preparó y se siguió.
 
 Tres cosas distintas, que no se mezclan:
@@ -1116,7 +1119,7 @@ commit existente cambia de *hash*, y la documentación los cita.
 | I1 | Ensayo, sin escribir | `git merge-tree --write-tree --name-only feature/premios-configurables fix/puente-next-16.3.6` y `git diff --stat feature/premios-configurables <árbol que devuelve>` | Salida **0** (sin conflictos) y diferencia **vacía**: la fusión no cambia ningún archivo. Medido el 2026-09-25 contra `8d7766e` (árbol `d5e6fbc…`, igual al de la punta). **Se repite justo antes de fusionar**, contra la punta de ese momento: cada commit de documentación cambia el árbol esperado |
 | I2 | Fusionar | En la copia principal, rama `feature/premios-configurables`, árbol limpio salvo los tres archivos del usuario: `git merge --no-ff fix/puente-next-16.3.6 -m "merge: el puente e6c2c5f (Next 16.3.6 sobre 9acbfa8) entra en el lote"` | Sin conflictos; `git diff HEAD^1 HEAD` vacío; `git merge-base --is-ancestor e6c2c5f HEAD` y `--is-ancestor 00ee2f6 HEAD` |
 | I3 | CI | Empujar la rama y CI 2/2 sobre ese SHA | 2/2 · ✅ *Hecho como PB el 2026-09-26*: rama en `6943b7f`, PR #4, CI 2/2 |
-| I4 | La puerta del lote | §3.3.a, P0–P10, con `main` por avance rápido de `e6c2c5f` al commit de fusión | El inmediatamente anterior en producción es el del puente · ✅ *P0–P8 el 2026-09-26*: `main` en `6943b7f`, que desciende de la fusión; el anterior es el puente (§3.2.p). P9–P10, confirmadas por el dueño el mismo día, salvo la lectura de los registros de la imagen |
+| I4 | La puerta del lote | §3.3.a, P0–P10, con `main` por avance rápido de `e6c2c5f` al commit de fusión | El inmediatamente anterior en producción es el del puente · ✅ *P0–P8 el 2026-09-26*: `main` en `6943b7f`, que desciende de la fusión; el anterior es el puente (§3.2.p). P9–P10, cerradas el mismo día |
 
 **Resultado de I1–I2, 2026-09-26, solo en local** (evidencia en `puerta-s/evidencia/i2-*` del *scratchpad* de la
 sesión `710dce60…`):

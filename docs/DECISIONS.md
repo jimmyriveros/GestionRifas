@@ -14691,7 +14691,7 @@ revierte el despliegue de forma automática. **Del agente**, con su porqué abaj
 CI, la base de la foto «después», una comparación más tras desplegar y el nombre de las fotos. **Pendiente:** P9 y P10,
 del dueño con sus sesiones; y, después de su prueba, la lectura de los registros de la imagen semanal. *Actualizado
 el mismo día:* P9 y P10, **confirmadas por el dueño**; la lectura de los registros, **sin hacer**, porque ya no se
-podían leer (§4).
+podían leer (§4). *Por la tarde:* con una segunda prueba del dueño, leída dentro de la hora, **P9 queda cerrada** (§5).
 
 ### 1. Resultado (2026-09-26, UTC)
 
@@ -14704,7 +14704,7 @@ podían leer (§4).
 | P4–P6, 01:34–01:36 | *Dry-run* con exactamente las tres; aplicadas de **01:34:40 a 01:34:57**; `0001`–`0077` iguales; **49/49**; **CONTINUAR** con 0 diferencias y 0 filas tocadas; la misma ACL de `search_tickets`; el puente, sin errores sobre la base nueva |
 | P7, 01:36–01:43 | `e6c2c5f..6943b7f` a las 01:36:57; **`dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`** READY a las 01:37:51; CI de `main` **2/2** (run `36209027409`) |
 | P8, 01:38–01:44 | `72d03cf65c19` servido y el del puente desaparecido; Next 16.3.6 en el cliente y en la construcción; 40/40 rutas iguales que en P0, 0 × 5xx; 7/7 cabeceras; 0 secretos; **49/49**; la base sin cambios tras el despliegue; 0 errores en los registros; `/_next/image`, de Vercel; **el anterior es el puente**, con `isRollbackCandidate` |
-| P9–P10, el mismo día | ✅ **Confirmadas por el dueño**, con sus sesiones y en su teléfono: la imagen semanal en 2–3 s, descargar y compartir; el orden de «Mis boletas» —buscando, conserva el orden elegido y restablece a «Las que mejor coinciden»—, el de «Mis clientes» y el de «Boletas» del personal; el historial de abonos, paginado. ❌ **Sin hacer:** la lectura de los registros de la imagen (§4) |
+| P9–P10, el mismo día | ✅ **Confirmadas por el dueño**, con sus sesiones y en su teléfono: la imagen semanal en 2–3 s, descargar y compartir; el orden de «Mis boletas» —buscando, conserva el orden elegido y restablece a «Las que mejor coinciden»—, el de «Mis clientes» y el de «Boletas» del personal; el historial de abonos, paginado. ✅ Los registros de la imagen, con una segunda prueba a las 17:38 UTC (§5); los de la primera ya no se podían leer (§4) |
 
 ### 2. Decisiones del agente
 
@@ -14728,8 +14728,8 @@ podían leer (§4).
 
 * **La imagen semanal del lote en Vercel.** Con su gancho de instrumentación y la carga diferida de `sharp` (D-223,
   D-224) todavía no se ha pedido con sesión: es P9. Que los registros no tengan ninguna de las cinco frases dice que
-  ninguna petición falló hasta las 01:44, no que la imagen salga. *El mismo día, el dueño la generó* (§4); lo que
-  sigue sin demostrarse es **el registro de esa petición**.
+  ninguna petición falló hasta las 01:44, no que la imagen salga. *El mismo día, el dueño la generó* (§4), y por la
+  tarde se leyó limpio el registro de una segunda petición (§5); **su duración** no, porque los registros no la traen.
 * **Lo que se ve con sesión**: el orden y la paginación de P10. *Confirmado por el dueño* (§4), salvo los órdenes que
   llegan de la pantalla grande.
 
@@ -14761,3 +14761,32 @@ avisos o fatal; **0** 5xx; **0** de las cinco frases; **ninguna** petición a la
    los pedía. Quedan como no probados, no como fallidos.
 4. **Para la próxima puerta**, en `DEPLOYMENT` §3.3.a (P9): el dueño avisa al terminar su prueba y la lectura de los
    registros va dentro de la hora siguiente.
+
+### 5. P9 cerrada: una segunda prueba, leída dentro de la hora (17:38–17:43 UTC)
+
+**Del dueño**, en un iPhone: abrió la imagen semanal y la descargó, y funcionó; al volver al módulo después de
+descargarla, la imagen volvió a cargar bien, algo más despacio, sin ningún error.
+
+**Del agente**, en solo lectura, de 17:40 a 17:43 UTC:
+
+| Qué | Resultado |
+|---|---|
+| Las peticiones | `GET /api/weekly-results/image` **200** a las **17:38:58** y a las **17:39:12**, las dos `cache=MISS`, cada una justo después de cargar `/seller/settings/weekly-results` (17:38:57 y 17:39:10) |
+| El despliegue | `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` en las dos, que es `6943b7f` (`get_deployment`): el de producción, con el puente como el inmediatamente anterior y candidato |
+| Errores asociados | De 17:00 a 17:42: **0** errores, avisos o fatal, **0** 5xx y **0** de las cinco frases del paso 10. Desde el despliegue (01:37), **ninguna** agrupación de errores en esa ruta según `get_runtime_errors` —una tabla preagregada de hasta 7 días, que llega también a la prueba de la mañana, aunque solo como agrupación— |
+| Duración | **No disponible.** Las líneas no la traen —método, ruta, código, nivel, fuente y hora— y `get_project_trace` solo sirve para peticiones de la CLI. La hora de cada línea no es una duración |
+
+**Decisiones del agente:**
+
+1. **P9 se cierra con esta segunda petición**, que es la misma ruta, el mismo despliegue y el mismo tipo de sesión. Los
+   registros de la primera **siguen sin leerse** (§4); lo que las une es la agrupación de errores, vacía para la ruta
+   desde el despliegue.
+2. **Lo que el dueño notó al volver al módulo** —la imagen tarda algo más— se anota como observación: las dos
+   peticiones fueron `cache=MISS`, así que la segunda volvió a generar la imagen, pero sin duración no se puede decir
+   cuánto tardó ni por qué. Ninguna incidencia nueva.
+3. **Una agrupación de errores ajena a la imagen**, en todo el proyecto: `AuthApiError: Invalid Refresh Token: Refresh
+   Token Not Found`, en el proxy (`/middleware`), de **1** usuario, vista por primera vez el **2026-08-10** —antes del
+   lote— y por última a las 13:57:33 UTC, ya en su despliegue. **No se investigó**: está fuera de esta comprobación, no
+   coincide con las peticiones de la imagen y el dueño pidió no cambiar código.
+4. **Variantes no revisadas a mano:** la imagen en otros teléfonos o navegadores, su duración, y los órdenes que llegan
+   de la pantalla grande o de un enlace guardado (D-216, D-218).

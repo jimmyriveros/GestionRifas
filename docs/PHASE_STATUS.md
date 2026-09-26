@@ -3,10 +3,10 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-26 (madrugada UTC; P9 y P10, por la mañana) — **el lote D-211 a D-226 EN PRODUCCIÓN (D-229)**, mantenimiento
+- **Actualizado:** 2026-09-26 (madrugada UTC; P9 y P10, por la mañana; los registros de la imagen, por la tarde) — **el lote D-211 a D-226 EN PRODUCCIÓN (D-229)**, mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas, con autorización expresa del dueño para la puerta del lote
-  (`DEPLOYMENT` §3.3.a, P0–P10). **P0–P8 hechas; P9 y P10, confirmadas por el dueño con sus sesiones el mismo día;
-  sin hacer, la lectura de los registros de la imagen semanal.**
+  (`DEPLOYMENT` §3.3.a, P0–P10). **P0–P10 cerradas el mismo día**: P9 y P10 con las sesiones del dueño, y los registros de
+  la imagen semanal con una segunda prueba leída dentro de la hora.
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** lo de D-211 a D-226, **servido** —orden y paginación en la base, control de orden en el
   teléfono en los dos portales, historial de abonos paginado, códigos de rifa desde R1000 y la imagen semanal con
@@ -18,14 +18,16 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   errores en los registros. Con las sesiones del dueño (P9–P10): la imagen semanal en 2–3 s, descargar y compartir; el
   orden de las tres listas y el historial de abonos paginado, correctos. Errores propios: dos lecturas de la CSP sin
   conexión con Vercel, repetidas sin efecto, y un recorrido de P9 que no pedía avisar al terminar, así que los
-  registros de la imagen ya no se podían leer (`TEST_RESULTS`, D-229).
+  registros de la primera prueba de la imagen ya no se podían leer; los de una segunda, sí: dos 200 desde `6943b7f`,
+  sin errores (`TEST_RESULTS`, D-229).
   **(3) Migraciones:** **77 en producción** desde las 01:34:57 UTC: `0075` (orden en `search_tickets` y
   `admin_list_tickets`), `0076` (dos vistas y dos funciones para Vendedores, Rifas y Administradores) y `0077` (el código
   de rifa no se recorta desde R1000).
   **(4) Variables de entorno:** ninguna nueva.
-  **(5) Problemas que permanecen:** la lectura de los registros de la imagen semanal, **sin hacer** —la API solo deja
-  leer la última hora—; los órdenes que llegan de la pantalla grande o de un enlace guardado (D-216, D-218), **sin
-  probar** con sesión; la imagen tardó 2–3 s, frente a ~1 s con el puente, sin causa medida; la parte general de I-132; I-159, I-160, I-161, I-171 y la prueba hermana de I-164, sin encargo; I-151 e I-059; el
+  **(5) Problemas que permanecen:** los órdenes que llegan de la pantalla grande o de un enlace guardado (D-216, D-218),
+  **sin probar** con sesión; la imagen tardó 2–3 s, frente a ~1 s con el puente, y algo más al volver al módulo, sin
+  causa medida —los registros no traen duración—; una agrupación de errores de sesión en el proxy (`Invalid Refresh
+  Token`), anterior al lote, observada y sin investigar; la parte general de I-132; I-159, I-160, I-161, I-171 y la prueba hermana de I-164, sin encargo; I-151 e I-059; el
   resto de la auditoría visual, sin autorizar. Reversión del código: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA`,
   sin tocar la base; la pulsa el dueño.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, incluidas las filas **Entorno** y **Git**.
