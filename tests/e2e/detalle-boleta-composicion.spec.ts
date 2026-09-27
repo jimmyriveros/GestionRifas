@@ -22,8 +22,8 @@ import { ACCOUNTS, loginAs, logout, randomTicketNumbers, unique } from './fixtur
  * pantalla en el orden en que se lee. Todo con las cajas y los estilos que el
  * navegador calcula, no con las clases escritas.
  *
- * Fija sus propios anchos —320, 390, 834, 1024, 1360 y 1440—, así que corre en
- * el proyecto de escritorio.
+ * Fija sus propios anchos —320, 390, 834, 1024, 1360, 1440 y 1920—, así que
+ * corre en el proyecto de escritorio.
  */
 
 const SECCIONES = [
@@ -37,6 +37,28 @@ const SECCIONES = [
 
 type Seccion = (typeof SECCIONES)[number]
 type Caja = { x: number; y: number; width: number; height: number }
+
+/**
+ * Los dos tonos de los números (D-233), como los devuelve el navegador. Son los
+ * valores de las variables de Figma, no los de la lámina. En claro, el diario es
+ * `accent/indigo/surface-strong` · `foreground` · `border-strong` (indigo 100 ·
+ * 700 · 300) y el semanal `surface` · `foreground-subtle` · `border` (50 · 600
+ * · 200); en oscuro, sus equivalentes (900 · 300 · 600 y 950 · 400 · 800).
+ */
+const TONOS = {
+  claro: {
+    diario: { fondo: 'rgb(224, 231, 255)', texto: 'rgb(67, 56, 202)', borde: 'rgb(165, 180, 252)' },
+    semanal: {
+      fondo: 'rgb(238, 242, 255)',
+      texto: 'rgb(79, 70, 229)',
+      borde: 'rgb(199, 210, 254)',
+    },
+  },
+  oscuro: {
+    diario: { fondo: 'rgb(49, 46, 129)', texto: 'rgb(165, 180, 252)', borde: 'rgb(79, 70, 229)' },
+    semanal: { fondo: 'rgb(30, 27, 75)', texto: 'rgb(129, 140, 248)', borde: 'rgb(55, 48, 163)' },
+  },
+} as const
 
 let refs: SeedRefs
 let abonada: { id: string; daily: string; weekly: string }
@@ -99,6 +121,34 @@ async function cajas(page: Page, secciones: readonly Seccion[]): Promise<Record<
 
 function cerca(a: number, b: number, tolerancia = 1.5): boolean {
   return Math.abs(a - b) <= tolerancia
+}
+
+/**
+ * Escritorio: dos columnas que se apilan cada una por su cuenta —la boleta a la
+ * izquierda, a 360 px, y el cobro a la derecha—, con 20 px entre tarjetas.
+ */
+async function dosColumnas(page: Page): Promise<void> {
+  const c = await cajas(page, SECCIONES)
+  const izquierda = [c['Números de la boleta']!, c['Cliente']!, c['Información de venta']!]
+  const derecha = [
+    c['Estado y resumen de pago']!,
+    c['Abonos de esta boleta']!,
+    c['Detalles de la boleta']!,
+  ]
+
+  for (const columna of [izquierda, derecha]) {
+    for (let i = 1; i < columna.length; i++) {
+      expect(cerca(columna[i]!.x, columna[0]!.x)).toBe(true)
+      // Cada columna se apila sola: 20 px entre tarjetas, sin el hueco que
+      // dejaría compartir filas con la otra columna.
+      const hueco = columna[i]!.y - (columna[i - 1]!.y + columna[i - 1]!.height)
+      expect(cerca(hueco, 20), `hueco de ${hueco} px entre tarjetas de una columna`).toBe(true)
+    }
+  }
+  expect(cerca(izquierda[0]!.y, derecha[0]!.y), 'las dos columnas empiezan juntas').toBe(true)
+  expect(derecha[0]!.x).toBeGreaterThan(izquierda[0]!.x + izquierda[0]!.width)
+  // La columna de la boleta mide lo de Figma: 360 px.
+  expect(cerca(izquierda[0]!.width, 360)).toBe(true)
 }
 
 /**
@@ -207,32 +257,16 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
     expect(detalles.y).toBeGreaterThan(abonos.y + abonos.height)
   })
 
-  test('escritorio (1440): dos columnas que se apilan cada una por su cuenta', async ({ page }) => {
-    await abrir(page, abonada.id, 1440)
-    const c = await cajas(page, SECCIONES)
-    const izquierda = [c['Números de la boleta']!, c['Cliente']!, c['Información de venta']!]
-    const derecha = [
-      c['Estado y resumen de pago']!,
-      c['Abonos de esta boleta']!,
-      c['Detalles de la boleta']!,
-    ]
+  for (const width of [1440, 1920]) {
+    test(`escritorio (${width}): dos columnas que se apilan cada una por su cuenta`, async ({
+      page,
+    }) => {
+      await abrir(page, abonada.id, width)
+      await dosColumnas(page)
+    })
+  }
 
-    for (const columna of [izquierda, derecha]) {
-      for (let i = 1; i < columna.length; i++) {
-        expect(cerca(columna[i]!.x, columna[0]!.x)).toBe(true)
-        // Cada columna se apila sola: 20 px entre tarjetas, sin el hueco que
-        // dejaría compartir filas con la otra columna.
-        const hueco = columna[i]!.y - (columna[i - 1]!.y + columna[i - 1]!.height)
-        expect(cerca(hueco, 20), `hueco de ${hueco} px entre tarjetas de una columna`).toBe(true)
-      }
-    }
-    expect(cerca(izquierda[0]!.y, derecha[0]!.y), 'las dos columnas empiezan juntas').toBe(true)
-    expect(derecha[0]!.x).toBeGreaterThan(izquierda[0]!.x + izquierda[0]!.width)
-    // La columna de la boleta mide lo de Figma: 360 px.
-    expect(cerca(izquierda[0]!.width, 360)).toBe(true)
-  })
-
-  for (const width of [320, 390, 834, 1024, 1360, 1440]) {
+  for (const width of [320, 390, 834, 1024, 1360, 1440, 1920]) {
     test(`a ${width} px nada desborda, nada se pisa y nada asoma de su tarjeta`, async ({
       page,
     }) => {
@@ -309,34 +343,52 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
     }
   })
 
-  test('los números llevan el acento índigo del sistema, en claro y en oscuro', async ({
+  test('el diario y el semanal llevan sus dos tonos de índigo, en claro y en oscuro, a 320, 390 y 1920', async ({
     page,
   }) => {
-    await abrir(page, abonada.id, 1440)
-    const caja = tarjeta(page, 'Números de la boleta')
-      .getByText('Número diario', { exact: true })
-      .locator('..')
-    const cifra = tarjeta(page, 'Números de la boleta').getByText(abonada.daily, { exact: true })
-
-    const colores = () =>
-      caja.evaluate((el) => {
+    await abrir(page, abonada.id, 390)
+    const numeros = tarjeta(page, 'Números de la boleta')
+    const caja = (rotulo: string) => numeros.getByText(rotulo, { exact: true }).locator('..')
+    const colores = (rotulo: string) =>
+      caja(rotulo).evaluate((el) => {
         const s = getComputedStyle(el)
-        return { fondo: s.backgroundColor, texto: s.color }
+        return { fondo: s.backgroundColor, texto: s.color, borde: s.borderTopColor }
       })
+    // Los cuatro textos de las dos cajas: los rótulos son de 12 px y también
+    // tienen que leerse.
+    const textos = {
+      'rótulo del diario': numeros.getByText('Número diario', { exact: true }),
+      'cifra del diario': numeros.getByText(abonada.daily, { exact: true }),
+      'rótulo del semanal': numeros.getByText('Número semanal', { exact: true }),
+      'cifra del semanal': numeros.getByText(abonada.weekly, { exact: true }),
+    }
 
-    // Claro: `accent/indigo/surface` y `accent/indigo/foreground` (D-230).
-    expect(await colores()).toEqual({ fondo: 'rgb(238, 242, 255)', texto: 'rgb(67, 56, 202)' })
-    expect(await textContrast(cifra)).toBeGreaterThanOrEqual(4.5)
-
-    // Oscuro: el portal no tiene selector de tema, así que se enciende a mano y
-    // se comprueba que de verdad se encendió antes de medir.
-    await page.evaluate(() => document.documentElement.classList.add('dark'))
-    const fondoOscuro = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--ds-background-default').trim(),
-    )
-    expect(fondoOscuro.toLowerCase()).toBe('#0a0a0a')
-    expect(await colores()).toEqual({ fondo: 'rgb(30, 27, 75)', texto: 'rgb(165, 180, 252)' })
-    expect(await textContrast(cifra)).toBeGreaterThanOrEqual(4.5)
+    for (const tema of ['claro', 'oscuro'] as const) {
+      if (tema === 'oscuro') {
+        // El portal no tiene selector de tema, así que se enciende a mano y se
+        // comprueba que de verdad se encendió antes de medir.
+        await page.evaluate(() => document.documentElement.classList.add('dark'))
+        const fondoOscuro = await page.evaluate(() =>
+          getComputedStyle(document.documentElement)
+            .getPropertyValue('--ds-background-default')
+            .trim(),
+        )
+        expect(fondoOscuro.toLowerCase()).toBe('#0a0a0a')
+      }
+      for (const width of [320, 390, 1920]) {
+        await page.setViewportSize({ width, height: 900 })
+        const diario = await colores('Número diario')
+        const semanal = await colores('Número semanal')
+        expect(diario, `${tema} a ${width} px: el diario`).toEqual(TONOS[tema].diario)
+        expect(semanal, `${tema} a ${width} px: el semanal`).toEqual(TONOS[tema].semanal)
+        for (const [nombre, texto] of Object.entries(textos)) {
+          expect(
+            await textContrast(texto),
+            `${tema} a ${width} px: contraste del ${nombre}`,
+          ).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    }
   })
 
   test('en escritorio, el foco recorre la pantalla en el orden en que se lee', async ({ page }) => {

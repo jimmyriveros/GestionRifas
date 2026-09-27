@@ -1312,6 +1312,7 @@ body:has(.catalog-theme) {
  * Origen: Figma «Rifas — Design System», pagina «05 — Color System v2 —
  * Proposal» (nodo 283:87), coleccion «Color v2 — Proposal». Los 28 valores se
  * LEYERON de sus variables, modo por modo; no se escribieron mirando la lamina.
+ * D-233 suma 4 roles de `accent/indigo`, creados en esa misma coleccion: 32.
  *
  * AMPLIA, NO SUSTITUYE. Nada de lo de arriba cambia: la marca sigue siendo el
  * verde, `success` esmeralda, `info` cielo, `warning` ambar, `error` rosa y
@@ -1322,6 +1323,9 @@ body:has(.catalog-theme) {
  *   celebration/*        premios y momentos celebratorios. NO reutiliza ambar.
  *   accent/<familia>/*   acentos sin significado de estado: categorias,
  *                        realces y composicion. Nunca dicen un estado solos.
+ *                        `accent/indigo` tiene ademas `surface-strong`,
+ *                        `foreground-subtle`, `border` y `border-strong`:
+ *                        los dos tonos de los numeros de la boleta (D-233).
  *   data/category/1..6   series categoricas de graficos, separadas de los
  *                        estados financieros (`data/paid`, `data/partial`…).
  *
@@ -1364,8 +1368,12 @@ body:has(.catalog-theme) {
   --ds-accent-cyan-surface: #ecfeff;
   --ds-accent-gold-foreground: #a16207;
   --ds-accent-gold-surface: #fefce8;
+  --ds-accent-indigo-border: #c7d2fe;
+  --ds-accent-indigo-border-strong: #a5b4fc;
   --ds-accent-indigo-foreground: #4338ca;
+  --ds-accent-indigo-foreground-subtle: #4f46e5;
   --ds-accent-indigo-surface: #eef2ff;
+  --ds-accent-indigo-surface-strong: #e0e7ff;
   --ds-accent-orange-foreground: #c2410c;
   --ds-accent-orange-surface: #fff7ed;
   --ds-accent-violet-foreground: #6d28d9;
@@ -1400,8 +1408,12 @@ body:has(.catalog-theme) {
   --ds-accent-cyan-surface: #083344;
   --ds-accent-gold-foreground: #fde047;
   --ds-accent-gold-surface: #422006;
+  --ds-accent-indigo-border: #3730a3;
+  --ds-accent-indigo-border-strong: #4f46e5;
   --ds-accent-indigo-foreground: #a5b4fc;
+  --ds-accent-indigo-foreground-subtle: #818cf8;
   --ds-accent-indigo-surface: #1e1b4b;
+  --ds-accent-indigo-surface-strong: #312e81;
   --ds-accent-orange-foreground: #fdba74;
   --ds-accent-orange-surface: #431407;
   --ds-accent-violet-foreground: #c4b5fd;
@@ -1436,8 +1448,12 @@ body:has(.catalog-theme) {
   --ds-accent-cyan-surface: #083344;
   --ds-accent-gold-foreground: #fde047;
   --ds-accent-gold-surface: #422006;
+  --ds-accent-indigo-border: #3730a3;
+  --ds-accent-indigo-border-strong: #4f46e5;
   --ds-accent-indigo-foreground: #a5b4fc;
+  --ds-accent-indigo-foreground-subtle: #818cf8;
   --ds-accent-indigo-surface: #1e1b4b;
+  --ds-accent-indigo-surface-strong: #312e81;
   --ds-accent-orange-foreground: #fdba74;
   --ds-accent-orange-surface: #431407;
   --ds-accent-violet-foreground: #c4b5fd;
@@ -1472,8 +1488,12 @@ body:has(.catalog-theme) {
   --color-accent-cyan-surface: var(--ds-accent-cyan-surface);
   --color-accent-gold-foreground: var(--ds-accent-gold-foreground);
   --color-accent-gold-surface: var(--ds-accent-gold-surface);
+  --color-accent-indigo-border: var(--ds-accent-indigo-border);
+  --color-accent-indigo-border-strong: var(--ds-accent-indigo-border-strong);
   --color-accent-indigo-foreground: var(--ds-accent-indigo-foreground);
+  --color-accent-indigo-foreground-subtle: var(--ds-accent-indigo-foreground-subtle);
   --color-accent-indigo-surface: var(--ds-accent-indigo-surface);
+  --color-accent-indigo-surface-strong: var(--ds-accent-indigo-surface-strong);
   --color-accent-orange-foreground: var(--ds-accent-orange-foreground);
   --color-accent-orange-surface: var(--ds-accent-orange-surface);
   --color-accent-violet-foreground: var(--ds-accent-violet-foreground);

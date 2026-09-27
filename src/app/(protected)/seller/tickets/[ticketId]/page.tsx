@@ -196,8 +196,8 @@ export default async function SellerTicketDetailPage({
           <Card className={SECTION_CARD}>
             <SectionHeader title="Números de la boleta" />
             <CardContent className="grid grid-cols-2 gap-3">
-              <TicketNumber label="Número diario" value={ticket.dailyNumber} />
-              <TicketNumber label="Número semanal" value={ticket.weeklyNumber} />
+              <TicketNumber label="Número diario" value={ticket.dailyNumber} tone="daily" />
+              <TicketNumber label="Número semanal" value={ticket.weeklyNumber} tone="weekly" />
             </CardContent>
           </Card>
 
@@ -392,12 +392,25 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 /**
+ * Los dos tonos del acento indigo, uno por numero (D-233): el diario, intenso;
+ * el semanal, suave. Solo ROLES del sistema —ni hexadecimales ni primitivas—, y
+ * cada tono trae los tres: fondo, texto y borde.
+ */
+const TICKET_NUMBER_TONES = {
+  daily:
+    'bg-accent-indigo-surface-strong text-accent-indigo-foreground border-accent-indigo-border-strong',
+  weekly:
+    'bg-accent-indigo-surface text-accent-indigo-foreground-subtle border-accent-indigo-border',
+} as const
+
+/**
  * Uno de los dos numeros, con su nombre encima: cual es cual importa.
  *
- * Con el ACENTO INDIGO de Color v2 (D-230), que es un realce y no un estado: el
- * texto sigue diciendo que numero es. Los DOS llevan el mismo tono —en Figma el
- * diario salia un punto mas intenso—, porque son pares: la boleta se nombra por
- * los dos (BR-N11) y ninguno manda sobre el otro.
+ * Con el ACENTO INDIGO de Color v2 (D-230), que es un realce y no un estado.
+ * Cada numero lleva su tono, como en Figma: el diario, un punto mas intenso
+ * (D-233). Es una decision VISUAL. BR-N11 pide nombrar la boleta por sus dos
+ * numeros y no dice nada de su color: lo que dice cual es cual es el rotulo,
+ * no el tono (CLAUDE.md §27). Los dos textos pasan 4,5:1 en claro y en oscuro.
  *
  * La cifra usa Geist con `tabular-nums`, no `font-mono`: esa pila es la
  * monoespaciada DEL SISTEMA (I-070), distinta en cada telefono.
@@ -407,9 +420,22 @@ function SectionHeader({ title }: { title: string }) {
  * semanal quedaba 17 px mas abajo que el diario. Las dos cajas miden lo mismo
  * —son hijas de la misma rejilla—, asi que basta con llevar la cifra al pie.
  */
-function TicketNumber({ label, value }: { label: string; value: string | null }) {
+function TicketNumber({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string | null
+  tone: keyof typeof TICKET_NUMBER_TONES
+}) {
   return (
-    <div className="bg-accent-indigo-surface text-accent-indigo-foreground border-accent-indigo-foreground/20 flex min-w-0 flex-col justify-between gap-1 rounded-lg border px-3 py-2.5">
+    <div
+      className={cn(
+        'flex min-w-0 flex-col justify-between gap-1 rounded-lg border px-3 py-2.5',
+        TICKET_NUMBER_TONES[tone],
+      )}
+    >
       {/* Sin recortar: en una columna estrecha el rotulo baja de linea, pero
           «cuál de los dos números es este» no se puede esconder. */}
       <p className="text-xs font-medium">{label}</p>

@@ -6922,7 +6922,8 @@ existing primitives use **v4**; the 28 roles hold raw hex instead of aliasing `P
 (§10.25): each card carries a distinct responsibility —the ticket's numbers, its client, the sale, the
 payment state, the payment history, the administrative record— and none is a card around a single
 field. The ticket numbers consume `accent/indigo` (surface, foreground, and the foreground at 20 % as
-border), never the `indigo/*` primitives the mock bound. Density is a **page** decision
+border), never the `indigo/*` primitives the mock bound. *(Superseded by §10.60: each number has its own
+tone again, and the single tone was a visual choice, not a BR-N11 requirement.)* Density is a **page** decision
 (`gap-4 py-4 md:py-5`, the same as `SellerCatalogCard`), passed through `className`; the `Card`
 primitive did not change. No Core component, token or Pattern changed for D-231.
 
@@ -6941,6 +6942,28 @@ no deploy. This time **Figma was written**, with the owner's authorization.
 `KNOWN_FAILURES` exception and the test that blocked consuming the series were removed. Reverting the value
 makes the test fail in five places. On the Figma page, the `06 · Gold` data swatch (`284:418`) is now bound
 to `data/category/6`, and a new section `07 — Closed decisions` (`311:2`, `311:5`) records all this.
+
+### 10.60 THE TWO TICKET NUMBERS GET THEIR TWO FIGMA TONES BACK — FOUR NEW `accent/indigo` ROLES (2026-09-27)
+
+Product decision **`D-233`**, asked for by the owner, who approved the D-231 layout. Only colors change:
+layout, sizes and behavior stay as approved. **The single tone of D-231 was a visual choice, not a BR-N11
+requirement** — §10.58 said otherwise and is corrected.
+
+**REUSE → EXTEND → CREATE.** `accent/indigo/surface` and `accent/indigo/foreground` already held two of the six
+values; the accent gains four roles, named by **strength**, not by screen: `surface-strong`,
+`foreground-subtle`, `border`, `border-strong`. No `ticket-number/*` role, no exported primitive.
+
+| Number | Background | Text | Border | Text contrast L · D |
+|---|---|---|---|---|
+| Daily | `surface-strong` (indigo 100 · 900) | `foreground` (700 · 300) | `border-strong` (300 · 600) | 6.41 · 5.73 |
+| Weekly | `surface` (50 · 950) | `foreground-subtle` (600 · 400) | `border` (200 · 800) | 5.62 · 5.36 |
+
+Dark mirrors Light: the daily box is the more visible one, and each box reuses one pre-existing role in both
+themes. The two backgrounds differ more in Dark (1.40:1) than in Light (1.10:1). Catalog = Dark (§10.59).
+In Figma the six boxes of `278:11`, `278:117` and `278:219` now bind the **roles** instead of primitives,
+and section 07 of `283:87` shows both modes (`311:13`). In code the tones are one map in the page
+(`TICKET_NUMBER_TONES`), roles only. Unit audit: **93 of 93**; the E2E measures the six colors and four
+text contrasts in both themes at 320, 390 and 1920.
 
 ---
 ## 11. Repository checkpoint — 2026-09-07

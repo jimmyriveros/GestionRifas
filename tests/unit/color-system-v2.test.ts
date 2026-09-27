@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * Color System v2 (D-230, cerrado en D-232): los roles que añade la propuesta
- * de Figma.
+ * de Figma, y los cuatro de `accent/indigo` que suma D-233 para los números
+ * de la boleta.
  *
  * Fija cinco cosas, y la última es la que pedía la propia propuesta antes de
  * llevarlos a producción («Antes de mover estos tokens a producción: 1.
@@ -40,10 +41,14 @@ const PRIMITIVES: Record<string, string> = {
   'violet/900': '#4c1d95',
   'violet/950': '#2e1065',
   'indigo/50': '#eef2ff',
+  'indigo/100': '#e0e7ff',
+  'indigo/200': '#c7d2fe',
   'indigo/300': '#a5b4fc',
   'indigo/400': '#818cf8',
   'indigo/600': '#4f46e5',
   'indigo/700': '#4338ca',
+  'indigo/800': '#3730a3',
+  'indigo/900': '#312e81',
   'indigo/950': '#1e1b4b',
   'cyan/50': '#ecfeff',
   'cyan/300': '#67e8f9',
@@ -97,6 +102,13 @@ const ROLES: Record<string, { light: string; dark: string }> = {
   'accent-violet-foreground': { light: 'violet/700', dark: 'violet/300' },
   'accent-indigo-surface': { light: 'indigo/50', dark: 'indigo/950' },
   'accent-indigo-foreground': { light: 'indigo/700', dark: 'indigo/300' },
+  // Los dos tonos de los números de la boleta (D-233): el diario usa
+  // surface-strong, foreground y border-strong; el semanal, surface,
+  // foreground-subtle y border.
+  'accent-indigo-surface-strong': { light: 'indigo/100', dark: 'indigo/900' },
+  'accent-indigo-foreground-subtle': { light: 'indigo/600', dark: 'indigo/400' },
+  'accent-indigo-border': { light: 'indigo/200', dark: 'indigo/800' },
+  'accent-indigo-border-strong': { light: 'indigo/300', dark: 'indigo/600' },
   'accent-cyan-surface': { light: 'cyan/50', dark: 'cyan/950' },
   'accent-cyan-foreground': { light: 'cyan/700', dark: 'cyan/300' },
   'accent-orange-surface': { light: 'orange/50', dark: 'orange/950' },
@@ -171,7 +183,8 @@ function contrast(a: string, b: string): number {
 /**
  * Qué se mide contra qué. Texto 4,5:1 (1.4.3); iconos y series de un gráfico,
  * 3:1 (1.4.11). Un acento se mide contra su superficie y contra la tarjeta,
- * porque se va a usar en las dos.
+ * porque se va a usar en las dos. Los números de la boleta (D-233), con el
+ * texto de cada tono sobre su propio fondo.
  */
 const PAIRS: Array<{ fg: string; bg: string; min: number }> = [
   { fg: 'status-discovery-text', bg: 'status-discovery-surface', min: 4.5 },
@@ -184,6 +197,9 @@ const PAIRS: Array<{ fg: string; bg: string; min: number }> = [
     { fg: `accent-${family}-foreground`, bg: `accent-${family}-surface`, min: 4.5 },
     { fg: `accent-${family}-foreground`, bg: 'surface-card', min: 4.5 },
   ]),
+  { fg: 'accent-indigo-foreground', bg: 'accent-indigo-surface-strong', min: 4.5 },
+  { fg: 'accent-indigo-foreground-subtle', bg: 'accent-indigo-surface', min: 4.5 },
+  { fg: 'accent-indigo-foreground-subtle', bg: 'surface-card', min: 4.5 },
   ...[1, 2, 3, 4, 5, 6].flatMap((n) => [
     { fg: `data-category-${n}`, bg: 'surface-card', min: 3 },
     { fg: `data-category-${n}`, bg: 'background-default', min: 3 },
@@ -208,6 +224,19 @@ describe('Color System v2 · cada rol es el valor de su primitiva de Figma', () 
     expect(scopeTokens('light').get('celebration-icon')).toBe('#a16207')
     expect(scopeTokens('light').get('accent-gold-foreground')).toBe('#a16207')
     expect(scopeTokens('dark').get('data-category-6')).toBe('#facc15')
+  })
+
+  it('el número diario y el semanal tienen tonos distintos en los tres ámbitos (D-233)', () => {
+    for (const scope of ['light', 'dark', 'catalog'] as const) {
+      const tokens = scopeTokens(scope)
+      const diario = ['surface-strong', 'foreground', 'border-strong'].map((r) =>
+        tokens.get(`accent-indigo-${r}`),
+      )
+      const semanal = ['surface', 'foreground-subtle', 'border'].map((r) =>
+        tokens.get(`accent-indigo-${r}`),
+      )
+      diario.forEach((valor, i) => expect(valor, scope).not.toBe(semanal[i]))
+    }
   })
 
   it('cada rol se exporta como --color-*, que es lo que genera la utilidad', () => {
@@ -241,7 +270,7 @@ describe('Color System v2 · auditoría de contraste WCAG en los tres ámbitos',
     expect(rows).toHaveLength(PAIRS.length * 3)
   })
 
-  it('todos cumplen: la excepción de data/category/6 en claro se cerró en D-232 (I-172)', () => {
+  it('todos cumplen, sin excepciones: la de data/category/6 en claro se cerró en D-232 (I-172)', () => {
     expect(failures).toEqual([])
   })
 

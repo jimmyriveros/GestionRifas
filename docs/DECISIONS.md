@@ -14882,7 +14882,7 @@ detalle administrativo (D-198) no se tocó.
 | Barra superior, barra lateral y barra inferior | `AppShell`, sin cambios |
 | Flecha, «Detalle boleta» y «Registrar abono» | `PageHeader` con `backHref` y `compactAction`, como antes |
 | Las seis tarjetas | `Card` del sistema; un `h2` con el rol `Heading/H4` en cada una |
-| «Números de la boleta» | `TicketNumber` de la página, con `accent/indigo` (D-230) |
+| «Números de la boleta» | `TicketNumber` de la página, con `accent/indigo` (D-230); un tono por número desde D-233 |
 | «Información de venta» | Filas de la página + `TicketSalePrice` + `ClearanceReceiptField` |
 | «Cliente» y su aviso | `ClientLinkCard` / `ClientEmptyCard` + `TicketClientActions`, con el aviso en `Notice` informativo |
 | «Estado y resumen de pago» | `TicketPaymentSummary`: `StatusBadge` y `ProgressRing` de siempre |
@@ -14929,7 +14929,7 @@ que habría separado el orden de foco del de lectura. Son `div` sin rol: no se p
 
 | Figma | Código | Por qué |
 |---|---|---|
-| Primitivas índigo directas, y el diario más intenso que el semanal | Los dos con `accent/indigo`: superficie, texto y borde al 20 % | Los componentes consumen roles, no primitivas; y los dos números son pares (BR-N11) |
+| Primitivas índigo directas, y el diario más intenso que el semanal | Los dos con `accent/indigo`: superficie, texto y borde al 20 % | Los componentes consumen roles, no primitivas. ~~Y los dos números son pares (BR-N11).~~ **Corregido en D-233:** el mismo tono fue una decisión visual del agente; BR-N11 no exige esa igualdad. Desde D-233 cada número lleva su tono, como en Figma |
 | Colores de maqueta sueltos | Tokens del sistema | Ídem |
 | Fondo de página gris (#f9fafa) | El blanco del `AppShell` | Es de toda la aplicación, portal administrativo incluido |
 | Escritorio, columna izquierda: números, venta, cliente | Números, cliente, venta | El orden de lectura y de foco es el mismo en todos los anchos |
@@ -14995,3 +14995,83 @@ navegador, contra la base local, `--ds-data-category-6` vale #a16207 en `:root` 
 D-230 decía que cumplían **83 de 84** y que **1** no cumplía. El valor que fallaba era uno, pero la auditoría lo mide
 **dos veces**, sobre la tarjeta y sobre el fondo, así que el recuento real era **82 de 84**. Lo detectó el dueño. Se
 corrigió en D-230, `TEST_RESULTS`, `HANDOFF`, `PHASE_STATUS` y el relevo del sistema de diseño (§10.58).
+
+---
+
+## D-233 — El número diario y el semanal recuperan sus dos tonos de Figma, con cuatro roles nuevos de `accent/indigo`
+
+**Fecha:** 2026-09-27 · **Encargo del dueño**, que aprobó la distribución de D-231 y pidió conservar los tonos
+distintos de Figma. Mantenimiento posterior a la Fase 9; **no es una Fase 10**. **Solo en local**: sin migración,
+sin dependencias, sin push ni despliegue. La distribución, los tamaños y el comportamiento aprobados **no
+cambian**.
+
+### Los valores, verificados en Figma
+
+Se leyeron de las variables de las seis cajas (`278:34` y `278:37` en escritorio, `278:136` y `278:139` en
+tableta, `278:231` y `278:234` en teléfono), no de la lámina. Coinciden con los de la revisión del dueño:
+
+| Número | Fondo | Texto | Borde |
+|---|---|---|---|
+| Diario | `indigo/100` #e0e7ff | `indigo/700` #4338ca | `indigo/300` #a5b4fc |
+| Semanal | `indigo/50` #eef2ff | `indigo/600` #4f46e5 | `indigo/200` #c7d2fe |
+
+### REUSE → EXTEND → CREATE
+
+| Paso | Qué |
+|---|---|
+| Reutilizar | `accent/indigo/surface` (#eef2ff) y `accent/indigo/foreground` (#4338ca) ya eran dos de los seis valores |
+| Ampliar | `accent/indigo` gana cuatro roles, en la misma colección de Figma y en el mismo bloque de `globals.css`: `surface-strong`, `foreground-subtle`, `border` y `border-strong` |
+| Crear | Nada fuera del acento: ni un rol de pantalla (`ticket-number/*`) ni una primitiva exportada |
+
+Los roles son del **acento**, no de la pantalla: dicen «intenso» y «suave», no «diario» y «semanal». Sirven para
+cualquier otro par que necesite dos tonos del mismo acento, y el nombre no miente si mañana el diario cambia de
+color.
+
+| Rol | Light | Dark (y Catalog, D-232) | Lo usa |
+|---|---|---|---|
+| `accent/indigo/surface-strong` | `indigo/100` #e0e7ff | `indigo/900` #312e81 | Fondo del diario |
+| `accent/indigo/foreground` *(existía)* | `indigo/700` #4338ca | `indigo/300` #a5b4fc | Texto del diario |
+| `accent/indigo/border-strong` | `indigo/300` #a5b4fc | `indigo/600` #4f46e5 | Borde del diario |
+| `accent/indigo/surface` *(existía)* | `indigo/50` #eef2ff | `indigo/950` #1e1b4b | Fondo del semanal |
+| `accent/indigo/foreground-subtle` | `indigo/600` #4f46e5 | `indigo/400` #818cf8 | Texto del semanal |
+| `accent/indigo/border` | `indigo/200` #c7d2fe | `indigo/800` #3730a3 | Borde del semanal |
+
+### Oscuro: los equivalentes, y por qué esos
+
+El criterio es el de claro: el diario es el **más visible** de los dos —en oscuro, un fondo un paso más claro, un
+texto más luminoso y un borde que se ve más— y cada caja **reutiliza en los dos temas uno de los roles que ya
+existían**: el diario, su texto (`foreground`, #a5b4fc en oscuro); el semanal, su fondo (`surface`, #1e1b4b, el
+que los dos tenían en D-231). Medido con la fórmula de WCAG:
+
+| | Claro | Oscuro |
+|---|---|---|
+| Texto del diario sobre su fondo | **6,41:1** | **5,73:1** |
+| Texto del semanal sobre su fondo | **5,62:1** | **5,36:1** |
+| Diferencia entre los dos fondos | 1,10:1 | 1,40:1 |
+
+Los cuatro textos cumplen 4,5:1, también los rótulos de 12 px, que usan el mismo color. La diferencia entre los
+fondos es mayor en oscuro que en claro, así que el par se distingue igual o mejor. Los bordes son decorativos
+—la caja se identifica por su rótulo— y aun así se ven más en oscuro (1,82 y 1,61 contra su fondo) que en claro
+(1,62 y 1,33). **No depende del color:** cada caja dice cuál es.
+
+**Descartada:** una opción de más contraste en oscuro —fondos `indigo/800` y `indigo/950`, textos `200` y `300`:
+6,66 y 8,02—. El diario habría necesitado un texto nuevo en vez de reutilizar `foreground`, y la elegida ya cumple
+con margen.
+
+### Dónde queda
+
+| | Figma | Código |
+|---|---|---|
+| Roles | Los cuatro, en «Color v2 — Proposal», como alias de sus primitivas en Light, Dark y Catalog, con alcances explícitos (fondo, texto o borde), sintaxis de código y descripción | `--ds-accent-indigo-*` en `:root`, `.dark` y `.catalog-theme`, exportados como `--color-*` |
+| Las cajas | Las seis de `278:11`, `278:117` y `278:219`, enlazadas a los **roles** —antes, a primitivas directas—; en claro se ven igual | `TICKET_NUMBER_TONES`, en la página del detalle: solo utilidades de roles, sin hexadecimales, sin primitivas y sin el borde al 20 % |
+| Muestra | «Números de la boleta — Light y Dark» (`311:13`), en la sección 07 de `283:87`, con los dos modos | `detalle-boleta-composicion.spec.ts` mide los seis colores y el contraste de los cuatro textos, en los dos temas, a 320, 390 y 1920 |
+
+La prueba unitaria suma los cuatro roles a la tabla rol → primitiva, tres pares de contraste —el texto de cada
+tono sobre su fondo, y el suave también sobre la tarjeta— y una comprobación de que los dos tonos no coinciden en
+ningún ámbito: **93 de 93** medidas cumplen.
+
+### Una corrección a D-231
+
+D-231 justificó el tono único con BR-N11 («los dos números son pares»). **No era así:** fue una decisión visual
+del agente, y BR-N11 solo pide nombrar la boleta por sus dos números. Se corrigió en la tabla de diferencias de
+D-231, en el comentario del componente y en el relevo del sistema de diseño (§10.58).
