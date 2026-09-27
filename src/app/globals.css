@@ -1303,3 +1303,196 @@ body:has(.catalog-theme) {
   --text-metric-x-large--font-weight: var(--ds-font-weight-semibold);
   --text-metric-x-large--letter-spacing: var(--ds-letter-spacing-tight);
 }
+
+/*
+ * ===========================================================================
+ * DESIGN SYSTEM — COLOR SYSTEM v2: LOS ROLES NUEVOS (D-230)
+ * ===========================================================================
+ *
+ * Origen: Figma «Rifas — Design System», pagina «05 — Color System v2 —
+ * Proposal» (nodo 283:87), coleccion «Color v2 — Proposal». Los 28 valores se
+ * LEYERON de sus variables, modo por modo; no se escribieron mirando la lamina.
+ *
+ * AMPLIA, NO SUSTITUYE. Nada de lo de arriba cambia: la marca sigue siendo el
+ * verde, `success` esmeralda, `info` cielo, `warning` ambar, `error` rosa y
+ * `neutral` pizarra. Estos roles nombran lo que antes no tenia nombre:
+ *
+ *   status/discovery/*   novedades y contenido destacado. NO es exito ni info.
+ *   status/attention/*   atencion elevada sin llegar a error. NO es warning.
+ *   celebration/*        premios y momentos celebratorios. NO reutiliza ambar.
+ *   accent/<familia>/*   acentos sin significado de estado: categorias,
+ *                        realces y composicion. Nunca dicen un estado solos.
+ *   data/category/1..6   series categoricas de graficos, separadas de los
+ *                        estados financieros (`data/paid`, `data/partial`…).
+ *
+ * `discovery` y `attention` son TOKENS, no tonos de `StatusBadge` ni de
+ * `Notice`: la propuesta pide validarlos con casos reales antes de volverlos
+ * estados globales, y todavia no hay ninguno.
+ *
+ * LAS PRIMITIVAS NUEVAS (violet, indigo, cyan, orange, gold; 50→950) NO SE
+ * EXPORTAN, por la misma regla de la Wave 1: existen en Figma para que estos
+ * roles las aliaseen, y aqui se escribe su valor literal. Un componente pide
+ * `accent-indigo-surface`, nunca «indigo 50».
+ *
+ * CATALOG. La propuesta solo trae Light y Dark. Un ambito sin declarar hereda
+ * EN SILENCIO el valor de otro tema —el fallo mas caro de encontrar despues—,
+ * asi que `.catalog-theme` se declara igual y con los valores de Dark: es lo
+ * mismo que ya hace Figma con los 25 roles `status/*` y `data/*`, cuyo modo
+ * Catalog coincide con Dark en todos. La prueba de contraste lo cubre.
+ *
+ * `accent-*` NO ES EL `accent` DE shadcn. `bg-accent` sigue siendo la
+ * superficie gris de hover (`surface/accent`); `bg-accent-indigo-surface` es
+ * otra cosa y se llama asi porque asi se llama en Figma, que no se renombra
+ * para acomodarse al codigo.
+ *
+ * CONTRASTE (auditado con `tests/unit/color-system-v2.test.ts`). Todo texto
+ * cumple 4,5:1 y todo icono y serie 3:1, en los tres ambitos, SALVO UNO:
+ * `data/category/6` en claro (#ca8a04 sobre blanco) da 2,94:1. No se corrige
+ * aqui —es un valor de la propuesta y lo decide Figma—; la misma prueba impide
+ * que algun componente lo consuma mientras siga asi (I-172).
+ * ===========================================================================
+ */
+
+:root {
+  /* Light */
+  /* accent */
+  --ds-accent-cyan-foreground: #0e7490;
+  --ds-accent-cyan-surface: #ecfeff;
+  --ds-accent-gold-foreground: #a16207;
+  --ds-accent-gold-surface: #fefce8;
+  --ds-accent-indigo-foreground: #4338ca;
+  --ds-accent-indigo-surface: #eef2ff;
+  --ds-accent-orange-foreground: #c2410c;
+  --ds-accent-orange-surface: #fff7ed;
+  --ds-accent-violet-foreground: #6d28d9;
+  --ds-accent-violet-surface: #f5f3ff;
+  /* celebration */
+  --ds-celebration-border: #fde047;
+  --ds-celebration-foreground: #713f12;
+  --ds-celebration-icon: #a16207;
+  --ds-celebration-surface: #fef9c3;
+  /* data / category */
+  --ds-data-category-1: #0d7d2d;
+  --ds-data-category-2: #4f46e5;
+  --ds-data-category-3: #0891b2;
+  --ds-data-category-4: #7c3aed;
+  --ds-data-category-5: #ea580c;
+  --ds-data-category-6: #ca8a04;
+  /* status */
+  --ds-status-attention-border: #fdba74;
+  --ds-status-attention-icon: #c2410c;
+  --ds-status-attention-surface: #ffedd5;
+  --ds-status-attention-text: #7c2d12;
+  --ds-status-discovery-border: #c4b5fd;
+  --ds-status-discovery-icon: #6d28d9;
+  --ds-status-discovery-surface: #ede9fe;
+  --ds-status-discovery-text: #4c1d95;
+}
+
+.dark {
+  /* Dark */
+  /* accent */
+  --ds-accent-cyan-foreground: #67e8f9;
+  --ds-accent-cyan-surface: #083344;
+  --ds-accent-gold-foreground: #fde047;
+  --ds-accent-gold-surface: #422006;
+  --ds-accent-indigo-foreground: #a5b4fc;
+  --ds-accent-indigo-surface: #1e1b4b;
+  --ds-accent-orange-foreground: #fdba74;
+  --ds-accent-orange-surface: #431407;
+  --ds-accent-violet-foreground: #c4b5fd;
+  --ds-accent-violet-surface: #2e1065;
+  /* celebration */
+  --ds-celebration-border: #854d0e;
+  --ds-celebration-foreground: #fef08a;
+  --ds-celebration-icon: #facc15;
+  --ds-celebration-surface: #422006;
+  /* data / category */
+  --ds-data-category-1: #3ddc63;
+  --ds-data-category-2: #818cf8;
+  --ds-data-category-3: #22d3ee;
+  --ds-data-category-4: #a78bfa;
+  --ds-data-category-5: #fb923c;
+  --ds-data-category-6: #facc15;
+  /* status */
+  --ds-status-attention-border: #9a3412;
+  --ds-status-attention-icon: #fb923c;
+  --ds-status-attention-surface: #431407;
+  --ds-status-attention-text: #fed7aa;
+  --ds-status-discovery-border: #5b21b6;
+  --ds-status-discovery-icon: #a78bfa;
+  --ds-status-discovery-surface: #2e1065;
+  --ds-status-discovery-text: #ddd6fe;
+}
+
+.catalog-theme {
+  /* Catalog — la propuesta no lo define: los valores de Dark (ver arriba) */
+  /* accent */
+  --ds-accent-cyan-foreground: #67e8f9;
+  --ds-accent-cyan-surface: #083344;
+  --ds-accent-gold-foreground: #fde047;
+  --ds-accent-gold-surface: #422006;
+  --ds-accent-indigo-foreground: #a5b4fc;
+  --ds-accent-indigo-surface: #1e1b4b;
+  --ds-accent-orange-foreground: #fdba74;
+  --ds-accent-orange-surface: #431407;
+  --ds-accent-violet-foreground: #c4b5fd;
+  --ds-accent-violet-surface: #2e1065;
+  /* celebration */
+  --ds-celebration-border: #854d0e;
+  --ds-celebration-foreground: #fef08a;
+  --ds-celebration-icon: #facc15;
+  --ds-celebration-surface: #422006;
+  /* data / category */
+  --ds-data-category-1: #3ddc63;
+  --ds-data-category-2: #818cf8;
+  --ds-data-category-3: #22d3ee;
+  --ds-data-category-4: #a78bfa;
+  --ds-data-category-5: #fb923c;
+  --ds-data-category-6: #facc15;
+  /* status */
+  --ds-status-attention-border: #9a3412;
+  --ds-status-attention-icon: #fb923c;
+  --ds-status-attention-surface: #431407;
+  --ds-status-attention-text: #fed7aa;
+  --ds-status-discovery-border: #5b21b6;
+  --ds-status-discovery-icon: #a78bfa;
+  --ds-status-discovery-surface: #2e1065;
+  --ds-status-discovery-text: #ddd6fe;
+}
+
+/* `static` por lo mismo que en la Wave 1: sin consumidores, sin el no se emiten. */
+@theme static inline {
+  /* accent */
+  --color-accent-cyan-foreground: var(--ds-accent-cyan-foreground);
+  --color-accent-cyan-surface: var(--ds-accent-cyan-surface);
+  --color-accent-gold-foreground: var(--ds-accent-gold-foreground);
+  --color-accent-gold-surface: var(--ds-accent-gold-surface);
+  --color-accent-indigo-foreground: var(--ds-accent-indigo-foreground);
+  --color-accent-indigo-surface: var(--ds-accent-indigo-surface);
+  --color-accent-orange-foreground: var(--ds-accent-orange-foreground);
+  --color-accent-orange-surface: var(--ds-accent-orange-surface);
+  --color-accent-violet-foreground: var(--ds-accent-violet-foreground);
+  --color-accent-violet-surface: var(--ds-accent-violet-surface);
+  /* celebration */
+  --color-celebration-border: var(--ds-celebration-border);
+  --color-celebration-foreground: var(--ds-celebration-foreground);
+  --color-celebration-icon: var(--ds-celebration-icon);
+  --color-celebration-surface: var(--ds-celebration-surface);
+  /* data / category */
+  --color-data-category-1: var(--ds-data-category-1);
+  --color-data-category-2: var(--ds-data-category-2);
+  --color-data-category-3: var(--ds-data-category-3);
+  --color-data-category-4: var(--ds-data-category-4);
+  --color-data-category-5: var(--ds-data-category-5);
+  --color-data-category-6: var(--ds-data-category-6);
+  /* status */
+  --color-status-attention-border: var(--ds-status-attention-border);
+  --color-status-attention-icon: var(--ds-status-attention-icon);
+  --color-status-attention-surface: var(--ds-status-attention-surface);
+  --color-status-attention-text: var(--ds-status-attention-text);
+  --color-status-discovery-border: var(--ds-status-discovery-border);
+  --color-status-discovery-icon: var(--ds-status-discovery-icon);
+  --color-status-discovery-surface: var(--ds-status-discovery-surface);
+  --color-status-discovery-text: var(--ds-status-discovery-text);
+}

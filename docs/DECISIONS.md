@@ -14790,3 +14790,72 @@ descargarla, la imagen volvió a cargar bien, algo más despacio, sin ningún er
    coincide con las peticiones de la imagen y el dueño pidió no cambiar código.
 4. **Variantes no revisadas a mano:** la imagen en otros teléfonos o navegadores, su duración, y los órdenes que llegan
    de la pantalla grande o de un enlace guardado (D-216, D-218).
+
+---
+
+## D-230 — Color System v2: los 28 roles nuevos de Figma entran en la capa de tokens
+
+**Fecha:** 2026-09-27 · **Encargo:** integrar en local la propuesta de colores de Figma (archivo
+`7KIwO0iiGpksLSNjMeSa4X`, página «05 — Color System v2 — Proposal», nodo `283:87`) separada del cambio de
+distribución del detalle de boleta (D-231). Mantenimiento posterior a la Fase 9; **no es una Fase 10**. **Solo en
+local:** sin migración, sin dependencias, sin push ni despliegue.
+
+### Lo que hay en Figma, leído de las variables y no de la lámina
+
+| Colección | Contenido | Qué se hace en el código |
+|---|---|---|
+| «Primitives v2 — Proposal» | 55 primitivas: `violet`, `indigo`, `cyan`, `orange` y `gold`, cada una de 50 a 950 | **Nada.** Las primitivas no se exportan (regla de la Wave 1): existen para que los roles las aliaseen |
+| «Color v2 — Proposal» | 28 roles con modos **Light** y **Dark** | Los 28 entran como `--ds-*` en `:root`, `.dark` y `.catalog-theme`, y se exportan como `--color-*` en `@theme static inline` |
+
+La lámina `284:2` no enlaza variables —sus muestras llevan el color pintado—, así que los valores se leyeron de
+las colecciones con la API de variables, modo por modo. Figma no se modificó.
+
+### Correspondencia
+
+| Rol de Figma | Utilidad | Para qué (según la propuesta) |
+|---|---|---|
+| `status/discovery/{surface,text,border,icon}` | `bg-status-discovery-surface`… | Novedades y contenido destacado. No es éxito ni información |
+| `status/attention/{surface,text,border,icon}` | `bg-status-attention-surface`… | Atención elevada sin llegar a error. No sustituye a `warning` |
+| `celebration/{surface,foreground,border,icon}` | `bg-celebration-surface`… | Premios y momentos celebratorios. No reutiliza el ámbar de `warning` |
+| `accent/{violet,indigo,cyan,orange,gold}/{surface,foreground}` | `bg-accent-indigo-surface`, `text-accent-indigo-foreground`… | Acentos sin significado de estado: categorías, realces y composición |
+| `data/category/1..6` | `bg-data-category-1`, `stroke-data-category-1`… | Series categóricas, separadas de `data/paid`, `data/partial`… |
+
+Lo que se conserva, como dice la propia propuesta: verde de marca, `success` esmeralda, `info` cielo, `warning`
+ámbar, `error` rosa y `neutral` pizarra. **Ningún token existente cambia.**
+
+### Cuatro decisiones del agente
+
+1. **Catalog lleva los valores de Dark.** La propuesta solo define Light y Dark, y un ámbito sin declarar hereda en
+   silencio el valor de otro tema. Se sigue el precedente de Figma: en los 25 roles `status/*` y `data/*` de la
+   colección «Color», el modo Catalog coincide con Dark en todos. **Pendiente de confirmar en Figma.**
+2. **`discovery` y `attention` son tokens, no estados.** No se añaden a los tonos de `StatusBadge` ni de `Notice`:
+   la propuesta pide validarlos con casos reales antes de convertirlos en estados globales, y todavía no hay
+   ninguno.
+3. **Un bloque propio en `globals.css`**, después de los roles tipográficos, con sus tres ámbitos y su `@theme`.
+   Se revierte solo, como cada ola del sistema.
+4. **`accent-*` no es el `accent` de shadcn.** `bg-accent` sigue siendo la superficie gris de hover; el nombre nuevo
+   es el de Figma, que no se renombra para acomodarse al código.
+
+### La auditoría que pedía la propuesta
+
+Su primera nota de adopción es «ejecutar auditoría de contraste WCAG en Light y Dark para texto, iconos y
+badges». Hecha, y **convertida en prueba** (`tests/unit/color-system-v2.test.ts`): 28 pares por ámbito, 84 medidas.
+Texto 4,5:1 (1.4.3) —cada acento, contra su superficie **y** contra la tarjeta—; iconos y series 3:1 (1.4.11).
+
+| Resultado | Detalle |
+|---|---|
+| **83 de 84 cumplen** | El texto más justo es `accent/gold/foreground` en claro: 4,76:1 sobre su superficie |
+| **1 no cumple** | `data/category/6` en claro, **#ca8a04** sobre blanco: **2,94:1**. No se cambia el valor —es de la propuesta y lo decide Figma— y se abre **I-172**. La misma prueba **impide que un componente lo consuma** mientras siga así |
+
+La prueba se comprobó con tres mutaciones: quitar un token de Catalog, debilitar el texto naranja en claro y hacer
+que un archivo de `src/` use `data-category-6`. Las tres fallan con un mensaje que dice qué y dónde.
+
+### Lo que se vio en Figma y no bloquea el código
+
+| Hallazgo | Por qué no bloquea |
+|---|---|
+| Las 55 primitivas nuevas siguen la paleta hexadecimal de Tailwind v3 (`indigo/600` = `#4f46e5`), y las existentes, la de v4 (`emerald/100` = `#d0fae5`) | El código escribe el literal de cada rol, así que usa exactamente el valor de Figma |
+| Los 28 roles llevan su hexadecimal en vez de apuntar a las primitivas v2, con `ALL_SCOPES` y sin sintaxis de código | Es higiene del archivo de Figma. Conviene enlazarlos antes de aprobar la propuesta |
+| `status/*/text` frente a `celebration/foreground` | Coherente con lo existente: los estados dicen `text`; los roles de producto, `foreground` |
+
+**Primer consumidor:** los dos números del detalle de boleta del vendedor, con `accent/indigo` (D-231).

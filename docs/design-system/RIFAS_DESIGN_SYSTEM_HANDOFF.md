@@ -6882,6 +6882,39 @@ The foundation, the six page Patterns, the three theme scopes and the responsive
 reopened and did not need to be.
 
 ---
+
+### 10.58 COLOR SYSTEM v2 PROPOSAL — THE 28 ROLES ENTER THE TOKEN LAYER, LOCAL ONLY (2026-09-27)
+
+**Not a wave, not a block.** Ordinary product work under §10.55, asked for by the owner: integrate the
+Figma proposal on page `05 — Color System v2 — Proposal` (node `283:87`). Product decision **`D-230`**;
+the first consumer is the seller ticket detail (**`D-231`**). Nothing was pushed or deployed, and **Figma was
+only read**.
+
+| | |
+|---|---|
+| Source | Collection **`Color v2 — Proposal`** (28 variables, modes Light and Dark), read variable by variable. The showcase frame binds none, so nothing was read off the swatches |
+| Added | `status/discovery/*` and `status/attention/*` (surface · text · border · icon), `celebration/*` (surface · foreground · border · icon), `accent/{violet,indigo,cyan,orange,gold}/{surface,foreground}`, `data/category/1..6` |
+| Where | Its own block at the end of `src/app/globals.css`: `:root`, `.dark`, `.catalog-theme` and one `@theme static inline`, so it reverts on its own |
+| Not added | The 55 primitives of `Primitives v2 — Proposal` — primitives are never exported (§5, token architecture) |
+| Existing tokens | **None changed.** No Core component, no status tone, no component API |
+
+**Catalog takes the Dark values.** The proposal defines no Catalog mode, and an undeclared scope inherits
+another theme silently. The precedent is the file itself: in all 25 `status/*` and `data/*` roles of the
+`Color` collection, Catalog equals Dark. **To be confirmed in Figma.**
+
+**`discovery` and `attention` are tokens, not tones.** `StatusBadge` and `Notice` did not gain them: the
+proposal's own adoption notes ask for real product cases before they become global states.
+
+**The contrast audit the proposal asked for is now a unit test** (`tests/unit/color-system-v2.test.ts`):
+84 measurements, 83 pass. **`data/category/6` in Light — #ca8a04 on white — measures 2.94:1**, under the
+3:1 of WCAG 1.4.11. Its value was **not** changed in code (that is a Figma decision); **I-172** records it
+and the test fails if any file in `src/` consumes it. The test was mutation-checked three ways.
+
+**Reported to Figma, not acted on:** the proposal's primitives use Tailwind **v3** hex values while the
+existing primitives use **v4**; the 28 roles hold raw hex instead of aliasing `Primitives v2`, with
+`ALL_SCOPES` and no code syntax. None of this reaches the code, which writes each role's literal.
+
+---
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
