@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (colores v2 y el detalle de boleta del vendedor según Figma, D-230 y D-231, solo en local, 2026-09-27)** | **1.764/1.764** en 88 archivos (+116, `color-system-v2`; comprobada con tres mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | **923/925** en 58,8 min; los 2 fallos, I-148 (reproducido 3/3 **sin** este trabajo) e I-090 (18/18 en aislamiento). Nueva `detalle-boleta-composicion` **16/16**, comprobada con dos mutaciones | ✅ exit 0 | Solo en local, dos commits sin empujar |
+| **Post-9 vigente (Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E del detalle, D-232 y D-233, solo en local, 2026-09-27)** | **1.780/1.780** en 88 archivos (+16, `color-system-v2`: auditoría **93 de 93**; dos mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **924/927** en 50,7 min: los 3 fallos llevan la firma de **I-075**, **I-090** e **I-106**, y los tres fallan también con `319bdba` (medido). `detalle-boleta-composicion` **18/18** dos veces seguidas sin restablecer la base y con dos fallos simulados: **0 filas** nuevas en `public` | ✅ exit 0 | Solo en local, tres commits más sin empujar |
+| Post-9 anterior (colores v2 y el detalle de boleta del vendedor según Figma, D-230 y D-231, solo en local, 2026-09-27) | **1.764/1.764** en 88 archivos (+116, `color-system-v2`; comprobada con tres mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | **923/925** en 58,8 min; los 2 fallos, I-148 (reproducido 3/3 **sin** este trabajo) e I-090 (18/18 en aislamiento). Nueva `detalle-boleta-composicion` **16/16**, comprobada con dos mutaciones | ✅ exit 0 | Solo en local, dos commits sin empujar |
 | Post-9 anterior (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P10, D-229, 2026-09-26) | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 con las sesiones del dueño: correctas** —la imagen semanal en 2–3 s, descargar, compartir, orden y paginación—; los registros de la imagen, **leídos en una segunda prueba** (17:38 UTC, iPhone): dos 200 desde `6943b7f`, sin errores; la duración, no disponible | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
 | Post-9 anterior (S4 del puente cerrada y el puente fusionado en la rama del lote, esto último solo en local, 2026-09-26) | sin cambio: la fusión y la documentación no tocan código | sin cambio de esquema | Producción: la imagen semanal con la sesión del dueño en ~1 s; registros del despliegue con 2 × 200 en la imagen, **0** errores, avisos o 5xx y **0** de las cinco frases; `/_next/image` lo sirve Vercel. Fusión `5f5dace`: árbol **idéntico** al de `628cbdc` y **0 archivos fuera de `docs/`** distintos de `00ee2f6`, el último árbol probado entero (D-226) | no se corrió: ningún archivo de código cambió; lo corre el CI en PB | ✅ **S4 cerrada; I1–I2 hechos.** I3 pasa a PB de la puerta del lote. **Nada empujado** |
 | Post-9 anterior (el puente de D-228 EN PRODUCCIÓN, `e6c2c5f`, 2026-09-26) | **1.522/1.522** en Linux, Node 20 y 24; CI 2/2 en el PR #3 | sin cambio de esquema: siguen `0001`–`0074` | Local: **794/798** en `0074` y en `0077`, los cinco fallos reproducidos en `9acbfa8` con 16.3.0. En vivo: 40/40 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `f6773cfc2306` servido y Next 16.3.6 | `verify:remote` **45 + 4** esperados | ✅ **En producción.** Avance rápido `9acbfa8..e6c2c5f`. Reversión: `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`. Pendiente del dueño: la imagen semanal con sesión |
@@ -15314,3 +15315,100 @@ real, así que el servidor fue siempre `dev:local` («`next dev contra LOCAL (12
 | `npm run test:db`, tras `db:reset` + `seed:local` | ✅ **1.444 + 1 omitida** en 59 archivos: igual que la línea base, sin cambios de esquema |
 
 **Entorno al terminar:** base local restablecida y sembrada (`db:reset` + `seed:local`), sin servidores.
+
+---
+
+## D-232 y D-233 — Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E (2026-09-27, solo en local)
+
+Encargo del dueño, tras aprobar la distribución de D-231: cerrar las decisiones de color, devolver a cada número su
+tono de Figma y que `detalle-boleta-composicion` borre lo que crea. Sobre `319bdba`, en la misma rama. Todo contra la
+base **local**, con `dev:local` («`next dev contra LOCAL (127.0.0.1:54321)`»). Figma se escribió con autorización.
+
+### Figma (`7KIwO0iiGpksLSNjMeSa4X`)
+
+| Comprobación | Resultado |
+|---|---|
+| Los 28 roles de «Color v2 — Proposal», enlazados a primitivas buscando su mismo valor | ✅ Sus 84 valores (Light, Dark y el modo nuevo Catalog) resueltos: todos iguales a los de antes, salvo `data/category/6` Light → `gold/700` |
+| Los 4 roles nuevos de `accent/indigo` | ✅ 12 alias; alcances explícitos, sintaxis de código y descripción |
+| Las seis cajas de números (`278:34`/`37`, `278:136`/`139`, `278:231`/`234`) | ✅ Fondo, borde y los dos textos, enlazados a roles; en claro, los mismos valores que antes |
+| La colección «Color», la del catálogo existente | ✅ Sin tocar: 89 variables y sus modos Light, Catalog y Dark |
+| Lámina `283:87` | ✅ «06 · Gold» (`284:418`) enlazado a `data/category/6` (#a16207); sección 07 (`311:2`, `311:5` y `311:13`), con la muestra en Light y en Dark |
+
+### Colores (D-232, `1c75a6d`)
+
+| Comprobación | Resultado |
+|---|---|
+| `color-system-v2` + `cn` | ✅ **134/134** |
+| Auditoría WCAG, 28 pares × 3 ámbitos | **84 de 84**. Antes, **82 de 84**: D-230 decía 83 por error |
+| Mutación: #ca8a04 devuelto a `globals.css` | ❌ 5 fallos legibles: el rol, el dorado autorizado, «todos cumplen» y las dos medidas de 2,94:1 |
+| En el navegador | `--ds-data-category-6` = #a16207 en `:root`; #facc15 en `.dark` y `.catalog-theme` |
+
+### Los dos tonos (D-233, `05ad7ae`)
+
+| Comprobación | Resultado |
+|---|---|
+| `color-system-v2` + `cn` | ✅ **148/148**; auditoría **93 de 93** (31 pares × 3 ámbitos) |
+| Mutación: el texto suave de oscuro a #4338ca y el fondo intenso de claro igual al suave | ❌ 6 fallos: los dos roles, «tonos distintos», «todos cumplen» y dos contrastes de 2,02 y 2,27 |
+| `cn` con los dos tonos | ✅ Conserva todas las clases de cada caja (prueba temporal, borrada después) |
+| `detalle-boleta-composicion` | ✅ **18/18**: los seis colores y el contraste de los cuatro textos, en claro y en oscuro, a 320, 390 y 1920; 1920 se sumó a las dos columnas y a «nada desborda» |
+| Mutación: el semanal pintado con el tono del diario | ❌ «claro a 320 px: el semanal» |
+| Capturas: 320, 390 y 1920, en claro y en oscuro | 0 px de desplazamiento lateral; los colores que devuelve el navegador, los de la tabla de D-233 |
+
+### La limpieza de la E2E (`1c15860`)
+
+Recuento de 37 tablas —todas las de `public` y cinco de Auth— antes y después de cada pasada, **sin restablecer la
+base entre ellas**:
+
+| Pasada | Resultado | Filas nuevas en `public` |
+|---|---|---|
+| La suite de `319bdba`, sin limpieza | 16/16 | **+1** cliente, **+2** boletas, **+1** abono, **+1** asignación y **+3** filas de bitácora |
+| La de D-233 antes de la limpieza, y su mutación | 18/18, y 1 fallo a propósito | Lo mismo, en cada una |
+| **Corregida, pasada 1** | ✅ 18/18 | **0** |
+| **Corregida, pasada 2**, a continuación | ✅ 18/18 | **0** |
+| Fallo simulado a mitad de `beforeAll`, después de crear el cliente y la boleta | 1 falla y 17 no se ejecutan | **0** |
+| Fallo simulado en una prueba: Playwright cambia de proceso y repite `beforeAll` | 17/18 | **0** |
+
+En cada pasada solo cambian tablas internas de Auth: `auth.audit_log_entries` (+20, los inicios de sesión) y, a veces,
+una sesión. No son datos de la suite, y los deja cualquier E2E que inicie sesión.
+
+### Cierre, sobre el código definitivo
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ exit 0: tipos, lint **0 errores y 2 avisos** (los de siempre, `react-hooks/incompatible-library`), **1.780/1.780** unitarias en 88 archivos, `next build` |
+| `npm run test:db` | ✅ **1.444 + 1 omitida** en 59 archivos: igual que la línea base, sin cambios de esquema |
+| `npx playwright test` (completa, escritorio y teléfono), con `dev:local` y la base recién sembrada | ⚠️ **924/927** en 50,7 min. Los 3 fallos, abajo, uno por uno. `detalle-boleta-composicion` —con sus dos pruebas nuevas de 1920— y las **13** suites que usan `purgeTestData` —directamente o por `privacidad-escenario`—, en verde. `premios-ganados:443` (I-148) **no** se repitió esta vez |
+
+### Los tres fallos de la E2E completa, medidos
+
+| Prueba | Firma | Medido |
+|---|---|---|
+| `back-navigation.spec.ts:25` | **I-075**: agota los 60 s en la línea 38 (`waitForURL`) esperando el detalle administrativo, y el servidor no registra esa petición como terminada | Con la base acumulada y el mismo servidor, **`319bdba` 3 de 5 y `HEAD` 3 de 5**. Tras reiniciar el servidor, `HEAD` 4 de 5 y 5 de 5, con la CPU de la máquina entre el 40 y el 71 % por otras aplicaciones. Este trabajo no toca ni el detalle administrativo ni su listado |
+| `ventas-por-fecha.spec.ts:163` | **I-090**: «< 26», recibido **55** | El archivo solo, tras `db:reset` + `seed:local`: **18/18** |
+| `catalogo-publico-movil.spec.ts:103` | **I-106**: la dirección no llega a `q=0` en 15 s, con el «0» ya escrito en el campo | Abajo |
+
+**I-106, con cuidado, porque una primera serie apuntaba a este trabajo.** Con la base acumulada y alternando el código en
+ventanas cortas, `HEAD` falló **8 de 48** y `319bdba` **0 de 60**, y la diferencia aparecía al cambiar `globals.css`. No se
+dio por buena ni por descartada:
+
+| Medida | Resultado |
+|---|---|
+| La traza de un fallo | El teclazo sale ~160 ms después de `load`, y la hidratación de ese campo llega ~170–195 ms después: es una carrera de milisegundos |
+| Cuándo se hidrata el buscador: 48 cargas, alternando los dos CSS, con una prueba temporal que no se guardó | Entre 170 y 195 ms después de `load` en las 48; medianas de 173 y 195 ms con el CSS de `319bdba`, y de 180 y 170 con el de `HEAD`. **El CSS nuevo no la retrasa** |
+| `globals.css` por partes, 15 veces cada una | Los 16 tokens solos, 1 fallo; el dorado y los comentarios solos, 1; 16 propiedades ficticias, 0. Ninguna parte lo explica por sí sola |
+| Base recién sembrada, `HEAD` | 3 de 30 con el servidor de antes; **15 de 30** con el servidor reiniciado |
+| La misma ventana, uno detrás de otro | **`319bdba` 3 de 30; `HEAD` 30 de 30** |
+
+**Conclusión:** falla con el código anterior y pasa limpia con el nuevo, según la carga de la máquina. Es la carrera que I-106
+ya describe, no un defecto de este trabajo.
+
+### Errores encontrados, y cómo se corrigieron
+
+| Error | Dónde | Corrección |
+|---|---|---|
+| El recuento de D-230, «83 de 84»: eran 82 | La documentación; lo detectó el dueño | Corregido en D-230, aquí, `HANDOFF`, `PHASE_STATUS` y el relevo del sistema de diseño |
+| La justificación del tono único citaba BR-N11 | D-231 y el comentario del componente | Corregida: fue una decisión visual (D-233) |
+| La suite nueva no borraba nada | `detalle-boleta-composicion` | `purgeTestData` en `afterAll`, con su bitácora |
+| El comentario de los roles nuevos quedó con huecos: un `node -e` entre comillas dobles hizo que el shell ejecutara sus comillas invertidas | Mi comando | Corregido con Edit antes de probar; ningún commit lo llevó |
+| Al convertir la prueba de escritorio en bucle, el cuerpo viejo quedó suelto | Mi edición | Reordenado en `dosColumnas` antes de ejecutarla |
+| La hoja de capturas desbordaba su fondo oscuro | El guion de capturas, fuera del repositorio | `width: max-content`; no es de la aplicación |
