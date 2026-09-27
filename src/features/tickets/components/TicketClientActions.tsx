@@ -1,3 +1,6 @@
+import { InfoIcon } from 'lucide-react'
+
+import { Notice } from '@/components/feedback/Notice'
 import type { ClientOption } from '@/features/clients/queries'
 import { ticketLabel } from '@/lib/tickets'
 
@@ -36,6 +39,11 @@ type TicketClientActionsProps = {
  * Puede haber dos botones, uno, o ninguno con un aviso en su lugar. Nunca dos
  * avisos: la explicacion la elige `ticketClientNotice`, que escribe UNA frase
  * por causa, no una por accion (D-169).
+ *
+ * EL AVISO ES UN `Notice` INFORMATIVO (D-231). Explica una situacion de la
+ * pantalla mientras su condicion sea cierta —por que no estan los botones—, que
+ * es justo la responsabilidad de ese componente. Era un parrafo gris suelto; en
+ * Figma es un aviso con icono. `compact`, porque vive dentro de una tarjeta.
  */
 export function TicketClientActions({
   ticket,
@@ -44,9 +52,14 @@ export function TicketClientActions({
   const canReassign = canReassignClient(ticket)
   const canRelease = canReleaseTicket(ticket)
   const notice = ticketClientNotice(ticket)
+  const noticeNode = notice ? (
+    <Notice tone="info" density="compact" icon={<InfoIcon />}>
+      {notice}
+    </Notice>
+  ) : null
 
   if (!canReassign && !canRelease) {
-    return notice ? <p className="text-muted-foreground px-1 text-sm">{notice}</p> : null
+    return noticeNode
   }
 
   // BR-N11: la boleta se nombra por sus dos numeros, y con la MISMA funcion que
@@ -79,7 +92,7 @@ export function TicketClientActions({
           />
         ) : null}
       </div>
-      {notice ? <p className="text-muted-foreground px-1 text-sm">{notice}</p> : null}
+      {noticeNode}
     </div>
   )
 }

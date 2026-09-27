@@ -17,7 +17,11 @@ type TicketSalePriceProps = {
   minSalePrice: number
   paidAmount: number
   canEdit: boolean
-  /** `lg` es el detalle del vendedor; `sm`, el del portal administrativo. */
+  /**
+   * `lg` es el detalle del vendedor: la letra de un valor de «Información de
+   * venta», la misma de la fecha que tiene debajo (D-231). `sm`, la de una
+   * celda.
+   */
   size?: 'lg' | 'sm'
 }
 
@@ -47,7 +51,7 @@ export function TicketSalePrice({
         <p
           className={cn(
             'min-w-0 tabular-nums',
-            size === 'lg' ? 'text-lg font-semibold' : 'text-sm',
+            size === 'lg' ? 'text-base font-medium' : 'text-sm',
           )}
         >
           {formatCOP(salePrice)}

@@ -1,4 +1,4 @@
-import { CalendarDaysIcon, PlusIcon, TagIcon, TicketIcon } from 'lucide-react'
+import { PlusIcon } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -23,9 +23,18 @@ import { canReassignClient } from '@/features/tickets/reassign-client'
 import { hasTicketClientActions } from '@/features/tickets/release-ticket'
 import { SellerTicketActions } from '@/features/tickets/seller/components/SellerTicketActions'
 import { getWhatsappSettings } from '@/features/whatsapp/queries'
-import { formatDateEs, formatDateTimeEs } from '@/lib/dates'
+import { formatDateEs, formatTimeEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
+import { cn } from '@/lib/utils'
+
+/**
+ * La densidad de las seis tarjetas del detalle (D-231): menos aire que el
+ * `Card` de siempre entre el titulo y el contenido, la misma que ya usa
+ * `SellerCatalogCard`. Es de esta pantalla, no del primitivo: por eso la pasa
+ * la pagina, tambien a las dos tarjetas que son componentes.
+ */
+const SECTION_CARD = 'gap-4 py-4 md:py-5'
 
 /** Explica por que una boleta no se puede asignar todavia (BR-I07). */
 function blockedReason(status: string, raffleStatus: string): string | null {
@@ -159,230 +168,302 @@ export default async function SellerTicketDetailPage({
           cambia: `default` ya era `rounded-lg px-4 py-3 text-sm`. */}
       {reason ? <Notice tone="warning">{reason}</Notice> : null}
 
-      {/* Quien es esta boleta: sus dos numeros, cuanto costo y quien la tiene.
-          El orden del HTML es el del telefono —numeros, cliente, precio—; en
-          escritorio la rejilla recoloca el cliente a la derecha sin repetir
-          nada (seccion 7 del encargo). */}
-      <Card>
-        {/* `grid-cols-1` NO es decorativo y no se puede quitar (I-076). Sin el,
-            la unica columna del telefono es `auto`, y una columna `auto` se
-            estira hasta el tamano MINIMO de su contenido: el nombre del cliente
-            lleva `truncate` —o sea `white-space: nowrap`—, asi que su minimo es
-            la frase entera. Un nombre de 28 caracteres pedia 341 px dentro de
-            una tarjeta de 286 y arrastraba a los dos hermanos, con la pagina
-            desplazandose de lado. `grid-cols-1` fija la pista en
-            `minmax(0, 1fr)`, que ignora ese minimo y deja que `truncate` haga
-            su trabajo. Desde `sm` ya estaba bien: `grid-cols-2` lo hace solo. */}
-        <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] xl:gap-8">
-          <div className="grid grid-cols-2 gap-3 sm:col-start-1 sm:row-start-1 xl:col-start-1">
-            <TicketNumber label="Número diario" value={ticket.dailyNumber} />
-            <TicketNumber label="Número semanal" value={ticket.weeklyNumber} />
-          </div>
+      {/* LA COMPOSICION (D-231): seis tarjetas, y el HTML va en el orden del
+          TELEFONO —numeros, cliente, venta, estado, abonos, detalles—, que es
+          tambien el orden de lectura y de foco en los tres anchos. No hay
+          posiciones absolutas ni bloques repetidos con `hidden`.
 
-          {/* La fila entera del cliente es el enlace, y en escritorio ocupa toda
-              la altura de su columna: es la diana mas grande posible (D-101). */}
-          <div className="sm:col-span-2 sm:row-start-2 xl:col-span-1 xl:col-start-3 xl:row-start-1 xl:border-l xl:pl-8">
-            {ticket.clientId ? (
-              <ClientLinkCard
-                href={`/seller/clients/${ticket.clientId}`}
-                name={ticket.clientName ?? 'Cliente'}
-                phone={ticket.clientPhone}
-                // Corregir el cliente y liberar la boleta van DEBAJO de la
-                // fila, fuera del enlace (D-168, D-169). Cuando no se puede, en
-                // su lugar va la explicacion: un boton que falla al pulsarlo es
-                // peor que no tenerlo.
-                action={
-                  hasTicketClientActions(ticket) ? (
-                    <TicketClientActions ticket={ticket} clients={reassignClients} />
-                  ) : undefined
-                }
-              />
-            ) : (
-              <ClientEmptyCard description="Todavía no la has vendido." />
-            )}
-          </div>
+            telefono   una columna, en ese orden;
+            `md`       dos columnas: numeros | cliente, venta | estado, y
+                       abonos y detalles a lo ancho, cada uno en su fila;
+            `xl`       dos columnas que se apilan por su cuenta: a la izquierda
+                       lo de la boleta (numeros, cliente, venta), a la derecha
+                       el cobro (estado, abonos, detalles).
 
-          <div className="space-y-4 sm:col-start-2 sm:row-start-1 xl:col-start-2 xl:border-l xl:pl-8">
-            <Field icon={<TagIcon className="size-4" aria-hidden />} label="Precio de venta">
-              {ticket.salePrice === null ? (
-                <p className="text-muted-foreground text-sm">
-                  Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
-                </p>
-              ) : (
-                <TicketSalePrice
-                  ticketId={ticket.id}
-                  salePrice={ticket.salePrice}
-                  basePrice={ticket.basePrice}
-                  minSalePrice={ticket.minSalePrice}
-                  paidAmount={ticket.paidAmount}
-                  canEdit={canEditSalePrice}
-                  size="lg"
+          LOS DOS ENVOLTORIOS SON `contents` HASTA `xl`, y no es un truco de
+          estilo. En tableta las seis tarjetas tienen que ser hijas de la
+          MISMA rejilla para emparejarse por filas; en escritorio cada columna
+          crece sola, sin que una tarjeta corta deje un hueco por quedarse en
+          la fila de una larga. `display: contents` es lo unico que da las dos
+          cosas sin cambiar el orden del HTML. Son `div` sin rol, asi que no
+          se pierde ninguna semantica al «desaparecer».
+
+          `grid-cols-1` NO es decorativo (I-076, D-125): una columna `auto` se
+          estira hasta el MINIMO de su contenido, y el nombre del cliente lleva
+          `truncate`. `minmax(0, …)` en las columnas de escritorio, por lo mismo. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)]">
+        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
+          <Card className={SECTION_CARD}>
+            <SectionHeader title="Números de la boleta" />
+            <CardContent className="grid grid-cols-2 gap-3">
+              <TicketNumber label="Número diario" value={ticket.dailyNumber} />
+              <TicketNumber label="Número semanal" value={ticket.weeklyNumber} />
+            </CardContent>
+          </Card>
+
+          <Card className={SECTION_CARD}>
+            <SectionHeader title="Cliente" />
+            <CardContent>
+              {ticket.clientId ? (
+                <ClientLinkCard
+                  href={`/seller/clients/${ticket.clientId}`}
+                  name={ticket.clientName ?? 'Cliente'}
+                  phone={ticket.clientPhone}
+                  // Corregir el cliente y liberar la boleta van DEBAJO de la
+                  // fila, fuera del enlace (D-168, D-169). Cuando no se puede,
+                  // en su lugar va la explicacion: un boton que falla al
+                  // pulsarlo es peor que no tenerlo.
+                  action={
+                    hasTicketClientActions(ticket) ? (
+                      <TicketClientActions ticket={ticket} clients={reassignClients} />
+                    ) : undefined
+                  }
                 />
+              ) : (
+                <ClientEmptyCard description="Todavía no la has vendido." />
               )}
-            </Field>
+            </CardContent>
+          </Card>
 
-            <Field
-              icon={<CalendarDaysIcon className="size-4" aria-hidden />}
-              label="Fecha de venta"
-            >
-              <p className="text-sm">
-                {ticket.saleDate ? formatDateEs(ticket.saleDate) : 'Todavía no'}
+          <Card className={SECTION_CARD}>
+            <SectionHeader title="Información de venta" />
+            <CardContent>
+              {/* Una fila por dato, separadas por una linea: rotulo arriba y
+                  valor debajo. Sin iconos a la izquierda, como en Figma. */}
+              <div className="divide-y">
+                <SaleRow label="Precio de venta">
+                  {ticket.salePrice === null ? (
+                    <p className="text-muted-foreground text-sm">
+                      Sin vender (precio vigente {formatCOP(ticket.raffleTicketPrice)})
+                    </p>
+                  ) : (
+                    <TicketSalePrice
+                      ticketId={ticket.id}
+                      salePrice={ticket.salePrice}
+                      basePrice={ticket.basePrice}
+                      minSalePrice={ticket.minSalePrice}
+                      paidAmount={ticket.paidAmount}
+                      canEdit={canEditSalePrice}
+                      size="lg"
+                    />
+                  )}
+                </SaleRow>
+
+                <SaleRow label="Fecha de venta">
+                  {ticket.saleDate ? (
+                    <p className="text-base font-medium">{formatDateEs(ticket.saleDate)}</p>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">Todavía no</p>
+                  )}
+                </SaleRow>
+
+                {/* LA ENTREGA DEL PAZ Y SALVO (D-170). Va junto al precio y a
+                    la fecha de venta —es lo que le dio a esa persona ese dia—,
+                    y no al final entre lo administrativo: es una tarea diaria,
+                    no un dato de archivo. Su titulo es el rotulo de la fila: no
+                    se escribe otro encima, que se leeria dos veces.
+
+                    Sobre una boleta ANULADA se enseña lo que quedara registrado,
+                    sin interruptor: ya no hay nada que entregar (BR-I06). Y
+                    sobre una que ni siquiera se ha vendido no se enseña nada,
+                    porque no hay entrega de la que hablar. */}
+                {canEditClearanceReceipt(ticket) ? (
+                  <div className="py-3 last:pb-0">
+                    <ClearanceReceiptField
+                      /* EL `key` NO ES DECORATIVO. El interruptor guarda en estado
+                         lo que le respondio el servidor, para no parpadear
+                         mientras llega la revalidacion. Pero el dato tambien
+                         cambia SIN que nadie lo toque: cambiar de cliente y
+                         liberar la boleta lo devuelven a pendiente desde la base
+                         (BR-I15). Sin `key`, React conserva el estado viejo y la
+                         pantalla seguiria diciendo «entregado» sobre una fila que
+                         ya no lo esta. Con el, un valor nuevo del servidor
+                         remonta el componente y gana siempre. Es la forma que
+                         documenta React para reiniciar estado al cambiar una
+                         prop, sin efectos ni `setState` en render (D-085). */
+                      key={`${ticket.clientId}:${ticket.clearanceDeliveredAt ?? 'pendiente'}`}
+                      ticketId={ticket.id}
+                      clearanceDeliveredAt={ticket.clearanceDeliveredAt}
+                      clearanceAssumedDelivered={ticket.clearanceAssumedDelivered}
+                    />
+                  </div>
+                ) : clearanceState(ticket) !== null ? (
+                  <SaleRow label="Paz y salvo">
+                    <ClearanceReceiptReadOnly ticket={ticket} />
+                  </SaleRow>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
+          <TicketPaymentSummary
+            className={SECTION_CARD}
+            inventoryStatus={ticket.inventoryStatus}
+            paymentStatus={ticket.paymentStatus}
+            salePrice={ticket.salePrice}
+            paidAmount={ticket.paidAmount}
+          />
+
+          {ticket.inventoryStatus === 'assigned' ? (
+            <TicketPaymentsCard
+              className={cn(SECTION_CARD, 'md:col-span-2')}
+              payments={payments}
+              ticketId={ticket.id}
+              salePrice={ticket.salePrice}
+              paidAmount={ticket.paidAmount}
+            />
+          ) : null}
+
+          {/* Lo administrativo, al final: hace falta alguna vez, pero no
+              compite con la boleta, el cliente ni el cobro. */}
+          <Card className={cn(SECTION_CARD, 'md:col-span-2')}>
+            <SectionHeader title="Detalles de la boleta" />
+            <CardContent>
+              <dl className="divide-y text-sm">
+                {/* La rifa BAJA aqui desde el encabezado (D-126). No se pierde:
+                    un vendedor casi siempre trabaja una sola rifa a la vez, asi
+                    que es contexto, no identidad. */}
+                <DetailLine
+                  label="Rifa"
+                  value={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
+                />
+                <DetailLine label="Creada" value={<DateTime value={ticket.createdAt} />} />
+                <DetailLine
+                  label="Aprobada"
+                  value={ticket.approvedAt ? <DateTime value={ticket.approvedAt} /> : 'Todavía no'}
+                />
+                <DetailLine
+                  label="Asignada"
+                  value={
+                    ticket.assignedAt ? (
+                      <>
+                        <DateTime value={ticket.assignedAt} />
+                        {ticket.clientName ? ` a ${ticket.clientName}` : ''}
+                      </>
+                    ) : (
+                      'Todavía no'
+                    )
+                  }
+                />
+                {ticket.cancelledAt ? (
+                  <DetailLine
+                    label="Anulada"
+                    value={
+                      <>
+                        <DateTime value={ticket.cancelledAt} />
+                        {ticket.cancelReason ? ` — ${ticket.cancelReason}` : ''}
+                      </>
+                    }
+                  />
+                ) : null}
+                <DetailLine label="Código interno" value={ticket.internalCode} mono />
+              </dl>
+              {/* Fuera de la lista y con su propio margen: en Figma esta frase
+                  se montaba sobre la fila del código interno. */}
+              <p className="text-muted-foreground mt-4 text-xs">
+                El código interno lo genera el sistema para identificar la boleta por dentro. Para
+                buscarla, usa sus números.
               </p>
-            </Field>
-
-            {/* LA ENTREGA DEL PAZ Y SALVO (D-170). Va DENTRO de la tarjeta
-                principal, junto al cliente y a la fecha de venta —es lo que le
-                dio a esa persona ese día—, y no al final entre lo
-                administrativo: es una tarea diaria, no un dato de archivo.
-
-                Sobre una boleta ANULADA se enseña lo que quedara registrado,
-                sin interruptor: ya no hay nada que entregar (BR-I06). Y sobre
-                una que ni siquiera se ha vendido no se enseña nada, porque no
-                hay entrega de la que hablar. */}
-            {canEditClearanceReceipt(ticket) ? (
-              <ClearanceReceiptField
-                /* EL `key` NO ES DECORATIVO. El interruptor guarda en estado lo
-                   que le respondio el servidor, para no parpadear mientras llega
-                   la revalidacion. Pero el dato tambien cambia SIN que nadie lo
-                   toque: cambiar de cliente y liberar la boleta lo devuelven a
-                   pendiente desde la base (BR-I15). Sin `key`, React conserva el
-                   estado viejo y la pantalla seguiria diciendo «entregado» sobre
-                   una fila que ya no lo esta. Con el, un valor nuevo del servidor
-                   remonta el componente y gana siempre. Es la forma que documenta
-                   React para reiniciar estado al cambiar una prop, sin efectos ni
-                   `setState` en render (D-085). */
-                key={`${ticket.clientId}:${ticket.clearanceDeliveredAt ?? 'pendiente'}`}
-                ticketId={ticket.id}
-                clearanceDeliveredAt={ticket.clearanceDeliveredAt}
-                clearanceAssumedDelivered={ticket.clearanceAssumedDelivered}
-              />
-            ) : clearanceState(ticket) !== null ? (
-              <Field icon={<TicketIcon className="size-4" aria-hidden />} label="Paz y salvo">
-                <ClearanceReceiptReadOnly ticket={ticket} />
-              </Field>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
-
-      <TicketPaymentSummary
-        inventoryStatus={ticket.inventoryStatus}
-        paymentStatus={ticket.paymentStatus}
-        salePrice={ticket.salePrice}
-        paidAmount={ticket.paidAmount}
-      />
-
-      {ticket.inventoryStatus === 'assigned' ? (
-        <TicketPaymentsCard
-          payments={payments}
-          ticketId={ticket.id}
-          salePrice={ticket.salePrice}
-          paidAmount={ticket.paidAmount}
-        />
-      ) : null}
-
-      {/* Lo administrativo, al final y en voz baja: hace falta alguna vez, pero
-          no compite con la boleta, el cliente ni el cobro (seccion 15). */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-muted-foreground text-sm font-medium">
-            {/* UN ENCABEZADO DE VERDAD, aunque se vea pequeño y en gris. El
-                nivel lo decide la jerarquia del documento, no el tamaño de la
-                letra: bajo el `h1` del encabezado de pantalla, esto es una
-                seccion. Es la misma correccion que la ficha del vendedor ya
-                aplica, y es visualmente inerte —el `h2` no trae estilo propio y
-                hereda el de `CardTitle`—. */}
-            <h2>Detalles de la boleta</h2>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">
-          <dl className="divide-y">
-            {/* La rifa BAJA aqui desde el encabezado (D-126). No se pierde: un
-                vendedor casi siempre trabaja una sola rifa a la vez, asi que es
-                contexto, no identidad. */}
-            <DetailLine label="Rifa" value={`${ticket.raffleShortCode} — ${ticket.raffleName}`} />
-            <DetailLine label="Creada" value={formatDateTimeEs(ticket.createdAt)} />
-            <DetailLine
-              label="Aprobada"
-              value={ticket.approvedAt ? formatDateTimeEs(ticket.approvedAt) : 'Todavía no'}
-            />
-            <DetailLine
-              label="Asignada"
-              value={
-                ticket.assignedAt
-                  ? `${formatDateTimeEs(ticket.assignedAt)}${
-                      ticket.clientName ? ` a ${ticket.clientName}` : ''
-                    }`
-                  : 'Todavía no'
-              }
-            />
-            {ticket.cancelledAt ? (
-              <DetailLine
-                label="Anulada"
-                value={`${formatDateTimeEs(ticket.cancelledAt)}${
-                  ticket.cancelReason ? ` — ${ticket.cancelReason}` : ''
-                }`}
-              />
-            ) : null}
-            <DetailLine label="Código interno" value={ticket.internalCode} mono />
-          </dl>
-          <p className="text-muted-foreground mt-3 text-xs">
-            El código interno lo genera el sistema para identificar la boleta por dentro. Para
-            buscarla, usa sus números.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-/** Uno de los dos numeros, con su nombre encima: cual es cual importa. */
-function TicketNumber({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="bg-muted/40 min-w-0 rounded-lg border px-3 py-2">
-      {/* Sin recortar: en una columna estrecha el rotulo baja de linea, pero
-          «cuál de los dos números es este» no se puede esconder. */}
-      <p className="text-muted-foreground text-xs font-medium">{label}</p>
-      <p className="mt-0.5 font-mono text-2xl font-semibold tabular-nums">{value ?? '—'}</p>
-    </div>
-  )
-}
-
-function Field({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="text-muted-foreground mt-0.5 shrink-0">{icon}</span>
-      <div className="min-w-0 space-y-0.5">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
-        {children}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
 }
 
+/**
+ * El titulo de una de las seis tarjetas.
+ *
+ * UN ENCABEZADO DE VERDAD: bajo el `h1` de la pantalla, cada tarjeta es una
+ * seccion, y un lector de pantalla salta entre ellas por sus `h2`. El rol
+ * tipografico es `Heading/H4` —16 px, seminegrita—, el de Figma.
+ */
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <CardHeader>
+      <CardTitle className="text-heading-h4">
+        <h2>{title}</h2>
+      </CardTitle>
+    </CardHeader>
+  )
+}
+
+/**
+ * Uno de los dos numeros, con su nombre encima: cual es cual importa.
+ *
+ * Con el ACENTO INDIGO de Color v2 (D-230), que es un realce y no un estado: el
+ * texto sigue diciendo que numero es. Los DOS llevan el mismo tono —en Figma el
+ * diario salia un punto mas intenso—, porque son pares: la boleta se nombra por
+ * los dos (BR-N11) y ninguno manda sobre el otro.
+ *
+ * La cifra usa Geist con `tabular-nums`, no `font-mono`: esa pila es la
+ * monoespaciada DEL SISTEMA (I-070), distinta en cada telefono.
+ *
+ * LAS DOS CIFRAS VAN A LA MISMA ALTURA aunque un rotulo ocupe dos lineas. A
+ * 320 px «Número semanal» no cabe en una, y con la cifra pegada al rotulo el
+ * semanal quedaba 17 px mas abajo que el diario. Las dos cajas miden lo mismo
+ * —son hijas de la misma rejilla—, asi que basta con llevar la cifra al pie.
+ */
+function TicketNumber({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="bg-accent-indigo-surface text-accent-indigo-foreground border-accent-indigo-foreground/20 flex min-w-0 flex-col justify-between gap-1 rounded-lg border px-3 py-2.5">
+      {/* Sin recortar: en una columna estrecha el rotulo baja de linea, pero
+          «cuál de los dos números es este» no se puede esconder. */}
+      <p className="text-xs font-medium">{label}</p>
+      <p className="text-metric-x-large tabular-nums">{value ?? '—'}</p>
+    </div>
+  )
+}
+
+/** Una fila de «Información de venta»: rotulo arriba y valor debajo. */
+function SaleRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 space-y-1 py-3 first:pt-0 last:pb-0">
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Una fila de «Detalles de la boleta»: el rotulo en una columna fija y el valor
+ * a su lado, alineado a la izquierda como en Figma. El valor PARTE su texto
+ * (`break-words`) en vez de empujar la columna: una fecha con el nombre del
+ * cliente detras no cabe en 120 px.
+ */
 function DetailLine({
   label,
   value,
   mono = false,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   mono?: boolean
 }) {
   return (
-    <div className="flex flex-wrap justify-between gap-2 py-2 first:pt-0 last:pb-0">
+    <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] gap-x-4 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={mono ? 'text-muted-foreground text-right font-mono' : 'text-right'}>
+      <dd className={mono ? 'text-muted-foreground font-mono break-words' : 'break-words'}>
         {value}
       </dd>
     </div>
+  )
+}
+
+/**
+ * Fecha y hora, con la hora ENTERA: se queda en la línea o baja completa, nunca
+ * partida entre «a.» y «m.», que se lee como una errata (misma regla que el
+ * recuadro de loterías, D-181). El texto es exactamente el de
+ * `formatDateTimeEs`, que une las dos piezas con «, ».
+ */
+function DateTime({ value }: { value: string }) {
+  return (
+    <>
+      {`${formatDateEs(value)}, `}
+      <span className="whitespace-nowrap">{formatTimeEs(value)}</span>
+    </>
   )
 }

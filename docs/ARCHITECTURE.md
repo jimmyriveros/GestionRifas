@@ -438,7 +438,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `BottomNav` | La barra de navegación del teléfono (§8.8, D-106). Solo las entradas `primary`, solo bajo `md`. No consulta nada: `usePathname()` y ya. Conserva el aviso de «se está abriendo» de `NavPending`, en el sitio del icono |
 | `nav-active.ts` | `isNavItemActive(pathname, href)`: qué entrada se enciende. La comparten la barra lateral y la inferior, para que no puedan discrepar (D-106) |
 | `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de una barra de progreso lineal, para cuando el porcentaje comparte fila con cifras de dinero. **Dentro solo va el porcentaje**, medido en `cqw` contra el propio anillo (D-124) |
-| `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel. Dos bloques apilados y separados por una línea; el anillo se pone encima de las cifras en el teléfono y a su izquierda desde 400 px de tarjeta (D-124) |
+| `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel. Dos bloques apilados y separados por una línea; el anillo se pone encima de las cifras en el teléfono y a su izquierda desde 400 px de tarjeta (D-124). Desde D-231 lleva su propio título, «Estado y resumen de pago», y la pantalla le pasa la densidad por `className` |
 | `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089). `compactAction` es el contrato del CTA compacto (§8.20) |
 | `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader` y la cabecera compacta, no se llama suelta |
 | `CompactHeader` | Isla cliente de la cabecera contextual (§8.20, D-150): observer del `PageHeader`, título compacto y portal del CTA |
@@ -643,32 +643,40 @@ curso con `router.back()` directo, un propósito distinto al de esta flecha; no 
 pidió endurecerlos y este proyecto no tiene protección de cambios sin guardar que preservar ni romper.
 `forgot-password` es una pantalla pública fuera del portal, no una pantalla de detalle.
 
-### 8.7 Disposición del detalle de una boleta (D-105)
+### 8.7 Disposición del detalle de una boleta (D-105, recompuesta en D-231)
 
-Un solo árbol de HTML para todos los tamaños. El orden del marcado es el del **teléfono** y la
-rejilla lo recoloca en pantallas anchas con `col-start`; no hay bloques `hidden` que repitan el
-mismo texto ni una tabla encogida.
+Un solo árbol de HTML para todos los tamaños. El orden del marcado es el del **teléfono**, y desde
+D-231 es también el orden de lectura y de foco en tableta y en escritorio; no hay bloques `hidden` que
+repitan el mismo texto ni una tabla encogida.
 
-| Bloque | Teléfono (base) | Tableta (`sm`) | Escritorio |
-|---|---|---|---|
-| Identidad (números · precio · cliente) | apilado: números → cliente → precio → fecha | 2 columnas, cliente a lo ancho debajo | 3 columnas desde **`xl`**, cliente a la derecha |
-| Estado y cobro | **dos bloques apilados** y separados por una línea: los dos estados arriba, el cobro debajo, con el anillo **encima** de «Abonado» y «Pendiente» (D-124) | igual | lo mismo: desde **400 px de tarjeta** el anillo se pone **a la izquierda** de las dos cifras, y ahí acaba el cambio. La disposición ya no depende del tamaño de la ventana |
-| Abonos de esta boleta | cada abono, una tarjeta apilada | igual | columnas alineadas con su encabezado desde `lg` |
+**Seis tarjetas, cada una con su `h2`** (D-231): Números de la boleta → Cliente → Información de
+venta → Estado y resumen de pago → Abonos de esta boleta → Detalles de la boleta. La página las
+compone; los componentes no deciden su sitio (`className`).
 
-**Por qué el corte grande es `xl` y no `lg`.** Con la barra lateral de 256 px, una ventana de 1.024
-px deja 672 px de contenido: una tableta de 768 px tiene **menos** ancho útil que un teléfono
-apaisado de 640 px. Comprobado con capturas a 320, 390, 768, 1024 y 1440 px.
+| Ancho | Disposición |
+|---|---|
+| Teléfono | Una columna, en ese orden |
+| `md` | Rejilla de dos columnas por filas: números \| cliente, venta \| estado; abonos y detalles a lo ancho (`md:col-span-2`). Las tarjetas de una fila igualan su altura |
+| `xl` | Dos columnas que se apilan cada una por su cuenta: la boleta (`minmax(0,22.5rem)`: números, cliente, venta) y el cobro (estado, abonos, detalles) |
 
-> Las cifras de este párrafo son **del 2026-08-25**. Desde D-131 la barra mide 56 px por debajo de
-> 1.360 px, así que a 1.024 px el contenido dispone de **920** y no de 672. El corte `xl` de esta
-> pantalla **no se revisó** con el ancho nuevo: sigue siendo válido, pero podría rebajarse.
+**Los envoltorios de columna son `display: contents` hasta `xl`.** En tableta las seis tarjetas
+tienen que ser hijas de la misma rejilla para emparejarse por filas; en escritorio cada columna crece
+sola, sin el hueco que dejaría una tarjeta corta por compartir fila con una larga. Reordenar con
+`order` habría separado el orden de foco del de lectura. Son `div` sin rol.
 
-**«Estado y cobro» dejó de tener dos disposiciones** (D-124). Eran tres secciones hermanas en
-escritorio y dos filas en el teléfono; ahora es una sola forma —estados arriba, cobro debajo— y lo
-único que cambia con el ancho **de la tarjeta** es de qué lado cae el anillo. Dentro del anillo va
+**Por qué el corte grande es `xl` y no `lg`.** Con la barra de 56 px, a 1.024 px la columna del cobro
+mediría 540 px y el historial de abonos, a lo ancho en la rejilla de tableta, se lee mejor en
+columnas. Desde `xl` la columna del cobro mide entre 676 px de contenido (a 1.360, con la barra
+abierta) y 748.
+
+**Densidad de la pantalla, no del primitivo.** Las seis tarjetas llevan `gap-4 py-4 md:py-5` —la de
+`SellerCatalogCard`— y la página se la pasa también a `TicketPaymentSummary` y `TicketPaymentsCard`.
+
+**«Estado y cobro» tiene una sola forma** (D-124): estados arriba, cobro debajo, y lo único que
+cambia con el ancho **de la tarjeta** es de qué lado cae el anillo (400 px). Dentro del anillo va
 solo el porcentaje; el dinero se lee fuera, con su «de $120.000» debajo.
 
-**La rejilla de identidad declara `grid-cols-1`, y no se puede quitar** (D-125, I-076). Una rejilla
+**Las rejillas declaran `grid-cols-1`, y no se puede quitar** (D-125, I-076). Una rejilla
 que declara columnas solo a partir de `sm:` está declarando `auto` en el teléfono, y **una columna
 `auto` nunca baja del tamaño mínimo de su contenido**. El nombre del cliente lleva `truncate`, que es
 `white-space: nowrap`: un texto que no se puede partir tiene por mínimo la frase entera. Un nombre de
@@ -676,11 +684,20 @@ que declara columnas solo a partir de `sm:` está declarando `auto` en el teléf
 página desplazándose de lado a 320 px. `grid-cols-1` es `repeat(1, minmax(0, 1fr))`, y ese `0` es lo
 que deja a la pista ignorar el mínimo para que `truncate` pueda actuar. `min-w-0` **no** sustituye a
 esto: sirve para que un elemento pueda encogerse, no para rebajar lo que aporta al mínimo de la
-columna. Vale para las dos pantallas de detalle, la del vendedor y la administrativa.
+columna. Las columnas de escritorio de D-231 son `minmax(0, …)` por lo mismo. Vale para las dos
+pantallas de detalle, la del vendedor y la administrativa.
 
-**El encabezado de columnas del historial va `aria-hidden`**, y cada fila lleva su propio rótulo
-`lg:sr-only` («Registrado por», «Nota»): en escritorio el rótulo se oculta a la vista pero el lector
-de pantalla lo sigue leyendo, que es justo lo que un `<div>` en rejilla no da gratis.
+**Las dos cifras quedan a la misma altura** (D-231): a 320 px «Número semanal» ocupa dos líneas, y
+por eso la cifra va al pie de su caja —las dos cajas miden lo mismo— y no pegada al rótulo.
+
+**En «Detalles», la hora no se parte** entre «a.» y «m.»: va en un `whitespace-nowrap`, la regla de
+D-181. El texto es exactamente el de `formatDateTimeEs`.
+
+**El historial de abonos se reordena por el ancho de SU TARJETA** (`@container` y `@2xl`, 672 px de
+contenido), no por el de la ventana: desde `xl` vive en una columna más estrecha que la ventana. El
+encabezado de columnas va `aria-hidden`, y cada fila lleva su propio rótulo `@2xl:sr-only`
+(«Registrado por», «Nota»): con columnas el rótulo se oculta a la vista pero el lector de pantalla lo
+sigue leyendo, que es justo lo que un `<div>` en rejilla no da gratis.
 
 **La tarjeta del cliente puede llevar una acción, y va FUERA del enlace** (D-168). `ClientLinkCard`
 es una fila pulsable entera: meter un `<button>` dentro de su `<a>` es HTML inválido y parte la diana
@@ -704,7 +721,8 @@ más** —liberar no necesita clientes—, y las RPC vuelven a comprobarlo todo 
 
 Se pinta **una sola** explicación, nunca dos: los abonos y la coincidencia cierran las dos puertas a
 la vez, así que sus frases nombran las dos consecuencias, y solo la rifa cerrada tiene una propia. La
-elige `ticketClientNotice`, que reutiliza `reassignBlockedReason` en vez de repetir sus textos. En el
+elige `ticketClientNotice`, que reutiliza `reassignBlockedReason` en vez de repetir sus textos. Desde
+D-231 se pinta como `Notice` informativo compacto, con su icono. En el
 teléfono los botones van uno debajo de otro a lo ancho, con sus 44 px; desde `sm` comparten fila.
 
 ⚠️ **La página pregunta por `hasTicketClientActions` ANTES de montar el componente**, y no es
@@ -713,8 +731,9 @@ siempre haría que `ClientLinkCard` tomara su rama con `action` para una boleta 
 conserva su `client_id` y no tiene ni botones ni aviso— y le colgara un hermano vacío. Es la garantía
 del párrafo anterior, y se rompe sola si alguien quita esa condición.
 
-**El paz y salvo vive DENTRO de la tarjeta principal** (D-170), junto al cliente y a la fecha de
-venta. Es una tarea diaria, no un dato de archivo, así que no baja a «Detalles de la boleta»; y no
+**El paz y salvo vive en «Información de venta»** (D-170; desde D-231, como última fila de esa
+tarjeta, sin caja propia), junto al precio y a la fecha de venta. Es una tarea diaria, no un dato de
+archivo, así que no baja a «Detalles de la boleta»; y no
 entra en la ranura `action` de `ClientLinkCard`, que es de las acciones **sobre el cliente** de la
 boleta. Tres formas, una sola fuente de textos (`features/tickets/clearance-receipt.ts`):
 

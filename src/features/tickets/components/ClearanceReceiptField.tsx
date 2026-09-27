@@ -42,6 +42,11 @@ type ClearanceReceiptFieldProps = {
  * `key` que contenga el valor del servidor: el dato cambia también sin tocar
  * este interruptor —cambiar de cliente y liberar la boleta lo devuelven a
  * pendiente desde la base—, y sin `key` React conservaría el estado viejo.
+ *
+ * SIN CAJA PROPIA (D-231). Es una fila más de «Información de venta», separada
+ * de la fecha por la línea de la tarjeta: con su borde de antes quedaba una
+ * caja dentro de otra. Su título hace de rótulo de la fila, con la misma letra
+ * que «Precio de venta» y «Fecha de venta».
  */
 export function ClearanceReceiptField({
   ticketId,
@@ -90,7 +95,7 @@ export function ClearanceReceiptField({
   }
 
   return (
-    <div className="rounded-lg border px-3 py-2.5">
+    <div>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
           <p
@@ -126,11 +131,16 @@ export function ClearanceReceiptField({
             no un texto oculto dentro de la `label`: un duplicado `sr-only` haría
             que la frase estuviera dos veces en la pantalla —una de ellas
             invisible— y quien la escucha oiría lo mismo dos veces. El texto de
-            ayuda va en `aria-describedby`. */}
+            ayuda va en `aria-describedby`.
+
+            Los márgenes negativos no encogen la diana: sacan del flujo lo que
+            sobra. `-me-1.5` deja el borde del dibujo a plomo con el de la
+            tarjeta (la diana mide 44 y el dibujo 32, centrado), y `-my-1` lo
+            sube a la altura media entre el título y el estado. */}
         <label
           htmlFor={switchId}
           data-slot="clearance-switch-target"
-          className="-my-2.5 -me-3 flex size-11 shrink-0 cursor-pointer items-center justify-center"
+          className="-my-1 -me-1.5 flex size-11 shrink-0 cursor-pointer items-center justify-center"
         >
           <Switch
             id={switchId}

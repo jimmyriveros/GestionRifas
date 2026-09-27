@@ -1686,6 +1686,7 @@ castigo donde solo había una espera.
 | Encabezados de columna | El `header` de cada columna, en el `*Table.tsx` de su módulo (D-114) |
 | Rótulos y textos de la ficha del cliente | `src/features/clients/components/ClientInfoCard.tsx` y `ClientTotals.tsx` (D-113) |
 | Rótulos del resumen de pago de una boleta («Abonado», «Pendiente», «de $120.000») | `src/features/tickets/components/TicketPaymentSummary.tsx` (D-124) |
+| Los títulos de las seis tarjetas del detalle de boleta del vendedor: «Números de la boleta», «Cliente», «Información de venta», «Estado y resumen de pago», «Abonos de esta boleta» y «Detalles de la boleta» | `SectionHeader` en `src/app/(protected)/seller/tickets/[ticketId]/page.tsx`; los dos de las tarjetas que son componentes, en `TicketPaymentSummary.tsx` y `TicketPaymentsCard.tsx` (D-231). «Resumen de pago» ya no se escribe como rótulo: lo dice el título |
 | Lo que va dentro de un anillo: el pie bajo el porcentaje | Lo pasa quien lo usa, en `caption` / `centerCaption` (D-124) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | «Cerrar el menú» y «Abrir el menú», los **dos únicos** textos de ese botón | `src/components/layout/AppSidebar.tsx` (D-131, D-132) |

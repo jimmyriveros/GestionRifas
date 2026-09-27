@@ -14859,3 +14859,93 @@ que un archivo de `src/` use `data-category-6`. Las tres fallan con un mensaje q
 | `status/*/text` frente a `celebration/foreground` | Coherente con lo existente: los estados dicen `text`; los roles de producto, `foreground` |
 
 **Primer consumidor:** los dos números del detalle de boleta del vendedor, con `accent/indigo` (D-231).
+
+---
+
+## D-231 — El detalle de boleta del vendedor se recompone según Figma: seis tarjetas y el orden del teléfono en todos los anchos
+
+**Fecha:** 2026-09-27 · **Encargo:** integrar en local la propuesta de Figma del detalle de boleta del vendedor
+(página `245:7068`; marcos `278:11` escritorio 1440, `278:117` tableta 834 y `278:219` teléfono 390), separada de
+la ampliación de colores (D-230). Mantenimiento posterior a la Fase 9; **no es una Fase 10**. **Solo en local**, solo
+el **portal del vendedor**. **Sin cambios** en consultas, cálculos de dinero, acciones, permisos ni reglas: el
+detalle administrativo (D-198) no se tocó.
+
+### La correspondencia
+
+| Figma | Código |
+|---|---|
+| Barra superior, barra lateral y barra inferior | `AppShell`, sin cambios |
+| Flecha, «Detalle boleta» y «Registrar abono» | `PageHeader` con `backHref` y `compactAction`, como antes |
+| Las seis tarjetas | `Card` del sistema; un `h2` con el rol `Heading/H4` en cada una |
+| «Números de la boleta» | `TicketNumber` de la página, con `accent/indigo` (D-230) |
+| «Información de venta» | Filas de la página + `TicketSalePrice` + `ClearanceReceiptField` |
+| «Cliente» y su aviso | `ClientLinkCard` / `ClientEmptyCard` + `TicketClientActions`, con el aviso en `Notice` informativo |
+| «Estado y resumen de pago» | `TicketPaymentSummary`: `StatusBadge` y `ProgressRing` de siempre |
+| «Abonos de esta boleta» | `TicketPaymentsCard` |
+| «Detalles de la boleta» | Lista de la página |
+| Verde #058c38, bordes #e0e5eb, texto #5c6675 y #0e1117 | `action/primary`, `border/default`, `text/muted`, `text/default` |
+| Aviso #e8f5ff y «Abonada» azul, «Asignada» verde | `status/info/*` y `status/success/*`, los tonos que ya tenían (Wave 4.5B) |
+
+### La composición: un solo HTML, en el orden del teléfono
+
+Números → Cliente → Venta → Estado → Abonos → Detalles. Es el orden de Figma en el teléfono y en la tableta, y es el
+orden de lectura y de foco **en los tres anchos**:
+
+| Ancho | Disposición |
+|---|---|
+| Teléfono | Una columna |
+| `md` | Dos columnas por filas: números \| cliente, venta \| estado; abonos y detalles a lo ancho. Una fila iguala alturas |
+| `xl` | Dos columnas que se apilan **cada una por su cuenta**: la boleta (360 px) y el cobro |
+
+Los dos envoltorios de columna son `display: contents` hasta `xl`: en tableta las seis tarjetas tienen que ser hijas
+de la misma rejilla para emparejarse por filas, y en escritorio cada columna crece sola, sin que una tarjeta corta
+deje un hueco por compartir fila con una larga. Es lo único que da las dos cosas sin reordenar el HTML con `order`,
+que habría separado el orden de foco del de lectura. Son `div` sin rol: no se pierde semántica.
+
+### Los defectos de la maqueta, corregidos
+
+| En Figma | Dónde | En el código |
+|---|---|---|
+| La nota del código interno se monta sobre la fila «Código interno» | Escritorio y tableta | Va fuera de la lista, con su margen |
+| El aviso del cliente queda cortado al pie de su tarjeta (alto fijo de 170 px) | Los tres | La tarjeta crece con su contenido |
+| «Registrar abono» a 4 px de la primera tarjeta | Teléfono | 20 px, el ritmo de la página |
+| Rótulos de 10 y 11 px | Los tres | 12 px, el mínimo del sistema |
+| Interruptor de 42×22 sin diana | Los tres | La diana de 44 px de siempre |
+
+**Y tres que aparecieron al medir la implementación**, corregidos antes de entregar:
+
+| Defecto | Medido | Corrección |
+|---|---|---|
+| A 320 px «Número semanal» ocupa dos líneas y su cifra quedaba más abajo que la del diario | 16–17 px de desnivel | Las cifras van al pie de sus cajas, que miden lo mismo |
+| En «Detalles», la hora se partía entre «a.» y «m.» | A 390 px | La hora baja entera, la regla de D-181 |
+| Las columnas de «Abonos» dependían de la ventana (`lg`), y en escritorio la tarjeta vive en una columna de 676 px | «REGISTRADO POR» en dos líneas | El corte lo decide la tarjeta (`@2xl`, 672 px de contenido) y esa columna tiene un mínimo de 7rem |
+
+### Diferencias con Figma, y por qué
+
+| Figma | Código | Por qué |
+|---|---|---|
+| Primitivas índigo directas, y el diario más intenso que el semanal | Los dos con `accent/indigo`: superficie, texto y borde al 20 % | Los componentes consumen roles, no primitivas; y los dos números son pares (BR-N11) |
+| Colores de maqueta sueltos | Tokens del sistema | Ídem |
+| Fondo de página gris (#f9fafa) | El blanco del `AppShell` | Es de toda la aplicación, portal administrativo incluido |
+| Escritorio, columna izquierda: números, venta, cliente | Números, cliente, venta | El orden de lectura y de foco es el mismo en todos los anchos |
+| Cifras en Geist de 34 px | `Metric/X-Large`, 30 px, con `tabular-nums` | El rol del sistema más cercano. Sin `font-mono`, que es la monoespaciada de cada sistema (I-070) |
+| Tarjetas con 18 px de relleno | `Card` del sistema con la densidad de `SellerCatalogCard` (`gap-4 py-4 md:py-5`) | Densidad ya usada en el producto |
+| «Abonado» y «Pendiente» en negro | Verde y gris de datos | D-105 y D-124: el color solo donde significa algo |
+| Anillo junto a las cifras en teléfono y tableta | Encima de las cifras bajo 400 px de tarjeta | D-124: un importe largo no cabe al lado |
+| El estado del paz y salvo sin icono | Con su icono | D-170: forma además de texto |
+| «Editar» como texto verde | Botón con lápiz, 44 px en el teléfono | Diana táctil |
+| Código interno en letra normal | Monoespaciada | Distinguir los caracteres de un identificador |
+| Alturas dispares en la misma fila de la tableta | La fila iguala alturas | Rejilla con bordes alineados |
+| «…en su historial; ya no puede…» | «…en su historial: ya no puede…» | El texto vigente del código |
+
+### Lo que cambia en los componentes
+
+| Componente | Cambio | Otros usos |
+|---|---|---|
+| `TicketPaymentSummary` | Título «Estado y resumen de pago»; deja de escribir «Resumen de pago»; acepta `className` | Solo esta pantalla |
+| `TicketPaymentsCard` | Columnas por ancho de tarjeta; acepta `className` | Solo esta pantalla |
+| `TicketClientActions` | El aviso es un `Notice` informativo compacto | Solo esta pantalla (el personal ya no ve clientes, D-198) |
+| `ClearanceReceiptField` | Sin caja propia: es una fila de «Información de venta» | Solo esta pantalla |
+| `TicketSalePrice` | `lg` es la letra de un valor de la tarjeta (16 px, peso medio) | Solo esta pantalla |
+
+`ClearanceReceiptReadOnly`, que sí comparte el portal administrativo, **no se tocó**.

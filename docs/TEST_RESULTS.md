@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P10, D-229, 2026-09-26)** | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 con las sesiones del dueño: correctas** —la imagen semanal en 2–3 s, descargar, compartir, orden y paginación—; los registros de la imagen, **leídos en una segunda prueba** (17:38 UTC, iPhone): dos 200 desde `6943b7f`, sin errores; la duración, no disponible | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
+| **Post-9 vigente (colores v2 y el detalle de boleta del vendedor según Figma, D-230 y D-231, solo en local, 2026-09-27)** | **1.764/1.764** en 88 archivos (+116, `color-system-v2`; comprobada con tres mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | **923/925** en 58,8 min; los 2 fallos, I-148 (reproducido 3/3 **sin** este trabajo) e I-090 (18/18 en aislamiento). Nueva `detalle-boleta-composicion` **16/16**, comprobada con dos mutaciones | ✅ exit 0 | Solo en local, dos commits sin empujar |
+| Post-9 anterior (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P10, D-229, 2026-09-26) | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 con las sesiones del dueño: correctas** —la imagen semanal en 2–3 s, descargar, compartir, orden y paginación—; los registros de la imagen, **leídos en una segunda prueba** (17:38 UTC, iPhone): dos 200 desde `6943b7f`, sin errores; la duración, no disponible | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
 | Post-9 anterior (S4 del puente cerrada y el puente fusionado en la rama del lote, esto último solo en local, 2026-09-26) | sin cambio: la fusión y la documentación no tocan código | sin cambio de esquema | Producción: la imagen semanal con la sesión del dueño en ~1 s; registros del despliegue con 2 × 200 en la imagen, **0** errores, avisos o 5xx y **0** de las cinco frases; `/_next/image` lo sirve Vercel. Fusión `5f5dace`: árbol **idéntico** al de `628cbdc` y **0 archivos fuera de `docs/`** distintos de `00ee2f6`, el último árbol probado entero (D-226) | no se corrió: ningún archivo de código cambió; lo corre el CI en PB | ✅ **S4 cerrada; I1–I2 hechos.** I3 pasa a PB de la puerta del lote. **Nada empujado** |
 | Post-9 anterior (el puente de D-228 EN PRODUCCIÓN, `e6c2c5f`, 2026-09-26) | **1.522/1.522** en Linux, Node 20 y 24; CI 2/2 en el PR #3 | sin cambio de esquema: siguen `0001`–`0074` | Local: **794/798** en `0074` y en `0077`, los cinco fallos reproducidos en `9acbfa8` con 16.3.0. En vivo: 40/40 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `f6773cfc2306` servido y Next 16.3.6 | `verify:remote` **45 + 4** esperados | ✅ **En producción.** Avance rápido `9acbfa8..e6c2c5f`. Reversión: `dpl_7zSzWDRhCKFaiDvbUoJB9A89VPrT`. Pendiente del dueño: la imagen semanal con sesión |
 | Post-9 anterior (D-210 EN PRODUCCIÓN, `9acbfa8`, 2026-09-19) | sin cambio de número | sin cambio de esquema | Previas: **19/19** de alineación. PR #2 CI **2/2**; `main` CI **2/2**. En vivo **27/27** rutas, 7/7 cabeceras, 0 secretos, `484ebe210458` servido | `verify:remote` **46/46** | ✅ **En producción.** Avance rápido `6401bd0..9acbfa8`. Reversión: `dpl_5XSSrdetXhFpNoyig8SHEHgfYG7y`. Pendiente del dueño: sesión |
@@ -15247,3 +15248,69 @@ su duración y los órdenes que llegan de la pantalla grande (D-216, D-218).
 |---|---|
 | Dos lecturas de la CSP agotaron el tiempo de conexión con Vercel: la de la ventana de P0 (01:24) y la previa a `lote-previa` (01:31) | Ninguna llegó a la base. Se repitieron; el guion de la referencia ganó hasta cuatro intentos. En la segunda, la comparación que venía detrás terminó en 1, sin veredicto, por falta de foto, y se repitió entera |
 | El recorrido de P9–P10 no le pedía al dueño **avisar al terminar**, y la lectura de los registros llegó horas después, cuando la API ya no la devolvía | La parte de P9 del agente —las cinco frases en el registro de la imagen— quedó **sin hacer** con la primera prueba; se hizo por la tarde, con una segunda que el dueño avisó al terminar. Corregido para la próxima puerta en `DEPLOYMENT` §3.3.a (P9) |
+
+---
+
+## D-230 y D-231 — Colores v2 y el detalle de boleta del vendedor (2026-09-27, solo en local)
+
+Encargo del dueño: integrar en local la propuesta de Figma de colores (`283:87`) y del detalle de boleta del
+vendedor (`245:7068`; marcos `278:11`, `278:117` y `278:219`), separando las dos cosas. Rama nueva
+`feature/color-v2-detalle-boleta`, sobre `f59d8b9`. Todo contra la base **local**: `.env.local` apunta al proyecto
+real, así que el servidor fue siempre `dev:local` («`next dev contra LOCAL (127.0.0.1:54321)`»).
+
+### Línea base, antes de tocar nada
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase start` | Ya estaba arriba |
+| `npm run db:reset && npm run seed:local` | ✅ `target: local`, 77 migraciones |
+| `npm run test:db` | ✅ **1.444 + 1 omitida** en 59 archivos (166,8 s) |
+| `npm run verify` | ✅ exit 0: tipos, lint **0 errores y 2 avisos** (los de siempre, `react-hooks/incompatible-library`), **1.648/1.648** unitarias en 87 archivos, `next build` |
+| Capturas «antes» | 42, con un guion de Playwright fuera del repositorio: 8 estados, de 320 a 1440 px, claro y oscuro; **0 px** de desplazamiento lateral en todas |
+
+### Colores v2 (D-230, commit `bd82a0f`)
+
+| Comprobación | Resultado |
+|---|---|
+| `tests/unit/color-system-v2.test.ts` + `cn.test.ts` | ✅ **132/132** (116 de la nueva) |
+| Auditoría WCAG, 28 pares × 3 ámbitos | **83 de 84 cumplen.** `data/category/6` en claro: **2,94:1** (I-172) |
+| Mutación 1: quitar `--ds-accent-indigo-surface` de Catalog | ❌ 3 fallos, legibles. **La primera versión reventaba al recolectar** («no resuelve a un color»): se cambió para que un token ausente sea una aserción y no un error de carga |
+| Mutación 2: texto naranja en claro a #fb923c | ❌ 4 fallos: el valor de Figma y los dos contrastes (2,13 y 2,26) |
+| Mutación 3: un archivo de `src/` que usa `stroke-data-category-6` | ❌ 1 fallo |
+| En el navegador, sin sesión | `--ds-accent-indigo-surface` = #eef2ff / #1e1b4b / #1e1b4b en `:root`, `.dark` y `.catalog-theme`; `--color-accent-indigo-surface` exportado |
+| `prettier --check` | ⚠️ solo por CRLF en la copia de trabajo (§10.54 del relevo del sistema de diseño); con `--end-of-line auto`, limpio |
+
+### Distribución (D-231)
+
+| Comprobación | Resultado |
+|---|---|
+| `tests/e2e/detalle-boleta-composicion.spec.ts` (nueva) | ✅ **16/16** |
+| Mutación: cifra pegada al rótulo (sin `justify-between`) | ❌ «diario en 276, semanal en 292» |
+| Mutación: hora en una sola cadena | ❌ «11:50 a. m.» partida a 390 px |
+| Capturas «después» | 42, el mismo guion; **0 px** de desplazamiento lateral en todas |
+| Unitarias tras el cambio | ✅ **1.764/1.764** en 88 archivos |
+
+### Errores encontrados, y cómo se corrigieron
+
+| Error | Dónde | Corrección |
+|---|---|---|
+| Título → contenido a 32 px en cada tarjeta: el teléfono pasaba de 1.793 a 2.145 px | Primera versión | La densidad de `SellerCatalogCard`: 2.001 px |
+| «REGISTRADO POR» en dos líneas a 834 px | Primera versión | Columna con mínimo de 7rem y más peso que «Nota» |
+| La hora partida entre «a.» y «m.» a 390 px | Primera versión | `whitespace-nowrap` en la hora (D-181) |
+| A 320 px la cifra semanal, 16–17 px más abajo | Primera versión | Las cifras al pie de sus cajas |
+| La prueba de foco no encontraba «Cliente» | La prueba | `innerText` devuelve el `uppercase` del CSS: comparación sin mayúsculas |
+| `seed:local` con **502** durante 3 min tras `db:reset` | Entorno (I-028) | GoTrue estaba sano; Kong conservaba la dirección vieja. `docker restart supabase_kong_Rifas`, como dice `RUNBOOK` |
+| Primeras capturas «antes» con el indicador de Next y la barra inferior a media página | El guion | Oculta `nextjs-portal` y estira la ventana a la altura de la página; se repitieron «antes» y «después» con el mismo guion |
+| `curl` con salida 23 al esperar a Auth | El comando | Se esperó con `fetch` de Node |
+
+### Cierre, sobre el código definitivo
+
+| Comando | Resultado |
+|---|---|
+| `npx playwright test` (E2E completa, escritorio y teléfono), con `dev:local` y la base recién sembrada | ⚠️ **923/925** en 58,8 min. Los dos fallos, **anteriores y ajenos**: `premios-ganados.spec.ts:443` (**I-148**: la dirección conserva `dateFrom=` tras «Atrás») y `ventas-por-fecha.spec.ts:163` (**I-090**: `esperado < 26`, recibido 56 ventas de hoy acumuladas por la suite). `detalle-boleta-composicion` y las demás suites que abren el detalle de boleta —cambiar cliente, liberar, paz y salvo, precio, abonos desde la boleta, I-076—, en verde |
+| `premios-ganados.spec.ts:443 --repeat-each=3`, aislada | ❌ 3/3 con el servidor caliente, **y 3/3 también sin este trabajo** (`src/` devuelto a `f59d8b9` para medirlo y restaurado después). Anterior, como dice I-148 |
+| `ventas-por-fecha.spec.ts` sola, con la base recién sembrada | ✅ **18/18**: es la dependencia de orden de I-090 |
+| `npm run verify` | ✅ exit 0: tipos (I-149 no se repitió), lint **0 errores y 2 avisos** (los mismos), **1.764/1.764** unitarias en 88 archivos, `next build` |
+| `npm run test:db`, tras `db:reset` + `seed:local` | ✅ **1.444 + 1 omitida** en 59 archivos: igual que la línea base, sin cambios de esquema |
+
+**Entorno al terminar:** base local restablecida y sembrada (`db:reset` + `seed:local`), sin servidores.

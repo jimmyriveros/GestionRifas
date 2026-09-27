@@ -6914,6 +6914,15 @@ and the test fails if any file in `src/` consumes it. The test was mutation-chec
 existing primitives use **v4**; the 28 roles hold raw hex instead of aliasing `Primitives v2`, with
 `ALL_SCOPES` and no code syntax. None of this reaches the code, which writes each role's literal.
 
+**The first consumer, `D-231`, and the Detail Page contract.** The seller ticket detail now composes
+**six titled cards** (Figma page `245:7068`). That is compatible with *ONE PRIMARY PAGE COMPOSITION*
+(§10.25): each card carries a distinct responsibility —the ticket's numbers, its client, the sale, the
+payment state, the payment history, the administrative record— and none is a card around a single
+field. The ticket numbers consume `accent/indigo` (surface, foreground, and the foreground at 20 % as
+border), never the `indigo/*` primitives the mock bound. Density is a **page** decision
+(`gap-4 py-4 md:py-5`, the same as `SellerCatalogCard`), passed through `className`; the `Card`
+primitive did not change. No Core component, token or Pattern changed for D-231.
+
 ---
 ## 11. Repository checkpoint — 2026-09-07
 

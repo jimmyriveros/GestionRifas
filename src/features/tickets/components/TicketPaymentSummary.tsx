@@ -1,6 +1,6 @@
 import { ProgressRing } from '@/components/data/ProgressRing'
 import { InventoryStatusBadge, PaymentStatusBadge } from '@/components/data/StatusBadge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { TicketInventoryStatus, TicketPaymentStatus } from '@/lib/constants'
 import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,8 @@ type TicketPaymentSummaryProps = {
   /** NULL mientras la boleta no se ha vendido: no hay saldo que deber (BR-F08). */
   salePrice: number | null
   paidAmount: number
+  /** Densidad y colocacion que decide la pantalla; la tarjeta no las impone. */
+  className?: string
 }
 
 /**
@@ -39,12 +41,18 @@ type TicketPaymentSummaryProps = {
  * la boleta. En el telefono el anillo se sube encima de las dos cifras, que se
  * reparten el ancho en dos columnas; a partir de 400 px de tarjeta se pone a su
  * izquierda. No es la misma disposicion encogida: es otra.
+ *
+ * **Con titulo propio (D-231).** En el detalle recompuesto cada tarjeta dice lo
+ * que contiene con un `h2`: «Estado y resumen de pago». Por eso el rotulo
+ * «Resumen de pago» que separaba el cobro de los estados ya no se escribe: lo
+ * dice el titulo, a un centimetro.
  */
 export function TicketPaymentSummary({
   inventoryStatus,
   paymentStatus,
   salePrice,
   paidAmount,
+  className,
 }: TicketPaymentSummaryProps) {
   // La misma cuenta que hacen el listado y la ficha del cliente: si esta
   // pantalla la repitiera por su cuenta, la misma boleta podria salir al 42 %
@@ -62,7 +70,12 @@ export function TicketPaymentSummary({
   })
 
   return (
-    <Card>
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="text-heading-h4">
+          <h2>Estado y resumen de pago</h2>
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <Cell label="Estado">
@@ -79,12 +92,8 @@ export function TicketPaymentSummary({
         </div>
 
         {sold ? (
-          <section className="@container border-t pt-5">
-            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              Resumen de pago
-            </p>
-
-            <div className="mt-4 flex flex-col gap-4 @min-[400px]:flex-row @min-[400px]:items-center @min-[400px]:gap-6">
+          <div className="@container border-t pt-5">
+            <div className="flex flex-col gap-4 @min-[400px]:flex-row @min-[400px]:items-center @min-[400px]:gap-6">
               <ProgressRing
                 className="size-24 self-center @min-[400px]:size-28 @min-[400px]:self-auto"
                 percentage={percentage}
@@ -116,7 +125,7 @@ export function TicketPaymentSummary({
                 />
               </div>
             </div>
-          </section>
+          </div>
         ) : null}
       </CardContent>
     </Card>
