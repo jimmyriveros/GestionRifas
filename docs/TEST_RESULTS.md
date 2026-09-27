@@ -15273,7 +15273,7 @@ real, así que el servidor fue siempre `dev:local` («`next dev contra LOCAL (12
 | Comprobación | Resultado |
 |---|---|
 | `tests/unit/color-system-v2.test.ts` + `cn.test.ts` | ✅ **132/132** (116 de la nueva) |
-| Auditoría WCAG, 28 pares × 3 ámbitos | **83 de 84 cumplen.** `data/category/6` en claro: **2,94:1** (I-172) |
+| Auditoría WCAG, 28 pares × 3 ámbitos | **82 de 84 cumplen.** `data/category/6` en claro: **2,94:1** sobre la tarjeta y sobre el fondo, dos medidas (I-172). *Decía «83 de 84»: corregido el 2026-09-27, D-232* |
 | Mutación 1: quitar `--ds-accent-indigo-surface` de Catalog | ❌ 3 fallos, legibles. **La primera versión reventaba al recolectar** («no resuelve a un color»): se cambió para que un token ausente sea una aserción y no un error de carga |
 | Mutación 2: texto naranja en claro a #fb923c | ❌ 4 fallos: el valor de Figma y los dos contrastes (2,13 y 2,26) |
 | Mutación 3: un archivo de `src/` que usa `stroke-data-category-6` | ❌ 1 fallo |

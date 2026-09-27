@@ -1332,13 +1332,17 @@ body:has(.catalog-theme) {
  * LAS PRIMITIVAS NUEVAS (violet, indigo, cyan, orange, gold; 50→950) NO SE
  * EXPORTAN, por la misma regla de la Wave 1: existen en Figma para que estos
  * roles las aliaseen, y aqui se escribe su valor literal. Un componente pide
- * `accent-indigo-surface`, nunca «indigo 50».
+ * `accent-indigo-surface`, nunca «indigo 50». Desde D-232 cada rol de Figma ES
+ * un alias de su primitiva, en los tres modos; la tabla rol → primitiva vive en
+ * `tests/unit/color-system-v2.test.ts`, que comprueba que cada literal de aqui
+ * es el de su primitiva.
  *
- * CATALOG. La propuesta solo trae Light y Dark. Un ambito sin declarar hereda
- * EN SILENCIO el valor de otro tema —el fallo mas caro de encontrar despues—,
- * asi que `.catalog-theme` se declara igual y con los valores de Dark: es lo
- * mismo que ya hace Figma con los 25 roles `status/*` y `data/*`, cuyo modo
- * Catalog coincide con Dark en todos. La prueba de contraste lo cubre.
+ * CATALOG LLEVA LOS VALORES DE DARK, por decision del propietario (D-232). La
+ * propuesta solo traia Light y Dark; desde D-232 la coleccion de Figma tiene
+ * tambien el modo «Catalog», con alias a las mismas primitivas que Dark. Un
+ * ambito sin declarar hereda EN SILENCIO el valor de otro tema —el fallo mas
+ * caro de encontrar despues—, asi que `.catalog-theme` se declara entero. Los
+ * colores que el catalogo ya usaba (coleccion «Color») no cambian.
  *
  * `accent-*` NO ES EL `accent` DE shadcn. `bg-accent` sigue siendo la
  * superficie gris de hover (`surface/accent`); `bg-accent-indigo-surface` es
@@ -1346,10 +1350,10 @@ body:has(.catalog-theme) {
  * para acomodarse al codigo.
  *
  * CONTRASTE (auditado con `tests/unit/color-system-v2.test.ts`). Todo texto
- * cumple 4,5:1 y todo icono y serie 3:1, en los tres ambitos, SALVO UNO:
- * `data/category/6` en claro (#ca8a04 sobre blanco) da 2,94:1. No se corrige
- * aqui —es un valor de la propuesta y lo decide Figma—; la misma prueba impide
- * que algun componente lo consuma mientras siga asi (I-172).
+ * cumple 4,5:1 y todo icono y serie 3:1, en los tres ambitos y sin
+ * excepciones. La unica que hubo, `data/category/6` en claro (#ca8a04, 2,94:1
+ * sobre blanco), se cerro cambiando ese valor a gold/700 (#a16207, 4,92:1) en
+ * Figma y aqui a la vez (D-232, I-172). Los demas dorados no cambiaron.
  * ===========================================================================
  */
 
@@ -1377,7 +1381,7 @@ body:has(.catalog-theme) {
   --ds-data-category-3: #0891b2;
   --ds-data-category-4: #7c3aed;
   --ds-data-category-5: #ea580c;
-  --ds-data-category-6: #ca8a04;
+  --ds-data-category-6: #a16207;
   /* status */
   --ds-status-attention-border: #fdba74;
   --ds-status-attention-icon: #c2410c;
@@ -1426,7 +1430,7 @@ body:has(.catalog-theme) {
 }
 
 .catalog-theme {
-  /* Catalog — la propuesta no lo define: los valores de Dark (ver arriba) */
+  /* Catalog — los valores de Dark, como el modo «Catalog» de Figma (D-232) */
   /* accent */
   --ds-accent-cyan-foreground: #67e8f9;
   --ds-accent-cyan-surface: #083344;

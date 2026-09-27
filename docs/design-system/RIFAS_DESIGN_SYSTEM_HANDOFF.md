@@ -6900,19 +6900,22 @@ only read**.
 
 **Catalog takes the Dark values.** The proposal defines no Catalog mode, and an undeclared scope inherits
 another theme silently. The precedent is the file itself: in all 25 `status/*` and `data/*` roles of the
-`Color` collection, Catalog equals Dark. **To be confirmed in Figma.**
+`Color` collection, Catalog equals Dark. ~~To be confirmed in Figma.~~ **Confirmed by the owner — §10.59.**
 
 **`discovery` and `attention` are tokens, not tones.** `StatusBadge` and `Notice` did not gain them: the
 proposal's own adoption notes ask for real product cases before they become global states.
 
 **The contrast audit the proposal asked for is now a unit test** (`tests/unit/color-system-v2.test.ts`):
-84 measurements, 83 pass. **`data/category/6` in Light — #ca8a04 on white — measures 2.94:1**, under the
-3:1 of WCAG 1.4.11. Its value was **not** changed in code (that is a Figma decision); **I-172** records it
-and the test fails if any file in `src/` consumes it. The test was mutation-checked three ways.
+84 measurements, **82** pass. **`data/category/6` in Light — #ca8a04 on white — measures 2.94:1**, under the
+3:1 of WCAG 1.4.11, and it fails twice: on the card and on the background, both white in Light. Its value
+was **not** changed in code (that is a Figma decision); **I-172** records it and the test fails if any file
+in `src/` consumes it. The test was mutation-checked three ways. *(Corrected 2026-09-27: this said
+«83 pass»; the owner caught it. Closed in §10.59: 84 of 84.)*
 
 **Reported to Figma, not acted on:** the proposal's primitives use Tailwind **v3** hex values while the
 existing primitives use **v4**; the 28 roles hold raw hex instead of aliasing `Primitives v2`, with
 `ALL_SCOPES` and no code syntax. None of this reaches the code, which writes each role's literal.
+*(The aliases and the code syntax were done in §10.59; the scopes were left as they are.)*
 
 **The first consumer, `D-231`, and the Detail Page contract.** The seller ticket detail now composes
 **six titled cards** (Figma page `245:7068`). That is compatible with *ONE PRIMARY PAGE COMPOSITION*
@@ -6922,6 +6925,22 @@ field. The ticket numbers consume `accent/indigo` (surface, foreground, and the 
 border), never the `indigo/*` primitives the mock bound. Density is a **page** decision
 (`gap-4 py-4 md:py-5`, the same as `SellerCatalogCard`), passed through `className`; the `Card`
 primitive did not change. No Core component, token or Pattern changed for D-231.
+
+### 10.59 COLOR SYSTEM v2 CLOSED BY THE OWNER — GOLD SERIES, CATALOG MODE, ALIASES; I-172 CLOSED (2026-09-27)
+
+**Owner decisions, applied in Figma and in code at once** (product decision **`D-232`**). Local only: no push,
+no deploy. This time **Figma was written**, with the owner's authorization.
+
+| Decision | Figma | Code |
+|---|---|---|
+| `data/category/6` Light → **#a16207** (`gold/700`). No other gold changes | Light aliases `gold/700`; Dark stays `gold/400` | `--ds-data-category-6: #a16207` in `:root` only |
+| Catalog takes the Dark values | New **`Catalog`** mode in `Color v2 — Proposal`, aliasing the same primitives as Dark. The `Color` collection (the catalog's existing colors) is untouched | Unchanged: `.catalog-theme` already had them |
+| Every role **aliases its primitive** | 84 values (28 roles × Light, Dark, Catalog) are aliases to `Primitives v2 — Proposal`, plus `brand/700`/`brand/400` of `Primitives` for `data/category/1`; each role has WEB code syntax `var(--ds-…)`. Scopes left at `ALL_SCOPES` | Primitives still not exported. `color-system-v2.test.ts` holds the role → primitive table and checks each literal |
+
+**I-172 closed:** #a16207 measures **4.92:1** on white; the audit goes from **82 of 84** to **84 of 84**, and the
+`KNOWN_FAILURES` exception and the test that blocked consuming the series were removed. Reverting the value
+makes the test fail in five places. On the Figma page, the `06 · Gold` data swatch (`284:418`) is now bound
+to `data/category/6`, and a new section `07 — Closed decisions` (`311:2`, `311:5`) records all this.
 
 ---
 ## 11. Repository checkpoint — 2026-09-07

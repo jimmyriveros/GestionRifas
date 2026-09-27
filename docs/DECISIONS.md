@@ -14827,7 +14827,8 @@ Lo que se conserva, como dice la propia propuesta: verde de marca, `success` esm
 
 1. **Catalog lleva los valores de Dark.** La propuesta solo define Light y Dark, y un ámbito sin declarar hereda en
    silencio el valor de otro tema. Se sigue el precedente de Figma: en los 25 roles `status/*` y `data/*` de la
-   colección «Color», el modo Catalog coincide con Dark en todos. **Pendiente de confirmar en Figma.**
+   colección «Color», el modo Catalog coincide con Dark en todos. ~~Pendiente de confirmar en Figma.~~
+   **Confirmado por el dueño en D-232**, que añade el modo «Catalog» a la colección de Figma.
 2. **`discovery` y `attention` son tokens, no estados.** No se añaden a los tonos de `StatusBadge` ni de `Notice`:
    la propuesta pide validarlos con casos reales antes de convertirlos en estados globales, y todavía no hay
    ninguno.
@@ -14844,8 +14845,12 @@ Texto 4,5:1 (1.4.3) —cada acento, contra su superficie **y** contra la tarjeta
 
 | Resultado | Detalle |
 |---|---|
-| **83 de 84 cumplen** | El texto más justo es `accent/gold/foreground` en claro: 4,76:1 sobre su superficie |
-| **1 no cumple** | `data/category/6` en claro, **#ca8a04** sobre blanco: **2,94:1**. No se cambia el valor —es de la propuesta y lo decide Figma— y se abre **I-172**. La misma prueba **impide que un componente lo consuma** mientras siga así |
+| **82 de 84 cumplen** | El texto más justo es `accent/gold/foreground` en claro: 4,76:1 sobre su superficie |
+| **2 no cumplen** | `data/category/6` en claro, **#ca8a04** sobre blanco: **2,94:1**, medido sobre la tarjeta y sobre el fondo, que en claro son los dos #ffffff. No se cambia el valor —es de la propuesta y lo decide Figma— y se abre **I-172**. La misma prueba **impide que un componente lo consuma** mientras siga así |
+
+> **Corregido el 2026-09-27 (D-232).** Esta tabla decía «83 de 84» y «1 no cumple». El valor que fallaba era uno, pero
+> la auditoría lo mide dos veces: el recuento real era **82 de 84**. Lo detectó el dueño. Desde D-232 el valor es
+> `gold/700` y cumplen **84 de 84**.
 
 La prueba se comprobó con tres mutaciones: quitar un token de Catalog, debilitar el texto naranja en claro y hacer
 que un archivo de `src/` use `data-category-6`. Las tres fallan con un mensaje que dice qué y dónde.
@@ -14855,7 +14860,7 @@ que un archivo de `src/` use `data-category-6`. Las tres fallan con un mensaje q
 | Hallazgo | Por qué no bloquea |
 |---|---|
 | Las 55 primitivas nuevas siguen la paleta hexadecimal de Tailwind v3 (`indigo/600` = `#4f46e5`), y las existentes, la de v4 (`emerald/100` = `#d0fae5`) | El código escribe el literal de cada rol, así que usa exactamente el valor de Figma |
-| Los 28 roles llevan su hexadecimal en vez de apuntar a las primitivas v2, con `ALL_SCOPES` y sin sintaxis de código | Es higiene del archivo de Figma. Conviene enlazarlos antes de aprobar la propuesta |
+| Los 28 roles llevan su hexadecimal en vez de apuntar a las primitivas v2, con `ALL_SCOPES` y sin sintaxis de código | Es higiene del archivo de Figma. Conviene enlazarlos antes de aprobar la propuesta. **Enlazados en D-232**, con su sintaxis de código; los alcances siguen en `ALL_SCOPES` |
 | `status/*/text` frente a `celebration/foreground` | Coherente con lo existente: los estados dicen `text`; los roles de producto, `foreground` |
 
 **Primer consumidor:** los dos números del detalle de boleta del vendedor, con `accent/indigo` (D-231).
@@ -14949,3 +14954,44 @@ que habría separado el orden de foco del de lectura. Son `div` sin rol: no se p
 | `TicketSalePrice` | `lg` es la letra de un valor de la tarjeta (16 px, peso medio) | Solo esta pantalla |
 
 `ClearanceReceiptReadOnly`, que sí comparte el portal administrativo, **no se tocó**.
+
+---
+
+## D-232 — Color System v2 cerrado: `data/category/6` pasa a `gold/700`, Catalog lleva los valores de Dark y cada rol es alias de su primitiva
+
+**Fecha:** 2026-09-27 · **Encargo del dueño**, después de revisar D-230 y D-231 en local: cerrar las decisiones de
+color, en Figma y en el código a la vez. Mantenimiento posterior a la Fase 9; **no es una Fase 10**. **Solo en
+local**: sin migración, sin dependencias, sin push ni despliegue. Los números de la boleta van aparte (D-233).
+
+### Lo que decidió el dueño, y dónde queda
+
+| Decisión | Figma (`7KIwO0iiGpksLSNjMeSa4X`) | Código |
+|---|---|---|
+| `data/category/6` en **Light** pasa a **#a16207** (`gold/700`). **Ningún otro dorado cambia** | Alias a `gold/700` en Light; Dark sigue en `gold/400` (#facc15) | `--ds-data-category-6: #a16207` en `:root`; `.dark` y `.catalog-theme` siguen en #facc15 |
+| Los roles nuevos del catálogo usan los valores de **Dark** | Modo nuevo **«Catalog»** en «Color v2 — Proposal», con alias a las mismas primitivas que Dark en todos los roles. La colección «Color», que guarda los colores que el catálogo ya usaba, **no se tocó**: sus 89 variables y sus modos Light, Catalog y Dark, como estaban | Sin cambios: `.catalog-theme` ya llevaba los de Dark (decisión 1 de D-230, que queda confirmada) |
+| Los 28 roles, **enlazados a sus primitivas**, conservando los valores salvo el dorado | Sus 84 valores —28 roles por Light, Dark y Catalog— son alias: de las rampas `violet`, `indigo`, `cyan`, `orange` y `gold` de «Primitives v2 — Proposal», y de `brand/700` y `brand/400` de «Primitives» para `data/category/1`. Cada rol lleva su sintaxis de código, `var(--ds-…)` | Las primitivas siguen sin exportarse (regla de la Wave 1). `tests/unit/color-system-v2.test.ts` guarda la tabla rol → primitiva y comprueba que cada literal de `globals.css` es el de su primitiva |
+
+**Cómo se enlazó.** Por cada rol se buscó la primitiva con **su mismo valor**, y después se resolvieron los 84 alias:
+todos dan el valor que tenían, salvo el dorado autorizado. En la lámina `283:87`, el muestrario «06 · Gold» de la
+paleta de datos (`284:418`) quedó enlazado a `data/category/6`, y la sección nueva **«07 — Closed decisions»**
+(`311:2`, `311:5`) recoge estas decisiones. **No se tocaron** los alcances de los 28 roles, que siguen en
+`ALL_SCOPES`: no era parte del encargo.
+
+### I-172, cerrado
+
+| | Antes | Después |
+|---|---|---|
+| `data/category/6` en claro, sobre la tarjeta y sobre el fondo (los dos #ffffff) | #ca8a04: **2,94:1** | #a16207: **4,92:1** (mínimo, 3:1 de WCAG 1.4.11) |
+| Auditoría de `color-system-v2.test.ts` | **82 de 84** | **84 de 84**, sin excepciones |
+| La excepción `KNOWN_FAILURES` y la prueba que impedía consumir la serie 6 | Existían | **Retiradas**: la serie 6 se usa como las otras cinco |
+
+**Comprobado antes de cerrarlo.** Con el valor anterior devuelto a `globals.css`, la prueba falla en 5 puntos y cada
+uno dice qué pasa: el valor del rol, el dorado autorizado, «todos cumplen» y las dos medidas de 2,94:1. En el
+navegador, contra la base local, `--ds-data-category-6` vale #a16207 en `:root` y #facc15 en `.dark` y
+`.catalog-theme`.
+
+### Una corrección a D-230
+
+D-230 decía que cumplían **83 de 84** y que **1** no cumplía. El valor que fallaba era uno, pero la auditoría lo mide
+**dos veces**, sobre la tarjeta y sobre el fondo, así que el recuento real era **82 de 84**. Lo detectó el dueño. Se
+corrigió en D-230, `TEST_RESULTS`, `HANDOFF`, `PHASE_STATUS` y el relevo del sistema de diseño (§10.58).

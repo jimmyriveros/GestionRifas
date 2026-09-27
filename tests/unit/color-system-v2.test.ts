@@ -1,66 +1,128 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 /**
- * Color System v2 (D-230): los 28 roles que añade la propuesta de Figma.
+ * Color System v2 (D-230, cerrado en D-232): los roles que añade la propuesta
+ * de Figma.
  *
- * Fija cuatro cosas, y la última es la que pedía la propia propuesta antes de
+ * Fija cinco cosas, y la última es la que pedía la propia propuesta antes de
  * llevarlos a producción («Antes de mover estos tokens a producción: 1.
  * Ejecutar auditoría de contraste WCAG en Light y Dark»):
  *
- *   1. los valores son los de Figma, modo por modo;
+ *   1. cada rol es, modo por modo, el alias de una primitiva de Figma, y aquí
+ *      se escribe el valor literal de esa primitiva;
  *   2. los tres ámbitos los declaran —un ámbito sin declarar hereda en silencio
  *      el valor de otro tema—, y Catalog lleva los de Dark;
  *   3. cada uno se exporta como `--color-*`, que es lo que genera la utilidad;
- *   4. el contraste, medido con la fórmula de WCAG 2.x sobre esos valores.
+ *   4. ninguna primitiva se exporta;
+ *   5. el contraste, medido con la fórmula de WCAG 2.x sobre esos valores, y
+ *      sin excepciones desde D-232.
  */
 
 const CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
 
 /**
- * La colección «Color v2 — Proposal» de Figma (página 283:87), leída de sus
- * variables el 2026-09-27. Si Figma cambia un valor, se cambia aquí y en
- * `globals.css` a la vez.
+ * Las primitivas de Figma que usan estos roles, con su valor. Las rampas son de
+ * «Primitives v2 — Proposal»; `brand`, de «Primitives». Solo las que algún rol
+ * aliasea: una primitiva que ningún rol usa no tiene nada que comprobar aquí.
  */
-const FIGMA: Record<string, { light: string; dark: string }> = {
-  'status-discovery-surface': { light: '#ede9fe', dark: '#2e1065' },
-  'status-discovery-text': { light: '#4c1d95', dark: '#ddd6fe' },
-  'status-discovery-border': { light: '#c4b5fd', dark: '#5b21b6' },
-  'status-discovery-icon': { light: '#6d28d9', dark: '#a78bfa' },
-  'status-attention-surface': { light: '#ffedd5', dark: '#431407' },
-  'status-attention-text': { light: '#7c2d12', dark: '#fed7aa' },
-  'status-attention-border': { light: '#fdba74', dark: '#9a3412' },
-  'status-attention-icon': { light: '#c2410c', dark: '#fb923c' },
-  'celebration-surface': { light: '#fef9c3', dark: '#422006' },
-  'celebration-foreground': { light: '#713f12', dark: '#fef08a' },
-  'celebration-border': { light: '#fde047', dark: '#854d0e' },
-  'celebration-icon': { light: '#a16207', dark: '#facc15' },
-  'accent-violet-surface': { light: '#f5f3ff', dark: '#2e1065' },
-  'accent-violet-foreground': { light: '#6d28d9', dark: '#c4b5fd' },
-  'accent-indigo-surface': { light: '#eef2ff', dark: '#1e1b4b' },
-  'accent-indigo-foreground': { light: '#4338ca', dark: '#a5b4fc' },
-  'accent-cyan-surface': { light: '#ecfeff', dark: '#083344' },
-  'accent-cyan-foreground': { light: '#0e7490', dark: '#67e8f9' },
-  'accent-orange-surface': { light: '#fff7ed', dark: '#431407' },
-  'accent-orange-foreground': { light: '#c2410c', dark: '#fdba74' },
-  'accent-gold-surface': { light: '#fefce8', dark: '#422006' },
-  'accent-gold-foreground': { light: '#a16207', dark: '#fde047' },
-  'data-category-1': { light: '#0d7d2d', dark: '#3ddc63' },
-  'data-category-2': { light: '#4f46e5', dark: '#818cf8' },
-  'data-category-3': { light: '#0891b2', dark: '#22d3ee' },
-  'data-category-4': { light: '#7c3aed', dark: '#a78bfa' },
-  'data-category-5': { light: '#ea580c', dark: '#fb923c' },
-  'data-category-6': { light: '#ca8a04', dark: '#facc15' },
+const PRIMITIVES: Record<string, string> = {
+  'violet/50': '#f5f3ff',
+  'violet/100': '#ede9fe',
+  'violet/200': '#ddd6fe',
+  'violet/300': '#c4b5fd',
+  'violet/400': '#a78bfa',
+  'violet/600': '#7c3aed',
+  'violet/700': '#6d28d9',
+  'violet/800': '#5b21b6',
+  'violet/900': '#4c1d95',
+  'violet/950': '#2e1065',
+  'indigo/50': '#eef2ff',
+  'indigo/300': '#a5b4fc',
+  'indigo/400': '#818cf8',
+  'indigo/600': '#4f46e5',
+  'indigo/700': '#4338ca',
+  'indigo/950': '#1e1b4b',
+  'cyan/50': '#ecfeff',
+  'cyan/300': '#67e8f9',
+  'cyan/400': '#22d3ee',
+  'cyan/600': '#0891b2',
+  'cyan/700': '#0e7490',
+  'cyan/950': '#083344',
+  'orange/50': '#fff7ed',
+  'orange/100': '#ffedd5',
+  'orange/200': '#fed7aa',
+  'orange/300': '#fdba74',
+  'orange/400': '#fb923c',
+  'orange/600': '#ea580c',
+  'orange/700': '#c2410c',
+  'orange/800': '#9a3412',
+  'orange/900': '#7c2d12',
+  'orange/950': '#431407',
+  'gold/50': '#fefce8',
+  'gold/100': '#fef9c3',
+  'gold/200': '#fef08a',
+  'gold/300': '#fde047',
+  'gold/400': '#facc15',
+  'gold/700': '#a16207',
+  'gold/800': '#854d0e',
+  'gold/900': '#713f12',
+  'gold/950': '#422006',
+  'brand/400': '#3ddc63',
+  'brand/700': '#0d7d2d',
 }
-const TOKENS = Object.keys(FIGMA)
+
+/**
+ * La colección «Color v2 — Proposal» de Figma (página 283:87): de qué primitiva
+ * es alias cada rol, en Light y en Dark. Catalog aliasea las mismas que Dark
+ * (D-232). Leída de sus variables el 2026-09-27; si Figma cambia un alias, se
+ * cambia aquí y en `globals.css` a la vez.
+ */
+const ROLES: Record<string, { light: string; dark: string }> = {
+  'status-discovery-surface': { light: 'violet/100', dark: 'violet/950' },
+  'status-discovery-text': { light: 'violet/900', dark: 'violet/200' },
+  'status-discovery-border': { light: 'violet/300', dark: 'violet/800' },
+  'status-discovery-icon': { light: 'violet/700', dark: 'violet/400' },
+  'status-attention-surface': { light: 'orange/100', dark: 'orange/950' },
+  'status-attention-text': { light: 'orange/900', dark: 'orange/200' },
+  'status-attention-border': { light: 'orange/300', dark: 'orange/800' },
+  'status-attention-icon': { light: 'orange/700', dark: 'orange/400' },
+  'celebration-surface': { light: 'gold/100', dark: 'gold/950' },
+  'celebration-foreground': { light: 'gold/900', dark: 'gold/200' },
+  'celebration-border': { light: 'gold/300', dark: 'gold/800' },
+  'celebration-icon': { light: 'gold/700', dark: 'gold/400' },
+  'accent-violet-surface': { light: 'violet/50', dark: 'violet/950' },
+  'accent-violet-foreground': { light: 'violet/700', dark: 'violet/300' },
+  'accent-indigo-surface': { light: 'indigo/50', dark: 'indigo/950' },
+  'accent-indigo-foreground': { light: 'indigo/700', dark: 'indigo/300' },
+  'accent-cyan-surface': { light: 'cyan/50', dark: 'cyan/950' },
+  'accent-cyan-foreground': { light: 'cyan/700', dark: 'cyan/300' },
+  'accent-orange-surface': { light: 'orange/50', dark: 'orange/950' },
+  'accent-orange-foreground': { light: 'orange/700', dark: 'orange/300' },
+  'accent-gold-surface': { light: 'gold/50', dark: 'gold/950' },
+  'accent-gold-foreground': { light: 'gold/700', dark: 'gold/300' },
+  'data-category-1': { light: 'brand/700', dark: 'brand/400' },
+  'data-category-2': { light: 'indigo/600', dark: 'indigo/400' },
+  'data-category-3': { light: 'cyan/600', dark: 'cyan/400' },
+  'data-category-4': { light: 'violet/600', dark: 'violet/400' },
+  'data-category-5': { light: 'orange/600', dark: 'orange/400' },
+  'data-category-6': { light: 'gold/700', dark: 'gold/400' },
+}
+const TOKENS = Object.keys(ROLES)
 
 type Scope = 'light' | 'dark' | 'catalog'
 const SELECTORS: Record<Scope, string> = {
   light: ':root',
   dark: '.dark',
   catalog: '.catalog-theme',
+}
+
+/** El valor que le toca a un rol en un ámbito: el de su primitiva. */
+function expected(token: string, scope: Scope): string {
+  const role = ROLES[token]!
+  return PRIMITIVES[scope === 'light' ? role.light : role.dark]!
 }
 
 /**
@@ -128,25 +190,24 @@ const PAIRS: Array<{ fg: string; bg: string; min: number }> = [
   ]),
 ]
 
-/**
- * El único par que no cumple, y por eso la lista es exacta y no un «como
- * mucho»: si Figma corrige el valor, esta prueba avisa de que sobra la
- * excepción (I-172).
- */
-const KNOWN_FAILURES = [
-  'light · data-category-6 on surface-card',
-  'light · data-category-6 on background-default',
-]
-
-describe('Color System v2 · los valores son los de Figma', () => {
+describe('Color System v2 · cada rol es el valor de su primitiva de Figma', () => {
   it.each(TOKENS)('--ds-%s en claro y oscuro', (token) => {
-    expect(scopeTokens('light').get(token)).toBe(FIGMA[token]!.light)
-    expect(scopeTokens('dark').get(token)).toBe(FIGMA[token]!.dark)
+    expect(scopeTokens('light').get(token)).toBe(expected(token, 'light'))
+    expect(scopeTokens('dark').get(token)).toBe(expected(token, 'dark'))
   })
 
-  it('Catalog lleva los valores de Dark, porque la propuesta no lo define', () => {
+  it('Catalog lleva los valores de Dark, como el modo «Catalog» de Figma (D-232)', () => {
     const catalog = scopeTokens('catalog')
-    for (const token of TOKENS) expect(catalog.get(token), token).toBe(FIGMA[token]!.dark)
+    for (const token of TOKENS) expect(catalog.get(token), token).toBe(expected(token, 'catalog'))
+  })
+
+  it('data/category/6 en claro es gold/700: el único valor que cambió respecto de la propuesta (D-232)', () => {
+    expect(ROLES['data-category-6']!.light).toBe('gold/700')
+    expect(scopeTokens('light').get('data-category-6')).toBe('#a16207')
+    // Los demás dorados, como estaban.
+    expect(scopeTokens('light').get('celebration-icon')).toBe('#a16207')
+    expect(scopeTokens('light').get('accent-gold-foreground')).toBe('#a16207')
+    expect(scopeTokens('dark').get('data-category-6')).toBe('#facc15')
   })
 
   it('cada rol se exporta como --color-*, que es lo que genera la utilidad', () => {
@@ -176,35 +237,15 @@ describe('Color System v2 · auditoría de contraste WCAG en los tres ámbitos',
     }
   }
 
-  it('mide los 28 pares en claro, oscuro y catálogo', () => {
+  it(`mide los ${PAIRS.length} pares en claro, oscuro y catálogo`, () => {
     expect(rows).toHaveLength(PAIRS.length * 3)
   })
 
-  it('solo falla el par conocido: data/category/6 en claro (2,94:1)', () => {
-    expect(failures).toEqual(KNOWN_FAILURES)
+  it('todos cumplen: la excepción de data/category/6 en claro se cerró en D-232 (I-172)', () => {
+    expect(failures).toEqual([])
   })
 
-  it.each(rows.filter(([label]) => !KNOWN_FAILURES.includes(label)))(
-    '%s cumple (%f ≥ %f)',
-    (_label, ratio, min) => {
-      expect(ratio).toBeGreaterThanOrEqual(min)
-    },
-  )
-})
-
-describe('Color System v2 · lo que todavía no se puede usar', () => {
-  /** Todos los archivos de `src/` salvo la hoja de estilos, que lo declara. */
-  function sourceFiles(): string[] {
-    const root = resolve(process.cwd(), 'src')
-    return readdirSync(root, { recursive: true, encoding: 'utf8' })
-      .filter((file) => /\.(tsx?|css)$/.test(file) && !file.endsWith('globals.css'))
-      .map((file) => join(root, file))
-  }
-
-  it('ningún componente consume data/category/6 mientras no cumpla contraste en claro (I-172)', () => {
-    const consumers = sourceFiles().filter((file) =>
-      readFileSync(file, 'utf8').includes('data-category-6'),
-    )
-    expect(consumers).toEqual([])
+  it.each(rows)('%s cumple (%f ≥ %f)', (_label, ratio, min) => {
+    expect(ratio).toBeGreaterThanOrEqual(min)
   })
 })

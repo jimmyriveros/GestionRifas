@@ -2322,18 +2322,21 @@ las dos        ──► readPrizeAwardCoverage ── prize_award_coverage     
   Sin ella, el nombre de la rifa elegida estiraba la columna implícita y la pantalla se desplazaba 9 px a
   320 (I-139).
 
-### 8.29 Roles de color v2 (D-230)
+### 8.29 Roles de color v2 (D-230, cerrados en D-232)
 
 Los 28 roles de la propuesta «Color System v2» de Figma viven en **su propio bloque** al final de
 `globals.css`, con los tres ámbitos (`:root`, `.dark`, `.catalog-theme`) y su `@theme static inline`. El detalle
-—qué rol es para qué y por qué Catalog lleva los valores de Dark— está en D-230; aquí, solo las reglas de uso:
+—qué rol es para qué y por qué Catalog lleva los valores de Dark— está en D-230; las decisiones del dueño que lo
+cerraron —el dorado de la serie 6, el modo Catalog y el enlace a las primitivas—, en D-232. Aquí, solo las reglas
+de uso:
 
 | Regla | Por qué |
 |---|---|
 | Un componente pide el **rol** (`bg-accent-indigo-surface`), nunca una primitiva: no hay `indigo-50` en el código | Las primitivas no se exportan; recolorear es mover un token |
 | `accent/*` no dice un estado. Si un color comunica algo, lleva texto al lado | CLAUDE.md §27; la propuesta lo repite |
 | `status/discovery` y `status/attention` **no** son tonos de `StatusBadge` ni de `Notice` | Se convierten en estados solo cuando un caso real lo pida |
-| `data/category/6` **no se usa** mientras no cumpla contraste en claro | I-172. `tests/unit/color-system-v2.test.ts` falla si un archivo de `src/` lo consume |
+| En Figma cada rol es un **alias** de su primitiva; el código escribe el literal | `tests/unit/color-system-v2.test.ts` guarda la tabla rol → primitiva y falla si un literal no es el de su primitiva (D-232) |
+| Las seis series `data/category/*` se usan igual: todas cumplen 3:1 en los tres ámbitos | Desde D-232 la 6 es `gold/700` en claro (4,92:1); la excepción y el bloqueo de I-172 se retiraron |
 | `bg-accent` (shadcn, gris de hover) y `bg-accent-<familia>-surface` son cosas distintas | Los nombres son los de Figma, que no se renombran |
 
 ## 9. Configuración regional
