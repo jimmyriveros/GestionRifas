@@ -145,6 +145,11 @@ export async function purgeSellers(ids: string[]): Promise<void> {
  * transacción, así que borrar las asignaciones sueltas revienta —y el cliente
  * de Supabase **devuelve** el error en vez de lanzarlo, de modo que la limpieza
  * fallaría en silencio (I-059).
+ *
+ * **Y su bitácora** (D-233), como `purgeTestRaffles`: crear un cliente o una
+ * boleta deja una fila en `audit_logs`, y sin esto cada pasada dejaba tres por
+ * suite. Solo las filas de lo que esta limpieza borra, identificadas ANTES de
+ * borrar, y al final, porque borrar también deja la suya.
  */
 export async function purgeTestData(options: {
   clientIds?: string[]
@@ -164,6 +169,12 @@ export async function purgeTestData(options: {
   const args = [clientIds, ticketIds]
   try {
     await db.query('begin')
+    const { rows: borrados } = await db.query<{ id: string }>(
+      `select id from tickets where id = any($2) or client_id = any($1)
+       union all
+       select id from payments where client_id = any($1)`,
+      args,
+    )
     await db.query(
       `delete from payment_allocations pa using payments p
         where pa.payment_id = p.id and p.client_id = any($1)`,
@@ -187,6 +198,9 @@ export async function purgeTestData(options: {
     await db.query('delete from clients where id = any($1)', [clientIds])
     await db.query('delete from lottery_results where schedule_id = any($1)', [scheduleIds])
     await db.query('delete from lottery_draw_schedules where id = any($1)', [scheduleIds])
+    await db.query('delete from audit_logs where entity_id = any($1)', [
+      [...clientIds, ...scheduleIds, ...borrados.map((row) => row.id)],
+    ])
     await db.query('commit')
   } catch (error) {
     await db.query('rollback')

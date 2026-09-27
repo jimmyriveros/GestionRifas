@@ -7,6 +7,7 @@ import {
   createPaymentWithAllocation,
   createTicket,
   loadSeedRefs,
+  purgeTestData,
   raffleTicketPrice,
   type SeedRefs,
 } from './db-setup'
@@ -64,10 +65,21 @@ let refs: SeedRefs
 let abonada: { id: string; daily: string; weekly: string }
 let disponibleId: string
 
+/**
+ * Lo que crea la suite, apuntado EN CUANTO EXISTE y no al final: si `beforeAll`
+ * falla a medias, `afterAll` borra lo que alcanzó a crear. Y si una prueba
+ * falla, Playwright cambia de proceso y vuelve a ejecutar `beforeAll`; cada
+ * proceso borra lo suyo. El abono no se apunta: cuelga del cliente, y
+ * `purgeTestData` lo borra por él (I-035).
+ */
+const clientesCreados: string[] = []
+const ticketsCreados: string[] = []
+
 test.beforeAll(async () => {
   refs = await loadSeedRefs()
   const precio = await raffleTicketPrice(refs)
   const cliente = await createClientFor(refs, unique('Composicion detalle'))
+  clientesCreados.push(cliente.id)
   const numeros = randomTicketNumbers()
   const ticket = await createAssignedTicket(refs, {
     dailyNumber: numeros.daily,
@@ -75,6 +87,7 @@ test.beforeAll(async () => {
     clientId: cliente.id,
     salePrice: precio,
   })
+  ticketsCreados.push(ticket.id)
   // Un abono parcial: con historial de abonos la tarjeta del cliente lleva su
   // aviso y el cobro enseña el anillo, que es la pantalla más completa.
   await createPaymentWithAllocation(refs, {
@@ -87,13 +100,17 @@ test.beforeAll(async () => {
   abonada = { id: ticket.id, daily: numeros.daily, weekly: numeros.weekly }
 
   const libres = randomTicketNumbers()
-  disponibleId = (
-    await createTicket(refs, {
-      dailyNumber: libres.daily,
-      weeklyNumber: libres.weekly,
-      inventoryStatus: 'available',
-    })
-  ).id
+  const disponible = await createTicket(refs, {
+    dailyNumber: libres.daily,
+    weeklyNumber: libres.weekly,
+    inventoryStatus: 'available',
+  })
+  ticketsCreados.push(disponible.id)
+  disponibleId = disponible.id
+})
+
+test.afterAll(async () => {
+  await purgeTestData({ clientIds: clientesCreados, ticketIds: ticketsCreados })
 })
 
 /** La tarjeta de una sección: el `Card` que contiene su `h2`. */
