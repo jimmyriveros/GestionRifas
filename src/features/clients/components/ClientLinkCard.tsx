@@ -1,7 +1,6 @@
-import { ChevronRightIcon, UserRoundIcon } from 'lucide-react'
-import Link from 'next/link'
+import { UserRoundIcon } from 'lucide-react'
 
-import { cn } from '@/lib/utils'
+import { RecordLinkCard } from '@/components/data/RecordLinkCard'
 
 /**
  * El cliente de una boleta, como una fila que lleva a su ficha (D-101).
@@ -20,8 +19,9 @@ import { cn } from '@/lib/utils'
  * Se navega SIEMPRE por el `id` del cliente: dos personas pueden llamarse
  * igual, y el nombre no identifica a nadie.
  *
- * Las clases son las mismas de las tarjetas del equipo (`TeamMemberList`), para
- * que «esto se puede tocar» se vea igual en toda la aplicacion.
+ * La fila la pinta `RecordLinkCard` desde D-234, que es la misma forma que usa
+ * el detalle administrativo para el vendedor y la rifa. El HTML no cambio: el
+ * nombre y el telefono se siguen recortando (D-125).
  */
 export function ClientLinkCard({
   href,
@@ -42,47 +42,15 @@ export function ClientLinkCard({
    */
   action?: React.ReactNode
 }) {
-  const row = (
-    <Link
-      href={href}
-      className={cn(
-        'bg-muted/40 hover:bg-accent focus-visible:ring-ring flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none',
-        // Sola, la fila ocupa toda la altura de su columna: es la diana mas
-        // grande posible. Con una accion debajo, la altura la reparte el
-        // contenedor y `h-full` la haria desbordar.
-        action ? 'flex-1' : 'h-full',
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        {/* El circulo no aporta informacion: esta para que la fila se lea de un
-            vistazo como «una persona» entre las cifras de la boleta. */}
-        <span
-          aria-hidden
-          className="bg-background text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full border"
-        >
-          <UserRoundIcon className="size-5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            Cliente
-          </p>
-          <p className="truncate font-medium">{name}</p>
-          {phone ? <p className="text-muted-foreground truncate text-sm">{phone}</p> : null}
-        </div>
-      </div>
-      <ChevronRightIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
-    </Link>
-  )
-
-  // Sin accion, el arbol de HTML es EXACTAMENTE el de siempre: las pantallas
-  // que no la pasan no cambian ni un nodo.
-  if (!action) return row
-
   return (
-    <div className="flex h-full flex-col gap-2">
-      {row}
-      {action}
-    </div>
+    <RecordLinkCard
+      href={href}
+      icon={<UserRoundIcon className="size-5" />}
+      label="Cliente"
+      title={name}
+      detail={phone}
+      action={action}
+    />
   )
 }
 

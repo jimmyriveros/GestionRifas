@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
 import { ClientEmptyCard, ClientLinkCard } from '@/features/clients/components/ClientLinkCard'
 import { listClientOptions } from '@/features/clients/queries'
 import { TicketPaymentsCard } from '@/features/payments/components/TicketPaymentsCard'
@@ -16,6 +16,14 @@ import { canEditClearanceReceipt, clearanceState } from '@/features/tickets/clea
 import { ClearanceReceiptField } from '@/features/tickets/components/ClearanceReceiptField'
 import { ClearanceReceiptReadOnly } from '@/features/tickets/components/ClearanceReceiptReadOnly'
 import { TicketClientActions } from '@/features/tickets/components/TicketClientActions'
+import {
+  DateTime,
+  DetailLine,
+  InternalCodeNote,
+  TICKET_DETAIL_CARD,
+  TicketDetailCard,
+  TicketNumbersCard,
+} from '@/features/tickets/components/TicketDetailParts'
 import { TicketPaymentSummary } from '@/features/tickets/components/TicketPaymentSummary'
 import { TicketSalePrice } from '@/features/tickets/components/TicketSalePrice'
 import { getTicketDetail } from '@/features/tickets/queries'
@@ -23,18 +31,18 @@ import { canReassignClient } from '@/features/tickets/reassign-client'
 import { hasTicketClientActions } from '@/features/tickets/release-ticket'
 import { SellerTicketActions } from '@/features/tickets/seller/components/SellerTicketActions'
 import { getWhatsappSettings } from '@/features/whatsapp/queries'
-import { formatDateEs, formatTimeEs } from '@/lib/dates'
+import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
 import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
-/**
- * La densidad de las seis tarjetas del detalle (D-231): menos aire que el
- * `Card` de siempre entre el titulo y el contenido, la misma que ya usa
- * `SellerCatalogCard`. Es de esta pantalla, no del primitivo: por eso la pasa
- * la pagina, tambien a las dos tarjetas que son componentes.
- */
-const SECTION_CARD = 'gap-4 py-4 md:py-5'
+/*
+  LAS PIEZAS DE LAS TARJETAS SON COMPARTIDAS (D-234). La densidad
+  (`TICKET_DETAIL_CARD`), el titulo de cada tarjeta, «Números de la boleta» con
+  sus dos tonos (D-233), las lineas de «Detalles» y la fecha con su hora viven en
+  `TicketDetailParts`, porque el detalle administrativo las pinta igual. Esta
+  pagina sigue decidiendo cuales lleva y donde (D-231).
+*/
 
 /** Explica por que una boleta no se puede asignar todavia (BR-I07). */
 function blockedReason(status: string, raffleStatus: string): string | null {
@@ -193,16 +201,9 @@ export default async function SellerTicketDetailPage({
           `truncate`. `minmax(0, …)` en las columnas de escritorio, por lo mismo. */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)]">
         <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
-          <Card className={SECTION_CARD}>
-            <SectionHeader title="Números de la boleta" />
-            <CardContent className="grid grid-cols-2 gap-3">
-              <TicketNumber label="Número diario" value={ticket.dailyNumber} tone="daily" />
-              <TicketNumber label="Número semanal" value={ticket.weeklyNumber} tone="weekly" />
-            </CardContent>
-          </Card>
+          <TicketNumbersCard dailyNumber={ticket.dailyNumber} weeklyNumber={ticket.weeklyNumber} />
 
-          <Card className={SECTION_CARD}>
-            <SectionHeader title="Cliente" />
+          <TicketDetailCard title="Cliente">
             <CardContent>
               {ticket.clientId ? (
                 <ClientLinkCard
@@ -223,10 +224,9 @@ export default async function SellerTicketDetailPage({
                 <ClientEmptyCard description="Todavía no la has vendido." />
               )}
             </CardContent>
-          </Card>
+          </TicketDetailCard>
 
-          <Card className={SECTION_CARD}>
-            <SectionHeader title="Información de venta" />
+          <TicketDetailCard title="Información de venta">
             <CardContent>
               {/* Una fila por dato, separadas por una linea: rotulo arriba y
                   valor debajo. Sin iconos a la izquierda, como en Figma. */}
@@ -294,12 +294,12 @@ export default async function SellerTicketDetailPage({
                 ) : null}
               </div>
             </CardContent>
-          </Card>
+          </TicketDetailCard>
         </div>
 
         <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
           <TicketPaymentSummary
-            className={SECTION_CARD}
+            className={TICKET_DETAIL_CARD}
             inventoryStatus={ticket.inventoryStatus}
             paymentStatus={ticket.paymentStatus}
             salePrice={ticket.salePrice}
@@ -308,7 +308,7 @@ export default async function SellerTicketDetailPage({
 
           {ticket.inventoryStatus === 'assigned' ? (
             <TicketPaymentsCard
-              className={cn(SECTION_CARD, 'md:col-span-2')}
+              className={cn(TICKET_DETAIL_CARD, 'md:col-span-2')}
               payments={payments}
               ticketId={ticket.id}
               salePrice={ticket.salePrice}
@@ -318,8 +318,7 @@ export default async function SellerTicketDetailPage({
 
           {/* Lo administrativo, al final: hace falta alguna vez, pero no
               compite con la boleta, el cliente ni el cobro. */}
-          <Card className={cn(SECTION_CARD, 'md:col-span-2')}>
-            <SectionHeader title="Detalles de la boleta" />
+          <TicketDetailCard title="Detalles de la boleta" className="md:col-span-2">
             <CardContent>
               <dl className="divide-y text-sm">
                 {/* La rifa BAJA aqui desde el encabezado (D-126). No se pierde:
@@ -360,86 +359,11 @@ export default async function SellerTicketDetailPage({
                 ) : null}
                 <DetailLine label="Código interno" value={ticket.internalCode} mono />
               </dl>
-              {/* Fuera de la lista y con su propio margen: en Figma esta frase
-                  se montaba sobre la fila del código interno. */}
-              <p className="text-muted-foreground mt-4 text-xs">
-                El código interno lo genera el sistema para identificar la boleta por dentro. Para
-                buscarla, usa sus números.
-              </p>
+              <InternalCodeNote />
             </CardContent>
-          </Card>
+          </TicketDetailCard>
         </div>
       </div>
-    </div>
-  )
-}
-
-/**
- * El titulo de una de las seis tarjetas.
- *
- * UN ENCABEZADO DE VERDAD: bajo el `h1` de la pantalla, cada tarjeta es una
- * seccion, y un lector de pantalla salta entre ellas por sus `h2`. El rol
- * tipografico es `Heading/H4` —16 px, seminegrita—, el de Figma.
- */
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <CardHeader>
-      <CardTitle className="text-heading-h4">
-        <h2>{title}</h2>
-      </CardTitle>
-    </CardHeader>
-  )
-}
-
-/**
- * Los dos tonos del acento indigo, uno por numero (D-233): el diario, intenso;
- * el semanal, suave. Solo ROLES del sistema —ni hexadecimales ni primitivas—, y
- * cada tono trae los tres: fondo, texto y borde.
- */
-const TICKET_NUMBER_TONES = {
-  daily:
-    'bg-accent-indigo-surface-strong text-accent-indigo-foreground border-accent-indigo-border-strong',
-  weekly:
-    'bg-accent-indigo-surface text-accent-indigo-foreground-subtle border-accent-indigo-border',
-} as const
-
-/**
- * Uno de los dos numeros, con su nombre encima: cual es cual importa.
- *
- * Con el ACENTO INDIGO de Color v2 (D-230), que es un realce y no un estado.
- * Cada numero lleva su tono, como en Figma: el diario, un punto mas intenso
- * (D-233). Es una decision VISUAL. BR-N11 pide nombrar la boleta por sus dos
- * numeros y no dice nada de su color: lo que dice cual es cual es el rotulo,
- * no el tono (CLAUDE.md §27). Los dos textos pasan 4,5:1 en claro y en oscuro.
- *
- * La cifra usa Geist con `tabular-nums`, no `font-mono`: esa pila es la
- * monoespaciada DEL SISTEMA (I-070), distinta en cada telefono.
- *
- * LAS DOS CIFRAS VAN A LA MISMA ALTURA aunque un rotulo ocupe dos lineas. A
- * 320 px «Número semanal» no cabe en una, y con la cifra pegada al rotulo el
- * semanal quedaba 17 px mas abajo que el diario. Las dos cajas miden lo mismo
- * —son hijas de la misma rejilla—, asi que basta con llevar la cifra al pie.
- */
-function TicketNumber({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string | null
-  tone: keyof typeof TICKET_NUMBER_TONES
-}) {
-  return (
-    <div
-      className={cn(
-        'flex min-w-0 flex-col justify-between gap-1 rounded-lg border px-3 py-2.5',
-        TICKET_NUMBER_TONES[tone],
-      )}
-    >
-      {/* Sin recortar: en una columna estrecha el rotulo baja de linea, pero
-          «cuál de los dos números es este» no se puede esconder. */}
-      <p className="text-xs font-medium">{label}</p>
-      <p className="text-metric-x-large tabular-nums">{value ?? '—'}</p>
     </div>
   )
 }
@@ -451,45 +375,5 @@ function SaleRow({ label, children }: { label: string; children: React.ReactNode
       <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
       {children}
     </div>
-  )
-}
-
-/**
- * Una fila de «Detalles de la boleta»: el rotulo en una columna fija y el valor
- * a su lado, alineado a la izquierda como en Figma. El valor PARTE su texto
- * (`break-words`) en vez de empujar la columna: una fecha con el nombre del
- * cliente detras no cabe en 120 px.
- */
-function DetailLine({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string
-  value: React.ReactNode
-  mono?: boolean
-}) {
-  return (
-    <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] gap-x-4 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={mono ? 'text-muted-foreground font-mono break-words' : 'break-words'}>
-        {value}
-      </dd>
-    </div>
-  )
-}
-
-/**
- * Fecha y hora, con la hora ENTERA: se queda en la línea o baja completa, nunca
- * partida entre «a.» y «m.», que se lee como una errata (misma regla que el
- * recuadro de loterías, D-181). El texto es exactamente el de
- * `formatDateTimeEs`, que une las dos piezas con «, ».
- */
-function DateTime({ value }: { value: string }) {
-  return (
-    <>
-      {`${formatDateEs(value)}, `}
-      <span className="whitespace-nowrap">{formatTimeEs(value)}</span>
-    </>
   )
 }
