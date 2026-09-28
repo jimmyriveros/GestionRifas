@@ -15186,3 +15186,62 @@ administrativo no puede importar nada de ahí (D-198, `tests/unit/admin-privacy.
 
 **I-173:** en el detalle del **vendedor**, «Pendiente de aprobación» se monta 27 px sobre «Sin venta» a 320 px y
 7 px a 360. Es anterior a este encargo —sus capturas son idénticas antes y después— y queda fuera de él.
+
+---
+
+## D-235 — Los dos estados de «Estado y resumen de pago» se reparten por el ancho de la tarjeta, como en el detalle administrativo (I-173)
+
+**Fecha:** 2026-09-28 · **Encargo del dueño:** corregir I-173 como tarea independiente, **solo en local**, con la
+corrección mínima en `TicketPaymentSummary` y el patrón de «Estado y venta» del detalle administrativo (D-234).
+Mantenimiento posterior a la Fase 9; **no es una Fase 10**. Sin migración, consultas, permisos, acciones, textos,
+colores, importes ni estados nuevos.
+
+### El defecto, medido antes de tocarlo
+
+«Estado» y «Estado de pago» iban en **dos columnas fijas** (`grid-cols-2`). La insignia más larga, «Pendiente de
+aprobación», mide **154 px** y no se parte; en la mitad de una tarjeta de teléfono no cabe y se montaba sobre la
+celda de al lado: **27 px a 320** (238 px de contenido) y **7 px a 360** (278). A 390 y en tableta quedaba a 7–8 px,
+**desbordando su propia columna** hacia el hueco entre las dos. Solo las boletas pendientes: las demás insignias miden
+63–76 px.
+
+### La decisión
+
+`CardContent` declara `@container` y la rejilla de los estados es `grid-cols-1 gap-4 @min-[22rem]:grid-cols-2`:
+**una columna hasta 22 rem de contenido de la tarjeta y dos desde ahí**, exactamente la regla de «Estado y venta» del
+detalle administrativo. Así los dos portales reparten igual los mismos dos datos con el mismo ancho de tarjeta.
+El bloque del cobro —anillo y cifras— ya era su propio contenedor y sus consultas (`@min-[400px]`, `@min-[320px]`,
+`@min-[520px]`) siguen midiendo ese bloque, que es el contenedor más cercano.
+
+**El único consumidor** es el detalle de boleta del vendedor, y la regla lo cubre en sus tres anchos de tarjeta:
+teléfono a lo ancho (238–348 px de contenido), tableta a media fila (305 px) y escritorio en la columna derecha (400
+px a 1.024, 746 desde 1.280).
+
+| Contenido de la tarjeta | Antes | Después |
+|---|---|---|
+| 238 y 278 px (320 y 360) | Se monta 27 y 7 px | Una debajo de otra |
+| 305–348 px (390, 430 y tableta) | Lado a lado, a 7–28 px, desbordando su columna | Una debajo de otra |
+| 400 y 746 px (1.024 en adelante) | Lado a lado | **Igual que antes** |
+
+### Lo que cuesta, medido
+
+- **Teléfono:** la tarjeta crece **62 px** (una fila más: rótulo, insignia y el hueco).
+- **Tableta (768 y 834), donde la tarjeta hace pareja con «Información de venta» (D-231):** en una boleta **sin
+  vender** desaparece el aire que sobraba bajo los estados (60 px → 1); en una **vendida**, la tarjeta del cobro pasa
+  a ser la alta de la pareja y el aire lo pone «Información de venta» —**44 a 94 px** bajo su último dato, antes
+  1–32—. Es el estiramiento de la pareja, no un desborde: ninguna tarjeta se pisa ni se recorta.
+- **Escritorio:** nada.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Un corte más bajo, 18–19 rem, que deja la tableta lado a lado | La insignia seguiría **desbordando su columna** y a 7–8 px de la vecina: con el texto un poco más grande —el zoom del navegador— vuelve a montarse. Arregla 320 y 360 y deja el defecto latente |
+| Columnas al tamaño del contenido (`auto_1fr`) o `flex-wrap` | No se montan por construcción, pero la segunda columna **cambia de sitio de una boleta a otra** según la insignia de la primera, contra la regla de columnas iguales de este componente, y no es el patrón pedido |
+| Cambiar la rejilla de la página para no emparejar en tableta | Es la composición de D-231 y fuera de «la corrección mínima en `TicketPaymentSummary`» |
+
+### Pruebas
+
+`detalle-boleta-composicion.spec.ts` crea una boleta **pendiente** del vendedor 1 y comprueba, a 320, 360, 390, 430
+y 834, que la insignia **no se cruza con la celda entera de «Estado de pago»** —rótulo y «Sin venta»— y que **no se
+sale de su tarjeta**; y a 1.024 y 1.440, que los dos estados **siguen lado a lado**. Con el componente anterior falla
+con «se pisan 27 px a 320 px»; con la corrección pasa.

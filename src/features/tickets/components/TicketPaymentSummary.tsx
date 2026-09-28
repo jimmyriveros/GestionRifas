@@ -76,8 +76,14 @@ export function TicketPaymentSummary({
           <h2>Estado y resumen de pago</h2>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
+      <CardContent className="@container space-y-5">
+        {/* LAS COLUMNAS LAS DECIDE LA TARJETA, NO LA PANTALLA (I-173). Eran dos
+            fijas, y «Pendiente de aprobacion» (154 px, sin partir) no cabe en la
+            mitad de una tarjeta de telefono: a 320 y 360 px se montaba 27 y 7 px
+            sobre «Sin venta». Una columna hasta 22 rem de contenido y dos desde
+            ahi, como «Estado y venta» del detalle administrativo (D-234): los
+            dos portales reparten igual los mismos dos datos. */}
+        <div className="grid grid-cols-1 gap-4 @min-[22rem]:grid-cols-2">
           <Cell label="Estado">
             <InventoryStatusBadge status={inventoryStatus} />
           </Cell>

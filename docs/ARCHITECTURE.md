@@ -440,7 +440,7 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `BottomNav` | La barra de navegación del teléfono (§8.8, D-106). Solo las entradas `primary`, solo bajo `md`. No consulta nada: `usePathname()` y ya. Conserva el aviso de «se está abriendo» de `NavPending`, en el sitio del icono |
 | `nav-active.ts` | `isNavItemActive(pathname, href)`: qué entrada se enciende. La comparten la barra lateral y la inferior, para que no puedan discrepar (D-106) |
 | `ProgressRing` | Anillo de progreso accesible (D-105): un `<svg>` con `stroke-dasharray`, sin librería de gráficas. Lleva el porcentaje **escrito** en el centro y `role="progressbar"`; es la versión compacta de una barra de progreso lineal, para cuando el porcentaje comparte fila con cifras de dinero. **Dentro solo va el porcentaje**, medido en `cqw` contra el propio anillo (D-124) |
-| `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel. Dos bloques apilados y separados por una línea; el anillo se pone encima de las cifras en el teléfono y a su izquierda desde 400 px de tarjeta (D-124). Desde D-231 lleva su propio título, «Estado y resumen de pago», y la pantalla le pasa la densidad por `className` |
+| `TicketPaymentSummary` | Estado, estado de pago y —si ya se vendió— anillo, abonado y pendiente de UNA boleta (D-105). No consulta ni calcula: recibe `sale_price` y `paid_amount` y pide el porcentaje a `calculateCollectionSummary`, la misma cuenta del panel. Dos bloques apilados y separados por una línea; el anillo se pone encima de las cifras en el teléfono y a su izquierda desde 400 px de tarjeta (D-124). Desde D-231 lleva su propio título, «Estado y resumen de pago», y la pantalla le pasa la densidad por `className`. Desde D-235 los dos estados van en una columna hasta 22 rem de tarjeta y en dos desde ahí (`@container`), la regla de «Estado y venta» del detalle administrativo (I-173) |
 | `PageHeader` | Título, descripción y acciones de toda pantalla. `backHref` activa la flecha de volver de las pantallas de detalle (§8.6, D-089). `compactAction` es el contrato del CTA compacto (§8.20) |
 | `BackButton` | Flecha de volver: historial real con destino de repuesto. La usa `PageHeader` y la cabecera compacta, no se llama suelta |
 | `CompactHeader` | Isla cliente de la cabecera contextual (§8.20, D-150): observer del `PageHeader`, título compacto y portal del CTA |
@@ -794,8 +794,10 @@ su tabla de abonos, que aquí no existe; a 1.024 px la columna derecha tiene 492
 
 **Por qué las columnas de «Estado y venta» dependen de la tarjeta y no de la ventana:** «Pendiente de
 aprobación» mide 154 px, y en dos columnas de una tarjeta de teléfono cabían 147. A partir de 22 rem de
-contenido caben las dos insignias; por debajo van una debajo de otra. El detalle del vendedor tiene el
-mismo par en dos columnas fijas y ahí la insignia se monta sobre «Sin venta» a 320 y 360 px (I-173).
+contenido caben las dos insignias; por debajo van una debajo de otra. El detalle del vendedor tenía el
+mismo par en dos columnas fijas y ahí la insignia se montaba sobre «Sin venta» a 320 y 360 px (I-173);
+desde D-235 `TicketPaymentSummary` usa esta misma regla, así que los dos portales reparten igual los dos
+estados con el mismo ancho de tarjeta.
 
 **Las acciones** siguen siendo `TicketActions`, con sus condiciones, en el encabezado. En el teléfono
 miden 44 px y llenan cada fila (`size="touch"` y `grow`, la receta de D-109); hasta `lg` van en su

@@ -6984,6 +6984,14 @@ holds.
 at 320 and 360 px (I-173): two fixed columns for a 154 px badge. The staff card avoids it by switching
 columns on the card's width (22 rem).
 
+### 10.62 I-173 FIXED LOCALLY — THE SELLER'S STATUS PAIR USES THE STAFF RULE (2026-09-28, D-235, not published)
+
+`TicketPaymentSummary` now declares `@container` on its content and lays the two statuses out with
+`grid-cols-1 @min-[22rem]:grid-cols-2` — the rule of the staff card above. No token, colour, text or component
+changed. One column below 22 rem of card content (every phone width and the half-width tablet card), two from
+there (1,024 px and up, unchanged). Measured: no overlap in 7 states × 8 widths × 2 themes; the card grows 62 px
+on phones; on tablet the pairing stretch moves to «Información de venta» on sold tickets (44–94 px of air).
+
 ---
 ## 11. Repository checkpoint — 2026-09-07
 

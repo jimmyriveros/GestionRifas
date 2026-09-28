@@ -3,7 +3,24 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-28, 14:00 UTC, y cierre a las 16:38 UTC — **El detalle de boleta administrativo EN
+- **Actualizado:** 2026-09-28, tarde — **I-173 resuelta, SOLO EN LOCAL (D-235)**: mantenimiento posterior a la Fase 9,
+  sin fase ni etiqueta nuevas, en la rama `feature/detalle-boleta-admin`, sin empujar. Producción no cambia: sigue
+  como la dejó la publicación de D-234. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en el detalle de boleta del vendedor, «Estado» y «Estado de pago» se reparten por el ancho
+  de la tarjeta —una columna hasta 22 rem y dos desde ahí—, como en el detalle administrativo; «Pendiente de
+  aprobación» ya no se monta sobre «Sin venta». Sin cambios de textos, colores, importes, consultas ni acciones.
+  **(2) Pruebas:** reproducido antes con medidas y capturas (27 px a 320, 7 a 360); después, 0 de 56 medidas con
+  problema y escritorio idéntico. Prueba de regresión que falla con el componente anterior y pasa con la corrección;
+  `detalle-boleta-composicion` 20/20; `verify` exit 0 (1.781/1.781); `test:db` 1.444 + 1; E2E de las 31 suites que
+  abren el detalle del vendedor: 326/327, con I-090 como único fallo, que sola pasa (`TEST_RESULTS`, I-173).
+  **(3) Migraciones:** ninguna; siguen `0001`–`0077`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** I-164, I-075, I-090 e I-106, anteriores y sin encargo. En tableta, con una
+  boleta vendida, «Información de venta» queda con 44–94 px de aire por la pareja de fila (D-235).
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; que la rama lleva, sin empujar, los dos commits de
+  documentación de la publicación de D-234 y el de I-173.
+
+- Antes — 2026-09-28, 14:00 UTC, y cierre a las 16:38 UTC — **El detalle de boleta administrativo EN
   PRODUCCIÓN (D-234)**:
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, con autorización expresa del dueño para publicar
   la versión que revisó en local como Dueño y como Administrador, `5a53bfc`. Los seis puntos de `CLAUDE.md` §34.3:

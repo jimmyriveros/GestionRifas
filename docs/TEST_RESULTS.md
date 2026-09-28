@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Revisado por el dueño **como Administrador y como Vendedor**, con sus registros limpios (16:29–16:32 UTC); **como Dueño, no confirmado** en producción |
+| **Post-9 vigente (I-173 resuelta: los estados de «Estado y resumen de pago» por el ancho de la tarjeta, D-235, solo en local, 2026-09-28)** | **1.781/1.781** en 88 archivos, igual que antes: el cambio es de maquetación | **1.444 ✅ y 1 omitida**, igual que antes | La prueba nueva **falla con el componente anterior** («se pisan 27 px a 320 px») y pasa con la corrección; `detalle-boleta-composicion` **20/20** sin dejar filas; las 31 suites que abren el detalle del vendedor: **326/327**: el fallo es I-090 (`ventas-por-fecha:163`), que sola pasa —en esa pasada cayó I-164, `:257`—. Capturas: 112 de la tarjeta y 14 de página por fase; después, **0 de 56** medidas con problema | ✅ exit 0 | Solo en local, sin empujar |
+| Post-9 anterior (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Revisado por el dueño **como Administrador y como Vendedor**, con sus registros limpios (16:29–16:32 UTC); **como Dueño, no confirmado** en producción |
 | Post-9 anterior (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá) | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
 | Post-9 anterior (Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN, D-230 a D-233: `ee3d793`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.780/1.780**; CI del PR y de `main` sobre `ee3d793` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Los 3 fallos de la completa (924/927), **reproducidos en la versión publicada** `6943b7f` (I-075, I-106) o con su evidencia causal (I-090). En vivo: 35/35 rutas, 7/7 cabeceras, `087eb866b494` servido y Color v2 en su selector | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, 00:23:10 UTC) |
 | Post-9 anterior (Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E del detalle, D-232 y D-233, solo en local, 2026-09-27) | **1.780/1.780** en 88 archivos (+16, `color-system-v2`: auditoría **93 de 93**; dos mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **924/927** en 50,7 min: los 3 fallos llevan la firma de **I-075**, **I-090** e **I-106**, y los tres fallan también con `319bdba` (medido). `detalle-boleta-composicion` **18/18** dos veces seguidas sin restablecer la base y con dos fallos simulados: **0 filas** nuevas en `public` | ✅ exit 0 | Solo en local, tres commits más sin empujar |
@@ -15677,7 +15678,7 @@ anotado aquí, sin corregir, porque no es de este encargo.
 | PR #6 | Abierto sobre `5a53bfc` a las 13:28:54 UTC. El check «Vercel», en rojo **a propósito**: la vista previa `dpl_GSDFpSkDzxB8p4mEB6MUrb6RrJZs` se detiene en `check:env` por las tres variables de Supabase, que Preview no tiene para que un PR no escriba en la base real (I-022, D-066) —leído en sus registros de construcción—. Igual que en los PR #4 y #5 |
 | CI del PR | Run **`36428917877`** sobre `5a53bfc`: ✅ **2/2** —«Typecheck, lint, unitarias, build» en 2 min 38 s y «Migraciones desde cero + pruebas de base de datos» en 6 min 18 s; de 13:28:55 a 13:35:17 UTC— |
 | Hora | Se esperó a las **14:00 UTC**: las 13 son un turno del sincronizador (`RUNBOOK` §9.0) |
-| La ventana, a las 14:00:16 UTC | `build/detalle-admin/ventana.ts`, una transacción `repeatable read read only` de `scripts/gate-db.ts` contra el proyecto que nombra la CSP —ensayada antes contra la base local—: hora 14, fuera de los turnos; el candado del sincronizador **libre** (su último turno lo soltó a las 13:33:54); **0** corridas sin terminar; 2 recordatorios activos, **0** vencidos y **0** en la media hora siguiente —el próximo, el 2 de octubre a las 21:15 UTC—. **VENTANA LIBRE** |
+| La ventana, a las 14:00:16 UTC | `build/detalle-admin/ventana.mts`, una transacción `repeatable read read only` de `scripts/gate-db.ts` contra el proyecto que nombra la CSP —ensayada antes contra la base local—: hora 14, fuera de los turnos; el candado del sincronizador **libre** (su último turno lo soltó a las 13:33:54); **0** corridas sin terminar; 2 recordatorios activos, **0** vencidos y **0** en la media hora siguiente —el próximo, el 2 de octubre a las 21:15 UTC—. **VENTANA LIBRE** |
 | Avance rápido | `git ls-remote` confirmó `ee3d793` justo antes y `git merge-base --is-ancestor` el avance rápido; `git push origin 5a53bfc…:refs/heads/main` a las **14:00:27 UTC** (`ee3d793..5a53bfc`), sin `force` y sin la rama local `main`. PR #6 fusionado a las 14:00:30, sin commit de fusión |
 
 ### P8, en solo lectura, 14:01–14:03 UTC
@@ -15713,10 +15714,91 @@ el Dueño y el Administrador, así que el rol es el que dio el dueño.
 |---|---|
 | Lo que hay en la hora legible | Solo esta revisión, de **16:29:15 a 16:32:30 UTC**: **94** líneas, todas de `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` —88 × 200 y 6 × 307 (`/` a su portal y las precargas después de cerrar sesión)—. **0** 4xx, **0** 5xx y **0** líneas de error, aviso o fatal |
 | El recorrido | Portal del **vendedor** (16:29:15–16:29:29) y **cerrar sesión** —`POST /seller/dashboard`, la acción `logout`, y a `/login`—; **entrada** (`POST /login`, 16:29:39); portal del **personal** (16:29:40–16:29:55): panel, «Boletas» y **un detalle**, `9defa133…`, con la precarga de su fila «Rifa» (`/owner/raffles/d64af684…`); y otra vez el portal del **vendedor** (16:31:16–16:32:30), **sin una entrada nueva** —una sesión que ya estaba abierta, probablemente en otro dispositivo—: «Mis boletas» y **tres detalles**, `9defa133…`, `08b6b091…` y `157e029b…`, todos en 200, cada uno con la precarga de su fila de cliente (`/seller/clients/<id>`) y el primero con la de «Registrar abono» |
-| El estado de esas boletas, en la base (una transacción de solo lectura, `build/detalle-admin/revision.ts`, ensayada antes en local) | `9defa133…`: vendida y **sin abonos**; `157e029b…`: vendida y **con abonos**; `08b6b091…`: vendida y **pagada**. Sin cliente, importe ni persona: solo estado |
+| El estado de esas boletas, en la base (una transacción de solo lectura, `build/detalle-admin/revision.mts`, ensayada antes en local) | `9defa133…`: vendida y **sin abonos**; `157e029b…`: vendida y **con abonos**; `08b6b091…`: vendida y **pagada**. Sin cliente, importe ni persona: solo estado |
 | Operaciones de negocio | **Ninguna**: de 16:29 a 16:33, **0** filas de `audit_logs` y **0** pagos. Los dos `POST` son cerrar sesión y entrar |
 | Errores de ejecución | `get_runtime_errors` desde las 14:00: **ninguno**. Es un resumen por grupos, pero cubre también el tramo que ya no se puede leer línea a línea |
 
 **Lo que los registros no muestran:** el detalle de una boleta **disponible** y **más de un** detalle en el portal del
 personal. Si esa parte de la revisión fue antes de las 15:35 UTC, sus líneas ya no se pueden leer; quedan con la
 confirmación del dueño, sin contraste en los registros. Ningún error relacionado con D-234 en lo que sí se leyó.
+
+---
+
+## I-173 — Los estados de «Estado y resumen de pago», por el ancho de la tarjeta (D-235, 2026-09-28, solo en local)
+
+Encargo del dueño, como tarea independiente y **solo en local**: corregir la insignia «Pendiente de aprobación» que se
+montaba sobre «Sin venta» en el detalle de boleta del vendedor, con la corrección mínima en `TicketPaymentSummary` y
+el patrón de «Estado y venta» del detalle administrativo. Rama `feature/detalle-boleta-admin`, encima de los dos
+commits locales de documentación de la publicación de D-234 (`0fee2cd`, `759bbb9`), conservados. Todo contra la base
+**local** con `dev:local`. Herramientas y capturas en `build/i173/` (no se versiona).
+
+**Línea base:** no se repitió antes de tocar el código: el código era el de `87d7371`, verificado en D-234 (`verify`
+1.781/1.781, `test:db` 1.444 + 1), sin cambios desde entonces fuera de `docs/`.
+
+### El defecto, reproducido antes de tocar nada
+
+`build/i173/capturar.mjs antes`, con las boletas de revisión del vendedor 1 en la base local —una por estado—, mide
+en claro el contenido de la tarjeta y la insignia de «Estado» frente a la celda de «Estado de pago»:
+
+| Ancho | Contenido | Antes | Después | Alto de la tarjeta |
+|---|---|---|---|---|
+| 320 | 238 px | **se monta 27 px** | una debajo de otra | 128 → 190 px |
+| 360 | 278 px | **se monta 7 px** | una debajo de otra | 128 → 190 px |
+| 390 | 308 px | lado a lado, a 8 px | una debajo de otra | 128 → 190 px |
+| 430 | 348 px | lado a lado, a 28 px | una debajo de otra | 128 → 190 px |
+| 834 | 305 px | lado a lado, a 7 px | una debajo de otra | 195 → 198 px |
+| 1024 | 400 px | lado a lado, a 54 px | lado a lado, a 54 px | 195 → 195 px |
+| 1280 y 1440 | 746 px | lado a lado, a 227 px | lado a lado, a 227 px | 136 → 136 px |
+
+Es la boleta **pendiente** (insignia de 154 px). Las otras seis —borrador, disponible, sin pagar, abonada, pagada y
+anulada, con insignias de 63 a 76 px— **no se montaban en ningún ancho**. Después, **0 de 56** medidas con la insignia
+montada o fuera de su tarjeta. A 390 y en tableta, antes, «lado a lado a 7–8 px» era con la insignia **desbordando su
+columna** hacia el hueco entre las dos: no se veía el choque, pero no cabía.
+
+### La corrección
+
+`TicketPaymentSummary`: `@container` en su `CardContent` y `grid-cols-1 gap-4 @min-[22rem]:grid-cols-2` en la rejilla
+de los estados (D-235). Ocho líneas y dos quitadas, un comentario incluido. Textos, colores, importes, estados,
+consultas, permisos y acciones, **iguales**.
+
+### Tableta: la pareja «Información de venta» | «Estado y resumen de pago»
+
+`build/i173/tableta.mjs`: en tableta las dos tarjetas comparten fila y se estiran a la más alta (D-231). «Aire» es lo
+que queda entre el último dato de la tarjeta y su borde:
+
+| Boleta, 768 y 834 | Antes: aire de venta · de estado | Después: aire de venta · de estado |
+|---|---|---|
+| Pendiente, disponible y anulada | 1 · **60 px** | 4 · 1 px |
+| Sin pagar | 32 · 1 px | **94** · 1 px |
+| Abonada | 1–14 · 1–4 px | **60–76** · 1 px |
+| Pagada | 1 · 20 px | **44** · 1 px |
+| 1.024 y 1.280, cualquier boleta | Igual que antes | Igual que antes |
+
+En una boleta sin vender desaparece el aire bajo los estados; en una vendida la tarjeta del cobro pasa a ser la alta y
+el aire lo pone «Información de venta». Ninguna tarjeta se pisa ni se recorta: es el estiramiento de la pareja.
+
+### Capturas
+
+**112 por fase** de la tarjeta —7 estados × 8 anchos (320, 360, 390, 430, 834, 1.024, 1.280 y 1.440) × claro y
+oscuro— y **14 de página** entera —la pendiente a 320 y 390, y pendiente, sin pagar y abonada a 768, 834, 1.024 y
+1.440—, en `build/i173/antes/` y `build/i173/despues/`, con `revision.html` para compararlas con filtros y 10 pares
+lado a lado en `build/i173/pares/`. El «antes» se tomó con el componente de `HEAD` escrito en su sitio y la corrección
+devuelta después **byte a byte** desde una copia (misma huella, `0bc18eb9…`).
+
+### Pruebas
+
+| Qué | Resultado |
+|---|---|
+| Las dos pruebas nuevas de `detalle-boleta-composicion` (I-173), con la corrección | ✅ **2/2** |
+| Las mismas, **con el componente anterior** | ❌ la de solapamiento, con **«se pisan 27 px a 320 px»**; la de escritorio pasa, como debe —antes también iban lado a lado— |
+| `detalle-boleta-composicion` entera, con la corrección | ✅ **20/20** (18 + 2) en 55 s, y el recuento de siete tablas —boletas, bitácora, clientes, pagos, asignaciones, avisos y ganancia— **idéntico** antes y después: la boleta pendiente se borra con su bitácora |
+| `npm run verify` | ✅ exit 0: tipos, lint **0 errores y los 2 avisos** de siempre, **1.781/1.781** unitarias en 88 archivos, `next build` |
+| `npm run test:db` | ✅ **1.444 + 1 omitida** en 59 archivos, 137 s |
+| E2E: las **31 suites** que abren el detalle de boleta del vendedor —las únicas donde se pinta el componente—, con la base recién sembrada | ⚠️ **326/327** en 18,4 min (17:16–17:35 UTC). El único fallo, `ventas-por-fecha:163`, es **I-090**: «< 26», recibido **54**, las ventas de hoy que dejan las suites que corren antes. Sola y con la base recién sembrada, `:163` **pasa**; esa pasada dio 17/18 porque cayó `:257`, **I-164**, con la misma firma reproducida esta mañana en la versión publicada. **Ninguna prueba de las suites que pintan el componente falló** |
+
+### Errores encontrados, y cómo se corrigieron
+
+| Error | Dónde | Corrección |
+|---|---|---|
+| `npm run verify` falló en los tipos: **15 errores** en `build/detalle-admin/ventana.ts` y `revision.ts`, las herramientas de la publicación de D-234. `tsconfig.json` incluye `**/*.ts` y solo excluye `node_modules`, así que un `.ts` sin versionar dentro de `build/` también se comprueba | Mis herramientas | Renombradas a `.mts`, que el patrón no incluye y `tsx` ejecuta igual —comprobado en local—; sus dos menciones en `HANDOFF` y en esta publicación, corregidas. Los demás `.ts` de `build/`, de otras entregas, compilan limpios |
+| Las primeras capturas de la tarjeta en el teléfono salían **tapadas por la barra inferior fija**: la ventana de 900 px la dejaba encima de la tarjeta | `build/i173/capturar.mjs` | La ventana mide lo que la página antes de capturar; repetidas las dos fases. Las medidas no dependían de eso |

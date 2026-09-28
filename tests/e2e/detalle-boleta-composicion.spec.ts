@@ -31,8 +31,8 @@ import { ACCOUNTS, loginAs, logout, randomTicketNumbers, unique } from './fixtur
  * pantalla en el orden en que se lee. Todo con las cajas y los estilos que el
  * navegador calcula, no con las clases escritas.
  *
- * Fija sus propios anchos —320, 390, 834, 1024, 1360, 1440 y 1920—, así que
- * corre en el proyecto de escritorio.
+ * Fija sus propios anchos —320, 360, 390, 430, 834, 1024, 1360, 1440 y 1920—,
+ * así que corre en el proyecto de escritorio.
  */
 
 const SECCIONES = [
@@ -56,6 +56,7 @@ type Caja = { x: number; y: number; width: number; height: number }
 let refs: SeedRefs
 let abonada: { id: string; daily: string; weekly: string }
 let disponibleId: string
+let pendienteId: string
 
 /**
  * Lo que crea la suite, apuntado EN CUANTO EXISTE y no al final: si `beforeAll`
@@ -99,6 +100,17 @@ test.beforeAll(async () => {
   })
   ticketsCreados.push(disponible.id)
   disponibleId = disponible.id
+
+  // Pendiente de aprobación: la insignia más larga de «Estado y resumen de pago»
+  // (I-173). La crea el vendedor, como cuando su rifa se lo permite.
+  const pendientes = randomTicketNumbers()
+  const pendiente = await createTicket(refs, {
+    dailyNumber: pendientes.daily,
+    weeklyNumber: pendientes.weekly,
+    inventoryStatus: 'pending_approval',
+  })
+  ticketsCreados.push(pendiente.id)
+  pendienteId = pendiente.id
 })
 
 test.afterAll(async () => {
@@ -239,6 +251,59 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
         SECCIONES.filter((s) => s !== 'Abonos de esta boleta'),
       )
       expect(await problemasDeMaquetacion(page), `a ${width} px`).toEqual([])
+    }
+  })
+
+  /**
+   * `problemasDeMaquetacion` no mira lo que se pisa DENTRO de una tarjeta. Esto sí:
+   * la insignia más larga, «Pendiente de aprobación» (154 px, sin partir), frente a
+   * la celda ENTERA de «Estado de pago» —su rótulo y «Sin venta»—. Con dos columnas
+   * fijas se montaba 27 px a 320 y 7 a 360 (I-173); ahora las columnas las decide
+   * el ancho de la tarjeta, como en el detalle administrativo (D-234).
+   */
+  test('«Pendiente de aprobación» no se monta sobre «Estado de pago» ni se sale de su tarjeta (I-173)', async ({
+    page,
+  }) => {
+    for (const width of [320, 360, 390, 430, 834]) {
+      await abrir(page, pendienteId, width)
+      const estado = tarjeta(page, 'Estado y resumen de pago')
+      const insignia = (await estado
+        .getByText('Pendiente de aprobación', { exact: true })
+        .boundingBox())!
+      const vecina = (await estado
+        .getByText('Estado de pago', { exact: true })
+        .locator('..')
+        .boundingBox())!
+      const caja = (await estado.boundingBox())!
+      const ancho =
+        Math.min(insignia.x + insignia.width, vecina.x + vecina.width) -
+        Math.max(insignia.x, vecina.x)
+      const alto =
+        Math.min(insignia.y + insignia.height, vecina.y + vecina.height) -
+        Math.max(insignia.y, vecina.y)
+      expect(ancho > 0 && alto > 0, `se pisan ${Math.round(ancho)} px a ${width} px`).toBe(false)
+      expect(
+        insignia.x >= caja.x && insignia.x + insignia.width <= caja.x + caja.width,
+        `la insignia se sale de su tarjeta a ${width} px`,
+      ).toBe(true)
+      await expect(estado.getByText('Sin venta', { exact: true })).toBeVisible()
+    }
+  })
+
+  test('con la tarjeta ancha, los dos estados siguen lado a lado: 1024 y 1440 (I-173)', async ({
+    page,
+  }) => {
+    for (const width of [1024, 1440]) {
+      await abrir(page, pendienteId, width)
+      const estado = tarjeta(page, 'Estado y resumen de pago')
+      const celda = async (rotulo: string) =>
+        (await estado.getByText(rotulo, { exact: true }).locator('..').boundingBox())!
+      const izquierda = await celda('Estado')
+      const derecha = await celda('Estado de pago')
+      expect(cerca(izquierda.y, derecha.y), `la misma fila a ${width} px`).toBe(true)
+      expect(derecha.x, `«Estado de pago» a la derecha a ${width} px`).toBeGreaterThan(
+        izquierda.x + izquierda.width,
+      )
     }
   })
 
