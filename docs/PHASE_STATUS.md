@@ -19,7 +19,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(5) Problemas que permanecen:** I-075, I-090 e I-106, abiertos y anteriores —se reproducen con la versión
   publicada—. El portal no tiene modo oscuro accesible: los tonos oscuros existen, pero en producción solo se ve el
   claro. Punto de reversión: `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`), compatible.
-  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a —la revisión pendiente del dueño con su sesión— y que el
+  La **revisión del dueño con su sesión**, hecha a las 00:31–00:33 UTC, con sus registros limpios.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y que el
   commit de documentación de esta publicación está en la rama, **sin empujar a propósito**.
 
 - Antes — 2026-09-27 — **Color v2 cerrado y los dos tonos de los números (D-232 y D-233), SOLO EN LOCAL**:

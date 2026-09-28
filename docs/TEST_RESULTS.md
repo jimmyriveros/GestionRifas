@@ -15485,5 +15485,16 @@ de la CPU anotada), sobre la misma base local y el mismo servidor `dev:local`:
 
 | Qué | Quién |
 |---|---|
-| El detalle de boleta, los tonos y la navegación con sesión real | El dueño, con la lista de `HANDOFF` §1.a |
-| Leer los registros de esa revisión | El agente, **dentro de la hora** siguiente, si el dueño avisa al terminar: la API de registros de este plan solo deja leer la última hora |
+| El detalle de boleta, los tonos y la navegación con sesión real | ✅ **Hecho** por el dueño: «todo está con lo nuevo y funciona ok» |
+| Leer los registros de esa revisión | ✅ **Hecho dentro de la hora**, abajo |
+
+### La revisión del dueño, en los registros (leídos a las 00:34–00:35 UTC)
+
+| Comprobación | Resultado |
+|---|---|
+| Su recorrido, de 00:31:38 a 00:33:13 UTC, en `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` | Portal del **vendedor**: panel, «Mis boletas» (15 cargas), **tres detalles de boleta** —uno abierto dos veces—, clientes y dos fichas, pagos. Todo **200**; `/` redirige a su portal (307) |
+| Operaciones | **Ningún `POST`** en la ventana: no se registró nada. Los `GET` de «Registrar abono» y «Nueva boleta» caen en un mismo segundo, lo propio de las precargas de enlaces |
+| Errores | **0** errores, avisos o fatal; **0** 5xx; ningún 4xx de su sesión —los únicos 4xx son los tres del barrido de P8—; `get_runtime_errors`, vacío |
+| Lo que los registros **no** muestran | Visitas al portal del **personal** o al **catálogo** en esa hora: esas dos comprobaciones no constan en registros. Las dos pantallas no cambian en esta entrega (código y E2E), y el barrido sin sesión de P8 las cubrió |
+
+La duración de las peticiones no está en los registros y no se deduce de sus horas.

@@ -985,7 +985,9 @@ utilidades de los tonos de los números; la CSS pasa de 135 a 140 KB. **35 rutas
 2 × 401, 1 × 404— y **ningún 5xx**; **7/7** cabeceras, CSP por *nonce*; **0 secretos** en 951 KB. `verify:remote` **49/49**.
 Registros del despliegue nuevo: **0** errores, avisos o fatal y **0** 5xx; solo las peticiones del barrido.
 
-> **Pendiente del dueño, con su sesión:** el detalle de boleta, los tonos y la navegación (lista en `HANDOFF` §1.a).
+> **Revisión del dueño con su sesión, hecha** a las 00:31–00:33 UTC —«todo está con lo nuevo y funciona ok»—, y sus
+> registros leídos **dentro de la hora**: el portal del vendedor, con tres detalles de boleta, todo 200, ningún `POST` y
+> ningún error ni 5xx. El portal del personal y el catálogo no aparecen en esa hora (`TEST_RESULTS`).
 > **El commit de documentación de esta publicación** se queda en la rama y **no** se empuja: desplegaría otra versión y
 > movería el punto de reversión.
 
