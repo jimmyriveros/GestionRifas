@@ -2,8 +2,8 @@
 
 **Actualizado:** 2026-09-28, 14:00 UTC (§3.2.r: **el detalle de boleta administrativo EN PRODUCCIÓN** —D-234, `5a53bfc`,
 `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, READY a las 14:01:11 UTC, por avance rápido tras el CI 2/2 del PR #6; sin
-migraciones; punto de reversión, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` (`ee3d793`); pendiente la revisión del dueño con su
-sesión—). Antes, 2026-09-28, madrugada UTC (§3.2.q: **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN**
+migraciones; punto de reversión, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` (`ee3d793`); revisado por el dueño con su sesión
+como Administrador y como Vendedor, con los registros limpios; como Dueño, no confirmado en producción—). Antes, 2026-09-28, madrugada UTC (§3.2.q: **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN**
 —`ee3d793`, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, READY a las 00:23:10 UTC, por avance rápido tras el CI 2/2 del PR #5; sin
 migraciones; punto de reversión, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`); pendiente la revisión del dueño con su
 sesión—). Antes, 2026-09-26, tarde (§3.2.p y §3.3.a: **P9 cerrada** con una segunda prueba del dueño —un iPhone, a las
@@ -1031,11 +1031,15 @@ sin sesión y **ningún 5xx**; **7/7** cabeceras, CSP por *nonce* con un solo pr
 las peticiones de la comprobación (46 del *middleware*, 34 redirecciones y 12 de funciones); `get_runtime_errors`, vacío
 en 24 h. El navegador integrado, **sin sesión**: `/owner/tickets` lleva a `/login` y la consola, sin errores.
 
-> **Pendiente, con la sesión del dueño:** el detalle administrativo como Dueño y como Administrador, y el del vendedor
-> por las piezas compartidas, en solo lectura (`HANDOFF` §1.a). El agente no entra con cuentas de nadie; los registros
-> de esa revisión se leen **dentro de la hora** en cuanto avise.
-> **El commit de documentación de esta publicación** se queda en la rama y **no** se empuja: desplegaría otra versión y
-> movería el punto de reversión. Los dos de §3.2.q, que se habían quedado igual, **llegaron a `main` con esta entrega**.
+> **Revisión del dueño con su sesión, hecha como Administrador y como Vendedor** —«el detalle de diferentes boletas…:
+> disponibles, con abonos y pagadas»—; **como Dueño, no confirmada en producción**. Sus registros, leídos **dentro de
+> la hora** (16:34–16:38 UTC): de 16:29:15 a 16:32:30, un detalle en el portal del personal y tres en el del vendedor
+> —sin abonos, con abonos y pagada—, todo 200 o 307, ningún 4xx, 5xx ni error, y **ninguna operación de negocio**. Lo
+> anterior a las 15:35 UTC ya no se puede leer (`ExceedsBillingLimitError`): el detalle de una boleta disponible y el
+> resto de detalles del personal, si fueron antes, quedan con la confirmación del dueño (`TEST_RESULTS`).
+> **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
+> versión y moverían el punto de reversión. Los dos de §3.2.q, que se habían quedado igual, **llegaron a `main` con esta
+> entrega**.
 
 ### 3.3 Despliegues futuros
 

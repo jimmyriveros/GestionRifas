@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Pendiente la revisión del dueño con su sesión |
+| **Post-9 vigente (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Revisado por el dueño **como Administrador y como Vendedor**, con sus registros limpios (16:29–16:32 UTC); **como Dueño, no confirmado** en producción |
 | Post-9 anterior (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá) | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
 | Post-9 anterior (Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN, D-230 a D-233: `ee3d793`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.780/1.780**; CI del PR y de `main` sobre `ee3d793` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Los 3 fallos de la completa (924/927), **reproducidos en la versión publicada** `6943b7f` (I-075, I-106) o con su evidencia causal (I-090). En vivo: 35/35 rutas, 7/7 cabeceras, `087eb866b494` servido y Color v2 en su selector | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, 00:23:10 UTC) |
 | Post-9 anterior (Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E del detalle, D-232 y D-233, solo en local, 2026-09-27) | **1.780/1.780** en 88 archivos (+16, `color-system-v2`: auditoría **93 de 93**; dos mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **924/927** en 50,7 min: los 3 fallos llevan la firma de **I-075**, **I-090** e **I-106**, y los tres fallan también con `319bdba` (medido). `detalle-boleta-composicion` **18/18** dos veces seguidas sin restablecer la base y con dos fallos simulados: **0 filas** nuevas en `public` | ✅ exit 0 | Solo en local, tres commits más sin empujar |
@@ -15697,6 +15697,26 @@ anotado aquí, sin corregir, porque no es de este encargo.
 
 | Qué | Quién |
 |---|---|
-| El detalle administrativo en producción, **como Dueño y como Administrador**, en el teléfono y en el computador: las cuatro tarjetas, los dos tonos de los números, «Pagada», «Sin pagar» o «Sin venta» y nunca «Abonada», ningún cliente ni valor en pesos, las filas de vendedor y rifa que llevan a sus fichas y las acciones de 44 px, **sin confirmar ninguna** | **Pendiente del dueño**, con su sesión: el agente no entra con cuentas de nadie |
-| El detalle de boleta **del vendedor**, por las piezas compartidas: igual que antes, y la fila del cliente lleva a su ficha | **Pendiente del dueño**, con la sesión de un vendedor |
-| Leer los registros de esa revisión | Del agente, **dentro de la hora**, en cuanto el dueño avise |
+| El detalle administrativo en producción **como Administrador** | ✅ **Hecho** por el dueño: «revisé en producción el detalle de diferentes boletas como Administrador y como Vendedor: disponibles, con abonos y pagadas» |
+| El detalle de boleta **del vendedor**, por las piezas compartidas | ✅ **Hecho** por el dueño, en la misma revisión |
+| El detalle administrativo **como Dueño** | ❌ **No confirmado en producción**: la revisión no lo incluye. En local lo cubre la E2E para los dos roles —es la misma página, `/owner/tickets/[ticketId]`— |
+| Leer los registros de esa revisión | ✅ **Hecho dentro de la hora**, abajo, con su límite |
+
+### La revisión del dueño, en los registros (leídos a las 16:34–16:38 UTC)
+
+El dueño avisó a las 16:34 UTC. La API de registros de este plan solo deja leer **la última hora**: de 15:35 a 16:38
+se leyó todo; **de 14:05 a 15:35 ya no**, y responde `400 ExceedsBillingLimitError` —un fallo de la API, no una
+ausencia de registros—. Los registros no dicen **quién** entra ni con qué rol: el portal del personal es el mismo para
+el Dueño y el Administrador, así que el rol es el que dio el dueño.
+
+| Comprobación | Resultado |
+|---|---|
+| Lo que hay en la hora legible | Solo esta revisión, de **16:29:15 a 16:32:30 UTC**: **94** líneas, todas de `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` —88 × 200 y 6 × 307 (`/` a su portal y las precargas después de cerrar sesión)—. **0** 4xx, **0** 5xx y **0** líneas de error, aviso o fatal |
+| El recorrido | Portal del **vendedor** (16:29:15–16:29:29) y **cerrar sesión** —`POST /seller/dashboard`, la acción `logout`, y a `/login`—; **entrada** (`POST /login`, 16:29:39); portal del **personal** (16:29:40–16:29:55): panel, «Boletas» y **un detalle**, `9defa133…`, con la precarga de su fila «Rifa» (`/owner/raffles/d64af684…`); y otra vez el portal del **vendedor** (16:31:16–16:32:30), **sin una entrada nueva** —una sesión que ya estaba abierta, probablemente en otro dispositivo—: «Mis boletas» y **tres detalles**, `9defa133…`, `08b6b091…` y `157e029b…`, todos en 200, cada uno con la precarga de su fila de cliente (`/seller/clients/<id>`) y el primero con la de «Registrar abono» |
+| El estado de esas boletas, en la base (una transacción de solo lectura, `build/detalle-admin/revision.ts`, ensayada antes en local) | `9defa133…`: vendida y **sin abonos**; `157e029b…`: vendida y **con abonos**; `08b6b091…`: vendida y **pagada**. Sin cliente, importe ni persona: solo estado |
+| Operaciones de negocio | **Ninguna**: de 16:29 a 16:33, **0** filas de `audit_logs` y **0** pagos. Los dos `POST` son cerrar sesión y entrar |
+| Errores de ejecución | `get_runtime_errors` desde las 14:00: **ninguno**. Es un resumen por grupos, pero cubre también el tramo que ya no se puede leer línea a línea |
+
+**Lo que los registros no muestran:** el detalle de una boleta **disponible** y **más de un** detalle en el portal del
+personal. Si esa parte de la revisión fue antes de las 15:35 UTC, sus líneas ya no se pueden leer; quedan con la
+confirmación del dueño, sin contraste en los registros. Ningún error relacionado con D-234 en lo que sí se leyó.

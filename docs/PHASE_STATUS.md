@@ -3,7 +3,8 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-28, 14:00 UTC — **El detalle de boleta administrativo EN PRODUCCIÓN (D-234)**:
+- **Actualizado:** 2026-09-28, 14:00 UTC, y cierre a las 16:38 UTC — **El detalle de boleta administrativo EN
+  PRODUCCIÓN (D-234)**:
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, con autorización expresa del dueño para publicar
   la versión que revisó en local como Dueño y como Administrador, `5a53bfc`. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en producción desde las 14:01:11 UTC (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`): el detalle de
@@ -13,14 +14,19 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   962/963); su único fallo, I-164, **reproducido en la versión publicada** `ee3d793` —10 de 24 frente a 6 de 24, sin
   diferencia significativa—. CI **2/2** en el PR #6 (run `36428917877`). En vivo, en solo lectura: `9344d62d5e40`
   servido, los 5 selectores de D-234, 35/35 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `verify:remote` 49/49
-  antes y después, y 0 errores ni 5xx (`TEST_RESULTS`, publicación de D-234).
+  antes y después, y 0 errores ni 5xx (`TEST_RESULTS`, publicación de D-234). **Cierre, 16:34–16:38 UTC:** el dueño
+  revisó en producción, con su sesión, el detalle de boletas disponibles, con abonos y pagadas **como Administrador y
+  como Vendedor**; **como Dueño, no lo confirmó** en producción. Sus registros, leídos dentro de la hora: de 16:29 a
+  16:32, un detalle del personal y tres del vendedor, sin 4xx, 5xx ni errores y sin ninguna operación de negocio; lo
+  anterior a las 15:35 ya no se puede leer.
   **(3) Migraciones:** ninguna; siguen `0001`–`0077`, también en producción.
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** I-164 —abierta, la prueba sin acotar—, I-173 —la insignia del vendedor a 320–360
   px—, I-075, I-090 e I-106, todos anteriores. Punto de reversión: `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` (`ee3d793`),
   compatible.
-  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; que el commit de documentación de esta publicación está solo
-  en la rama; y la revisión del dueño con su sesión, **pendiente**, con sus registros leídos dentro de la hora.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; que los dos commits de documentación de esta publicación
+  están solo en la rama; que el detalle como Dueño no se confirmó en producción; y que **I-173** es la siguiente tarea,
+  independiente.
 
 - Antes — 2026-09-27 en Bogotá, después de la publicación de abajo — **El detalle de boleta administrativo,
   recompuesto (D-234), SOLO EN LOCAL**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, en la rama

@@ -2,7 +2,8 @@
 
 **Actualizado:** 2026-09-28, 14:00 UTC — **D-234 EN PRODUCCIÓN** (`5a53bfc`): **I-164 reproducida en la versión
 publicada** `ee3d793` antes de publicar (10 de 24 frente a 6 de 24 del candidato), sin ninguna incidencia nueva; en vivo
-y en los registros, en verde. Antes, 2026-09-27 en Bogotá, después de la publicación de D-230 a D-233 —**D-234, el
+y en los registros, en verde, también durante la revisión del dueño como Administrador y como Vendedor (16:29–16:32
+UTC). Siguen abiertas I-164, I-173 —la siguiente tarea—, I-075, I-090 e I-106. Antes, 2026-09-27 en Bogotá, después de la publicación de D-230 a D-233 —**D-234, el
 detalle administrativo recompuesto, solo en local**—: **I-173, nueva y anterior a D-234**: en el detalle del **vendedor**, «Pendiente de
 aprobación» se monta sobre «Sin venta» a 320 y 360 px; documentada, sin corregir. **I-164** fue el único fallo de la
 E2E completa (962/963), 18/18 aislado; I-075, I-090 e I-106 no cayeron esta vez. Antes, 2026-09-28, **D-230 a D-233 EN PRODUCCIÓN** (`ee3d793`): I-172 publicada, e I-075 e I-106 reproducidas en la versión publicada `6943b7f` antes de publicar, sin ninguna incidencia nueva. Antes, 2026-09-27, **I-172 resuelta en local** (D-232): `data/category/6` en claro pasa a `gold/700` y
