@@ -1,6 +1,9 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-28, 14:00 UTC (§3.2.r: **el detalle de boleta administrativo EN PRODUCCIÓN** —D-234, `5a53bfc`,
+**Actualizado:** 2026-09-28, 18:00 UTC (§3.2.s: **I-173 EN PRODUCCIÓN** —D-235, `cac81e8`,
+`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, READY a las 18:01:41 UTC, por avance rápido tras el CI 2/2 del PR #7; sin
+migraciones; punto de reversión, `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`); pendiente la revisión del dueño con su
+sesión—). Antes, 2026-09-28, 14:00 UTC (§3.2.r: **el detalle de boleta administrativo EN PRODUCCIÓN** —D-234, `5a53bfc`,
 `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, READY a las 14:01:11 UTC, por avance rápido tras el CI 2/2 del PR #6; sin
 migraciones; punto de reversión, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` (`ee3d793`); revisado por el dueño con su sesión
 como Administrador y como Vendedor, con los registros limpios; como Dueño, no confirmado en producción—). Antes, 2026-09-28, madrugada UTC (§3.2.q: **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN**
@@ -1040,6 +1043,53 @@ en 24 h. El navegador integrado, **sin sesión**: `/owner/tickets` lleva a `/log
 > **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
 > versión y moverían el punto de reversión. Los dos de §3.2.q, que se habían quedado igual, **llegaron a `main` con esta
 > entrega**.
+
+### 3.2.s Release de I-173: los estados de «Estado y resumen de pago» por el ancho de la tarjeta (D-235) — 2026-09-28
+
+**Sin migración.** Un solo archivo de código, `TicketPaymentSummary`, que solo pinta el detalle de boleta del
+vendedor: los dos estados en una columna hasta 22 rem de tarjeta y en dos desde ahí, como en el detalle
+administrativo. Con su prueba de regresión y su documentación, y la de la publicación de D-234 y su cierre, que se
+habían quedado en la rama (§3.2.r). Autorización expresa del dueño, después de revisarlo en local. **No** incluye
+ningún otro problema conocido.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`cac81e8260e9ff606ab97ea64509b80fe65e08bf`**, el revisado: el mismo SHA del PR #7 con el CI en verde. Ningún commit se añadió durante la publicación |
+| Commit anterior en producción | `5a53bfc541861beef563dbe30d1299eb71457b66`, el detalle administrativo (§3.2.r) |
+| Integración | **Avance rápido** `5a53bfc..cac81e8`, 3 commits —`0fee2cd` y `759bbb9`, la documentación de §3.2.r, y `cac81e8`—, **sin fusión, sin `force` y sin la rama local `main`**: `git ls-remote` confirmó `5a53bfc` justo antes, y `git push origin cac81e8…:refs/heads/main` a las **18:00:43 UTC**, con la ventana libre. GitHub marca el PR #7 fusionado a las 18:00:46, sin commit de fusión |
+| Despliegue Vercel | **`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`**, `gestion-rifas-5ybq3547j-jimmyriveros-projects.vercel.app`: creado a las 18:00:47, **READY a las 18:01:41 UTC**, con el alias `gestion-rifas.vercel.app` y sin error de alias; el único de producción que disparó ese empuje. Construcción: caché de `28diGF…`, dependencias «up to date», «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6 (Turbopack)», `check:env` «verificadas correctamente», 22 s, Vercel CLI 59.25.4, `iad1`. Solo los avisos de siempre: `engines` e `install-scripts` |
+| Despliegue anterior (**punto de reversión**) | **`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`** (`5a53bfc`), el inmediatamente anterior, con `isRollbackCandidate` antes y después de publicar; `dpl_92arEy…` dejó de serlo, como corresponde en Hobby. **Compatible**: esta entrega no cambia la base. *Instant Rollback*, **sin tocar la base**; lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1). Se leyó en Vercel antes de publicar |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` sin una línea de diferencia. Siguen **77** |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni `.env.example`, ni `public/` |
+| La hoja de estilos | **Igual**: las tres clases ya existían por D-234 —0 selectores nuevos y 0 quitados, medido contra la servida—. La huella de esta publicación es el identificador de versión (§6.1) |
+| CI | En el PR, run **`36461364645`** sobre `cac81e8`: ✅ **2/2** (17:53:46–17:59:49 UTC). En `main`, run **`36462186190`** (`push`): ✅ **2/2** (18:00:49–18:07:40 UTC) |
+
+**Antes de publicar (P0, en solo lectura, 17:52 UTC):** servido `9344d62d5e40` (`5a53bfc`); 35/35 rutas, ningún 5xx,
+7/7 cabeceras, 0 secretos y lo de D-234 y Color v2 en su sitio; `verify:remote` **49/49**. Las pruebas son las del
+cierre local (`TEST_RESULTS`, I-173), sobre el mismo código —comprobado con la huella del archivo—: `verify`,
+`test:db` y las **31 suites E2E** que abren el detalle del vendedor, **326/327**. Su único fallo, **I-090**, tiene su
+evidencia causal —la cuenta de las ventas de hoy que dejan las suites anteriores— y pasa sola con la base recién
+sembrada; en esa pasada cayó I-164, reproducida hoy en las dos versiones que han estado publicadas, `ee3d793` (10/24)
+y `5a53bfc` (6/24). **No se corrió la E2E
+completa**: el componente solo se pinta en esas 31 suites. **La ventana (`RUNBOOK` §9.0), a las 18:00:40 UTC**, en
+solo lectura: hora 18, el candado libre —el último turno lo soltó a las 16:57:56—, ninguna corrida sin terminar y
+ningún recordatorio en la media hora siguiente.
+
+**Verificación en vivo (P8, 18:02–18:03 UTC):** servido **`b21a1caa33c5`** (1 de 15 fragmentos) desde las 18:02:09 y
+el de `5a53bfc`, `9344d62d5e40`, **desaparecido**. **35 rutas iguales que en P0**, los dos detalles de boleta a
+`/login` sin sesión y **ningún 5xx**; **7/7** cabeceras, CSP por *nonce* con un solo proyecto; **0 secretos** en 951
+KB; Next 16.3.6 declarado; D-234 y Color v2, servidos. `verify:remote` **49/49**. Registros desde las 18:00: **0**
+errores, avisos o fatal y **0** 5xx; solo las peticiones de la comprobación (46 del *middleware*, 34 redirecciones y 12
+de funciones). **`get_runtime_errors` en 24 h: una agrupación, la ya conocida** `AuthApiError: Invalid Refresh Token:
+Refresh Token Not Found` del proxy (`/middleware`), de **1** usuario, vista por primera vez el 2026-08-10 y anotada
+sin investigar el 2026-09-26; su última aparición, **a las 16:42:22 UTC, en `dpl_28diGF…`**, antes de esta
+publicación. Nada de esta entrega toca la sesión.
+
+> **Pendiente, con la sesión del dueño:** el detalle de boleta del vendedor en producción, en el teléfono, en solo
+> lectura (`HANDOFF` §1.a). El agente no entra con cuentas de nadie; los registros de esa revisión se leen **dentro de
+> la hora** en cuanto avise.
+> **El commit de documentación de esta publicación** se queda en la rama y **no** se empuja: desplegaría otra versión y
+> movería el punto de reversión.
 
 ### 3.3 Despliegues futuros
 

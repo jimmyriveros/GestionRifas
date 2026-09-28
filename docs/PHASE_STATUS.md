@@ -3,7 +3,26 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-28, tarde — **I-173 resuelta, SOLO EN LOCAL (D-235)**: mantenimiento posterior a la Fase 9,
+- **Actualizado:** 2026-09-28, 18:00 UTC — **I-173 EN PRODUCCIÓN (D-235)**: mantenimiento posterior a la Fase 9, sin
+  fase ni etiqueta nuevas, con autorización expresa del dueño para publicar la versión que revisó en local, `cac81e8`.
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en producción desde las 18:01:41 UTC (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`): en el detalle de
+  boleta del vendedor, los dos estados se reparten por el ancho de la tarjeta y «Pendiente de aprobación» ya no se monta
+  sobre «Sin venta». Nada más.
+  **(2) Pruebas:** sin cambio de código desde el cierre local (`verify` 1.781/1.781, `test:db` 1.444 + 1, las 31 suites
+  E2E del detalle del vendedor 326/327 —I-090 con su evidencia causal; I-164 reproducida en las versiones publicadas—;
+  sin la E2E completa). CI **2/2** en el PR #7 (run `36461364645`). En vivo, en solo lectura: `b21a1caa33c5` servido,
+  35/35 rutas iguales que antes, 7/7 cabeceras, 0 secretos, `verify:remote` 49/49 antes y después, y 0 errores ni 5xx
+  desde el despliegue (`TEST_RESULTS`, publicación de I-173).
+  **(3) Migraciones:** ninguna; siguen `0001`–`0077`, también en producción.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** I-164, I-075, I-090 e I-106, anteriores y sin encargo; la agrupación `Invalid
+  Refresh Token` del proxy, conocida y sin investigar, vista otra vez a las 16:42 UTC, antes de publicar. Punto de
+  reversión: `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`), compatible.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; que el commit de documentación de esta publicación está solo
+  en la rama; y la revisión del dueño con su sesión, **pendiente**, con sus registros leídos dentro de la hora.
+
+- Antes — 2026-09-28, tarde — **I-173 resuelta, SOLO EN LOCAL (D-235)**: mantenimiento posterior a la Fase 9,
   sin fase ni etiqueta nuevas, en la rama `feature/detalle-boleta-admin`, sin empujar. Producción no cambia: sigue
   como la dejó la publicación de D-234. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en el detalle de boleta del vendedor, «Estado» y «Estado de pago» se reparten por el ancho

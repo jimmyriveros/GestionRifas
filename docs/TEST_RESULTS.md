@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-173 resuelta: los estados de «Estado y resumen de pago» por el ancho de la tarjeta, D-235, solo en local, 2026-09-28)** | **1.781/1.781** en 88 archivos, igual que antes: el cambio es de maquetación | **1.444 ✅ y 1 omitida**, igual que antes | La prueba nueva **falla con el componente anterior** («se pisan 27 px a 320 px») y pasa con la corrección; `detalle-boleta-composicion` **20/20** sin dejar filas; las 31 suites que abren el detalle del vendedor: **326/327**: el fallo es I-090 (`ventas-por-fecha:163`), que sola pasa —en esa pasada cayó I-164, `:257`—. Capturas: 112 de la tarjeta y 14 de página por fase; después, **0 de 56** medidas con problema | ✅ exit 0 | Solo en local, sin empujar |
+| **Post-9 vigente (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). Pendiente la revisión del dueño con su sesión |
+| Post-9 anterior (I-173 resuelta: los estados de «Estado y resumen de pago» por el ancho de la tarjeta, D-235, solo en local, 2026-09-28) | **1.781/1.781** en 88 archivos, igual que antes: el cambio es de maquetación | **1.444 ✅ y 1 omitida**, igual que antes | La prueba nueva **falla con el componente anterior** («se pisan 27 px a 320 px») y pasa con la corrección; `detalle-boleta-composicion` **20/20** sin dejar filas; las 31 suites que abren el detalle del vendedor: **326/327**: el fallo es I-090 (`ventas-por-fecha:163`), que sola pasa —en esa pasada cayó I-164, `:257`—. Capturas: 112 de la tarjeta y 14 de página por fase; después, **0 de 56** medidas con problema | ✅ exit 0 | Solo en local, sin empujar |
 | Post-9 anterior (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Revisado por el dueño **como Administrador y como Vendedor**, con sus registros limpios (16:29–16:32 UTC); **como Dueño, no confirmado** en producción |
 | Post-9 anterior (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá) | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
 | Post-9 anterior (Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN, D-230 a D-233: `ee3d793`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.780/1.780**; CI del PR y de `main` sobre `ee3d793` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Los 3 fallos de la completa (924/927), **reproducidos en la versión publicada** `6943b7f` (I-075, I-106) o con su evidencia causal (I-090). En vivo: 35/35 rutas, 7/7 cabeceras, `087eb866b494` servido y Color v2 en su selector | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, 00:23:10 UTC) |
@@ -15802,3 +15803,70 @@ devuelta después **byte a byte** desde una copia (misma huella, `0bc18eb9…`).
 |---|---|---|
 | `npm run verify` falló en los tipos: **15 errores** en `build/detalle-admin/ventana.ts` y `revision.ts`, las herramientas de la publicación de D-234. `tsconfig.json` incluye `**/*.ts` y solo excluye `node_modules`, así que un `.ts` sin versionar dentro de `build/` también se comprueba | Mis herramientas | Renombradas a `.mts`, que el patrón no incluye y `tsx` ejecuta igual —comprobado en local—; sus dos menciones en `HANDOFF` y en esta publicación, corregidas. Los demás `.ts` de `build/`, de otras entregas, compilan limpios |
 | Las primeras capturas de la tarjeta en el teléfono salían **tapadas por la barra inferior fija**: la ventana de 900 px la dejaba encima de la tarjeta | `build/i173/capturar.mjs` | La ventana mide lo que la página antes de capturar; repetidas las dos fases. Las medidas no dependían de eso |
+
+---
+
+## Publicación de I-173 en producción (D-235, 2026-09-28, UTC)
+
+Autorización expresa del dueño —«Autorizo publicar I-173 en producción»— después de revisar en local la corrección
+de D-235. Solo código y documentación: un archivo de `src/`, sin migraciones ni cambios de datos, permisos, consultas,
+dependencias o configuración. Todo lo local, con `dev:local`; todo lo remoto, en solo lectura. Herramientas en
+`build/i173/` (no se versiona).
+
+### Alcance, contra lo que de verdad está publicado
+
+| Comprobación | Resultado |
+|---|---|
+| `git fetch` y `git ls-remote origin refs/heads/main` | `main` remoto en **`5a53bfc`**, ancestro de la rama: avance rápido posible, 3 commits (`0fee2cd` y `759bbb9`, la documentación de la publicación de D-234 y su cierre, y `cac81e8`) |
+| `git diff --stat 5a53bfc cac81e8` | 11 archivos: **1 de `src/`** (`TicketPaymentSummary.tsx`), 1 de pruebas y 9 de documentación |
+| Lo sensible —`package.json`, *lock*, `next.config.ts`, `vercel.json`, `.github/`, `.env.example`, `supabase/`, `scripts/`, `public/`, configuración de pruebas— | **Sin una línea de diferencia** |
+| Las verificaciones registradas, ¿son de este código? | Sí: la huella del `TicketPaymentSummary.tsx` del commit (`9932109f…`, sin retornos de carro) es la de la copia probada, y la prueba se tocó por última vez antes de la E2E (17:01 frente a 17:16 UTC) |
+| La hoja de estilos | La servida por `5a53bfc` frente a la construcción local de `cac81e8`: **0 selectores nuevos y 0 quitados**. Las tres clases ya existían por D-234; la huella de la publicación es el identificador de versión |
+
+### Las pruebas, contra lo publicado (`DEPLOYMENT` §3.3.a, paso 2)
+
+Las del cierre local (arriba, I-173): `verify` 1.781/1.781, `test:db` 1.444 + 1 y las **31 suites E2E** que abren el
+detalle del vendedor —las únicas donde se pinta el componente—, **326/327**. **No se corrió la E2E completa.**
+
+| Fallo | Cómo queda explicado |
+|---|---|
+| `ventas-por-fecha.spec.ts:163` (**I-090**) | **Evidencia causal**, la de su registro: «< 26», recibido **54**, la cuenta de las ventas de hoy que dejan las suites que corren antes. Sola y con la base recién sembrada, **pasa**. Esta entrega no toca ni ventas ni reportes |
+| `ventas-por-fecha.spec.ts:257` (**I-164**), en esa pasada sola | **Reproducida en la versión publicada**: hoy, en bloques alternos, 10/24 en `ee3d793` y 6/24 en `5a53bfc`, la misma línea y la misma firma |
+
+### P0, en solo lectura, 17:52 UTC
+
+| Comprobación | Resultado |
+|---|---|
+| `build/i173/en-vivo.mjs antes 5a53bfc ee3d793` | ✅ 35/35 rutas (4 × 200, 28 × 307, 2 × 401, 1 × 404), ningún 5xx, los dos detalles de boleta a `/login` sin sesión, 4 exportaciones sin CSV, 7/7 cabeceras con CSP por *nonce* y un solo proyecto; servido **`9344d62d5e40`** (1/15) y el de `ee3d793`, ausente; 0 secretos en 951 KB; Next 16.3.6; D-234 (5/5 selectores) y Color v2, en su sitio |
+| `npm run verify:remote` | ✅ **49/49** |
+| Vercel, en lectura | Producción: **`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`** (`5a53bfc`), READY, con `isRollbackCandidate`; nada desplegado después. Es el punto de reversión |
+
+### PB y P7: la rama, el PR y el avance rápido
+
+| Paso | Resultado |
+|---|---|
+| Rama | `git push origin feature/detalle-boleta-admin`: `5a53bfc..cac81e8` (17:53 UTC) |
+| PR #7 | Abierto sobre `cac81e8` a las 17:53:43 UTC. El check «Vercel», en rojo **a propósito**: la vista previa `dpl_Ap51kx1r4QHxqpsUwUXkfUCXB5F7` se detiene en `check:env` (I-022, D-066), leído en sus registros |
+| CI del PR | Run **`36461364645`** sobre `cac81e8`: ✅ **2/2** —compilación de 17:53:46 a 17:56:16 y base de datos de 17:53:46 a 17:59:49 UTC— |
+| La ventana, a las 18:00:40 UTC | `build/detalle-admin/ventana.mts`, en solo lectura: hora 18, fuera de los turnos; el candado **libre** (su último turno lo soltó a las 16:57:56); **0** corridas sin terminar; 2 recordatorios activos, **0** vencidos y **0** en la media hora siguiente. **VENTANA LIBRE** |
+| Avance rápido | `git ls-remote` confirmó `5a53bfc` justo antes; `git push origin cac81e8…:refs/heads/main` a las **18:00:43 UTC**, sin `force` y sin la rama local `main`. PR #7 fusionado a las 18:00:46, sin commit de fusión |
+
+### P8, en solo lectura, 18:01–18:03 UTC
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` sobre `cac81e8`: creado a las 18:00:47 y **READY a las 18:01:41 UTC**, con el alias `gestion-rifas.vercel.app` y sin error de alias; el único de producción de ese empuje. Next 16.3.6, `check:env` limpio, 22 s, los avisos de siempre |
+| `build/detalle-admin/esperar-servido.mjs` | `b21a1caa33c5` servido desde las **18:02:09 UTC** |
+| `build/i173/en-vivo.mjs despues cac81e8 5a53bfc` | ✅ 35/35 rutas, **iguales que en P0**; ningún 5xx; los dos detalles a `/login`; 7/7 cabeceras, un solo proyecto; servido **`b21a1caa33c5`** (1/15) y `9344d62d5e40` ausente; 0 secretos; Next 16.3.6; D-234 y Color v2, servidos; la CSS, 141 KB como antes |
+| `npm run verify:remote` | ✅ **49/49** |
+| Registros desde las 18:00 | **0** errores, avisos o fatal y **0** 5xx; por origen, 46 del *middleware*, 34 redirecciones y 12 de funciones: todas de esta comprobación |
+| `get_runtime_errors` en 24 h | **Una** agrupación, **ya conocida**: `AuthApiError: Invalid Refresh Token: Refresh Token Not Found`, ruta `/middleware`, **1** usuario, primera el 2026-08-10 y anotada sin investigar el 2026-09-26 (D-229). Su última aparición, **a las 16:42:22 UTC en `dpl_28diGF…`**: antes de publicar y diez minutos después de la revisión del dueño de D-234; su línea ya no se puede leer (más de una hora). A las 16:37, cuando se leyó para el cierre de D-234, todavía no estaba. **No se investigó**: esta entrega no toca la sesión |
+| Punto de reversión | `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`), el inmediatamente anterior, con `isRollbackCandidate`; `dpl_92arEy…` ya no lo es |
+| CI de `main` | Run **`36462186190`** (`push`, `cac81e8`): ✅ **2/2** —compilación de 18:00:51 a 18:03:26 y base de datos de 18:00:49 a 18:07:40 UTC— |
+
+### Lo que queda, y de quién
+
+| Qué | Quién |
+|---|---|
+| El detalle de boleta del vendedor en producción, en el teléfono: los dos estados uno debajo del otro, y en el computador lado a lado; si hay alguna boleta **pendiente de aprobación**, esa a 320–390 px | **Pendiente del dueño**, con su sesión: el agente no entra con cuentas de nadie |
+| Leer los registros de esa revisión | Del agente, **dentro de la hora**, en cuanto el dueño avise |
