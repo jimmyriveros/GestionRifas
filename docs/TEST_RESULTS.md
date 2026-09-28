@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá)** | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
+| **Post-9 vigente (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Pendiente la revisión del dueño con su sesión |
+| Post-9 anterior (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá) | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
 | Post-9 anterior (Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN, D-230 a D-233: `ee3d793`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.780/1.780**; CI del PR y de `main` sobre `ee3d793` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Los 3 fallos de la completa (924/927), **reproducidos en la versión publicada** `6943b7f` (I-075, I-106) o con su evidencia causal (I-090). En vivo: 35/35 rutas, 7/7 cabeceras, `087eb866b494` servido y Color v2 en su selector | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, 00:23:10 UTC) |
 | Post-9 anterior (Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E del detalle, D-232 y D-233, solo en local, 2026-09-27) | **1.780/1.780** en 88 archivos (+16, `color-system-v2`: auditoría **93 de 93**; dos mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **924/927** en 50,7 min: los 3 fallos llevan la firma de **I-075**, **I-090** e **I-106**, y los tres fallan también con `319bdba` (medido). `detalle-boleta-composicion` **18/18** dos veces seguidas sin restablecer la base y con dos fallos simulados: **0 filas** nuevas en `public` | ✅ exit 0 | Solo en local, tres commits más sin empujar |
 | Post-9 anterior (colores v2 y el detalle de boleta del vendedor según Figma, D-230 y D-231, solo en local, 2026-09-27) | **1.764/1.764** en 88 archivos (+116, `color-system-v2`; comprobada con tres mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | **923/925** en 58,8 min; los 2 fallos, I-148 (reproducido 3/3 **sin** este trabajo) e I-090 (18/18 en aislamiento). Nueva `detalle-boleta-composicion` **16/16**, comprobada con dos mutaciones | ✅ exit 0 | Solo en local, dos commits sin empujar |
@@ -15608,3 +15609,94 @@ archivo en LF, pasa.
 | La suite dejaba 2 filas de ganancia y 2 de bitácora por pasada | Mi suite y `purgeSellers` | La boleta pagada, del vendedor propio; `purgeSellers` borra la bitácora de las membresías |
 | Un selector ambiguo, `p.font-medium`, que en la fila pulsable es tanto el rótulo como el nombre | Mi suite, antes de correrla | `p` en su segunda posición |
 | D-234 decía «20 de las 21 disponibles del seed sin aprobar»: la aprobada era un dato mío de revisión | Mi documentación | El seed no aprueba ninguna; corregido antes de cerrar |
+
+---
+
+## Publicación de D-234 en producción (2026-09-28, UTC)
+
+Autorización expresa del dueño, después de revisar en local como Dueño y como Administrador, para subir la rama, abrir
+el PR, esperar los controles, integrar en `main` y verificar el despliegue de D-234. Solo código y documentación: sin
+migraciones ni cambios de datos, permisos, consultas, dependencias o configuración. Todo lo local, con `dev:local`;
+todo lo remoto, en solo lectura. Herramientas en `build/detalle-admin/` (no se versiona).
+
+### Alcance, contra lo que de verdad está publicado
+
+| Comprobación | Resultado |
+|---|---|
+| `git fetch` y `git ls-remote origin refs/heads/main` | `main` remoto en **`ee3d793`**, ancestro de la rama: avance rápido posible, 5 commits (`c343bd2` y `b774289`, la documentación de la publicación anterior, y `7e3a4bc`, `87d7371` y `5a53bfc`). `main` local sigue en `c48437a` y no se usó |
+| `git diff --stat ee3d793 5a53bfc` | 22 archivos: 7 de `src/` —las dos páginas de detalle, `PageHeader`, `TicketActions`, `ClientLinkCard` y las dos piezas nuevas—, 5 de pruebas y 10 de documentación |
+| Lo sensible —`package.json`, *lock*, `next.config.ts`, `vercel.json`, `.github/`, `.env.example`, `supabase/`, `scripts/`, `public/`, configuración de pruebas— | **Sin una línea de diferencia** |
+| Las verificaciones registradas, ¿son de este código? | Sí: `verify`, `test:db` y la E2E completa corrieron sobre el código de `87d7371`, y de `87d7371` a `5a53bfc` solo cambia `docs/` |
+| La hoja de estilos | La servida por `ee3d793` frente a la construcción local de `87d7371`: **5 selectores nuevos y ninguno quitado** —`lg:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)]`, `lg:flex-row`, `lg:justify-between`, `@min-[22rem]:grid-cols-2` y `@min-[36rem]:grid-cols-2`—. Son la huella de P0 y P8 |
+
+### I-164, contra la versión publicada (`DEPLOYMENT` §3.3.a, paso 2)
+
+El único fallo de la E2E completa (962/963), `ventas-por-fecha.spec.ts:257`, ya tenía su causa medida (D-222) y su
+reproducción en `9acbfa8` y en el puente (D-228). Faltaba en la versión **publicada**, que es contra la que se juzga
+«anterior»: la prueba es de `472cc54` (D-151) y está en la línea 257 desde `5951f8a` (D-222), los dos ya en `ee3d793`,
+donde el archivo es idéntico al de la rama. Se repitió en bloques alternos, cambiando
+solo los 6 archivos que difieren fuera de `docs/` —las cinco piezas de `src/` y `db-setup.ts`, escritos en LF—, sobre
+la misma base local y el mismo `dev:local`, con una pasada de calentamiento sin contar por bloque:
+
+| Bloque (UTC) | Versión | `ventas-por-fecha:257` ×12 | CPU |
+|---|---|---|---|
+| 13:30:54–13:31:35 | `ee3d793` | **7 fallan** | 10–27 % |
+| 13:31:52–13:32:35 | `HEAD` (`5a53bfc`) | 1 falla | 14–21 % |
+| 13:32:52–13:33:35 | `ee3d793` | 3 fallan | 20–22 % |
+| 13:33:52–13:34:32 | `HEAD` | 5 fallan | 26–46 % |
+| **Total** | | **10/24 (`ee3d793`) y 6/24 (`HEAD`)** | |
+
+**Los 16 fallos llevan la firma de I-164**, comprobada en el mensaje de cada uno: la línea 260 —el `getByText` sin
+acotar— y «strict mode violation: getByText('Las fechas están al revés') resolved to 2 elements», el primero
+`aka getByRole('main')…`. **Reproducida en la versión publicada**, y con más fallos que el candidato en este reparto;
+la diferencia no es significativa (Fisher, p ≈ 0,36) y cambia de sentido entre bloques, como en D-228. Esta entrega
+no toca ni la prueba ni los reportes: `ventas-por-fecha.spec.ts` y `src/features/reports/` son idénticos en
+`ee3d793`, y el cambio de `PageHeader` es inerte sin `stackActions`. **Sigue abierta**: la prueba sigue sin acotar.
+
+Los seis archivos, devueltos a `HEAD` y en LF —0 retornos de carro, contados byte a byte—; `git status`, limpio salvo
+los tres archivos del usuario. **Lo que dejó en la base local:** la suite crea 29 boletas en su `beforeAll` y las borra
+en su `afterAll`, pero no su bitácora; con `--repeat-each` corre las dos cosas en cada repetición, y las 52 pasadas
+dejaron **3.016 filas** de `audit_logs` (`ticket.create` y `ticket.delete`, 1.508 de cada una) de boletas que ya no
+existían. Se borraron —solo esas, en local— y la base volvió a sus recuentos de antes: 41 boletas y 96 filas de
+bitácora; ningún aviso ni movimiento de ganancia nuevo. Cada `beforeAll` de esa suite deja 58 filas así (3.016 / 52):
+anotado aquí, sin corregir, porque no es de este encargo.
+
+### P0, en solo lectura, 13:26–13:28 UTC
+
+| Comprobación | Resultado |
+|---|---|
+| `build/detalle-admin/en-vivo.mjs antes ee3d793 6943b7f` | ✅ 35/35 rutas (4 × 200, 28 × 307, 2 × 401, 1 × 404), ningún 5xx, los dos detalles de boleta a `/login` sin sesión, 4 exportaciones sin CSV, 7/7 cabeceras con CSP por *nonce* y **un solo proyecto**; servido **`087eb866b494`** (1/15 fragmentos) y el de `6943b7f`, ausente; 0 secretos en 951 KB; Next 16.3.6 declarado; **D-234 sin servir**: 0 de sus 5 selectores; Color v2, en su sitio |
+| `npm run verify:remote` | ✅ **49/49** |
+| Vercel, en lectura | Producción: **`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`** (`ee3d793`), READY, con el alias `gestion-rifas.vercel.app` y `isRollbackCandidate`; **nada desplegado después**. Es el punto de reversión de esta publicación |
+
+### PB y P7: la rama, el PR y el avance rápido
+
+| Paso | Resultado |
+|---|---|
+| Rama | `git push -u origin feature/detalle-boleta-admin`: rama nueva en GitHub, en **`5a53bfc`** (13:28 UTC) |
+| PR #6 | Abierto sobre `5a53bfc` a las 13:28:54 UTC. El check «Vercel», en rojo **a propósito**: la vista previa `dpl_GSDFpSkDzxB8p4mEB6MUrb6RrJZs` se detiene en `check:env` por las tres variables de Supabase, que Preview no tiene para que un PR no escriba en la base real (I-022, D-066) —leído en sus registros de construcción—. Igual que en los PR #4 y #5 |
+| CI del PR | Run **`36428917877`** sobre `5a53bfc`: ✅ **2/2** —«Typecheck, lint, unitarias, build» en 2 min 38 s y «Migraciones desde cero + pruebas de base de datos» en 6 min 18 s; de 13:28:55 a 13:35:17 UTC— |
+| Hora | Se esperó a las **14:00 UTC**: las 13 son un turno del sincronizador (`RUNBOOK` §9.0) |
+| La ventana, a las 14:00:16 UTC | `build/detalle-admin/ventana.ts`, una transacción `repeatable read read only` de `scripts/gate-db.ts` contra el proyecto que nombra la CSP —ensayada antes contra la base local—: hora 14, fuera de los turnos; el candado del sincronizador **libre** (su último turno lo soltó a las 13:33:54); **0** corridas sin terminar; 2 recordatorios activos, **0** vencidos y **0** en la media hora siguiente —el próximo, el 2 de octubre a las 21:15 UTC—. **VENTANA LIBRE** |
+| Avance rápido | `git ls-remote` confirmó `ee3d793` justo antes y `git merge-base --is-ancestor` el avance rápido; `git push origin 5a53bfc…:refs/heads/main` a las **14:00:27 UTC** (`ee3d793..5a53bfc`), sin `force` y sin la rama local `main`. PR #6 fusionado a las 14:00:30, sin commit de fusión |
+
+### P8, en solo lectura, 14:01–14:03 UTC
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` sobre `5a53bfc`: creado a las 14:00:32 y **READY a las 14:01:11 UTC**, con el alias `gestion-rifas.vercel.app` y sin error de alias; el único de producción de ese empuje. Construcción con Next 16.3.6, `check:env` limpio, 21 s, y solo los avisos de siempre (`engines`, `install-scripts`) |
+| `build/detalle-admin/esperar-servido.mjs` | `9344d62d5e40` servido desde las **14:01:24 UTC**; hasta entonces respondía el despliegue anterior |
+| `build/detalle-admin/en-vivo.mjs despues 5a53bfc ee3d793` | ✅ 35/35 rutas, **iguales que en P0**; ningún 5xx; los dos detalles de boleta a `/login` sin sesión; 7/7 cabeceras, un solo proyecto en la CSP; servido **`9344d62d5e40`** (1/15) y `087eb866b494` ausente; 0 secretos en 951 KB; Next 16.3.6; **D-234: 5/5 selectores, una vez cada uno**, y Color v2 intacto; la CSS, de 140 a 141 KB |
+| `npm run verify:remote` | ✅ **49/49** |
+| Registros desde las 14:00 | **0** errores, avisos o fatal y **0** 5xx. Por origen, 46 del *middleware*, 34 redirecciones y 12 de funciones: todas de esta comprobación —la lectura de la CSP de la ventana, las esperas a `/login` y el barrido—. `get_runtime_errors`, vacío en 24 h |
+| El navegador integrado | **Sin sesión**: `/owner/tickets` lleva a `/login?next=%2Fowner%2Ftickets` y la consola no tiene errores. El detalle administrativo y el del vendedor necesitan la sesión del dueño |
+| Punto de reversión | `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` (`ee3d793`), el inmediatamente anterior, con `isRollbackCandidate`; `dpl_8A5qz…` ya no lo es |
+| CI de `main` | Run **`36432724891`** (`push`, `5a53bfc`): ✅ **2/2** —compilación de 14:00:34 a 14:03:07 y base de datos de 14:00:35 a 14:06:55 UTC— |
+
+### Lo que queda, y de quién
+
+| Qué | Quién |
+|---|---|
+| El detalle administrativo en producción, **como Dueño y como Administrador**, en el teléfono y en el computador: las cuatro tarjetas, los dos tonos de los números, «Pagada», «Sin pagar» o «Sin venta» y nunca «Abonada», ningún cliente ni valor en pesos, las filas de vendedor y rifa que llevan a sus fichas y las acciones de 44 px, **sin confirmar ninguna** | **Pendiente del dueño**, con su sesión: el agente no entra con cuentas de nadie |
+| El detalle de boleta **del vendedor**, por las piezas compartidas: igual que antes, y la fila del cliente lleva a su ficha | **Pendiente del dueño**, con la sesión de un vendedor |
+| Leer los registros de esa revisión | Del agente, **dentro de la hora**, en cuanto el dueño avise |

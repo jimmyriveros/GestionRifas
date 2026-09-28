@@ -1,6 +1,9 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-28, madrugada UTC (§3.2.q: **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN**
+**Actualizado:** 2026-09-28, 14:00 UTC (§3.2.r: **el detalle de boleta administrativo EN PRODUCCIÓN** —D-234, `5a53bfc`,
+`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, READY a las 14:01:11 UTC, por avance rápido tras el CI 2/2 del PR #6; sin
+migraciones; punto de reversión, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` (`ee3d793`); pendiente la revisión del dueño con su
+sesión—). Antes, 2026-09-28, madrugada UTC (§3.2.q: **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN**
 —`ee3d793`, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, READY a las 00:23:10 UTC, por avance rápido tras el CI 2/2 del PR #5; sin
 migraciones; punto de reversión, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`); pendiente la revisión del dueño con su
 sesión—). Antes, 2026-09-26, tarde (§3.2.p y §3.3.a: **P9 cerrada** con una segunda prueba del dueño —un iPhone, a las
@@ -990,6 +993,49 @@ Registros del despliegue nuevo: **0** errores, avisos o fatal y **0** 5xx; solo 
 > ningún error ni 5xx. El portal del personal y el catálogo no aparecen en esa hora (`TEST_RESULTS`).
 > **El commit de documentación de esta publicación** se queda en la rama y **no** se empuja: desplegaría otra versión y
 > movería el punto de reversión.
+
+### 3.2.r Release del detalle de boleta administrativo (D-234) — 2026-09-28
+
+**Sin migración.** El detalle de boleta del **portal administrativo** —el mismo para el Dueño y el Administrador— en
+cuatro tarjetas, con las piezas que comparte con el del vendedor (`TicketDetailParts`, `RecordLinkCard`), `PageHeader`
+con `stackActions` y las acciones de `TicketActions` a 44 px en el teléfono; sus pruebas y su documentación, y la de la
+publicación anterior (§3.2.q), que se había quedado en la rama. Autorización expresa del dueño, después de revisarlo en
+local con los dos roles, para subir la rama, abrir el PR, esperar los controles, integrar en `main` y verificar el
+despliegue. **No** incluye I-173 ni ningún otro arreglo, ni cambios de Figma, reglas, permisos o consultas.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`5a53bfc541861beef563dbe30d1299eb71457b66`**, el revisado: el mismo SHA del PR #6 con el CI en verde. Ningún commit se añadió durante la publicación |
+| Commit anterior en producción | `ee3d7933446858ee33660bc137e56adba2a46d15`, Color v2 y el detalle del vendedor (§3.2.q) |
+| Integración | **Avance rápido** `ee3d793..5a53bfc`, 5 commits —los 2 de documentación de §3.2.q (`c343bd2`, `b774289`), `7e3a4bc`, `87d7371` y `5a53bfc`—, **sin fusión, sin `force` y sin la rama local `main`**, que sigue en `c48437a`: `git ls-remote` confirmó `ee3d793` justo antes, y `git push origin 5a53bfc…:refs/heads/main` a las **14:00:27 UTC**, pasada la hora 13 del sincronizador y con la ventana libre (abajo). GitHub marca el PR #6 fusionado a las 14:00:30, sin commit de fusión |
+| Despliegue Vercel | **`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`**, `gestion-rifas-7c38cwgmr-jimmyriveros-projects.vercel.app`: creado a las 14:00:32, **READY a las 14:01:11 UTC**, con el alias `gestion-rifas.vercel.app` y sin error de alias; el único de producción que disparó ese empuje. Construcción: caché de `92arEy…`, dependencias «up to date», «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6 (Turbopack)», `check:env` «verificadas correctamente», compilación en 4,1 s y 21 s en total, Vercel CLI 59.25.4, `iad1`. Solo los avisos de siempre: `engines` e `install-scripts` |
+| Despliegue anterior (**punto de reversión**) | **`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`** (`ee3d793`), el inmediatamente anterior, con `isRollbackCandidate` antes y después de publicar; `dpl_8A5qz…` dejó de serlo, como corresponde en Hobby. **Compatible**: esta entrega no cambia la base. *Instant Rollback*, **sin tocar la base**; lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1). **No se reutilizó** el de la entrega anterior: se leyó en Vercel antes de publicar |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` sin una línea de diferencia. Siguen **77** |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni `.env.example`, ni `public/` |
+| CI | En el PR, run **`36428917877`** sobre `5a53bfc`: ✅ **2/2** (13:28:55–13:35:17 UTC). En `main`, run **`36432724891`** (`push`): ✅ **2/2** (14:00:34–14:06:55 UTC) |
+
+**Antes de publicar (P0, en solo lectura, 13:26–13:28 UTC):** servido `087eb866b494` (`ee3d793`); 35/35 rutas, ningún
+5xx, 7/7 cabeceras, 0 secretos y D-234 sin servir —0 de sus 5 selectores—; `verify:remote` **49/49**. El único fallo de
+la E2E completa (962/963), **I-164**, se explicó **contra la versión publicada**, como exige §3.3.a paso 2:
+**reproducido en `ee3d793`**, 10 de 24 frente a 6 de 24 del candidato, en bloques alternos (`TEST_RESULTS`,
+publicación de D-234). **La ventana (`RUNBOOK` §9.0), a las 14:00:16 UTC**, en una transacción de solo lectura: hora 14,
+el candado del sincronizador libre —su último turno lo soltó a las 13:33:54—, ninguna corrida sin terminar y ningún
+recordatorio en la media hora siguiente (el próximo, el 2 de octubre).
+
+**Verificación en vivo (P8, 14:01–14:03 UTC):** servido **`9344d62d5e40`** (1 de 15 fragmentos) desde las 14:01:24 y el
+de `ee3d793`, `087eb866b494`, **desaparecido**. **D-234 servido**: sus 5 selectores, una vez cada uno —la rejilla de dos
+columnas, `lg:flex-row`, `lg:justify-between` y las dos consultas de contenedor—, y Color v2 intacto; la CSS pasa de 140
+a 141 KB. **35 rutas iguales que en P0** —4 × 200, 28 × 307, 2 × 401, 1 × 404—, los dos detalles de boleta a `/login`
+sin sesión y **ningún 5xx**; **7/7** cabeceras, CSP por *nonce* con un solo proyecto; **0 secretos** en 951 KB; Next
+16.3.6 declarado. `verify:remote` **49/49**. Registros desde las 14:00: **0** errores, avisos o fatal y **0** 5xx; solo
+las peticiones de la comprobación (46 del *middleware*, 34 redirecciones y 12 de funciones); `get_runtime_errors`, vacío
+en 24 h. El navegador integrado, **sin sesión**: `/owner/tickets` lleva a `/login` y la consola, sin errores.
+
+> **Pendiente, con la sesión del dueño:** el detalle administrativo como Dueño y como Administrador, y el del vendedor
+> por las piezas compartidas, en solo lectura (`HANDOFF` §1.a). El agente no entra con cuentas de nadie; los registros
+> de esa revisión se leen **dentro de la hora** en cuanto avise.
+> **El commit de documentación de esta publicación** se queda en la rama y **no** se empuja: desplegaría otra versión y
+> movería el punto de reversión. Los dos de §3.2.q, que se habían quedado igual, **llegaron a `main` con esta entrega**.
 
 ### 3.3 Despliegues futuros
 
