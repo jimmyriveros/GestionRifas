@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E del detalle, D-232 y D-233, solo en local, 2026-09-27)** | **1.780/1.780** en 88 archivos (+16, `color-system-v2`: auditoría **93 de 93**; dos mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **924/927** en 50,7 min: los 3 fallos llevan la firma de **I-075**, **I-090** e **I-106**, y los tres fallan también con `319bdba` (medido). `detalle-boleta-composicion` **18/18** dos veces seguidas sin restablecer la base y con dos fallos simulados: **0 filas** nuevas en `public` | ✅ exit 0 | Solo en local, tres commits más sin empujar |
+| **Post-9 vigente (Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN, D-230 a D-233: `ee3d793`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.780/1.780**; CI del PR y de `main` sobre `ee3d793` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Los 3 fallos de la completa (924/927), **reproducidos en la versión publicada** `6943b7f` (I-075, I-106) o con su evidencia causal (I-090). En vivo: 35/35 rutas, 7/7 cabeceras, `087eb866b494` servido y Color v2 en su selector | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, 00:23:10 UTC) |
+| Post-9 anterior (Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E del detalle, D-232 y D-233, solo en local, 2026-09-27) | **1.780/1.780** en 88 archivos (+16, `color-system-v2`: auditoría **93 de 93**; dos mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **924/927** en 50,7 min: los 3 fallos llevan la firma de **I-075**, **I-090** e **I-106**, y los tres fallan también con `319bdba` (medido). `detalle-boleta-composicion` **18/18** dos veces seguidas sin restablecer la base y con dos fallos simulados: **0 filas** nuevas en `public` | ✅ exit 0 | Solo en local, tres commits más sin empujar |
 | Post-9 anterior (colores v2 y el detalle de boleta del vendedor según Figma, D-230 y D-231, solo en local, 2026-09-27) | **1.764/1.764** en 88 archivos (+116, `color-system-v2`; comprobada con tres mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | **923/925** en 58,8 min; los 2 fallos, I-148 (reproducido 3/3 **sin** este trabajo) e I-090 (18/18 en aislamiento). Nueva `detalle-boleta-composicion` **16/16**, comprobada con dos mutaciones | ✅ exit 0 | Solo en local, dos commits sin empujar |
 | Post-9 anterior (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P10, D-229, 2026-09-26) | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 con las sesiones del dueño: correctas** —la imagen semanal en 2–3 s, descargar, compartir, orden y paginación—; los registros de la imagen, **leídos en una segunda prueba** (17:38 UTC, iPhone): dos 200 desde `6943b7f`, sin errores; la duración, no disponible | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
 | Post-9 anterior (S4 del puente cerrada y el puente fusionado en la rama del lote, esto último solo en local, 2026-09-26) | sin cambio: la fusión y la documentación no tocan código | sin cambio de esquema | Producción: la imagen semanal con la sesión del dueño en ~1 s; registros del despliegue con 2 × 200 en la imagen, **0** errores, avisos o 5xx y **0** de las cinco frases; `/_next/image` lo sirve Vercel. Fusión `5f5dace`: árbol **idéntico** al de `628cbdc` y **0 archivos fuera de `docs/`** distintos de `00ee2f6`, el último árbol probado entero (D-226) | no se corrió: ningún archivo de código cambió; lo corre el CI en PB | ✅ **S4 cerrada; I1–I2 hechos.** I3 pasa a PB de la puerta del lote. **Nada empujado** |
@@ -15412,3 +15413,77 @@ ya describe, no un defecto de este trabajo.
 | El comentario de los roles nuevos quedó con huecos: un `node -e` entre comillas dobles hizo que el shell ejecutara sus comillas invertidas | Mi comando | Corregido con Edit antes de probar; ningún commit lo llevó |
 | Al convertir la prueba de escritorio en bucle, el cuerpo viejo quedó suelto | Mi edición | Reordenado en `dosColumnas` antes de ejecutarla |
 | La hoja de capturas desbordaba su fondo oscuro | El guion de capturas, fuera del repositorio | `width: max-content`; no es de la aplicación |
+
+---
+
+## Publicación de D-230 a D-233 en producción (2026-09-28, UTC)
+
+Autorización expresa del dueño para subir la rama, abrir el PR, comprobar el CI, integrar en `main` por avance rápido y
+verificar el despliegue automático de la versión revisada, **`ee3d793`**. Solo código y documentación: sin migraciones
+ni cambios de datos, permisos, dependencias o configuración. Todo lo local, con `dev:local`; todo lo remoto, en solo
+lectura. Herramientas en `build/color-v2/` (no se versiona).
+
+### Alcance, contra lo que de verdad está publicado
+
+| Comprobación | Resultado |
+|---|---|
+| `git fetch` y `git ls-remote origin refs/heads/main` | `main` remoto en **`6943b7f`**, y es ancestro de `ee3d793`: avance rápido posible, 9 commits |
+| Vercel, en lectura | Producción: `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`), READY, con el alias `gestion-rifas.vercel.app`; nada desplegado después |
+| `git diff --stat 6943b7f ee3d793` | 22 archivos: `globals.css` (217 líneas añadidas, 0 quitadas), el detalle de boleta del vendedor y 5 componentes que **solo** importa esa página, pruebas y documentación, incluida la de continuidad de D-229 (`cfacfa6`, `30bb02c`, `f59d8b9`) |
+| Lo sensible —`package.json`, *lock*, `next.config.ts`, `vercel.json`, `.github/`, `.env.example`, `supabase/`, `scripts/`, `public/`, configuración de pruebas— | **Sin una línea de diferencia** |
+| Las verificaciones registradas, ¿son de este código? | Sí: `verify`, `test:db` y la E2E completa corrieron sobre `1c15860`, y de `1c15860` a `ee3d793` solo cambia `docs/` |
+
+### Los tres fallos de la E2E, contra la versión publicada (`DEPLOYMENT` §3.3.a, paso 2)
+
+La explicación del cierre local los comparaba con `319bdba`, que ya trae D-230 y D-231, parte de esta publicación. Se
+repitió contra **`6943b7f`**, alternando bloques (`git checkout <ref> -- src tests`, calentamiento sin contar, la carga
+de la CPU anotada), sobre la misma base local y el mismo servidor `dev:local`:
+
+| Bloque (UTC) | `back-navigation:25` ×5 | `catalogo-publico-movil:103` ×15 | CPU |
+|---|---|---|---|
+| `6943b7f`, 23:58–00:02 | 5/5 | 3 fallan | 38–44 % |
+| `HEAD`, 00:02–00:07 | 5/5 | 9 fallan | 47–58 % |
+| `6943b7f`, 00:07–00:11 | 1 falla | 6 fallan | 32–47 % |
+| `HEAD`, 00:11–00:15 | 1 falla | 5 fallan | 27–63 % |
+| **Total** | **1/10 y 1/10** | **9/30 (`6943b7f`) y 14/30 (`HEAD`)** | |
+
+| Prueba | Cómo queda explicada |
+|---|---|
+| `back-navigation.spec.ts:25` (**I-075**) | **Reproducida en la versión publicada**, la misma línea 38, con la misma tasa |
+| `catalogo-publico-movil.spec.ts:103` (**I-106**) | **Reproducida en la versión publicada**, la misma línea 118 con `?q=0`. La diferencia de tasas no es significativa (Fisher, p ≈ 0,29) y cambia de sentido entre rondas, siguiendo a la carga |
+| `ventas-por-fecha.spec.ts:163` (**I-090**) | **Evidencia causal**, ya registrada sobre el código del lote (D-226): «< 26», recibido **55**, la cuenta de las ventas de hoy que dejan las especificaciones anteriores. La misma cifra hoy, y 18/18 sola con la base recién sembrada. Esta entrega no toca ni ventas ni reportes |
+
+### P0, en solo lectura, 23:56–23:57 UTC
+
+| Comprobación | Resultado |
+|---|---|
+| `build/color-v2/en-vivo.mjs antes 6943b7f e6c2c5f` | ✅ 35/35 rutas (4 × 200, 28 × 307, 2 × 401, 1 × 404), ningún 5xx, 4 exportaciones sin CSV, 7/7 cabeceras con CSP por *nonce*; servido **`72d03cf65c19`** (1/15 fragmentos) y el del puente, ausente; 0 secretos en 951 KB; **Color v2 sin servir**: 0 de sus 12 valores y ninguna de sus utilidades |
+| `npm run verify:remote` | ✅ **49/49** |
+| Hora | Fuera de las horas UTC de los programadores (3–6, 12, 13, 15 y 16) |
+
+### PB y P7: la rama, el PR y el avance rápido
+
+| Paso | Resultado |
+|---|---|
+| Rama | `git push -u origin feature/color-v2-detalle-boleta`: rama nueva en GitHub, en **`ee3d793`** |
+| PR #5 | Abierto sobre `ee3d793`. El check «Vercel», en rojo **a propósito**: la vista previa `dpl_CTsgtPteFfoatRJttkAT4cPRngpt` se detiene en `check:env` por las tres variables de Supabase, que Preview no tiene para que un PR no escriba en la base real (I-022, D-066). Igual que en el PR #4 |
+| CI del PR | Run **`36361623535`** sobre `ee3d793`: ✅ **2/2** —compilación de 00:16:45 a 00:19:11 y base de datos de 00:16:45 a 00:22:06 UTC— |
+| Avance rápido | `git ls-remote` confirmó `6943b7f` justo antes; `git push origin ee3d793…:refs/heads/main` a las **00:22:20 UTC**, sin `force` y sin la rama local `main`. PR #5 fusionado a las 00:22:22, sin commit de fusión |
+
+### P8, en solo lectura, 00:23–00:25 UTC
+
+| Comprobación | Resultado |
+|---|---|
+| Vercel | `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` sobre `ee3d793`: **READY a las 00:23:10 UTC**, con el alias `gestion-rifas.vercel.app`. Construcción con Next 16.3.6, `check:env` limpio y solo los avisos de siempre |
+| `build/color-v2/en-vivo.mjs despues ee3d793 6943b7f` | ✅ 35/35 rutas, iguales que en P0; ningún 5xx; 7/7 cabeceras; servido **`087eb866b494`** (1/15) y `72d03cf65c19` ausente; 0 secretos; **Color v2: 12/12 valores en su selector** y las 4 utilidades de los tonos; la CSS, de 135 a 140 KB |
+| `npm run verify:remote` | ✅ **49/49** |
+| Registros del despliegue nuevo | **0** errores, avisos o fatal y **0** 5xx: solo las peticiones del barrido (38 del *middleware*, 32 redirecciones y 6 de funciones) |
+| Punto de reversión | `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`), el inmediatamente anterior, con `isRollbackCandidate` |
+| CI de `main` | Run **`36361978670`** (`push`, `ee3d793`): ✅ **2/2** —compilación de 00:22:25 a 00:24:31 y base de datos de 00:22:25 a 00:28:33 UTC— |
+
+### Lo que queda, y de quién
+
+| Qué | Quién |
+|---|---|
+| El detalle de boleta, los tonos y la navegación con sesión real | El dueño, con la lista de `HANDOFF` §1.a |
+| Leer los registros de esa revisión | El agente, **dentro de la hora** siguiente, si el dueño avisa al terminar: la API de registros de este plan solo deja leer la última hora |

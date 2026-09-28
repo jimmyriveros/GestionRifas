@@ -1,6 +1,9 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-26, tarde (§3.2.p y §3.3.a: **P9 cerrada** con una segunda prueba del dueño —un iPhone, a las
+**Actualizado:** 2026-09-28, madrugada UTC (§3.2.q: **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN**
+—`ee3d793`, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, READY a las 00:23:10 UTC, por avance rápido tras el CI 2/2 del PR #5; sin
+migraciones; punto de reversión, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`); pendiente la revisión del dueño con su
+sesión—). Antes, 2026-09-26, tarde (§3.2.p y §3.3.a: **P9 cerrada** con una segunda prueba del dueño —un iPhone, a las
 17:38 UTC— leída dentro de la hora: dos 200 desde `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc` (`6943b7f`), sin errores, 5xx ni
 ninguna de las cinco frases; la duración no la exponen los registros). Antes, ese mismo día, mañana (§3.2.p y §3.3.a: **P9 y P10 confirmadas por el dueño** con sus sesiones —la
 imagen semanal en 2–3 s, descargar y compartir; el orden y la paginación—; **la lectura de los registros de la imagen,
@@ -949,6 +952,42 @@ CONTINUAR, 0 filas). Registros del despliegue nuevo, hasta las 01:44 UTC: **0** 
 | P10 — «Boletas» del personal | ✅ El orden |
 | P10 — un orden que el teléfono no ofrece, llegado de la pantalla grande o de un enlace guardado —la frase que lo describe, también buscando: «primero Asignada» (D-216, D-218)— | ⏸️ **No probado**: no estaba en el recorrido del teléfono |
 | P9 — variantes | ⏸️ **No revisadas a mano**: la imagen en otros teléfonos o navegadores, y la duración de la función, que los registros no exponen. El dueño notó que, al volver al módulo después de descargarla, la imagen tarda algo más en cargar, sin error |
+
+### 3.2.q Release de Color v2 y el detalle de boleta del vendedor (D-230 a D-233) — 2026-09-28
+
+**Sin migración.** Los colores de `globals.css`, el detalle de boleta del **vendedor** y cinco componentes que solo usa
+esa pantalla, sus pruebas y su documentación —también la de continuidad de D-229, que se había quedado en la rama—.
+Autorización expresa del dueño para subir la rama, abrir el PR, comprobar el CI, integrar en `main` por avance rápido
+y verificar el despliegue automático de la versión que revisó, **`ee3d793`**. **No** incluye el detalle administrativo,
+más cambios de Figma ni arreglos ajenos.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`ee3d7933446858ee33660bc137e56adba2a46d15`**, el revisado: el mismo SHA del PR #5 con el CI en verde. Ningún commit se añadió durante la publicación |
+| Commit anterior en producción | `6943b7f80cff9754f0d24a20a9df6e6a3e960c7d`, el lote (§3.2.p) |
+| Integración | **Avance rápido** `6943b7f..ee3d793`, 9 commits —los 3 de documentación de D-229, D-230, D-231, D-232, D-233, la limpieza de la E2E y su documentación—, **sin fusión, sin `force` y sin la rama local `main`**, que sigue en `c48437a`: `git ls-remote` confirmó `6943b7f` justo antes, y `git push origin ee3d793…:refs/heads/main` a las **00:22:20 UTC**. GitHub marca el PR #5 fusionado a las 00:22:22, sin commit de fusión |
+| Despliegue Vercel | **`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`**, `gestion-rifas-jfhc1ipi2-jimmyriveros-projects.vercel.app`: creado a las 00:22:23, **READY a las 00:23:10 UTC**, con el alias `gestion-rifas.vercel.app` y sin error de alias; el único de producción que disparó ese empuje. Construcción: caché de `8A5qz…`, dependencias «up to date», «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6 (Turbopack)», `check:env` «verificadas correctamente», compilación en 21 s, Vercel CLI 59.25.4, `iad1`. Solo los avisos de siempre: `engines` e `install-scripts` |
+| Despliegue anterior (**punto de reversión**) | **`dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`** (`6943b7f`), el inmediatamente anterior, con `isRollbackCandidate` antes y después de publicar; el puente dejó de serlo, como corresponde en Hobby. **Compatible**: esta entrega no cambia la base y `6943b7f` ya funcionaba con `0077`. *Instant Rollback*, **sin tocar la base**; lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1). **No se reutilizó** el punto de reversión de la entrega anterior |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` sin una línea de diferencia. Siguen **77** |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni `.env.example`, ni `public/` |
+| CI | En el PR, run **`36361623535`** sobre `ee3d793`: ✅ **2/2** (00:16:45–00:22:06 UTC). En `main`, run **`36361978670`** (`push`): ✅ **2/2** (00:22:25–00:28:33 UTC) |
+
+**Antes de publicar (P0, en solo lectura, 23:56–23:57 UTC):** servido `72d03cf65c19` (`6943b7f`); 35/35 rutas, ningún
+5xx, 7/7 cabeceras, 0 secretos y Color v2 sin servir; `verify:remote` **49/49**. Los tres fallos de la E2E completa
+(924/927) se explicaron **contra la versión publicada**, como exige §3.3.a paso 2: I-075 e I-106 reproducidos en
+`6943b7f` en bloques alternos, e I-090 con su evidencia causal (`TEST_RESULTS`, publicación de D-230 a D-233).
+
+**Verificación en vivo (P8, 00:23–00:25 UTC):** servido **`087eb866b494`** (1 de 15 fragmentos) y el de `6943b7f`,
+`72d03cf65c19`, **desaparecido**. **Color v2 servido**: los 12 valores que se comprueban —los cuatro roles nuevos de
+`accent/indigo`, `accent/indigo/surface` y `data/category/6`, en claro y en oscuro—, una vez cada uno y en su selector
+(`:root` o `.dark,.catalog-theme`, que el minificador une porque los dos bloques v2 son idénticos), y las cuatro
+utilidades de los tonos de los números; la CSS pasa de 135 a 140 KB. **35 rutas iguales que en P0** —4 × 200, 28 × 307,
+2 × 401, 1 × 404— y **ningún 5xx**; **7/7** cabeceras, CSP por *nonce*; **0 secretos** en 951 KB. `verify:remote` **49/49**.
+Registros del despliegue nuevo: **0** errores, avisos o fatal y **0** 5xx; solo las peticiones del barrido.
+
+> **Pendiente del dueño, con su sesión:** el detalle de boleta, los tonos y la navegación (lista en `HANDOFF` §1.a).
+> **El commit de documentación de esta publicación** se queda en la rama y **no** se empuja: desplegaría otra versión y
+> movería el punto de reversión.
 
 ### 3.3 Despliegues futuros
 
