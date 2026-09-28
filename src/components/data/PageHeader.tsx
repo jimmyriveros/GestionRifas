@@ -47,6 +47,20 @@ type PageHeaderProps = {
    */
   inlineActions?: boolean
   /**
+   * Varias acciones: van en SU PROPIA FILA, debajo del titulo, hasta `lg`, y a
+   * su derecha desde ahi (D-234).
+   *
+   * Es para una pantalla con muchas acciones, como el detalle administrativo
+   * de una boleta, que llega a tener cinco. En la disposicion de siempre suben
+   * junto al titulo desde `sm`, y en una tableta no caben: a 834 px el flex las
+   * ponia en dos filas a la derecha y aun asi le quitaba al titulo el ancho de
+   * su ultima palabra, que bajaba sola («Detalle / boleta»). Desde `lg` —920 px
+   * de contenido con la barra estrecha— si caben las cinco en una fila.
+   *
+   * En el telefono no cambia nada: ahi las acciones ya iban debajo.
+   */
+  stackActions?: boolean
+  /**
    * Activa la flecha de volver, a la izquierda del titulo. Es el destino de
    * repuesto para cuando no hay una pantalla anterior real en esta sesion:
    * URL abierta directamente, pestana nueva o enlace externo (D-089). Las
@@ -78,6 +92,7 @@ export function PageHeader({
   actions,
   compactAction,
   inlineActions = false,
+  stackActions = false,
   backHref,
   backLabel,
 }: PageHeaderProps) {
@@ -172,7 +187,11 @@ export function PageHeader({
       title={title}
       backHref={backHref}
       backLabel={backLabel}
-      className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+      className={
+        stackActions
+          ? 'flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'
+          : 'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'
+      }
     >
       <div className="flex items-start gap-1">
         {back}
@@ -187,9 +206,21 @@ export function PageHeader({
           la fila de ancho completo del telefono se lo pide a SUS botones
           —`h-11 grow md:h-9 md:grow-0`, como hace `/owner/tickets` (D-109)—, y
           asi la decision se lee junto al boton al que afecta en vez de a traves
-          de un selector de hijo en el componente que comparten 27 pantallas. */}
+          de un selector de hijo en el componente que comparten 27 pantallas.
+
+          Con `stackActions` la fila de acciones esta DEBAJO del titulo, y si
+          sus botones no se pintan —una boleta anulada no ofrece ninguno— el
+          `gap-3` del bloque le sumaba 12 px de aire a nada. `empty:hidden` la
+          retira; en la disposicion de siempre no se toca. */}
       {actionNodes ? (
-        <div {...tourTarget('page-actions')} className="flex flex-wrap items-center gap-2">
+        <div
+          {...tourTarget('page-actions')}
+          className={
+            stackActions
+              ? 'flex flex-wrap items-center gap-2 empty:hidden'
+              : 'flex flex-wrap items-center gap-2'
+          }
+        >
           {actionNodes}
         </div>
       ) : null}

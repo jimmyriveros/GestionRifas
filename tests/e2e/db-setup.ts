@@ -81,6 +81,12 @@ export async function purgeSellers(ids: string[]): Promise<void> {
   await db.connect()
   try {
     await db.query('begin')
+    // Las membresias, identificadas ANTES de borrarlas: su bitacora se borra al
+    // final (D-234).
+    const { rows: membresias } = await db.query<{ id: string }>(
+      'select id from memberships where profile_id = any($1)',
+      [ids],
+    )
     // Pagos y sus asignaciones, juntos: es la unica forma de que cuadre.
     await db.query(
       `delete from payment_allocations pa using payments p
@@ -119,6 +125,16 @@ export async function purgeSellers(ids: string[]): Promise<void> {
       [ids],
     )
     await db.query('delete from memberships where profile_id = any($1)', [ids])
+
+    // Y la bitacora de esas membresias (D-234), como la de `purgeTestData`
+    // (D-233). Dar de alta a un vendedor de prueba y borrarlo deja dos filas SIN
+    // actor —`membership.create` y `membership.delete`, esta ultima escrita por
+    // el disparador en esta misma transaccion—, asi que la limpieza por actor de
+    // arriba no las alcanza: cada pasada de una suite con vendedores propios
+    // dejaba dos.
+    await db.query('delete from audit_logs where entity_id = any($1)', [
+      membresias.map((fila) => fila.id),
+    ])
     await db.query('commit')
   } catch (error) {
     await db.query('rollback')
@@ -602,6 +618,12 @@ export async function createPaymentWithAllocation(
     amount: number
     method: string
     paymentDate: string
+    /**
+     * El vendedor del cliente, si no es el vendedor 1. Una boleta que queda
+     * PAGADA le apunta la ganancia a su vendedor (`commission_ledger`), y en
+     * uno propio de la suite la borra `purgeSellers` con el resto (D-234).
+     */
+    sellerId?: string
   },
 ): Promise<string> {
   const db = new PgClient({ connectionString: DB_URL })
@@ -614,7 +636,7 @@ export async function createPaymentWithAllocation(
        values ($1, $2, $3, $4, $5, $6, $2) returning id`,
       [
         refs.organizationId,
-        refs.sellerId,
+        options.sellerId ?? refs.sellerId,
         options.clientId,
         options.amount,
         options.paymentDate,

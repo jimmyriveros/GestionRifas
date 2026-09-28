@@ -183,9 +183,21 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
 
   return (
     <>
+      {/* 44 PX EN EL TELEFONO Y FILAS PAREJAS (D-234). Con `grow`, las acciones
+          se reparten cada fila de lado a lado en vez de quedar en tiras de
+          anchos sueltos; desde `sm` recuperan su ancho y su alto de siempre. Es
+          la misma receta de la cabecera de «Boletas» (D-109), pedida por los
+          botones y no por el encabezado que comparten 27 pantallas. La
+          cabecera compacta la anula al subir «Aprobar boleta» (D-150). */}
       {ticket.inventoryStatus === 'pending_approval' ? (
         <CompactActionSlot>
-          <Button type="button" onClick={approve} disabled={isPending}>
+          <Button
+            type="button"
+            size="touch"
+            className="grow sm:grow-0"
+            onClick={approve}
+            disabled={isPending}
+          >
             <CheckIcon className="size-4" aria-hidden />
             Aprobar boleta
           </Button>
@@ -193,25 +205,49 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
       ) : null}
 
       {!isCancelled ? (
-        <Button type="button" variant="outline" onClick={() => setNumbersOpen(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="grow sm:grow-0"
+          onClick={() => setNumbersOpen(true)}
+        >
           Editar números
         </Button>
       ) : null}
 
       {canChangeSeller ? (
-        <Button type="button" variant="outline" onClick={() => setSellerOpen(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="grow sm:grow-0"
+          onClick={() => setSellerOpen(true)}
+        >
           Cambiar vendedor
         </Button>
       ) : null}
 
       {canCancel ? (
-        <Button type="button" variant="destructive" onClick={() => setCancelOpen(true)}>
+        <Button
+          type="button"
+          variant="destructive"
+          size="touch"
+          className="grow sm:grow-0"
+          onClick={() => setCancelOpen(true)}
+        >
           Anular boleta
         </Button>
       ) : null}
 
       {canDelete ? (
-        <Button type="button" variant="outline" onClick={() => setDeleteOpen(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="grow sm:grow-0"
+          onClick={() => setDeleteOpen(true)}
+        >
           Eliminar boleta
         </Button>
       ) : null}

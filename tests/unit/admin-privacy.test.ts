@@ -375,3 +375,36 @@ describe('D-208 — «Premios ganados» del personal, sin un solo dato de client
     expect(filtros).toMatch(/sellerId: audience === 'staff' \? parsed\.sellerId : undefined/)
   })
 })
+
+describe('D-234 — lo que el detalle administrativo comparte con el del vendedor no lee la cartera', () => {
+  /*
+    Desde D-234 la pagina administrativa de una boleta importa piezas que tambien
+    usa la del vendedor. La prueba de arriba solo recorre `owner/`, asi que una
+    consulta de clientes o de pagos añadida mañana a una de estas piezas le
+    llegaria al personal sin que nada lo dijera. Son de PRESENTACION: no leen
+    ningun dato, y el detalle del personal les pasa lo que ya leyo por
+    `admin_ticket_detail`.
+  */
+  it('las piezas compartidas no leen datos, ni de la cartera ni de ninguna otra parte', () => {
+    const PROHIBIDO = [
+      /@\/features\/clients\//,
+      /@\/features\/payments\//,
+      /@\/lib\/supabase/,
+      /\/queries'/,
+      /\/actions'/,
+    ]
+    for (const archivo of [
+      'src/features/tickets/components/TicketDetailParts.tsx',
+      'src/components/data/RecordLinkCard.tsx',
+    ]) {
+      const fuente = leer(archivo)
+      for (const patron of PROHIBIDO) expect(fuente, `${archivo}: ${patron}`).not.toMatch(patron)
+    }
+
+    // Y la pagina las importa de ahi, no del portal del vendedor.
+    const pagina = leer('src/app/(protected)/owner/tickets/[ticketId]/page.tsx')
+    expect(pagina).toContain("from '@/features/tickets/components/TicketDetailParts'")
+    expect(pagina).toContain("from '@/components/data/RecordLinkCard'")
+    expect(pagina).not.toMatch(/app\/\(protected\)\/seller/)
+  })
+})

@@ -11,6 +11,14 @@ import {
   raffleTicketPrice,
   type SeedRefs,
 } from './db-setup'
+import {
+  cerca,
+  coloresDe,
+  encenderOscuro,
+  horasYSusLineas,
+  problemasDeMaquetacion,
+  TONOS,
+} from './detalle-boleta'
 import { ACCOUNTS, loginAs, logout, randomTicketNumbers, unique } from './fixtures'
 
 /**
@@ -39,27 +47,11 @@ const SECCIONES = [
 type Seccion = (typeof SECCIONES)[number]
 type Caja = { x: number; y: number; width: number; height: number }
 
-/**
- * Los dos tonos de los números (D-233), como los devuelve el navegador. Son los
- * valores de las variables de Figma, no los de la lámina. En claro, el diario es
- * `accent/indigo/surface-strong` · `foreground` · `border-strong` (indigo 100 ·
- * 700 · 300) y el semanal `surface` · `foreground-subtle` · `border` (50 · 600
- * · 200); en oscuro, sus equivalentes (900 · 300 · 600 y 950 · 400 · 800).
- */
-const TONOS = {
-  claro: {
-    diario: { fondo: 'rgb(224, 231, 255)', texto: 'rgb(67, 56, 202)', borde: 'rgb(165, 180, 252)' },
-    semanal: {
-      fondo: 'rgb(238, 242, 255)',
-      texto: 'rgb(79, 70, 229)',
-      borde: 'rgb(199, 210, 254)',
-    },
-  },
-  oscuro: {
-    diario: { fondo: 'rgb(49, 46, 129)', texto: 'rgb(165, 180, 252)', borde: 'rgb(79, 70, 229)' },
-    semanal: { fondo: 'rgb(30, 27, 75)', texto: 'rgb(129, 140, 248)', borde: 'rgb(55, 48, 163)' },
-  },
-} as const
+/*
+  Los tonos de los números (D-233), las medidas de maquetación y la hora partida
+  viven en `detalle-boleta.ts` desde D-234: la suite del detalle administrativo
+  mide lo mismo sobre las mismas piezas.
+*/
 
 let refs: SeedRefs
 let abonada: { id: string; daily: string; weekly: string }
@@ -136,10 +128,6 @@ async function cajas(page: Page, secciones: readonly Seccion[]): Promise<Record<
   return out
 }
 
-function cerca(a: number, b: number, tolerancia = 1.5): boolean {
-  return Math.abs(a - b) <= tolerancia
-}
-
 /**
  * Escritorio: dos columnas que se apilan cada una por su cuenta —la boleta a la
  * izquierda, a 360 px, y el cobro a la derecha—, con 20 px entre tarjetas.
@@ -166,54 +154,6 @@ async function dosColumnas(page: Page): Promise<void> {
   expect(derecha[0]!.x).toBeGreaterThan(izquierda[0]!.x + izquierda[0]!.width)
   // La columna de la boleta mide lo de Figma: 360 px.
   expect(cerca(izquierda[0]!.width, 360)).toBe(true)
-}
-
-/**
- * Lo que se sale de sitio en la página: desplazamiento lateral, tarjetas que se
- * pisan y elementos que asoman fuera de su tarjeta. Devuelve una descripción por
- * fallo, para que el mensaje diga qué y dónde.
- */
-async function problemasDeMaquetacion(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const problemas: string[] = []
-    const raiz = document.documentElement
-    const lateral = raiz.scrollWidth - raiz.clientWidth
-    if (lateral > 0) problemas.push(`la página se desplaza ${lateral} px de lado`)
-
-    const tarjetas = [...document.querySelectorAll<HTMLElement>('main [data-slot="card"]')]
-    const rects = tarjetas.map((t) => t.getBoundingClientRect())
-    const nombre = (t: HTMLElement) => t.querySelector('h2')?.textContent ?? '(sin título)'
-
-    for (let i = 0; i < rects.length; i++) {
-      for (let j = i + 1; j < rects.length; j++) {
-        const a = rects[i]!
-        const b = rects[j]!
-        const ancho = Math.min(a.right, b.right) - Math.max(a.left, b.left)
-        const alto = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
-        if (ancho > 1 && alto > 1) {
-          problemas.push(`«${nombre(tarjetas[i]!)}» pisa a «${nombre(tarjetas[j]!)}»`)
-        }
-      }
-    }
-
-    tarjetas.forEach((t, i) => {
-      const caja = rects[i]!
-      for (const el of t.querySelectorAll<HTMLElement>('*')) {
-        const r = el.getBoundingClientRect()
-        if (r.width === 0 || r.height === 0) continue
-        if (
-          r.left < caja.left - 1 ||
-          r.right > caja.right + 1 ||
-          r.top < caja.top - 1 ||
-          r.bottom > caja.bottom + 1
-        ) {
-          const texto = (el.textContent ?? '').trim().slice(0, 40)
-          problemas.push(`en «${nombre(t)}», <${el.tagName.toLowerCase()}> «${texto}» asoma fuera`)
-        }
-      }
-    })
-    return problemas
-  })
 }
 
 test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
@@ -322,37 +262,8 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
   test('la hora no se parte entre «a.» y «m.», ni a 320 ni a 390', async ({ page }) => {
     for (const width of [320, 390]) {
       await abrir(page, abonada.id, width)
-      // Se mide el TEXTO, no un envoltorio: un `Range` sobre «11:16 a. m.»
-      // devuelve un rectángulo por cada línea que ocupa. Así la prueba ve la
-      // hora partida aunque nadie la haya envuelto en nada.
-      const horas = await tarjeta(page, 'Detalles de la boleta')
-        .locator('dd')
-        .evaluateAll((dds) =>
-          dds.flatMap((dd) => {
-            const nodos: Text[] = []
-            const walker = document.createTreeWalker(dd, NodeFilter.SHOW_TEXT)
-            while (walker.nextNode()) nodos.push(walker.currentNode as Text)
-            const completo = nodos.map((n) => n.data).join('')
-            const posicion = (offset: number): [Text, number] => {
-              let resto = offset
-              for (const nodo of nodos) {
-                if (resto <= nodo.length) return [nodo, resto]
-                resto -= nodo.length
-              }
-              const ultimo = nodos[nodos.length - 1]!
-              return [ultimo, ultimo.length]
-            }
-            return [...completo.matchAll(/\d{2}:\d{2}\s[ap]\.\s?m\./g)].map((m) => {
-              const range = document.createRange()
-              range.setStart(...posicion(m.index!))
-              range.setEnd(...posicion(m.index! + m[0].length))
-              const tops = [...range.getClientRects()]
-                .filter((r) => r.width > 0)
-                .map((r) => Math.round(r.top))
-              return { texto: m[0], lineas: new Set(tops).size }
-            })
-          }),
-        )
+      // Se mide el TEXTO, no un envoltorio (`horasYSusLineas`).
+      const horas = await horasYSusLineas(tarjeta(page, 'Detalles de la boleta'))
       expect(horas.length, 'la fecha de creación y la de asignación').toBeGreaterThanOrEqual(2)
       for (const hora of horas) {
         expect(hora.lineas, `«${hora.texto}» a ${width} px`).toBe(1)
@@ -366,11 +277,7 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
     await abrir(page, abonada.id, 390)
     const numeros = tarjeta(page, 'Números de la boleta')
     const caja = (rotulo: string) => numeros.getByText(rotulo, { exact: true }).locator('..')
-    const colores = (rotulo: string) =>
-      caja(rotulo).evaluate((el) => {
-        const s = getComputedStyle(el)
-        return { fondo: s.backgroundColor, texto: s.color, borde: s.borderTopColor }
-      })
+    const colores = (rotulo: string) => coloresDe(caja(rotulo))
     // Los cuatro textos de las dos cajas: los rótulos son de 12 px y también
     // tienen que leerse.
     const textos = {
@@ -384,13 +291,7 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
       if (tema === 'oscuro') {
         // El portal no tiene selector de tema, así que se enciende a mano y se
         // comprueba que de verdad se encendió antes de medir.
-        await page.evaluate(() => document.documentElement.classList.add('dark'))
-        const fondoOscuro = await page.evaluate(() =>
-          getComputedStyle(document.documentElement)
-            .getPropertyValue('--ds-background-default')
-            .trim(),
-        )
-        expect(fondoOscuro.toLowerCase()).toBe('#0a0a0a')
+        expect((await encenderOscuro(page)).toLowerCase()).toBe('#0a0a0a')
       }
       for (const width of [320, 390, 1920]) {
         await page.setViewportSize({ width, height: 900 })
@@ -455,16 +356,47 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
     expect(recorrido[abono]!.x).toBeGreaterThan(recorrido[pazYSalvo]!.x)
   })
 
-  test('el detalle administrativo no cambia (D-198)', async ({ page }) => {
+  /**
+   * Hasta D-234 esta prueba fijaba el detalle administrativo de antes —«Boleta»
+   * e «Información administrativa»— para que el rediseño del vendedor no lo
+   * tocara. Desde D-234 ese detalle comparte las piezas de este, así que lo que
+   * se comprueba es lo que importa: comparte los NÚMEROS, con los mismos tonos,
+   * y ninguna tarjeta de la venta o del cobro, que son de la cartera (D-198).
+   * Su composición la mide `detalle-boleta-admin.spec.ts`.
+   */
+  test('el detalle administrativo comparte los números, no la cartera (D-198, D-234)', async ({
+    page,
+  }) => {
     await logout(page)
     await loginAs(page, ACCOUNTS.owner)
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`/owner/tickets/${abonada.id}`)
     await expect(page.getByRole('heading', { level: 1, name: 'Detalle boleta' })).toBeVisible()
     expect(await page.locator('main h2').allTextContents()).toEqual([
-      'Boleta',
-      'Información administrativa',
+      'Números de la boleta',
+      'Vendedor y rifa',
+      'Estado y venta',
+      'Detalles de la boleta',
     ])
-    await expect(page.getByRole('heading', { name: 'Números de la boleta' })).toHaveCount(0)
+
+    const numeros = page
+      .locator('main [data-slot="card"]')
+      .filter({ has: page.getByRole('heading', { level: 2, name: 'Números de la boleta' }) })
+    const caja = (rotulo: string) => numeros.getByText(rotulo, { exact: true }).locator('..')
+    await expect(numeros.getByText(abonada.daily, { exact: true })).toBeVisible()
+    await expect(numeros.getByText(abonada.weekly, { exact: true })).toBeVisible()
+    expect(await coloresDe(caja('Número diario'))).toEqual(TONOS.claro.diario)
+    expect(await coloresDe(caja('Número semanal'))).toEqual(TONOS.claro.semanal)
+
+    // La boleta tiene un abono: para el personal es «Sin pagar», y ni el
+    // cliente, ni el precio, ni el historial de abonos llegan a la pantalla.
+    await expect(page.getByText('Sin pagar', { exact: true })).toBeVisible()
+    await expect(page.getByText('Abonada')).toHaveCount(0)
+    await expect(page.locator('main')).not.toContainText('$')
+    for (const titulo of SECCIONES.filter(
+      (s) => s !== 'Números de la boleta' && s !== 'Detalles de la boleta',
+    )) {
+      await expect(page.getByRole('heading', { name: titulo, exact: true })).toHaveCount(0)
+    }
   })
 })
