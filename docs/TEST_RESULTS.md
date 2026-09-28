@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN, D-230 a D-233: `ee3d793`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.780/1.780**; CI del PR y de `main` sobre `ee3d793` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Los 3 fallos de la completa (924/927), **reproducidos en la versión publicada** `6943b7f` (I-075, I-106) o con su evidencia causal (I-090). En vivo: 35/35 rutas, 7/7 cabeceras, `087eb866b494` servido y Color v2 en su selector | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, 00:23:10 UTC) |
+| **Post-9 vigente (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá)** | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
+| Post-9 anterior (Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN, D-230 a D-233: `ee3d793`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.780/1.780**; CI del PR y de `main` sobre `ee3d793` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Los 3 fallos de la completa (924/927), **reproducidos en la versión publicada** `6943b7f` (I-075, I-106) o con su evidencia causal (I-090). En vivo: 35/35 rutas, 7/7 cabeceras, `087eb866b494` servido y Color v2 en su selector | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`, 00:23:10 UTC) |
 | Post-9 anterior (Color v2 cerrado, los dos tonos de los números y la limpieza de la E2E del detalle, D-232 y D-233, solo en local, 2026-09-27) | **1.780/1.780** en 88 archivos (+16, `color-system-v2`: auditoría **93 de 93**; dos mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **924/927** en 50,7 min: los 3 fallos llevan la firma de **I-075**, **I-090** e **I-106**, y los tres fallan también con `319bdba` (medido). `detalle-boleta-composicion` **18/18** dos veces seguidas sin restablecer la base y con dos fallos simulados: **0 filas** nuevas en `public` | ✅ exit 0 | Solo en local, tres commits más sin empujar |
 | Post-9 anterior (colores v2 y el detalle de boleta del vendedor según Figma, D-230 y D-231, solo en local, 2026-09-27) | **1.764/1.764** en 88 archivos (+116, `color-system-v2`; comprobada con tres mutaciones) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | **923/925** en 58,8 min; los 2 fallos, I-148 (reproducido 3/3 **sin** este trabajo) e I-090 (18/18 en aislamiento). Nueva `detalle-boleta-composicion` **16/16**, comprobada con dos mutaciones | ✅ exit 0 | Solo en local, dos commits sin empujar |
 | Post-9 anterior (la puerta del lote: `0075`–`0077` y `6943b7f` EN PRODUCCIÓN, P0–P10, D-229, 2026-09-26) | CI **2/2** en el PR #4 (`36208409406`) y en `main` (`36209027409`) sobre `6943b7f` | `0075`–`0077` aplicadas de 01:34:40 a 01:34:57 UTC: delta ensayado con los privilegios de producción (CONTINUAR y 49/49 en local), respaldo **validado** (31 tablas y 11.938 filas iguales), comparación por fila **CONTINUAR** con 0 filas tocadas | En vivo: 40/40 rutas iguales que en P0, 0 × 5xx, 7/7 cabeceras, 0 secretos, `72d03cf65c19` servido y Next 16.3.6; registros sin errores ni ninguna de las cinco frases; `/_next/image`, de Vercel. **P9–P10 con las sesiones del dueño: correctas** —la imagen semanal en 2–3 s, descargar, compartir, orden y paginación—; los registros de la imagen, **leídos en una segunda prueba** (17:38 UTC, iPhone): dos 200 desde `6943b7f`, sin errores; la duración, no disponible | `verify:remote` **49/49** | ✅ **En producción.** Avance rápido `e6c2c5f..6943b7f`, `dpl_8A5qzJkasdV7tt3HtN23YuH1j8Tc`. Reversión: **el puente**, `dpl_EP2hsFeRaE63MjRbQRLukvHk9cQA` |
@@ -15498,3 +15499,112 @@ de la CPU anotada), sobre la misma base local y el mismo servidor `dev:local`:
 | Lo que los registros **no** muestran | Visitas al portal del **personal** o al **catálogo** en esa hora: esas dos comprobaciones no constan en registros. Las dos pantallas no cambian en esta entrega (código y E2E), y el barrido sin sesión de P8 las cubrió |
 
 La duración de las peticiones no está en los registros y no se deduce de sus horas.
+
+---
+
+## D-234 — El detalle de boleta administrativo, recompuesto (2026-09-27 en Bogotá, solo en local)
+
+Encargo del dueño, después de publicar D-230 a D-233: llevar la calidad del detalle del vendedor al del personal, sin
+tocar consultas, acciones, RPC, permisos ni reglas (D-198). Rama nueva `feature/detalle-boleta-admin` sobre
+`b774289` (`origin/main` = `ee3d793` más los dos commits de documentación de la publicación, conservados). Todo contra
+la base **local** con `dev:local`. Figma solo se leyó: no tiene un detalle administrativo.
+
+### Línea base, en `b774289`
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset && npm run seed:local` | ✅ |
+| `npm run test:db` | ✅ **1.444 + 1 omitida** en 59 archivos, 146 s |
+| `npm run verify` | ✅ exit 0: tipos, lint **0 errores y los 2 avisos** de siempre, **1.780/1.780** unitarias en 88 archivos, `next build` |
+
+### Datos de revisión y capturas
+
+Ocho boletas en la organización del seed —borrador con un solo número, pendiente, disponible con ceros iniciales, vendida
+sin abonos, con un abono parcial de $20.000, pagada, anulada con un motivo de 300 caracteres y una con un vendedor y una
+rifa de nombres largos—, creadas por un guion fuera del repositorio que apunta cada id en cuanto existe. Capturas de
+**página entera** con la ventana del alto de la página, a **320, 390, 834, 1280, 1440 y 1920 px**, en **claro y oscuro**:
+el Dueño en los ocho estados y el Administrador en dos, **104** del personal y **84** del vendedor por fase. El «antes»
+se tomó con los cinco archivos de `src/` apartados con `git stash` —los del usuario no se tocaron— y devueltos después,
+comparados con un parche de respaldo: **idénticos**. Todo en `build/detalle-admin/` (sin versionar), con
+`revision.html` para compararlas.
+
+**Regresión del vendedor: 84 de 84 capturas idénticas byte a byte** antes y después —7 estados, 6 anchos, 2 temas—.
+Las piezas que salieron de su página no le cambiaron ni un píxel.
+
+### La tableta, dos intentos descartados antes del definitivo
+
+| Intento | Medido | Resultado |
+|---|---|---|
+| Números \| vendedor y rifa en la misma fila, como el vendedor | «Números» estirado con ~60 px en blanco bajo las cajas; **~140 px** con los nombres largos | Descartado |
+| La misma pareja, con las cajas creciendo hasta el pie (`fill`) | Cajas de color de ~280 px con los nombres largos, casi vacías | Descartado y retirado del código |
+| Una columna a lo ancho hasta `lg` | Ninguna tarjeta estirada: bajo las cajas, solo su relleno de 20 px | ✅ El definitivo |
+
+### Pruebas nuevas y afectadas
+
+| Qué | Resultado |
+|---|---|
+| Las 12 suites que abren el detalle administrativo, con la pantalla nueva y **antes** de tocar ninguna prueba | **113/114**: el único fallo, «el detalle administrativo no cambia (D-198)», la prueba que fijaba el diseño anterior —y que el encargo pedía actualizar— |
+| `detalle-boleta-admin` (nueva, 36) y `detalle-boleta-composicion` (18), la del vendedor con su prueba administrativa reescrita y sus medidas movidas a `detalle-boleta.ts` | ✅ **54/54 a la primera** |
+| `admin-privacy.test.ts`, con la guarda nueva de las piezas compartidas | ✅ **22/22**. Mutación: una importación de `@/features/clients/queries` en `TicketDetailParts` → ❌ con el archivo y el patrón en el mensaje; retirada, ✅ |
+
+### La limpieza, medida
+
+Recuento de **todas las tablas de `public` y de `auth.users`** antes y después de cada pasada de
+`detalle-boleta-admin`, sin restablecer la base:
+
+| Pasada | Resultado | Filas nuevas |
+|---|---|---|
+| Primera versión | ✅ 36/36 | **+2** `audit_logs` y **+2** `commission_ledger` |
+| — la causa | | La boleta **pagada** del vendedor 1 le apuntaba su ganancia (`sale` y, al borrarla, `sale_reverted`); y dar de alta y de baja a la cuenta de prueba deja `membership.create` y `membership.delete` **sin actor**, que la limpieza por actor no alcanza |
+| Corregida: la pagada, del vendedor propio de la suite; `purgeSellers` borra la bitácora de las membresías que borra | ✅ 36/36 | **0** |
+| Fallo simulado dentro de una prueba (Playwright cambia de proceso y repite `beforeAll`) | 1 fallida a propósito y 35 ✅ | **0** |
+| Fallo simulado a mitad de `beforeAll`, con la cuenta, la rifa y seis boletas ya creadas | 1 fallida y 35 sin ejecutar | **0** |
+
+El archivo, restaurado después con su huella exacta (`90813ab9f339…`).
+
+### I-173, medida en el detalle del vendedor
+
+«Pendiente de aprobación» (154 px) sobre «Sin venta», en «Estado y resumen de pago» de una boleta pendiente del
+vendedor 1: **se monta 27 px a 320 y 7 px a 360**; a 390 queda a 8 px y a 430 a 28. Anterior a D-234 —sus capturas no
+cambian— y fuera del encargo. En el administrativo no ocurre: sus columnas empiezan a 22 rem de tarjeta, y la suite lo
+comprueba a 320, 360, 390 y 834.
+
+### Comprobada al revés: seis mutaciones
+
+Cada una rompe una decisión con `sed`, corre su prueba y devuelve el archivo; al final, las huellas de los dos archivos
+tocados, **idénticas** a las de antes.
+
+| Mutación | Prueba que la detecta | Resultado |
+|---|---|---|
+| Sin `stackActions` | «hasta lg las acciones van debajo del título…» | ❌ el título mide **64 px** a 640, dos líneas |
+| Sin `size="touch"` en `TicketActions` | «en el teléfono las acciones miden 44 px…» | ❌ «Aprobar boleta» mide **36 px** a 320 |
+| Los estados en dos columnas fijas | «“Pendiente de aprobación” no se monta sobre su vecina…» | ❌ se pisan a 320 |
+| Sin `wrap` en las filas de vendedor y rifa | «los nombres largos se leen enteros…» | ❌ el vendedor, recortado a 320 |
+| Sin `long` en el motivo | «el motivo largo ocupa el ancho de la tarjeta…» | ❌ el motivo, a la altura de su rótulo |
+| «Todavía no» en toda boleta sin aprobar | «disponible: … no se inventa una aprobación» | ❌ la fila «Aprobada» aparece |
+
+### Cierre, sobre el código definitivo
+
+El código de `87d7371`, el mismo que se probó aquí. El commit anterior, `7e3a4bc` —solo las piezas compartidas—, se
+comprobó aparte en un `worktree`: tipos y lint limpios y **1.780/1.780** unitarias. Allí falló primero
+`admin-privacy:283`, que es **I-171**: el `worktree` nuevo sale con CRLF y la expresión se queda con el `\r`; con ese
+archivo en LF, pasa.
+
+| Comando | Resultado |
+|---|---|
+| `npx playwright test` (completa, escritorio y teléfono), con `dev:local` y la base recién sembrada | ⚠️ **962/963** en 54,1 min. El único fallo, **`ventas-por-fecha.spec.ts:257`**: «Las fechas están al revés» encuentra dos elementos, uno oculto —la copia del `Suspense` de **I-164**, registrada sin acotar desde D-228—. **No cayeron** I-075, I-090 (`:163`; la pasada empezó pasadas las 19:00 en Bogotá, cuando las ventas fechadas en UTC ya no son «de hoy», D-226) ni I-106. Todas las suites que abren un detalle de boleta, en verde |
+| `ventas-por-fecha.spec.ts` solo, tras `db:reset` + `seed:local` | ✅ **18/18** |
+| `detalle-boleta-admin` (37, con la prueba de la insignia añadida durante la completa) y `detalle-boleta-composicion` (18) | ✅ **55/55**, y el recuento de todas las tablas: **0 filas** nuevas |
+| `npm run verify` | ✅ exit 0: tipos, lint **0 errores y los 2 avisos** de siempre (`DataTable`, `BulkTicketCreator`), **1.781/1.781** unitarias en 88 archivos (+1, la guarda de las piezas compartidas), `next build` |
+| `npm run test:db` | ✅ **1.444 + 1 omitida** en 59 archivos: igual que la línea base, sin cambios de esquema |
+
+### Errores encontrados, y cómo se corrigieron
+
+| Error | Dónde | Corrección |
+|---|---|---|
+| La consulta de contenedor de «Vendedor y rifa» estaba en el mismo elemento que la rejilla, y una consulta de contenedor no mide al propio elemento | Mi primera versión | La rejilla, dentro del `CardContent` que declara `@container`; antes de probar |
+| En tableta, «Números» estirado con 60–140 px en blanco | La composición por parejas | Descartada; una columna hasta `lg` (arriba) |
+| La fila de acciones vacía de una anulada sumaba 12 px bajo el título | `PageHeader` | `empty:hidden`, solo con `stackActions` |
+| La suite dejaba 2 filas de ganancia y 2 de bitácora por pasada | Mi suite y `purgeSellers` | La boleta pagada, del vendedor propio; `purgeSellers` borra la bitácora de las membresías |
+| Un selector ambiguo, `p.font-medium`, que en la fila pulsable es tanto el rótulo como el nombre | Mi suite, antes de correrla | `p` en su segunda posición |
+| D-234 decía «20 de las 21 disponibles del seed sin aprobar»: la aprobada era un dato mío de revisión | Mi documentación | El seed no aprueba ninguna; corregido antes de cerrar |

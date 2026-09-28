@@ -15075,3 +15075,114 @@ ningún ámbito: **93 de 93** medidas cumplen.
 D-231 justificó el tono único con BR-N11 («los dos números son pares»). **No era así:** fue una decisión visual
 del agente, y BR-N11 solo pide nombrar la boleta por sus dos números. Se corrigió en la tabla de diferencias de
 D-231, en el comentario del componente y en el relevo del sistema de diseño (§10.58).
+
+---
+
+## D-234 — El detalle de boleta administrativo se recompone con las piezas del vendedor: cuatro tarjetas, acciones táctiles y ni un dato de la cartera
+
+**Fecha:** 2026-09-27 · **Encargo del dueño:** llevar al detalle de boleta del portal administrativo —el mismo
+para el Dueño y el Administrador— la distribución, la jerarquía, la legibilidad y la adaptación a pantallas de
+D-230 a D-233. Mantenimiento posterior a la Fase 9; **no es una Fase 10**. **Solo en local**: sin migración, sin
+dependencias, sin push ni despliegue. **D-198 intacto**: las mismas consultas (`admin_ticket_detail`), acciones,
+RPC, permisos y reglas. Figma solo se leyó: no tiene un detalle administrativo, así que la referencia es la
+pantalla del vendedor ya publicada.
+
+### Lo que había
+
+| Problema | Dónde |
+|---|---|
+| Una tarjeta «Boleta» con 11 campos en cuatro columnas, sin jerarquía, y los números en letra monoespaciada de 18 px | Todos los anchos |
+| Una tarjeta entera, «Información administrativa», solo para el código interno | Todos |
+| «Motivo de anulación» en otra tarjeta, al final, lejos de la fecha de anulación | Todos |
+| «Anulada —», «Fecha de venta —» y «Aprobada —» en boletas a las que no aplican | Todos |
+| Cinco botones junto al título partían «Detalle boleta» en dos líneas | Tableta, 834 px |
+| Botones de 36 px en filas de anchos sueltos | Teléfono |
+
+### La composición
+
+Cuatro tarjetas, en el orden del teléfono —que es el de lectura y de foco en todos los anchos—: **Números de
+la boleta** · **Vendedor y rifa** · **Estado y venta** · **Detalles de la boleta**. Qué lleva cada una y cómo se
+reparten por ancho, en `ARCHITECTURE` §8.7.a. En resumen: una columna hasta `lg`, y desde ahí dos que se apilan
+cada una por su cuenta, la boleta a 360 px como en el vendedor.
+
+### REUSE → EXTEND → CREATE
+
+| Paso | Qué |
+|---|---|
+| Reutilizar | `PageHeader`, `TicketActions` y sus diálogos, `StatusBadge`/`AdminPaymentStateBadge`, `InventoryStatusBadge`, `ClearanceReceiptReadOnly`, `Card`, `admin_ticket_detail`/`getAdminTicketDetail`, sin cambios de comportamiento |
+| Ampliar | **`TicketDetailParts`**: la densidad, la tarjeta con título, «Números de la boleta» con los tonos de D-233, `DetailLine`, `DateTime` y la nota del código interno **salen de la página del vendedor sin cambiar una clase**, y las dos páginas las importan. **`RecordLinkCard`**: la fila pulsable de `ClientLinkCard` pasa a `components/data`, y `ClientLinkCard` la compone con el mismo HTML. **`PageHeader`** gana `stackActions`, opcional. `DetailLine` gana `long` y `RecordLinkCard` gana `wrap`, los dos opcionales |
+| Crear | Nada más que la página: ningún componente visual nuevo, ninguna librería, ningún token |
+
+**No se copió ningún componente.** `RecordLinkCard` tenía que salir de `features/clients`: el portal
+administrativo no puede importar nada de ahí (D-198, `tests/unit/admin-privacy.test.ts`).
+
+### Decisiones del agente, dentro de lo pedido
+
+1. **Cuatro tarjetas, no seis.** Sin cliente, precio ni abonos, «Información de venta» y «Estado y resumen de
+   pago» se quedaban con dos datos cada una: se funden en **«Estado y venta»**, con los dos estados arriba y,
+   si se vendió, la fecha de venta y el paz y salvo debajo de una línea. El vendedor y la rifa van juntos en
+   **«Vendedor y rifa»**: son la otra respuesta a «qué boleta es esta» para quien ve varias rifas (D-126).
+2. **El vendedor y la rifa son filas pulsables**, como el cliente del vendedor, y sus nombres **se parten**:
+   recortado, el nombre largo de una rifa perdería justo lo que la distingue.
+3. **Una fila solo aparece cuando dice algo.** Sin «—» en «Anulada», en la fecha de venta ni en «Aprobada». Y
+   «Aprobada: Todavía no» **solo en una pendiente**: las boletas que crea el personal nacen listas y no tienen
+   fecha de aprobación —en el seed, ninguna de sus 20 disponibles la tiene—, así que «Todavía no» en ellas
+   diría que falta algo que no falta.
+4. **El motivo de anulación va en «Detalles», con su fecha**, y a lo ancho de la tarjeta en el teléfono
+   (`DetailLine long`): en una columna de 112 px, trescientos caracteres eran veinte líneas.
+5. **En tableta no se emparejan tarjetas.** La pareja natural —números | vendedor y rifa— dejaba 60 px en
+   blanco bajo las cifras, 140 con un nombre largo. Se probó a hacer crecer las cajas y quedaban bloques de color
+   vacíos: se descartó (capturas en `TEST_RESULTS`). A lo ancho, cada tarjeta mide lo suyo.
+6. **Dos columnas desde `lg`, no desde `xl`.** En el vendedor el corte lo pone su tabla de abonos; aquí no hay,
+   y a 1.024 px la columna derecha tiene 492 px de contenido.
+7. **Las columnas de «Estado y venta» las decide la tarjeta** (22 rem), no la ventana: «Pendiente de
+   aprobación» mide 154 px y en dos columnas de un teléfono cabían 147.
+8. **Las acciones siguen en el encabezado**, las mismas cinco con sus condiciones: 44 px y filas parejas en el
+   teléfono, y hasta `lg` en su propia fila bajo el título (`stackActions`), que ya no se parte. Si no queda
+   ninguna —una anulada—, la fila no deja su hueco. Moverlas a un menú «⋯» o repartirlas por las tarjetas se
+   descartó: cambiaba dónde las encuentra el dueño, y no hacía falta para resolver el espacio.
+9. **Un número que falta se anuncia «Sin número».** Se ve la raya de siempre; quien escucha la pantalla ya no
+   oye un signo. Vale para los dos portales y no mueve un píxel.
+
+### Diferencias con la referencia del vendedor, y por qué
+
+| Vendedor (D-231) | Administrativo (D-234) | Por qué |
+|---|---|---|
+| Seis tarjetas | Cuatro | La venta y el cobro no son del personal (D-198) |
+| Tarjeta «Cliente» | Tarjeta «Vendedor y rifa», con la misma fila pulsable | Es lo que el personal sí identifica |
+| Rifa dentro de «Detalles» | Rifa junto al vendedor, enlazada | El personal ve varias rifas a la vez (D-126) |
+| Números \| cliente, venta \| estado en tableta | Una columna a lo ancho en tableta | Sin parejas de alturas distintas |
+| Dos columnas desde `xl` | Desde `lg` | No hay tabla de abonos que pida ancho |
+| Estados en dos columnas fijas | Dos columnas desde 22 rem de tarjeta | La insignia más larga no cabe en la mitad de un teléfono (I-173 en el vendedor) |
+| «Aprobada: Todavía no» siempre que falte la fecha | Solo en una pendiente | Las del personal nunca se aprueban |
+| Una o dos acciones junto al título | Hasta cinco, en su fila hasta `lg` | Junto al título no caben en una tableta |
+
+### Lo que cambia en piezas compartidas
+
+| Pieza | Cambio | Otros usos | Comprobado |
+|---|---|---|---|
+| `TicketDetailParts` (nueva) | Lo que era de la página del vendedor, más `long` en `DetailLine` y «Sin número» | Detalle del vendedor | Sus 84 capturas —7 estados, 6 anchos, 2 temas—, idénticas byte a byte antes y después; su suite, 18/18 |
+| `RecordLinkCard` (nueva) | La fila de `ClientLinkCard`, más `wrap` | `ClientLinkCard` | Las mismas 84 capturas |
+| `PageHeader` | `stackActions`, opcional | 27 pantallas, que no lo pasan | Sin la prop, las mismas clases que antes |
+| `TicketActions` | `size="touch"` y `grow sm:grow-0` en sus botones | Solo esta pantalla | E2E del encabezado y de las acciones |
+
+### Pruebas y soporte de pruebas
+
+- **Nueva** `tests/e2e/detalle-boleta-admin.spec.ts` (37): composición por ancho, las acciones del encabezado
+  (44 px, filas llenas, título en una línea, en una fila desde `lg`), lo que enseña cada estado, el motivo y
+  los nombres largos, los tonos en claro y en oscuro, el orden del foco, lo que el personal no ve y el 404 de un
+  id inexistente, uno que no es un id y uno de otra organización, para el Dueño y el Administrador. Crea su
+  propio vendedor y su propia rifa, y lo borra todo **también ante fallos**.
+- **Nuevo** `tests/e2e/detalle-boleta.ts`: las medidas que ya usaba la suite del vendedor —tonos, maquetación y
+  la hora partida—, movidas sin cambiar la lógica para que las dos suites midan lo mismo.
+- **La suite del vendedor** deja de fijar el diseño administrativo anterior: su prueba «no cambia» comprueba
+  ahora que el personal comparte los números con los mismos tonos y ninguna tarjeta de la cartera.
+- **`purgeSellers` borra la bitácora de las membresías** que borra, como `purgeTestData` desde D-233: dar de
+  alta y de baja a un vendedor de prueba dejaba dos filas sin actor por pasada. **`createPaymentWithAllocation`**
+  acepta el vendedor del cliente, para que la ganancia de una boleta pagada no caiga en el vendedor 1.
+- **`admin-privacy.test.ts`** vigila además que las piezas compartidas no lean datos ni la cartera.
+
+### Lo que se encontró y no se corrigió
+
+**I-173:** en el detalle del **vendedor**, «Pendiente de aprobación» se monta 27 px sobre «Sin venta» a 320 px y
+7 px a 360. Es anterior a este encargo —sus capturas son idénticas antes y después— y queda fuera de él.

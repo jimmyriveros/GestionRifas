@@ -3,7 +3,26 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-28, madrugada UTC — **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN (D-230 a
+- **Actualizado:** 2026-09-27 en Bogotá, después de la publicación de abajo — **El detalle de boleta administrativo,
+  recompuesto (D-234), SOLO EN LOCAL**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, en la rama
+  `feature/detalle-boleta-admin`, sin empujar. Producción no cambia: sigue como la dejó la publicación de D-230 a D-233.
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** el detalle de boleta del Dueño y del Administrador en cuatro tarjetas —Números de la boleta,
+  Vendedor y rifa, Estado y venta, Detalles de la boleta—, con las piezas del vendedor; una columna hasta `lg` y dos
+  desde ahí; las cinco acciones con sus condiciones, a 44 px en el teléfono y bajo el título hasta `lg`. Sin cliente,
+  precio, abonos ni «Abonada» (D-198). El detalle del vendedor, sin un píxel de cambio.
+  **(2) Pruebas:** `verify` exit 0 (**1.781/1.781**, +1), `test:db` **1.444 + 1**, E2E completa **962/963** en 54,1
+  min —el fallo, `ventas-por-fecha:257`, es **I-164** y aislado da 18/18—; la suite nueva `detalle-boleta-admin`
+  **37/37**, con seis mutaciones detectadas y **0 filas** en la base también ante fallos; el detalle del vendedor,
+  **84 de 84 capturas idénticas** antes y después (`TEST_RESULTS`, D-234).
+  **(3) Migraciones:** ninguna; siguen `0001`–`0077`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** I-173, nueva y anterior —la insignia «Pendiente de aprobación» del **vendedor** se
+  monta sobre «Sin venta» a 320 y 360 px—, sin corregir; I-075, I-090 e I-106, abiertas y anteriores.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; que `TicketDetailParts` es de los dos portales; y que la rama
+  lleva además los dos commits de documentación de la publicación anterior, sin empujar.
+
+- Antes — 2026-09-28, madrugada UTC — **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN (D-230 a
   D-233)**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, con autorización expresa del dueño para
   publicar la versión que revisó, `ee3d793`. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en producción desde las 00:23:10 UTC (`dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA`): los roles de

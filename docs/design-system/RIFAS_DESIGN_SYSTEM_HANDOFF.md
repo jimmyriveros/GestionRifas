@@ -6963,7 +6963,26 @@ themes. The two backgrounds differ more in Dark (1.40:1) than in Light (1.10:1).
 In Figma the six boxes of `278:11`, `278:117` and `278:219` now bind the **roles** instead of primitives,
 and section 07 of `283:87` shows both modes (`311:13`). In code the tones are one map in the page
 (`TICKET_NUMBER_TONES`), roles only. Unit audit: **93 of 93**; the E2E measures the six colors and four
-text contrasts in both themes at 320, 390 and 1920.
+text contrasts in both themes at 320, 390 and 1920. *(Since §10.61 the map lives in `TicketDetailParts`,
+shared by both portals.)*
+
+### 10.61 THE STAFF TICKET DETAIL REUSES THE SELLER'S PIECES — FOUR CARDS, ONE PageHeader OPTION (2026-09-27)
+
+Product decision **`D-234`**, asked for by the owner: bring the D-231/D-233 quality to the admin ticket
+detail (Owner and Admin), locally only. Figma has no admin detail; the reference is the shipped seller page.
+**No token, Core component or dependency changed**, and D-198 (no client, price or payment data for staff)
+holds.
+
+| | |
+|---|---|
+| Composition | **Four titled cards** —numbers, seller and raffle, state and sale, record— instead of six: each carries a distinct responsibility, so *ONE PRIMARY PAGE COMPOSITION* (§10.25) holds. One column up to `lg`, two self-stacking columns from `lg` (360 px left, like the seller's) |
+| Extracted, not copied | `TicketDetailParts` (card density, titled card, the two-tone numbers card, detail rows, date-time, internal-code note) left the seller page **without a class changing**: its 84 screenshots are byte-identical before and after. `RecordLinkCard` (Data) left `ClientLinkCard`, which now composes it with the same HTML |
+| Pattern change | `PageHeader` gains an opt-in `stackActions`: actions on their own row under the title until `lg`, and an empty row takes no space. The 26 other screens pass nothing and render the same classes |
+| Touch | The five header actions are 44 px and fill their rows on phones (`size="touch"` + `grow`), the D-109 recipe, asked for by the buttons, not the header |
+
+**Found, not fixed:** on the **seller** detail, the `Pendiente de aprobación` badge overlaps its neighbour
+at 320 and 360 px (I-173): two fixed columns for a 154 px badge. The staff card avoids it by switching
+columns on the card's width (22 rem).
 
 ---
 ## 11. Repository checkpoint — 2026-09-07

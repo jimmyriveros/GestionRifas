@@ -274,7 +274,7 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/owner/tickets` | owner, admin | **3 ✅** · post-9 | Tabla global de boletas por `admin_list_tickets`: sin cliente ni dinero, búsqueda solo por número y pago en dos estados (D-198) |
 | `/owner/tickets/new` | owner, admin | **3 ✅** | Creación individual |
 | `/owner/tickets/bulk` | owner, admin | **3 ✅** | Creación masiva (1–1.000) |
-| `/owner/tickets/[ticketId]` | owner, admin | **3 ✅** · post-9 | Detalle por `admin_ticket_detail`, edición de números, aprobación y anulación de las no vendidas (D-198) |
+| `/owner/tickets/[ticketId]` | owner, admin | **3 ✅** · post-9 | Detalle por `admin_ticket_detail`, edición de números, aprobación y anulación de las no vendidas (D-198). Cuatro tarjetas desde D-234 (§8.7) |
 | ~~`/owner/clients`~~ | — | 3 → **retirada post-9** | La cartera es del vendedor (D-198): la ruta ya no existe |
 | ~~`/owner/clients/[clientId]`~~ | — | 3 → **retirada post-9** | Ídem |
 | ~~`/owner/payments`~~ | — | 5 → **retirada post-9** | Ídem: sin consulta global de pagos ni anulación |
@@ -409,7 +409,9 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `useMediaQuery` / `useIsCompactScreen` | Consulta de medios sin romper la hidratación. Solo para decidir **comportamiento**; lo que se ve lo decide Tailwind |
 | `OptionList` / `OptionListItem` | Lista de opciones elegibles (clientes). Estados **excluyentes** normal/hover/foco/elegido/elegido+hover/deshabilitado, con visto además del color (D-077) |
 | `SearchInput` | Campo de búsqueda compartido: etiqueta, limpiar, indicador retrasado, `aria-busy` (D-078). `touchSize` sube campo y botón a 44 px **solo bajo `md`** (D-108) |
-| `PageHeader` | Título, descripción y acciones de cada pantalla. `inlineActions` sube la acción a la fila del título en el teléfono; sin esa bandera, la disposición de siempre (§8.10, D-108). **No impone tamaño a sus acciones**: la pantalla que quiera la fila táctil se lo pide a sus botones (§8.11, D-109). `compactAction` marca el CTA que puede subir a la cabecera fija (§8.20, D-150) |
+| `PageHeader` | Título, descripción y acciones de cada pantalla. `inlineActions` sube la acción a la fila del título en el teléfono; sin esa bandera, la disposición de siempre (§8.10, D-108). **No impone tamaño a sus acciones**: la pantalla que quiera la fila táctil se lo pide a sus botones (§8.11, D-109). `compactAction` marca el CTA que puede subir a la cabecera fija (§8.20, D-150). `stackActions` deja las acciones en **su propia fila bajo el título hasta `lg`** y oculta esa fila si queda vacía: es para una pantalla con muchas acciones —el detalle administrativo de una boleta, hasta cinco—, que en una tableta partían el título (§8.7, D-234). Sin ella, ni una clase cambia |
+| `RecordLinkCard` | Una fila pulsable que lleva a la ficha de **otro registro**: icono en su círculo, rótulo, nombre, línea opcional, flecha, y una `action` opcional **fuera** del enlace (D-168). Salió de `ClientLinkCard` en D-234, que ahora la compone con el mismo HTML; el detalle administrativo la usa para el vendedor y la rifa. `wrap` **parte** el nombre en vez de recortarlo, para un nombre que identifica. No lee nada, y el portal administrativo puede importarla: está fuera de `features/clients` |
+| `TicketDetailParts` | Las piezas de presentación de los **dos** detalles de boleta (D-234): la densidad `TICKET_DETAIL_CARD`, `TicketDetailCard` con su `h2`, `TicketNumbersCard` —los dos números con sus tonos de D-233, y «Sin número» para quien escucha una raya—, `DetailLine` —con `long` para un texto de varias frases—, `DateTime` y `InternalCodeNote`. Salieron **sin cambiar una clase** de la página del vendedor: sus capturas son idénticas byte a byte. **No leen datos**, y una prueba estructural lo vigila (`admin-privacy.test.ts`) |
 | `TicketSelectionModeButton` | Enciende y apaga el modo selección del teléfono: «Seleccionar varias» / «Cancelar». Se pinta en la fila de «Filtros», no en la barra de selección (§8.10, D-108) |
 | `useUrlSearch` | Búsqueda híbrida para listas paginadas: el término va a la URL y el RSC reconsulta |
 | `useRemoteSearch` | Búsqueda híbrida para diálogos y selectores, contra una Server Action, con testigo de secuencia |
@@ -643,7 +645,7 @@ curso con `router.back()` directo, un propósito distinto al de esta flecha; no 
 pidió endurecerlos y este proyecto no tiene protección de cambios sin guardar que preservar ni romper.
 `forgot-password` es una pantalla pública fuera del portal, no una pantalla de detalle.
 
-### 8.7 Disposición del detalle de una boleta (D-105, recompuesta en D-231)
+### 8.7 Disposición del detalle de una boleta (D-105, recompuesta en D-231; la administrativa, en D-234)
 
 Un solo árbol de HTML para todos los tamaños. El orden del marcado es el del **teléfono**, y desde
 D-231 es también el orden de lectura y de foco en tableta y en escritorio; no hay bloques `hidden` que
@@ -675,7 +677,8 @@ abierta) y 748.
 **Los dos números, con dos tonos de índigo** (D-233). El diario, intenso (`accent/indigo/surface-strong`,
 `foreground`, `border-strong`); el semanal, suave (`accent/indigo/surface`, `foreground-subtle`,
 `border`). Es una decisión visual: lo que dice cuál es cuál es su rótulo, no el color, y BR-N11 no pide
-que se vean iguales. Los tonos viven en `TICKET_NUMBER_TONES`, en la página, y son solo roles.
+que se vean iguales. Los tonos viven en `TICKET_NUMBER_TONES`, dentro de `TicketDetailParts` desde D-234
+—antes, en la página del vendedor—, y son solo roles.
 
 **«Estado y cobro» tiene una sola forma** (D-124): estados arriba, cobro debajo, y lo único que
 cambia con el ancho **de la tarjeta** es de qué lado cae el anillo (400 px). Dentro del anillo va
@@ -764,6 +767,40 @@ La ayuda emergente del icono es un **`title`**, el mismo mecanismo que ya usan l
 celdas de esa tabla. No es una preferencia de estilo: son hasta veinticinco por página en la
 pantalla que más se abre, y un componente de globo montaría veinticinco raíces de JavaScript para
 enseñar una frase que el navegador enseña gratis (D-170).
+
+#### 8.7.a El detalle administrativo (D-234)
+
+Mismas piezas que el del vendedor (`TicketDetailParts`), **otra composición**: el personal no ve la
+venta ni el cobro (D-198), así que son **cuatro** tarjetas y no seis. El HTML va en el orden del
+teléfono, que es también el de lectura y de foco en todos los anchos:
+
+| Tarjeta | Qué lleva |
+|---|---|
+| Números de la boleta | `TicketNumbersCard`, la misma del vendedor |
+| Vendedor y rifa | Dos `RecordLinkCard` con `wrap`, a la ficha del vendedor y a la de la rifa. Lado a lado cuando la tarjeta mide 36 rem o más |
+| Estado y venta | Estado y estado de pago —«Pagada», «Sin pagar» o «Sin venta»—; si está vendida, una línea y debajo la fecha de venta y el paz y salvo (`ClearanceReceiptReadOnly`). Una columna hasta 22 rem de tarjeta y dos desde ahí |
+| Detalles de la boleta | Creada, Aprobada —solo con fecha, o «Todavía no» en una pendiente—, Anulada y el motivo —`DetailLine long`— si se anuló, el código interno y `InternalCodeNote` |
+
+| Ancho | Disposición |
+|---|---|
+| Hasta `lg` | Una columna, con las tarjetas a lo ancho |
+| Desde `lg` | Dos columnas que se apilan cada una por su cuenta: la boleta (`minmax(0,22.5rem)`: números, vendedor y rifa) y su estado y su registro |
+
+**Por qué no se emparejan tarjetas en tableta**, a diferencia del vendedor: la pareja natural sería
+números | vendedor y rifa, y miden distinto. La fila estiraba «Números» con 60 px en blanco —140 con un
+nombre largo—, y hacer crecer sus cajas los convertía en bloques de color vacíos: se probó y se
+descartó. **Por qué las dos columnas empiezan en `lg` y no en `xl`**: en el vendedor el corte lo pone
+su tabla de abonos, que aquí no existe; a 1.024 px la columna derecha tiene 492 px de contenido.
+
+**Por qué las columnas de «Estado y venta» dependen de la tarjeta y no de la ventana:** «Pendiente de
+aprobación» mide 154 px, y en dos columnas de una tarjeta de teléfono cabían 147. A partir de 22 rem de
+contenido caben las dos insignias; por debajo van una debajo de otra. El detalle del vendedor tiene el
+mismo par en dos columnas fijas y ahí la insignia se monta sobre «Sin venta» a 320 y 360 px (I-173).
+
+**Las acciones** siguen siendo `TicketActions`, con sus condiciones, en el encabezado. En el teléfono
+miden 44 px y llenan cada fila (`size="touch"` y `grow`, la receta de D-109); hasta `lg` van en su
+propia fila bajo el título (`PageHeader stackActions`), porque a 834 px cinco botones junto al título
+lo partían en dos líneas. «Aprobar boleta» sigue subiendo a la cabecera compacta (D-150).
 
 ### 8.8 Navegación del teléfono: barra inferior (D-106)
 
