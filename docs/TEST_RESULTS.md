@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (configuración de ganancias, D-237, `0078`, solo en local, 2026-09-29)** | **1.823/1.823** en 90 archivos (+30, `commission-tiers.test.ts`, que lee la `0078` para comparar frases; `schemas.test.ts` da un acuerdo al alta de un vendedor) | **1.483 ✅ y 1 omitida** en 60 archivos (+39, `earning-agreements.test.ts`: un modelo independiente contra todas las filas, conservación y la mutación del cerrojo), dos veces | Completa **966/973** en 53,8 min: 2 provocados por este trabajo y corregidos (**18/18** al repetirlos sobre la base que dejó la completa), 3 anteriores (I-090, la hermana de I-164, I-106) y 2 intermitencias ajenas (I-178; I-179, reproducida en `b793016`). Nuevas: `ganancias` (6) y `ganancias-movil` (3) | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
+| **Post-9 vigente (revisión de D-237 antes de publicarla, D-238, `0079`, solo en local, 2026-09-29)** | **1.839/1.839** en 91 archivos (+16, `earning-precheck.test.ts`: el diagnóstico previo solo lee y no toca tablas nuevas) | **1.499 ✅ y 1 omitida** en 60 archivos (+16: reorganizar, I-180, y quién cambia el acuerdo de equipo, I-181; **12 de ellas fallan con la `0078`**). Segunda pasada sobre la misma base: 1 fallo de `list-order`, **anterior y reproducido en `aa11ad4`** (I-185) | Dirigida **65/65** (`ganancias`, `ganancias-movil`, `equipo`, `equipo-movil`, `owner-users`, `telefono-mascara`) desde la base recién sembrada. La completa, **no** repetida: la de D-237, 966/973, es histórica | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayo de publicación y recuperación**: diagnóstico, `0078` detenida donde dijo, ventana medida, interbloqueo con tráfico (I-182), recuperación con estructura idéntica y restauración conciliada |
+| Post-9 anterior (configuración de ganancias, D-237, `0078`, solo en local, 2026-09-29) | **1.823/1.823** en 90 archivos (+30, `commission-tiers.test.ts`, que lee la `0078` para comparar frases; `schemas.test.ts` da un acuerdo al alta de un vendedor) | **1.483 ✅ y 1 omitida** en 60 archivos (+39, `earning-agreements.test.ts`: un modelo independiente contra todas las filas, conservación y la mutación del cerrojo), dos veces | Completa **966/973** en 53,8 min: 2 provocados por este trabajo y corregidos (**18/18** al repetirlos sobre la base que dejó la completa), 3 anteriores (I-090, la hermana de I-164, I-106) y 2 intermitencias ajenas (I-178; I-179, reproducida en `b793016`). Nuevas: `ganancias` (6) y `ganancias-movil` (3) | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
 | Post-9 anterior (I-174 resuelta: lo que Supabase escribe, también en la redirección a `/login`, D-236, solo en local, 2026-09-28 en Bogotá) | **1.793/1.793** en 89 archivos (+12, `session-proxy.test.ts`): **8 de las 12 fallan con el proxy anterior** y pasan con la corrección, también en 5 pasadas en orden aleatorio | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | Subconjunto de 42 (`security`, `owner-users`, `navegacion` y `navegacion-movil`): **42/42** con la base recién sembrada. Con la base como la dejó `test:db`, 40/42: `owner-users:15` y `:43`, **iguales con el proxy anterior** (I-151). Build de producción con GoTrue local: la 307 **ya lleva** el borrado; errores del servidor **2 + 2 → 2 + 0**. Sin la E2E completa | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
 | Post-9 anterior (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). **Aprobado** por el dueño tras revisar en producción; el caso de una boleta pendiente, **validado solo en local** (no hay ninguna en producción) |
 | Post-9 anterior (I-173 resuelta: los estados de «Estado y resumen de pago» por el ancho de la tarjeta, D-235, solo en local, 2026-09-28) | **1.781/1.781** en 88 archivos, igual que antes: el cambio es de maquetación | **1.444 ✅ y 1 omitida**, igual que antes | La prueba nueva **falla con el componente anterior** («se pisan 27 px a 320 px») y pasa con la corrección; `detalle-boleta-composicion` **20/20** sin dejar filas; las 31 suites que abren el detalle del vendedor: **326/327**: el fallo es I-090 (`ventas-por-fecha:163`), que sola pasa —en esa pasada cayó I-164, `:257`—. Capturas: 112 de la tarjeta y 14 de página por fase; después, **0 de 56** medidas con problema | ✅ exit 0 | Solo en local, sin empujar |
@@ -16028,3 +16029,149 @@ Tablas completas, con su lectura, en D-237 («Etapa 4»). Resumen: los abonos y 
 cerrojo); el panel del vendedor hace **una petición menos**; las fichas del personal, dos más en paralelo y dentro
 del ruido en la segunda muestra; la ficha del integrante se dejó en **una** lectura de acuerdos tras medirla; y
 «Vendedores», **+1 petición y +8 ms** por traer la lista general con la página.
+
+## D-238 — Revisión de D-237 antes de publicarla: `0079`, diagnóstico previo y publicación ensayada (2026-09-29, solo en local)
+
+Rama `feature/detalle-boleta-admin` sobre `aa11ad4`, sin empujar. **Nada se leyó ni se escribió en producción.** Base
+local en Docker; servidores de desarrollo contra ella (`npm run dev:local`, y el de `cac81e8` en un árbol de trabajo
+aparte, ya eliminado).
+
+### a. Línea base, antes de tocar nada
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset && npm run seed:local && npm run test:db` | ✅ **1.483 + 1 omitida** (60 archivos, 146,6 s), igual que el relevo |
+| `npm run verify` | ✅ exit 0: typecheck, lint (0 errores, los 2 avisos de siempre), **1.823/1.823** unitarias en 90 archivos, build |
+
+### b. Los hallazgos, reproducidos antes de corregir
+
+| Prueba | Con la `0078` | Con la `0079` |
+|---|---|---|
+| `E12-01` traslado entre padres con la misma tarifa | ❌ el padre nuevo con `{n:0, rate:0, earned:0…}`: sin fila ni boletas | ✅ 10 boletas, $100.000, tramo 10, y una línea de equipo de +$100.000 desde el integrante |
+| `E12-02` un directo que entra ganando lo mismo | ❌ el padre nuevo en cero | ✅ 10 boletas y $250.000 |
+| `E12-03`..`E12-09` | ❌ los nueve, en cadena (el padre nuevo nunca recibía) | ✅ |
+| `E13-01` el Dueño y el Administrador por PostgREST | ❌ el cambio **pasaba** (`error` indefinido) | ✅ `42501` y la frase nueva, con la foto intacta |
+| `E13-02` escondido en un traslado o en un alta | ❌ pasaba | ✅ |
+| `E13-03` | ❌ en cadena (el alta de `E13-02` había entrado) | ✅ |
+| `E13-04`..`E13-06` las RPC, otra organización, cada vendedor sobre el suyo | ✅ ya protegidos: **descartado** para las RPC | ✅ |
+
+**12 fallos con la `0078`, 0 con la `0079`.** Después, `E11-21` y `E11-28` fallaron con la `0079` —usaban la excepción de
+I-181— y se reescribieron (D-238); la suite pasó a **54/54** y, con `E12-10`, **55/55**.
+
+**I-180 es anterior a D-237.** Sobre una base en `0077` con el motor de la `0031` y un escenario representativo, trasladar
+a C5 (8 cobradas, fijo $20.000) de H1 a H2: H2 guardaba **12 boletas de equipo y $480.000**; su propio recuento daba **20
+y $800.000**.
+
+### c. La mutación de los cerrojos de la reorganización
+
+`E12-07` con 60 pares de traslados cruzados (Dueño y Administrador a la vez), quitando y poniendo el paso 5 del
+disparador:
+
+| Variante | Pasadas | Interbloqueos en la base | Mediana por par | Máximo |
+|---|---|---|---|---|
+| Sin los cerrojos | 3 | **52** en la pasada medida (`deadlock detected` en el registro de Postgres) | **1.015 ms** | 1.022 ms |
+| Sin los cerrojos, `deadlock_timeout` 250 ms | 1 | — | **265 ms** | 269 ms |
+| Con los cerrojos (la `0079`) | 4 | **0** | **15–16 ms** | 22 ms |
+
+El cliente no vio ningún error: la API local (PostgREST 14.15) reintentó cada transacción abortada —postgrest-js no
+reintenta un `PATCH`—. Con 40 pares y el tiempo por defecto, la prueba agotaba sus 30 s. `E12-07` exige ahora la mediana
+por par por debajo de 500 ms. El parámetro y la función se devolvieron a su estado (`show deadlock_timeout` → `1s`).
+
+### d. El ensayo sobre el esquema anterior
+
+Base local `db reset --version 0077` + `seed:local` + un escenario de 5.401 boletas y 3.575 cobradas (organización
+«Ensayo 0078»: tres jefes en la mitad, seis integrantes de los dos modelos, cuatro directos con volumen y rebajas, una
+rifa cerrada y una en borrador) con cinco problemas sembrados: I-180 (C5 de H1 a H2), I-176 (H3 con equipo dentro de
+H1), un par incompatible con su faltante (C4, fijo $55.000, en la rifa de $100.000) y una rebaja sin cubrir (C2).
+
+| Paso | Resultado |
+|---|---|
+| `scripts/earning-precheck.ts --local` | **Encontró los cinco**: `tres_niveles` 1, `recuento_distinto` 1 (H2), `par_incompatible` 1, `faltante_de_equipo` 1 ($15.000), `rebaja_sin_cubrir` 1 ($20.000 frente a $15.000). Exit 2 |
+| `migration up --local` | ❌ **se detuvo en su primera comprobación**: «Hay vendedores con equipo propio dentro del equipo de otro (I-176)…». Base en `0077`, sin rastro |
+| H3 sale del equipo de H1 y otra vez | ❌ **se detuvo en la conservación**: «0078 cambiaría dinero: 1 filas de comisión distintas, 0 filas nuevas con importe, ledger de 3732 a 3733 filas (suma 202955000 a 203275000)» —los $320.000 de I-180—. Base en `0077` |
+| Recontar a H2 con el motor de hoy (la decisión que tomaría el dueño) | El diagnóstico queda con los tres «decide» |
+| Respaldo `RUNBOOK` §5.1 contra la base local | 3 archivos en 11,5 s; `data.sql` 17,4 MB, 0 nombres `"auth".` cualificados |
+| Foto `gate-snapshot` «p1-antes» | 77 migraciones, 244 funciones |
+| **Carga del código publicado durante la migración** (4 lecturas cada 250 ms: boletas, `commission_summary`, `commission_tiers`, `team_max_fixed_commission`) | ❌ **`40P01`**: la `0078` tenía `memberships` y pedía `commission_tiers` para retirarla; una lectura tenía `commission_tiers` y esperaba `memberships`. Dos interbloqueos: el primero lo perdió una lectura (reintentada por la API), el segundo la migración. **Base en `0077`**. Las lecturas: mediana 9 ms fuera y 10 ms dentro, **máximo 2.577 ms**, ningún error visible (I-182) |
+| Un cerrojo sostenido sobre `commission_tiers` y `db push` con `?lock_timeout=1500ms` | ❌ `55P03 canceling statement due to lock timeout` en 6,7 s y **base en `0077`**: la cadena de la CLI acepta el parámetro |
+| Sin tráfico, `?lock_timeout=900ms` | ✅ `0078` y `0079` aplicadas en **8.366 ms** (con la conexión de la CLI) |
+| `commission_agreement_problems()` | **Los mismos tres** que anticipó el diagnóstico: `faltante_de_equipo` H2 $15.000, `par_incompatible` C4–H2 en «Ensayo B», `rebaja_sin_cubrir` C2 |
+| `verify:remote` contra la base local (`sslmode=disable`) | ✅ **54/54** |
+| `gate-compare p1-antes → p1-despues --structure-only` | Tablas +2 −1, columnas +16 −6, restricciones +19 −5, índices +4 −2, disparadores +7 −3 ~1, políticas +2 −1, funciones **+32 −5 ~9**, tipos +2, migraciones +2: guardado como `delta-esperado-0078-0079.json` |
+
+### e. La ventana: cada combinación de código y base
+
+Sonda con Playwright (entra por la interfaz con cada rol) y las escrituras del código publicado con sesiones reales:
+
+| | `cac81e8` + `0077` | `cac81e8` + `0079` | `HEAD` + `0079` | `HEAD` + `0077` |
+|---|---|---|---|---|
+| Personal: panel, «Vendedores», dos fichas, «Usuarios» | 5/5 | 5/5 | 5/5 | **2/5** |
+| Panel del vendedor (jefe, integrante, directo) | 3/3 | **0/3** (500) | 3/3 | **0/3** |
+| «Mi equipo» y la ficha de un integrante | 2/2 | **0/2** (500) | 2/2 | **0/2** |
+| Boletas y pagos | 2/2 | 2/2 | 2/2 | 2/2 |
+| Alta de vendedor del personal (la de `cac81e8`) | ✓ | ❌ `23514` la mitad no se asigna | — | — |
+| Alta de integrante, cambio de ganancia, cobro | ✓ | ✓ | — | — |
+| Lecturas de `commission_tiers` y `team_max_fixed_commission` | ✓ | ❌ `PGRST205` / `PGRST202` | — | — |
+
+### f. Recuperación
+
+| Ensayo | Resultado |
+|---|---|
+| Actividad después de migrar: S1 y C1 venden y cobran (5 y 3), el Dueño traslada a C3 de H2 a H1, H1 pasa a C1 a un fijo de $20.000 | H1 recibió al instante las 12 de C3 (50 boletas de equipo): la corrección con datos reales |
+| `supabase/recovery/0079_a_0077.sql` (ejecutor de `pg`) + `migration repair --status reverted 0079 0078` | ✅ **258 ms**; cifras de dinero de la organización **idénticas** antes y después; `commission_tiers` con 12 tramos |
+| Estructura contra `0077` construida desde cero y contra «p1-antes» | ✅ **`{}`** las dos: funciones con cuerpo, seguridad, configuración y ACL, disparadores, políticas, columnas, restricciones, índices, tipos y migraciones |
+| `HEAD` contra la base recuperada | La combinación inversa (tabla de §e) |
+| `cac81e8` contra la base recuperada | ✅ **12/12** pantallas y **7/7** escrituras |
+| Otra vez el diagnóstico y la migración | ✅ los mismos tres «decide»; aplicadas |
+| Un fijo administrativo para S2 (`staff_set_seller_agreement`) y la recuperación | ✅ **se niega**: «Hay acuerdos administrativos distintos de la mitad (…). El esquema de 0077 no puede guardarlos: no se revierte.»; sigue en `0079`, `commission_tiers` no existe, el acuerdo de S2 intacto y las cifras idénticas |
+| Con `psql -v ON_ERROR_STOP=1` sobre una base recién sembrada | ✅ exit 0, «Recuperación a 0077: esquema devuelto y 3 filas de comisión recontadas sin mover dinero.»; `verify:remote` **49 OK + 5 en rojo**: la matriz y la tabla de la `0078`, las dos de la `0079` y la de I-078 con `team_max_fixed_commission` |
+
+### g. Restauración del respaldo con las escrituras posteriores
+
+| Paso | Resultado |
+|---|---|
+| Foto «p-antes-de-restaurar» y `gate-compare p1-antes → ella --operation none` | DETENER, con la lista completa: `payments` +7, `payment_allocations` +13, `tickets` +8 y 5 modificadas, `memberships` +8 y 4 modificadas, `profiles` +10, `seller_commissions` 23 modificadas, `commission_ledger` +24, `audit_logs` +53, `notifications` +16, `raffles` 1 modificada |
+| Lista de conciliación (ventas y cobros posteriores) y volcado de datos del estado actual | 8 boletas nuevas y 7 cobros; abonado de la organización **$408.780.000**, 3.588 pagadas |
+| Restaurar (§5.2) | ✅ 4,9 s; el único error, el esperado (`log_min_messages`). Sin los dos disparadores de `auth.users` —recreados— y con el historial en `0079` —reparado— |
+| Foto «p-restaurada» contra «p1-antes» | Filas: **0 tocadas**. Estructura: el esquema `public` (dueño y `USAGE` de `PUBLIC`), los privilegios por defecto de `supabase_admin` en `public`, las concesiones explícitas de 31 funciones de `pg_trgm` y la ACL explícita de `raffle_prize_transitions` (I-183) |
+| Abonado recién restaurada | **$407.220.000**, 3.575 pagadas: **se perdían $1.560.000 y 13 boletas pagadas** |
+| Volver a registrar 8 ventas y 7 cobros por las mismas RPC | ✅ **$408.780.000 y 3.588: CUADRA** |
+
+### h. Rendimiento
+
+Mediana de 25 (tras 2 de calentamiento), dentro de una transacción que se deshace, como `authenticated` con la identidad
+de quien actúa, sobre el escenario de §d migrado; dos muestras alternas de cada versión de los dos disparadores (las
+funciones de la `0078` y de la `0079` extraídas de los archivos de migración):
+
+| Operación | `0078` | `0079` |
+|---|---:|---:|
+| Traslado entre padres con la misma tarifa | 4,93 / 4,85 ms | 5,31 / 5,22 ms |
+| Un directo entra a un equipo | 6,67 / 6,43 ms | 7,21 / 7,60 ms |
+| Un integrante sale | 4,24 / 4,15 ms | 4,60 / 4,48 ms |
+| El personal cambia el acuerdo de un jefe | 4,36 / 4,69 ms | 4,54 / 4,09 ms |
+| El padre cambia la ganancia de un integrante | 3,57 / 3,20 ms | 3,22 / 3,05 ms |
+| Cobro de un directo | 3,39 / 1,88 ms | 2,09 / 1,96 ms |
+| Cobro de un integrante (cascada al jefe) | 2,63 / 2,32 ms | 2,23 / 2,54 ms |
+| Cobro del jefe | 2,02 / 1,92 ms | 1,89 / 2,03 ms |
+
+### i. Errores encontrados y corregidos en el camino
+
+| Error | Corrección |
+|---|---|
+| La primera versión de la autocomprobación de la `0079` habría creado filas en cero para jefes con boletas **sin cobrar** de su equipo, y las habría contado como desfasadas | El recuento de comprobación solo añade jefes con boletas **cobradas** de su equipo |
+| Recalcular al padre nuevo provocaba interbloqueos en traslados cruzados | Los cerrojos de los dos jefes, en orden (§c) |
+| El experimento escribía su resultado con `console.log` y el informe de Vitest no lo enseña | A un archivo del scratchpad; la instrumentación no quedó en la prueba |
+| El servidor de `cac81e8` no arrancaba con `node_modules` enlazado de otra unidad (Turbopack lo rechaza y webpack resuelve mal la ruta) | `npm ci` en su árbol de trabajo (26 s) |
+| `verify-remote` contra la base local pedía SSL | `?sslmode=disable` en la cadena, como en D-209 |
+| Un comando de edición con comillas invertidas en `bash` borró una cifra de la cabecera de `DATA_MODEL` | Corregida a mano con la herramienta de edición |
+
+### j. Verificación final, ejecutada ahora
+
+| Comando | Resultado | Errores y correcciones |
+|---|---|---|
+| `npx tsc --noEmit` y `eslint` de los archivos tocados | ✅ exit 0 los dos | — |
+| `npm run verify` | ✅ exit 0: typecheck, lint (0 errores, los 2 avisos de siempre), **1.839/1.839** unitarias en 91 archivos (+16, `earning-precheck.test.ts`), build | — |
+| `npm run db:reset && npm run seed:local && npm run test:db` | ✅ **1.499 + 1 omitida** en 60 archivos (+16 en `earning-agreements.test.ts`), 155 s | — |
+| `npm run test:db` otra vez, **sobre la misma base** | ⚠️ **1.498 + 1 omitida y 1 fallo**: `list-order` «Vendedores» —«expected 49 to be 25»— | **Anterior a D-238, reproducido**: `aa11ad4` con la base en `0078`, primera pasada 1.483 + 1 y segunda con **el mismo** fallo. Otras suites dejan ~24 vendedores por pasada en «Rifas Demo» (ninguno de `earning-agreements`). Registrado como **I-185**; no se corrigió |
+| `npm run db:reset`, reiniciar Kong, `seed:local` y la E2E de los recorridos afectados: `ganancias` (6), `ganancias-movil` (3), `equipo` (14), `equipo-movil` (5), `owner-users` (8) y `telefono-mascara` (29) | ✅ **65/65** en 3,6 min | El servidor de desarrollo escribió una vez `The destination stream closed early`, sin fallo: ya visto antes (D-137) |
+| E2E completa | **No se ejecutó ahora.** La referencia sigue siendo la de D-237, **966/973**, con sus siete fallos explicados: es un resultado **histórico**, no una suite aprobada | La `0079` no cambia ninguna pantalla; las que pasan por lo que cambia son las 65 de arriba |

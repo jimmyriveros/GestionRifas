@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.29 · **Estado:** implementado · **Actualizado:** 2026-09-29 (**§4.25 nueva**: la configuración de
+- **Versión:** 2.30 · **Estado:** implementado · **Actualizado:** 2026-09-29, más tarde (**§4.25**: la `0079` —D-238,
+  **solo en local**— hace cumplir en la base lo que la matriz de §2 ya decía: el acuerdo de equipo de un integrante lo
+  cambia **solo su vendedor padre**; el Dueño y el Administrador lo cambiaban por PostgREST, I-181. Y reorganizar toma
+  los cerrojos de los dos jefes en orden). Antes, ese mismo día (**§4.25 nueva**: la configuración de
   ganancias —D-237, `0078`, **solo en local**—: nadie cambia su propio acuerdo, las listas no las escribe ninguna
   sesión, el alta exige padre o capacidad, las listas personalizadas son de su dueño, el cerrojo por jefe y la matriz
   exacta de 38 funciones que la migración comprueba al aplicarse). Antes, el 2026-09-19, más tarde (**§4.15**: `0073` y `0074`
@@ -1458,7 +1461,9 @@ Las fotos guardan el proyecto con el que se conectaron, nunca una credencial.
 
 | Riesgo | Cómo se cierra |
 |---|---|
-| Un vendedor se sube su propia ganancia | Ninguna sesión escribe `commission_tier_lists` ni sus tramos (solo `SELECT`, sin políticas de escritura). `memberships_validate_seller_agreements` rechaza con `42501` cualquier cambio del acuerdo administrativo sin la capacidad `sellers.earnings.manage`, y del de equipo sin ser su vendedor padre o tenerla (BR-G34). **Nadie cambia el suyo**: el padre no tiene la capacidad y el personal no vende |
+| Un vendedor se sube su propia ganancia | Ninguna sesión escribe `commission_tier_lists` ni sus tramos (solo `SELECT`, sin políticas de escritura). `memberships_validate_seller_agreements` rechaza con `42501` cualquier cambio del acuerdo administrativo sin la capacidad `sellers.earnings.manage`, y del de equipo **sin ser su vendedor padre** (BR-G34). **Nadie cambia el suyo**: el padre no tiene la capacidad, el integrante no es su propio padre y el personal no vende |
+| **El personal cambia lo que adjudica un padre** (I-181, `0079`) | `memberships_update_staff` sigue abriendo `memberships` al personal para **reorganizar** (BR-E06, BR-E08), y la UI no ofrece cambiar el acuerdo de un integrante; pero hasta la `0079` el disparador aceptaba ese cambio a quien tuviera la capacidad, y **por PostgREST pasaba** —reproducido con las sesiones del Dueño y del Administrador—. Ahora el disparador mira lo que **pide** quien escribe (antes de completar nada) y solo acepta `commission_model`, `fixed_commission_amount` o `team_tier_list_id` del padre actual, **antes** de cualquier regla del acuerdo. Pruebas `E13-01`..`E13-06`: PostgREST del Dueño y del Administrador, escondido en un traslado o en un alta dentro de un equipo, la RPC del padre usada por el personal, el personal de otra organización, cada vendedor sobre el suyo, el de un compañero y el de otro equipo; cada rechazo, contra una foto de acuerdos, ganancias, ledger y bitácora que no cambia |
+| Dos reorganizaciones cruzadas se interbloquean | Recalcular al padre nuevo (I-180) hacía que un traslado de A a B y otro de B a A bloquearan las filas de los dos jefes en orden contrario: **52 interbloqueos en 60 pares** medidos, que la API reintentaba en silencio (≈1 s cada uno). El disparador toma los cerrojos de los dos jefes en orden antes de recalcular: **0**, 16 ms por par. `E12-07` exige la mediana por par por debajo de 500 ms |
 | Un alta que se salta el acuerdo | El disparador exige, en todo `INSERT` de un vendedor con sesión, ser su vendedor padre o tener la capacidad —antes que cualquier regla del acuerdo, para no explicarle a quien no puede un acuerdo que no le toca (E11)—. La mitad no se asigna por ningún camino (BR-G30) |
 | Usar la lista de otro vendedor | Una lista personalizada solo la puede usar su dueño (`owner_profile_id`): el disparador lo comprueba en todo camino y la FK compuesta impide otra organización. La RLS no deja **leer** las ajenas |
 | El personal recupera la cartera | Configurar un acuerdo no devuelve ninguna cifra de ganancia (D-198): la ficha lee la regla y recuentos de boletas cobradas de `admin_ticket_inventory`. `admin_audit_redact` conoce las claves nuevas de una membresía y de `commission_template` |

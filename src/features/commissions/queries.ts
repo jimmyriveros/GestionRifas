@@ -22,8 +22,9 @@ import { fromDbTiers } from './tiers'
 /**
  * Con que regla se le paga a este vendedor: la del acuerdo que RIGE (D-237).
  *
- *   `half_price` — la mitad del precio vigente de la rifa. Solo la conserva
- *                  quien ya la tenia y no pertenece a ningun equipo (BR-G30).
+ *   `half_price` — la mitad del precio vigente de la rifa. Solo rige para
+ *                  quien ya la tenia y no tiene vendedor padre, tenga o no
+ *                  integrantes a su cargo (BR-G30).
  *   `tiered`     — por tramos: los de la lista general o unos propios.
  *   `fixed`      — una cifra fija por boleta.
  *

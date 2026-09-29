@@ -9,13 +9,16 @@ import type { Tier } from './tiers'
  *
  * Cada vendedor tiene DOS acuerdos en su membresia y rige uno (D-237 §3):
  *
- *   * el ADMINISTRATIVO (`direct`), mientras no pertenece a ningun equipo: la
- *     mitad del precio (solo quien ya la tenia), un fijo o unos tramos. Lo
- *     configura el personal (BR-G30, BR-G31);
+ *   * el ADMINISTRATIVO (`direct`), mientras NO tiene vendedor padre —aunque
+ *     tenga integrantes a su cargo: un jefe de equipo cobra por este—: la mitad
+ *     del precio (solo quien ya la tenia), un fijo o unos tramos. Lo configura
+ *     el personal (BR-G30, BR-G31);
  *   * el DE EQUIPO (`team`), mientras tiene vendedor padre: un fijo o la lista
- *     general por tramos. Lo elige su vendedor padre (BR-G24).
+ *     general por tramos. Lo elige su vendedor padre, y nadie mas (BR-G24,
+ *     BR-G34, D-238).
  *
- * El que no rige queda inerte y vuelve tal cual si cambia la situacion.
+ * La condicion es tener o no vendedor padre, no tener o no equipo propio. El
+ * que no rige queda inerte y vuelve tal cual si cambia la situacion.
  */
 
 export type AgreementMode = 'half_price' | 'fixed_per_ticket' | 'tiered'

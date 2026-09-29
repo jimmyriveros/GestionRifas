@@ -18,7 +18,7 @@
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { EARNING_FUNCTION_CHECKS } from '../../scripts/earning-function-grants'
+import { EARNING_0079_CHECKS, EARNING_FUNCTION_CHECKS } from '../../scripts/earning-function-grants'
 
 import {
   DB_URL,
@@ -279,6 +279,102 @@ async function problemas() {
     [org],
   )
   return rows
+}
+
+/** Lo que responde la base a quien no es el padre y cambia el acuerdo de equipo (D-238). */
+const SOLO_EL_PADRE =
+  'La ganancia de un integrante la decide su vendedor a cargo. Pídele que la cambie desde «Mi equipo».'
+
+/**
+ * Cada cifra de `seller_commissions` de la organizacion contra un modelo escrito
+ * aparte, en TypeScript, con las formulas de BR-G27 y BR-G20. Devuelve cuantas
+ * filas comprobo.
+ */
+async function modeloIndependiente(): Promise<number> {
+  const { rows: miembros } = await db.query(
+    `select profile_id, parent_seller_id, commission_model, fixed_commission_amount, team_tier_list_id,
+            direct_commission_mode, direct_fixed_amount, direct_tier_list_id
+       from memberships where organization_id = $1 and role = 'seller'`,
+    [org],
+  )
+  const { rows: items } = await db.query(
+    `select i.list_id, i.min_tickets, i.rate from commission_tier_list_items i
+       join commission_tier_lists l on l.id = i.list_id where l.organization_id = $1`,
+    [org],
+  )
+  const { rows: pagadas } = await db.query(
+    `select t.raffle_id, t.seller_id, r.ticket_price, count(*)::int as n,
+            sum(coalesce(t.base_price, t.sale_price) - t.sale_price)::bigint as rebajas
+       from tickets t join raffles r on r.id = t.raffle_id
+      where t.organization_id = $1 and t.inventory_status = 'assigned' and t.payment_status = 'paid'
+      group by t.raffle_id, t.seller_id, r.ticket_price`,
+    [org],
+  )
+  const { rows: filas } = await db.query(
+    `select * from seller_commissions where organization_id = $1`,
+    [org],
+  )
+
+  const listas = new Map<string, Tramo[]>()
+  for (const i of items) {
+    const l = listas.get(i.list_id) ?? []
+    l.push({ min_tickets: i.min_tickets, rate: Number(i.rate) })
+    listas.set(i.list_id, l)
+  }
+  for (const l of listas.values()) l.sort((a, b) => a.min_tickets - b.min_tickets)
+  const tarifa = (m: (typeof miembros)[number], precio: number, n: number) => {
+    if (n <= 0) return 0
+    const directo = m.parent_seller_id === null
+    const modo = directo ? m.direct_commission_mode : m.commission_model
+    if (modo === 'half_price') return Math.floor(precio / 2)
+    if (modo === 'fixed_per_ticket') return Number(directo ? m.direct_fixed_amount : m.fixed_commission_amount)
+    const lista = listas.get(directo ? m.direct_tier_list_id : m.team_tier_list_id) ?? []
+    return lista.filter((t) => t.min_tickets <= n).reduce((r, t) => t.rate, 0)
+  }
+  const porId = new Map(miembros.map((m) => [m.profile_id, m]))
+
+  let comprobadas = 0
+  for (const fila of filas) {
+    const m = porId.get(fila.seller_id)
+    if (!m) continue
+    const propias = pagadas.find((p) => p.raffle_id === fila.raffle_id && p.seller_id === fila.seller_id)
+    const precio = Number(
+      (await db.query(`select ticket_price from raffles where id = $1`, [fila.raffle_id])).rows[0].ticket_price,
+    )
+    const n = propias?.n ?? 0
+    const hijos =
+      m.parent_seller_id === null
+        ? miembros
+            .filter((h) => h.parent_seller_id === m.profile_id)
+            .map((h) => ({
+              h,
+              n: pagadas.find((p) => p.raffle_id === fila.raffle_id && p.seller_id === h.profile_id)?.n ?? 0,
+            }))
+            .filter((x) => x.n > 0)
+        : []
+    const nEquipo = hijos.reduce((s, x) => s + x.n, 0)
+    const r = tarifa(m, precio, n + nEquipo)
+    const propio = Math.max(0, n * r - Number(propias?.rebajas ?? 0))
+    const equipo = hijos.reduce((s, x) => s + x.n * Math.max(0, r - tarifa(x.h, precio, x.n)), 0)
+
+    expect(fila.tickets_paid, `${fila.seller_id}`).toBe(n)
+    expect(fila.tier_tickets_paid, `${fila.seller_id}: conteo del tramo`).toBe(n + nEquipo)
+    expect(fila.team_tickets_paid, `${fila.seller_id}: boletas del equipo`).toBe(nEquipo)
+    expect(Number(fila.rate)).toBe(r)
+    expect(Number(fila.earned)).toBe(propio)
+    expect(Number(fila.team_earned), `${fila.seller_id}: lo del equipo`).toBe(equipo)
+    comprobadas++
+  }
+
+  // Un jefe con boletas cobradas de su equipo tiene que TENER fila en esa rifa:
+  // si no la tiene, el bucle de arriba no puede ver que le falta dinero.
+  for (const p of pagadas) {
+    const padre = porId.get(p.seller_id)?.parent_seller_id
+    if (!padre) continue
+    const fila = filas.find((f) => f.raffle_id === p.raffle_id && f.seller_id === padre)
+    expect(fila, `el padre ${padre} no tiene fila en la rifa ${p.raffle_id}`).toBeDefined()
+  }
+  return comprobadas
 }
 
 beforeAll(async () => {
@@ -877,8 +973,10 @@ describe('E11 — equipos: entrar, salir y dos niveles', () => {
     expect(noCabe).not.toBeNull()
     expect(noCabe!.message).toContain('Vendedor Movil')
 
-    // ...con un fijo que cabe, en el MISMO cambio, si.
-    const { error } = await dueno
+    // ...y el personal no puede arreglarlo poniendole un fijo en el MISMO cambio:
+    // lo que gana un integrante lo adjudica su padre, no quien reorganiza (D-238).
+    // Hasta la 0079 esto pasaba; era la excepcion de I-181.
+    const { error: conFijo } = await dueno
       .from('memberships')
       .update({
         parent_seller_id: personas.get('p30')!.id,
@@ -887,10 +985,31 @@ describe('E11 — equipos: entrar, salir y dos niveles', () => {
       })
       .eq('organization_id', org)
       .eq('profile_id', personas.get('movil')!.id)
+    expect(conFijo?.message).toBe(SOLO_EL_PADRE)
+    expect((await membresia('movil')).parent_seller_id).toBeNull()
+
+    // Con un padre donde la lista general cabe (Padre Varios, $45.000), el
+    // traslado si pasa, y rige la lista general hasta que su padre decida otra cosa.
+    const pvarAntes = await estado('pvar')
+    const { error } = await dueno
+      .from('memberships')
+      .update({ parent_seller_id: personas.get('pvar')!.id })
+      .eq('organization_id', org)
+      .eq('profile_id', personas.get('movil')!.id)
     expect(error).toBeNull()
+    expect((await membresia('movil')).team_tier_list_id).toBe((await plantillaVigente()).id)
+    const { error: fijo } = await (await sesion('pvar')).rpc('team_set_commission_model', {
+      p_member_id: personas.get('movil')!.id,
+      p_model: 'fixed_per_ticket',
+      p_amount: 18_000,
+    })
+    expect(fijo).toBeNull()
     await venderYCobrar('movil', R1, 2)
     expect(await estado('movil')).toMatchObject({ rate: 18_000, earned: 36_000 })
-    expect(await estado('p30')).toMatchObject({ teamN: 3, teamEarned: 10_000 + 2 * 12_000 })
+    expect(await estado('pvar')).toMatchObject({
+      teamN: pvarAntes.teamN + 2,
+      teamEarned: pvarAntes.teamEarned + 2 * 27_000,
+    })
 
     // Sale: rige su acuerdo propio, hacia atras, y el padre deja de cobrar por el.
     await dueno
@@ -901,17 +1020,18 @@ describe('E11 — equipos: entrar, salir y dos niveles', () => {
     const fuera = await membresia('movil')
     expect(fuera.direct_tier_list_id).toBe(listaPropia)
     expect(await estado('movil')).toMatchObject({ rate: 15_000, earned: 30_000 })
-    expect(await estado('p30')).toMatchObject({ teamN: 1, teamEarned: 10_000 })
+    expect(await estado('pvar')).toMatchObject({ teamN: pvarAntes.teamN, teamEarned: pvarAntes.teamEarned })
 
     // Vuelve: su acuerdo de equipo de antes, tal cual.
     await dueno
       .from('memberships')
-      .update({ parent_seller_id: personas.get('p30')!.id })
+      .update({ parent_seller_id: personas.get('pvar')!.id })
       .eq('organization_id', org)
       .eq('profile_id', personas.get('movil')!.id)
     expect(await estado('movil')).toMatchObject({ rate: 18_000, earned: 36_000 })
+    expect(await estado('pvar')).toMatchObject({ teamEarned: pvarAntes.teamEarned + 2 * 27_000 })
     await ledgerCuadra('movil')
-    await ledgerCuadra('p30')
+    await ledgerCuadra('pvar')
   })
 
   it('E11-22: quien tiene equipo no pasa al equipo de otro (dos niveles, I-176)', async () => {
@@ -1052,13 +1172,23 @@ describe('E11 — aislamiento y peticiones manipuladas', () => {
     expect(otraOrg).not.toBeNull()
     expect(otraOrg!.code).toBe('23503')
 
-    // Un integrante no puede usar una lista personalizada.
+    // Un integrante no puede usar una lista personalizada. El personal ni siquiera
+    // llega a esa regla: el acuerdo de equipo lo adjudica su padre (D-238). La
+    // regla de la lista vale en todo camino, tambien sin sesion; por el alta del
+    // padre la prueba E13-06.
     const { error: equipo } = await dueno
       .from('memberships')
       .update({ team_tier_list_id: ajena })
       .eq('organization_id', org)
       .eq('profile_id', personas.get('hvar2')!.id)
-    expect(equipo?.message).toBe('La ganancia por tramos de un integrante usa la lista general.')
+    expect(equipo?.message).toBe(SOLO_EL_PADRE)
+    await expect(
+      db.query(`update memberships set team_tier_list_id = $1 where organization_id = $2 and profile_id = $3`, [
+        ajena,
+        org,
+        personas.get('hvar2')!.id,
+      ]),
+    ).rejects.toThrow('La ganancia por tramos de un integrante usa la lista general.')
 
     // El Dueño de otra organizacion: lo mismo que un identificador que no existe.
     const ajenoDueno = await signInAs(USERS.otherOrgOwner)
@@ -1262,80 +1392,7 @@ describe('E11 — lo que ve la pantalla y la prueba contra un modelo independien
   })
 
   it('E11-36: cada cifra de la organizacion coincide con un modelo independiente', async () => {
-    const { rows: miembros } = await db.query(
-      `select profile_id, parent_seller_id, commission_model, fixed_commission_amount, team_tier_list_id,
-              direct_commission_mode, direct_fixed_amount, direct_tier_list_id
-         from memberships where organization_id = $1 and role = 'seller'`,
-      [org],
-    )
-    const { rows: items } = await db.query(
-      `select i.list_id, i.min_tickets, i.rate from commission_tier_list_items i
-         join commission_tier_lists l on l.id = i.list_id where l.organization_id = $1`,
-      [org],
-    )
-    const { rows: pagadas } = await db.query(
-      `select t.raffle_id, t.seller_id, r.ticket_price, count(*)::int as n,
-              sum(coalesce(t.base_price, t.sale_price) - t.sale_price)::bigint as rebajas
-         from tickets t join raffles r on r.id = t.raffle_id
-        where t.organization_id = $1 and t.inventory_status = 'assigned' and t.payment_status = 'paid'
-        group by t.raffle_id, t.seller_id, r.ticket_price`,
-      [org],
-    )
-    const { rows: filas } = await db.query(
-      `select * from seller_commissions where organization_id = $1`,
-      [org],
-    )
-
-    const listas = new Map<string, Tramo[]>()
-    for (const i of items) {
-      const l = listas.get(i.list_id) ?? []
-      l.push({ min_tickets: i.min_tickets, rate: Number(i.rate) })
-      listas.set(i.list_id, l)
-    }
-    for (const l of listas.values()) l.sort((a, b) => a.min_tickets - b.min_tickets)
-    const tarifa = (m: (typeof miembros)[number], precio: number, n: number) => {
-      if (n <= 0) return 0
-      const directo = m.parent_seller_id === null
-      const modo = directo ? m.direct_commission_mode : m.commission_model
-      if (modo === 'half_price') return Math.floor(precio / 2)
-      if (modo === 'fixed_per_ticket') return Number(directo ? m.direct_fixed_amount : m.fixed_commission_amount)
-      const lista = listas.get(directo ? m.direct_tier_list_id : m.team_tier_list_id) ?? []
-      return lista.filter((t) => t.min_tickets <= n).reduce((r, t) => t.rate, 0)
-    }
-    const porId = new Map(miembros.map((m) => [m.profile_id, m]))
-
-    let comprobadas = 0
-    for (const fila of filas) {
-      const m = porId.get(fila.seller_id)
-      if (!m) continue
-      const propias = pagadas.find((p) => p.raffle_id === fila.raffle_id && p.seller_id === fila.seller_id)
-      const precio = Number(
-        (await db.query(`select ticket_price from raffles where id = $1`, [fila.raffle_id])).rows[0].ticket_price,
-      )
-      const n = propias?.n ?? 0
-      const hijos =
-        m.parent_seller_id === null
-          ? miembros
-              .filter((h) => h.parent_seller_id === m.profile_id)
-              .map((h) => ({
-                h,
-                n: pagadas.find((p) => p.raffle_id === fila.raffle_id && p.seller_id === h.profile_id)?.n ?? 0,
-              }))
-              .filter((x) => x.n > 0)
-          : []
-      const nEquipo = hijos.reduce((s, x) => s + x.n, 0)
-      const r = tarifa(m, precio, n + nEquipo)
-      const propio = Math.max(0, n * r - Number(propias?.rebajas ?? 0))
-      const equipo = hijos.reduce((s, x) => s + x.n * Math.max(0, r - tarifa(x.h, precio, x.n)), 0)
-
-      expect(fila.tickets_paid, `${fila.seller_id}`).toBe(n)
-      expect(fila.tier_tickets_paid).toBe(n + nEquipo)
-      expect(Number(fila.rate)).toBe(r)
-      expect(Number(fila.earned)).toBe(propio)
-      expect(Number(fila.team_earned)).toBe(equipo)
-      comprobadas++
-    }
-    expect(comprobadas).toBeGreaterThan(20)
+    expect(await modeloIndependiente()).toBeGreaterThan(20)
   })
 
   it('E11-37: ninguna fila de la organizacion deja de cuadrar por partes, y nada queda incompatible', async () => {
@@ -1388,5 +1445,525 @@ describe('E11 — lo que ve la pantalla y la prueba contra un modelo independien
       const { rows } = await db.query(check.sql)
       expect(rows.map((r) => r.x), check.nombre).toHaveLength(check.esperado)
     }
+  })
+})
+
+// =============================================================================
+// E12 — Reorganizar equipos (D-238, I-180)
+//
+// El traslado lo hace el personal por PostgREST (BR-E06, BR-E08) y cambia QUIEN
+// es el padre, no lo que el integrante gana. El padre nuevo tiene que recibir sus
+// boletas en ese mismo cambio aunque el integrante gane exactamente lo mismo que
+// antes: es el caso en que el motor no cascadea (se detiene en su camino de
+// idempotencia) y el padre nuevo se quedaba sin saberlo.
+// =============================================================================
+
+/** Traslada a un vendedor de equipo: solo cambia `parent_seller_id` (BR-E06). */
+async function trasladar(clave: string, padre: string | null, actor?: Client) {
+  const { data, error } = await (actor ?? dueno)
+    .from('memberships')
+    .update({ parent_seller_id: padre === null ? null : personas.get(padre)!.id })
+    .eq('organization_id', org)
+    .eq('profile_id', personas.get(clave)!.id)
+    .select('profile_id')
+  if (error) throw new Error(`Traslado de ${clave}: ${error.message} (${error.code})`)
+  expect(data, `traslado de ${clave}`).toHaveLength(1)
+}
+
+/** Lo que el ledger de EQUIPO de un padre atribuye a un integrante (BR-G22). */
+async function equipoDesde(padre: string, integrante: string, raffleId = R1) {
+  const { rows } = await db.query(
+    `select coalesce(sum(amount), 0)::bigint as suma, count(*)::int as n
+       from commission_ledger
+      where raffle_id = $1 and seller_id = $2 and team_movement and from_seller_id = $3`,
+    [raffleId, personas.get(padre)!.id, personas.get(integrante)!.id],
+  )
+  return { suma: Number(rows[0].suma), n: rows[0].n as number }
+}
+
+/** Cuantas filas tiene el ledger de la organizacion, y cuanto suman. */
+async function ledgerDeLaOrganizacion() {
+  const { rows } = await db.query(
+    `select count(*)::int as n, coalesce(sum(amount), 0)::bigint as suma
+       from commission_ledger where organization_id = $1`,
+    [org],
+  )
+  return { n: rows[0].n as number, suma: Number(rows[0].suma) }
+}
+
+/** BR-G22 en TODAS las filas de la organizacion. Devuelve las que no cuadran. */
+async function filasQueNoCuadran() {
+  const { rows } = await db.query(
+    `select sc.seller_id, sc.raffle_id from seller_commissions sc
+      where sc.organization_id = $1
+        and (sc.earned <> coalesce((select sum(l.amount) from commission_ledger l
+                                     where l.raffle_id = sc.raffle_id and l.seller_id = sc.seller_id
+                                       and not l.team_movement), 0)
+          or sc.team_earned <> coalesce((select sum(l.amount) from commission_ledger l
+                                          where l.raffle_id = sc.raffle_id and l.seller_id = sc.seller_id
+                                            and l.team_movement), 0))`,
+    [org],
+  )
+  return rows
+}
+
+/** Un Administrador de la organizacion: la segunda persona del personal. */
+async function administrador(): Promise<Client> {
+  const id = await persona('adminorg', 'Administradora Ganancias')
+  await db.query(
+    `insert into memberships (organization_id, profile_id, role) values ($1, $2, 'admin')
+     on conflict do nothing`,
+    [org, id],
+  )
+  return sesion('adminorg')
+}
+
+describe('E12 — reorganizar equipos: el padre nuevo recibe al integrante (I-180)', () => {
+  let R5: string
+  let R6: string
+
+  it('E12-01: trasladar un integrante que gana lo mismo lleva sus boletas al padre NUEVO', async () => {
+    await altaDirecta('tra', 'Padre De Antes', { mode: 'fixed_per_ticket', fixed: 25_000 })
+    await altaDirecta('trb', 'Padre De Ahora', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaIntegrante('trh', 'Hijo Trasladado', 'tra', { model: 'fixed_per_ticket', amount: 20_000 })
+    await venderYCobrar('trh', R1, 10)
+    expect(await estado('tra')).toMatchObject({ tierN: 10, teamN: 10, teamEarned: 10 * 5_000 })
+    const hijo = await estado('trh')
+    expect(hijo).toMatchObject({ n: 10, rate: 20_000, earned: 200_000 })
+
+    await trasladar('trh', 'trb')
+
+    // El integrante no cambia: su acuerdo de equipo es el mismo.
+    expect(await estado('trh')).toEqual(hijo)
+    // El padre de antes deja de contarlo...
+    expect(await estado('tra')).toMatchObject({ tierN: 0, teamN: 0, teamEarned: 0 })
+    // ...y el de ahora lo cuenta EN EL MISMO CAMBIO: 10 boletas y $10.000 por cada una.
+    expect(await estado('trb')).toMatchObject({
+      n: 0,
+      earned: 0,
+      rate: 30_000,
+      tierN: 10,
+      teamN: 10,
+      teamEarned: 100_000,
+    })
+    // El historial dice de quien vino cada peso, en los dos padres (BR-G22).
+    expect(await equipoDesde('tra', 'trh')).toMatchObject({ suma: 0 })
+    expect(await equipoDesde('trb', 'trh')).toEqual({ suma: 100_000, n: 1 })
+    for (const c of ['tra', 'trb', 'trh']) await ledgerCuadra(c)
+  })
+
+  it('E12-02: un vendedor directo entra a un equipo ganando lo mismo que con su acuerdo propio', async () => {
+    await altaDirecta('trs', 'Suelto Que Entra', { mode: 'fixed_per_ticket', fixed: 20_000 })
+    await altaDirecta('trc', 'Padre Cuarenta y Cinco', { mode: 'fixed_per_ticket', fixed: 45_000 })
+    await venderYCobrar('trs', R1, 10)
+    const antes = await estado('trs')
+    expect(antes).toMatchObject({ n: 10, rate: 20_000, earned: 200_000, tierN: 10 })
+
+    // Entra con su acuerdo de equipo de siempre —la lista general vigente—, que
+    // con 10 boletas paga $20.000: lo mismo que su fijo.
+    await trasladar('trs', 'trc')
+
+    expect((await membresia('trs')).team_tier_list_id).toBe((await plantillaVigente()).id)
+    expect(await estado('trs')).toEqual(antes)
+    expect(await estado('trc')).toMatchObject({ tierN: 10, rate: 45_000, teamN: 10, teamEarned: 10 * 25_000 })
+    expect(await equipoDesde('trc', 'trs')).toEqual({ suma: 250_000, n: 1 })
+    await ledgerCuadra('trs')
+    await ledgerCuadra('trc')
+  })
+
+  it('E12-03: al salir del equipo rige otra vez su acuerdo propio y el padre deja de contarlo', async () => {
+    const antes = await estado('trs')
+    await trasladar('trs', null)
+
+    expect(await estado('trs')).toEqual(antes)
+    expect(await estado('trc')).toMatchObject({ tierN: 0, teamN: 0, teamEarned: 0 })
+    // Una fila al entrar y otra al salir, las dos atribuidas a quien se movio.
+    expect(await equipoDesde('trc', 'trs')).toEqual({ suma: 0, n: 2 })
+    await ledgerCuadra('trc')
+  })
+
+  it('E12-04: un padre por tramos sube de tramo al recibir al integrante y baja al perderlo, hacia atras', async () => {
+    await altaDirecta('trt', 'Padre Tramos Traslado', {
+      mode: 'tiered',
+      tiers: [
+        { min_tickets: 1, rate: 30_000 },
+        { min_tickets: 21, rate: 40_000 },
+      ],
+    })
+    await venderYCobrar('trt', R1, 15)
+    expect(await estado('trt')).toMatchObject({ n: 15, tierN: 15, rate: 30_000, earned: 450_000, teamEarned: 0 })
+    await altaIntegrante('trh2', 'Hijo Que Sube el Tramo', 'tra', { model: 'fixed_per_ticket', amount: 20_000 })
+    await venderYCobrar('trh2', R1, 10)
+
+    await trasladar('trh2', 'trt')
+
+    // 15 propias + 10 del integrante = 25: TODAS las propias pasan a $40.000.
+    expect(await estado('trt')).toMatchObject({
+      n: 15,
+      tierN: 25,
+      rate: 40_000,
+      earned: 600_000,
+      teamN: 10,
+      teamEarned: 200_000,
+    })
+    expect(await estado('tra')).toMatchObject({ teamN: 0, teamEarned: 0 })
+    // El ajuste de tramo es de lo PROPIO y el integrante es del EQUIPO: el
+    // historial los separa, y dice de quien vino lo del equipo.
+    const { rows } = await db.query(
+      `select movement, amount, team_movement, from_seller_id from commission_ledger
+        where raffle_id = $1 and seller_id = $2
+          and created_at = (select max(created_at) from commission_ledger where raffle_id = $1 and seller_id = $2)
+        order by amount`,
+      [R1, personas.get('trt')!.id],
+    )
+    expect(rows.map((r) => [r.movement, Number(r.amount), r.team_movement, r.from_seller_id])).toEqual([
+      ['tier_adjustment', 150_000, false, null],
+      ['sale', 200_000, true, personas.get('trh2')!.id],
+    ])
+    await ledgerCuadra('trt')
+
+    await trasladar('trh2', 'tra')
+
+    expect(await estado('trt')).toMatchObject({
+      n: 15,
+      tierN: 15,
+      rate: 30_000,
+      earned: 450_000,
+      teamN: 0,
+      teamEarned: 0,
+    })
+    expect(await estado('tra')).toMatchObject({ teamN: 10, teamEarned: 10 * 5_000 })
+    await ledgerCuadra('trt')
+    await ledgerCuadra('tra')
+  })
+
+  it('E12-05: el traslado alcanza TODAS las rifas del integrante, al padre nuevo y al de antes', async () => {
+    R5 = await nuevaRifa(`Rifa traslado A ${STAMP}`, 100_000)
+    R6 = await nuevaRifa(`Rifa traslado B ${STAMP}`, 120_000)
+    await altaIntegrante('trh3', 'Hijo Varias Rifas', 'tra', { model: 'fixed_per_ticket', amount: 20_000 })
+    await venderYCobrar('trh3', R1, 3)
+    await venderYCobrar('trh3', R5, 4)
+    await vender('trh3', R6, 2) // vendidas sin cobrar: no cuentan (BR-G01)
+    expect(await estado('tra', R5)).toMatchObject({ teamN: 4, teamEarned: 4 * 5_000 })
+    const bR1 = await estado('trb', R1)
+
+    await trasladar('trh3', 'trb')
+
+    expect(await estado('trb', R1)).toMatchObject({
+      teamN: bR1.teamN + 3,
+      teamEarned: bR1.teamEarned + 3 * 10_000,
+      tierN: bR1.tierN + 3,
+    })
+    expect(await estado('trb', R5)).toMatchObject({ tierN: 4, teamN: 4, teamEarned: 4 * 10_000 })
+    expect(await estado('trb', R6)).toMatchObject({ tierN: 0, teamN: 0, teamEarned: 0 })
+    expect(await estado('tra', R5)).toMatchObject({ tierN: 0, teamN: 0, teamEarned: 0 })
+    for (const rifa of [R1, R5, R6]) {
+      for (const c of ['tra', 'trb', 'trh3']) await ledgerCuadra(c, rifa)
+    }
+  })
+
+  it('E12-06: repetir el traslado, pedirlo dos veces a la vez o ir y volver no deja movimientos de mas', async () => {
+    const admin = await administrador()
+    const antes = { r1: await estado('trb', R1), r5: await estado('trb', R5), ledger: await ledgerDeLaOrganizacion() }
+
+    // El mismo padre otra vez: no es un cambio, y no escribe nada.
+    await trasladar('trh3', 'trb')
+    expect(await ledgerDeLaOrganizacion()).toEqual(antes.ledger)
+
+    // El mismo traslado dos veces a la vez, por dos personas del personal: uno lo
+    // hace y el otro lo encuentra hecho.
+    const aR5 = await estado('tra', R5)
+    await Promise.all([trasladar('trh3', 'tra'), trasladar('trh3', 'tra', admin)])
+    expect(await estado('tra', R5)).toMatchObject({ teamN: aR5.teamN + 4, teamEarned: aR5.teamEarned + 4 * 5_000 })
+    expect(await estado('trb', R5)).toMatchObject({ teamN: 0, teamEarned: 0 })
+
+    // Y de vuelta: todo queda como estaba, con el historial compensado.
+    await trasladar('trh3', 'trb')
+    expect(await estado('trb', R1)).toEqual(antes.r1)
+    expect(await estado('trb', R5)).toEqual(antes.r5)
+    const despues = await ledgerDeLaOrganizacion()
+    expect(despues.suma).toBe(antes.ledger.suma)
+
+    // Recalcular a mano todas las filas no escribe nada (BR-G08).
+    const { rows: filas } = await db.query(
+      `select raffle_id, seller_id from seller_commissions where organization_id = $1`,
+      [org],
+    )
+    for (const f of filas) {
+      await db.query(`select recalc_seller_commission($1, $2, $3)`, [org, f.raffle_id, f.seller_id])
+    }
+    expect(await ledgerDeLaOrganizacion()).toEqual(despues)
+  })
+
+  it('E12-07: dos traslados cruzados a la vez se esperan en vez de abrazarse, y cuadran', async () => {
+    const admin = await administrador()
+    await altaIntegrante('trx', 'Hijo Cruza Uno', 'tra', { model: 'fixed_per_ticket', amount: 20_000 })
+    await altaIntegrante('try', 'Hijo Cruza Dos', 'trb', { model: 'fixed_per_ticket', amount: 20_000 })
+    for (const c of ['trx', 'try']) {
+      await venderYCobrar(c, R1, 2)
+      await venderYCobrar(c, R5, 1)
+    }
+
+    // Seis vueltas: en cada una, cada integrante pasa al equipo del otro a la vez.
+    const duraciones: number[] = []
+    for (let vuelta = 0; vuelta < 6; vuelta++) {
+      const [destinoX, destinoY] = vuelta % 2 === 0 ? ['trb', 'tra'] : ['tra', 'trb']
+      const inicio = Date.now()
+      await Promise.all([trasladar('trx', destinoX), trasladar('try', destinoY, admin)])
+      duraciones.push(Date.now() - inicio)
+    }
+    // Sin los cerrojos de los dos jefes en orden, cada par se abrazaba: la base lo
+    // detecta al cumplirse `deadlock_timeout` (1 s), aborta una transaccion y
+    // PostgREST la reintenta sin decir nada. Medido (D-238): 52 interbloqueos en
+    // 60 pares y 1.015 ms de mediana por par; con los cerrojos, 0 y 16 ms. La
+    // mediana por debajo de medio segundo es la firma de que nadie espero al
+    // detector.
+    duraciones.sort((a, b) => a - b)
+    expect(duraciones[3], `duraciones: ${duraciones.join(', ')} ms`).toBeLessThan(500)
+
+    expect((await membresia('trx')).parent_seller_id).toBe(personas.get('tra')!.id)
+    expect((await membresia('try')).parent_seller_id).toBe(personas.get('trb')!.id)
+    expect(await filasQueNoCuadran()).toEqual([])
+    await modeloIndependiente()
+  })
+
+  it('E12-08: un traslado y un cobro del mismo integrante a la vez: el padre nuevo cuenta la boleta', async () => {
+    const ids = await vender('trx', R1, 1)
+    const b = await estado('trb', R1)
+    const a = await estado('tra', R1)
+
+    await Promise.all([trasladar('trx', 'trb'), cobrar('trx', ids)])
+
+    expect(await estado('trx')).toMatchObject({ n: 3, earned: 3 * 20_000 })
+    expect(await estado('trb', R1)).toMatchObject({ teamN: b.teamN + 3, teamEarned: b.teamEarned + 3 * 10_000 })
+    expect(await estado('tra', R1)).toMatchObject({ teamN: a.teamN - 2, teamEarned: a.teamEarned - 2 * 5_000 })
+    await modeloIndependiente()
+  })
+
+  it('E12-09: despues de reorganizar, cada cifra coincide con el modelo, cuadra por partes y nada es incompatible', async () => {
+    expect(await modeloIndependiente()).toBeGreaterThan(30)
+    expect(await filasQueNoCuadran()).toEqual([])
+    expect(await problemas()).toEqual([])
+  })
+
+  it('E12-10: las comprobaciones de la 0079 que corre verify:remote pasan contra la base', async () => {
+    for (const check of EARNING_0079_CHECKS) {
+      const { rows } = await db.query(check.sql)
+      expect(rows.map((r) => r.x), check.nombre).toHaveLength(check.esperado)
+    }
+  })
+})
+
+// =============================================================================
+// E13 — El acuerdo de equipo lo cambia su vendedor padre, y nadie mas (D-238, I-181)
+//
+// BR-G34: el personal configura la lista general y los acuerdos administrativos;
+// el acuerdo de equipo de un integrante lo adjudica su padre. Reorganizar (decidir
+// QUIEN es el padre) sigue siendo del personal (BR-E06, BR-E08). Cada rechazo se
+// comprueba contra una foto de acuerdos, ganancias, ledger y bitacora.
+// =============================================================================
+
+/** Lo que un rechazo no puede tocar: acuerdos, ganancias, historial y bitacora. */
+async function fotoDinero() {
+  const { rows } = await db.query(
+    `select
+       (select jsonb_agg(jsonb_build_object(
+                 'p', m.profile_id, 'padre', m.parent_seller_id, 'modelo', m.commission_model,
+                 'fijo', m.fixed_commission_amount, 'lista', m.team_tier_list_id,
+                 'directo', m.direct_commission_mode, 'directoFijo', m.direct_fixed_amount,
+                 'directoLista', m.direct_tier_list_id) order by m.profile_id)
+          from memberships m where m.organization_id = $1) as acuerdos,
+       (select jsonb_agg(to_jsonb(sc) - 'updated_at' order by sc.raffle_id, sc.seller_id)
+          from seller_commissions sc where sc.organization_id = $1) as ganancias,
+       (select count(*) from commission_ledger where organization_id = $1)::int as ledger,
+       (select count(*) from audit_logs where organization_id = $1)::int as bitacora`,
+    [org],
+  )
+  return rows[0]
+}
+
+describe('E13 — el acuerdo de equipo lo cambia su vendedor padre, y nadie mas (I-181)', () => {
+  it('E13-01: ni el Dueño ni el Administrador cambian el acuerdo de un integrante por PostgREST', async () => {
+    await altaDirecta('kp', 'Padre Permisos', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaIntegrante('kh', 'Hijo Permisos', 'kp', { model: 'fixed_per_ticket', amount: 20_000 })
+    await venderYCobrar('kh', R1, 2)
+    const admin = await administrador()
+    const vigente = (await plantillaVigente()).id
+    const antes = await fotoDinero()
+
+    for (const actor of [dueno, admin]) {
+      for (const cambio of [
+        { fixed_commission_amount: 15_000 },
+        { commission_model: 'tiered' as const, fixed_commission_amount: null },
+        { team_tier_list_id: vigente },
+      ]) {
+        const { error } = await actor
+          .from('memberships')
+          .update(cambio)
+          .eq('organization_id', org)
+          .eq('profile_id', personas.get('kh')!.id)
+        expect(error?.message, JSON.stringify(cambio)).toBe(SOLO_EL_PADRE)
+        expect(error?.code).toBe('42501')
+      }
+    }
+    expect(await fotoDinero()).toEqual(antes)
+  })
+
+  it('E13-02: tampoco escondido en un traslado, ni al dar de alta a alguien dentro de un equipo', async () => {
+    await altaIntegrante('kh2', 'Hijo Permisos Dos', 'kp', { model: 'fixed_per_ticket', amount: 20_000 })
+    const antes = await fotoDinero()
+
+    const { error: conTraslado } = await dueno
+      .from('memberships')
+      .update({ parent_seller_id: personas.get('trb')!.id, fixed_commission_amount: 18_000 })
+      .eq('organization_id', org)
+      .eq('profile_id', personas.get('kh2')!.id)
+    expect(conTraslado?.message).toBe(SOLO_EL_PADRE)
+
+    // El personal puede dar de alta a alguien dentro de un equipo (BR-E08), pero
+    // no ponerle la ganancia: esa la adjudica su padre.
+    const nuevo = await persona('kh3', 'Hijo Permisos Tres')
+    const { error: alta } = await dueno.from('memberships').insert({
+      organization_id: org,
+      profile_id: nuevo,
+      role: 'seller',
+      parent_seller_id: personas.get('kp')!.id,
+      commission_model: 'fixed_per_ticket',
+      fixed_commission_amount: 20_000,
+    })
+    expect(alta?.message).toBe(SOLO_EL_PADRE)
+    expect(await fotoDinero()).toEqual(antes)
+  })
+
+  it('E13-03: reorganizar sigue siendo del personal; lo que el integrante gana, de su padre nuevo', async () => {
+    // Un traslado puro: el personal decide QUIEN es el padre.
+    await trasladar('kh2', 'trb')
+    expect((await membresia('kh2')).parent_seller_id).toBe(personas.get('trb')!.id)
+
+    // Un alta dentro de un equipo con la ganancia por defecto: la lista general,
+    // completada por la base.
+    const nuevo = personas.get('kh3')!.id
+    const { error: alta } = await dueno.from('memberships').insert({
+      organization_id: org,
+      profile_id: nuevo,
+      role: 'seller',
+      parent_seller_id: personas.get('kp')!.id,
+    })
+    // El padre de kh3 gana $30.000 y la lista general llega a $40.000: no cabe, y
+    // el rechazo es de compatibilidad (BR-G28), no de permisos.
+    expect(alta?.message).toContain('Hijo Permisos Tres')
+    expect(alta?.message).not.toBe(SOLO_EL_PADRE)
+    const { error: altaQueCabe } = await dueno.from('memberships').insert({
+      organization_id: org,
+      profile_id: nuevo,
+      role: 'seller',
+      parent_seller_id: personas.get('trc')!.id,
+    })
+    expect(altaQueCabe).toBeNull()
+    expect((await membresia('kh3')).team_tier_list_id).toBe((await plantillaVigente()).id)
+
+    // Y quien adjudica la ganancia es su padre, por su camino de siempre.
+    const { error } = await (await sesion('trb')).rpc('team_set_commission_model', {
+      p_member_id: personas.get('kh2')!.id,
+      p_model: 'fixed_per_ticket',
+      p_amount: 18_000,
+    })
+    expect(error).toBeNull()
+    expect(Number((await membresia('kh2')).fixed_commission_amount)).toBe(18_000)
+  })
+
+  it('E13-04: ni el personal por la RPC del padre, ni el personal de otra organizacion', async () => {
+    const antes = await fotoDinero()
+
+    const { error: rpcDelPadre } = await dueno.rpc('team_set_commission_model', {
+      p_member_id: personas.get('kh')!.id,
+      p_model: 'fixed_per_ticket',
+      p_amount: 15_000,
+    })
+    expect(rpcDelPadre?.message).toBe('Este vendedor no es de tu equipo.')
+
+    const ajeno = await signInAs(USERS.otherOrgOwner)
+    const { data: filas, error: porPostgrest } = await ajeno
+      .from('memberships')
+      .update({ fixed_commission_amount: 15_000 })
+      .eq('profile_id', personas.get('kh')!.id)
+      .select('profile_id')
+    expect(porPostgrest).toBeNull()
+    expect(filas).toEqual([])
+    const { error: rpcAdministrativa } = await ajeno.rpc('staff_set_seller_agreement', {
+      p_seller_id: personas.get('kh')!.id,
+      p_mode: 'fixed_per_ticket',
+      p_fixed_amount: 15_000,
+    })
+    expect(rpcAdministrativa?.message).toBe('El vendedor no existe o no tienes acceso a él.')
+    const { error: rpcAjena } = await ajeno.rpc('team_set_commission_model', {
+      p_member_id: personas.get('kh')!.id,
+      p_model: 'fixed_per_ticket',
+      p_amount: 15_000,
+    })
+    expect(rpcAjena?.message).toBe('Este vendedor no es de tu equipo.')
+
+    expect(await fotoDinero()).toEqual(antes)
+  })
+
+  it('E13-05: ningun vendedor cambia su propio acuerdo, ni el de un compañero, ni el de otro equipo', async () => {
+    const antes = await fotoDinero()
+    const intentos: Array<[string, string]> = [
+      ['kh', 'kh'], // el integrante, el suyo
+      ['trh', 'kh'], // un integrante de otro equipo
+      ['trb', 'kh'], // otro jefe
+    ]
+    for (const [actor, objetivo] of intentos) {
+      const { error } = await (await sesion(actor)).rpc('team_set_commission_model', {
+        p_member_id: personas.get(objetivo)!.id,
+        p_model: 'fixed_per_ticket',
+        p_amount: 29_000,
+      })
+      expect(error?.message, `${actor} → ${objetivo}`).toBe('Este vendedor no es de tu equipo.')
+    }
+    // Por PostgREST no hay politica de escritura para un vendedor: cero filas.
+    for (const actor of ['kh', 'kp']) {
+      const { data } = await (await sesion(actor))
+        .from('memberships')
+        .update({ fixed_commission_amount: 29_000, direct_fixed_amount: 99_000 })
+        .eq('organization_id', org)
+        .in('profile_id', [personas.get('kh')!.id, personas.get('kp')!.id])
+        .select('profile_id')
+      expect(data ?? []).toEqual([])
+    }
+    // El padre tampoco cambia el suyo por la RPC del personal.
+    const { error: suyo } = await (await sesion('kp')).rpc('staff_set_seller_agreement', {
+      p_seller_id: personas.get('kp')!.id,
+      p_mode: 'fixed_per_ticket',
+      p_fixed_amount: 99_000,
+    })
+    expect(suyo?.message).toBe('El vendedor no existe o no tienes acceso a él.')
+    expect(await fotoDinero()).toEqual(antes)
+  })
+
+  it('E13-06: el padre si, por su RPC y en su alta; y un integrante sigue sin poder usar una lista personalizada', async () => {
+    const { error } = await (await sesion('kp')).rpc('team_set_commission_model', {
+      p_member_id: personas.get('kh')!.id,
+      p_model: 'fixed_per_ticket',
+      p_amount: 25_000,
+    })
+    expect(error).toBeNull()
+    expect(await estado('kh')).toMatchObject({ rate: 25_000, earned: 2 * 25_000 })
+    expect(await estado('kp')).toMatchObject({ teamEarned: 2 * 5_000 })
+    await ledgerCuadra('kp')
+
+    // Su alta pide una lista personalizada: la base la rechaza por la lista, no
+    // por permisos, porque quien la pide si puede adjudicar la ganancia.
+    const personalizada = (await membresia('propia')).direct_tier_list_id
+    const nuevo = await persona('kh4', 'Hijo Permisos Cuatro')
+    const { error: lista } = await (await sesion('kp')).from('memberships').insert({
+      organization_id: org,
+      profile_id: nuevo,
+      role: 'seller',
+      parent_seller_id: personas.get('kp')!.id,
+      commission_model: 'tiered',
+      team_tier_list_id: personalizada,
+    })
+    expect(lista?.message).toBe('La ganancia por tramos de un integrante usa la lista general.')
   })
 })

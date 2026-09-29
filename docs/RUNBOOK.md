@@ -1,6 +1,11 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-29 (**§10 nueva**, pendiente y **no autorizada**: cómo se publicaría la `0078` de D-237
+**Actualizado:** 2026-09-29, más tarde (**§10 rehecha** con D-238, pendiente y **no autorizada**: la `0078` y la `0079`
+juntas; el diagnóstico previo sobre el esquema `0077` (`scripts/earning-precheck.ts`), porque
+`commission_agreement_problems()` nace en la propia `0078`; la migración **sin tráfico y con `lock_timeout`**, porque con
+tráfico se interbloquea (I-182); lo que rompe cada combinación de código y base, medido; y la recuperación de datos
+preservados `supabase/recovery/0079_a_0077.sql` y la restauración con las escrituras posteriores conciliadas, **ensayadas
+en local**). Antes, ese mismo día (**§10 nueva**, pendiente y **no autorizada**: cómo se publicaría la `0078` de D-237
 —diagnóstico previo en solo lectura, respaldo, migración y código en la misma ventana, y `commission_agreement_problems()`
 después—; nada de eso se ha ejecutado). Antes, 2026-09-19 (§5.2: un respaldo restaurado **no recrea los dos disparadores de `auth.users`**, medido al
 validar el de la promoción de D-209). Antes, 2026-09-18 (§9 **rehecha en la Etapa 4 de D-208**: el estado real de producción comprobado en solo lectura —`0001`–`0066`, el despliegue servido es `6da9bcb` y no `da81663`, y las dos coincidencias, idénticas a lo confirmado—, el cargador con su modo de producción probado, las herramientas de puerta versionadas —foto por fila, comparación con la «Opción A» y sonda del historial—, la conciliación de totales **recalculados** en vez de «el historial tiene dos premios» y la recuperación; **sigue sin ejecutarse**. Antes, ese mismo día, §9 nueva: **el procedimiento de promoción del historial de premios ganados**, preparado en la Etapa 3 de D-208 y **no ejecutado** —`0067`–`0072`, el cargador de los dos premios reconocidos y el despliegue, en cuatro puertas, con la línea base por fila y la «Opción A» de la Entrega 5—; antes, el 2026-09-17, §8.0 y §8.1: **la puerta 1 pasa a `0058`–`0066`** y a un commit nuevo; el primer intento, autorizado el 2026-09-17, **se suspendió antes de escribir** porque el preflight vio que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva (I-132, D-207); antes, el 2026-09-16, §8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
@@ -1037,65 +1042,126 @@ produjo ninguna coincidencia) y el tramo del **10/08 al 24/08**, que sigue pendi
 
 ---
 
-## 10. Publicar la configuración de ganancias (`0078`, D-237) — **PENDIENTE, NO AUTORIZADA**
+## 10. Publicar la configuración de ganancias (`0078` y `0079`, D-237 y D-238) — **PENDIENTE, NO AUTORIZADA**
 
-> Nada de esto se ha ejecutado. La `0078` y su código viven **solo en local** (rama
-> `feature/detalle-boleta-admin`, commit de D-237). Publicarlos exige la autorización expresa del dueño, y
-> cada paso que escribe lo hace **el dueño con su propia sesión**; quien prepara la puerta se detiene, le da
-> los pasos y verifica en solo lectura.
+> Nada de esto se ha ejecutado en producción. La `0078`, la `0079` y su código viven **solo en local** (rama
+> `feature/detalle-boleta-admin`). Publicarlos exige la **autorización expresa del dueño**, puerta por puerta; cada paso
+> que escribe lo hace el dueño con su sesión o con autorización para ese paso, y quien prepara la puerta se detiene, le
+> da los pasos y verifica en solo lectura. **Todo lo de esta sección está ensayado en local** (D-238, `TEST_RESULTS`)
+> sobre un escenario de 5.401 boletas; lo que solo puede comprobarse con acceso al proyecto real está en §10.8 y **no
+> está validado**.
 
-### 10.0 Por qué esta migración tiene puerta propia
+### 10.0 Por qué esta publicación tiene puerta propia
 
-| Riesgo | Por qué |
+| Riesgo | Por qué | Medido en el ensayo |
+|---|---|---|
+| **Mueve cómo se calcula el dinero** | La `0078` recuenta todas las rifas y se detiene si cambia un peso; la `0079` vuelve a recontar y también | Sin actividad: pasa; con una fila desfasada por I-180, se detiene diciendo cuál |
+| **No es aditiva, en ningún sentido** | Retira `commission_tiers`, `team_max_fixed_commission` y la firma de `commission_summary` que usa el código publicado; el código nuevo necesita lo que crea | Código viejo con base nueva y código nuevo con base vieja: los dos rompen pantallas (§10.3) |
+| **Con tráfico, se interbloquea** (I-182) | Sostiene `memberships` en exclusiva y después pide `commission_tiers`, que lee el panel del vendedor | Con 16 lecturas por segundo del código publicado: `40P01` y **nada aplicado** |
+| **No se revierte con un despliegue** | Volver al código anterior no devuelve `commission_tiers` | La reversión es `supabase/recovery/0079_a_0077.sql` (§10.6), ensayada |
+| **Puede destapar lo que ya era incompatible** | Pares padre–hijo, faltantes y rebajas quedan medidos, no corregidos (BR-G35) | El diagnóstico previo los anticipa uno por uno (§10.1) |
+
+### 10.1 Qué se comprueba, en qué momento y con qué
+
+| Momento | Con qué | Qué responde | Qué detiene |
+|---|---|---|---|
+| **Antes de migrar**, en producción y en solo lectura | `npx tsx scripts/earning-precheck.ts --production --project-ref <REF>` —una transacción `repeatable read read only`, no instala nada— | Lo que haría detenerse a la `0078` (esquema que no es `0077`, tramos fuera de BR-G32, tres niveles, fijos > $10.000.000, **filas que el recuento de hoy no reproduce** —la huella de I-180— y ledger que no cuadra por partes) y lo que dejaría medido (`par_incompatible`, `faltante_de_equipo`, `rebaja_sin_cubrir`) | Salida `2`: cualquier «bloquea»; o un «decide» que el dueño no haya decidido por escrito |
+| **Ensayando sobre una copia aislada** | El respaldo de la puerta restaurado en local (§5.2) con los privilegios de producción (`gate-mirror-privileges.ts`), el diagnóstico `--local` y `npx supabase migration up --local` | Que las comprobaciones propias de las dos migraciones pasan con los datos reales —conservación, privilegios, tres niveles y tramos—, cuánto tardan y el delta de estructura esperado | Cualquier fallo de la migración; un delta distinto del ensayado |
+| **Después de migrar**, en producción | `select * from commission_agreement_problems();` (*service role*), `npm run verify:remote` y `gate-compare` | Que los problemas medidos son **exactamente** los que anticipó el diagnóstico, **54/54** y ninguna fila tocada fuera de lo explicado | Cualquier diferencia con lo anticipado |
+
+En el ensayo, el diagnóstico encontró los cinco problemas sembrados, la `0078` se detuvo **exactamente** donde dijo —
+primero por los tres niveles; resuelto eso, por la fila desfasada: «1 filas de comisión distintas… ledger de 3.732 a
+3.733 filas», los $320.000 de I-180— y, resuelto lo que bloqueaba, `commission_agreement_problems()` listó **los mismos
+tres** «decide» que había anticipado.
+
+**Si el diagnóstico encuentra filas desfasadas (I-180)**, arreglarlas es recontar al jefe afectado con el motor de hoy
+(`select recalc_seller_commission(<org>, <rifa>, <jefe>)`, *service role*): **le paga lo que las reglas ya le debían** y
+por tanto **cambia dinero**. Lo decide el dueño, con el alcance escrito (BR-G35); ensayado en local, deja limpio el
+diagnóstico.
+
+### 10.2 El orden, con sus puertas
+
+Cada fila que escribe se autoriza por separado. `<REF>` es la referencia de 20 letras del proyecto; `<SHA>`, el commit
+que se publica.
+
+| # | Puerta | Qué se hace | Se sigue solo si |
+|---|---|---|---|
+| P0 | Solo lectura | Producción en `0077` y ninguna posterior; el despliegue servido y el inmediatamente anterior; `verify:remote` **49 OK + 5 en rojo a propósito** —medido contra una base en `0077`—: la matriz de funciones de la `0078` y la de la tabla de tramos, las dos de la `0079`, y la de I-078 con **exactamente una** fila, `team_max_fixed_commission`, que la `0078` retira y ya no está en su lista | Todo como se espera; cualquier otro rojo, u otra fila en la de I-078, detiene |
+| P1 | Diagnóstico previo | `scripts/earning-precheck.ts --production --project-ref <REF>` | «limpio», o cada «decide» decidido por el dueño por escrito. «bloquea» **detiene** |
+| P2 | Rama y CI, antes de migrar | Empujar la rama, PR y CI **2/2** sobre `<SHA>` | 2/2. Un rojo detiene antes de tocar la base |
+| P3 | Respaldo validado | `RUNBOOK` §5.1 inmediatamente antes, validado restaurándolo en local (§5.2) frente a una foto `gate-snapshot` del mismo momento | La restauración trae las mismas filas (I-183: la estructura no sale idéntica; se compara con `--structure-only` y se anota) |
+| P4 | Ensayo sobre la copia | La restauración de P3, con `gate-mirror-privileges.ts`: diagnóstico `--local` igual al de P1, `migration up --local`, `commission_agreement_problems()` y el delta (`gate-compare --structure-only --save-delta`); la recuperación de §10.6 sobre esa misma copia | La copia migra sin errores, tarda lo medido y la recuperación deja la estructura idéntica a `0077` |
+| P5 | La ventana | El dueño avisa a los vendedores de una pausa de 15 minutos; franja sin cron (fuera de las horas UTC 3, 4, 5, 6, 12, 13, 15 y 16; la más tranquila medida, 07:00–10:59 UTC, `RUNBOOK` §9.0), `lottery_sync_lock` libre y ningún recordatorio en los 30 minutos siguientes. Justo antes, en lectura: ninguna consulta activa de la aplicación (`select count(*) from pg_stat_activity where usename = 'authenticator' and state <> 'idle'` → 0) y la foto `gate-snapshot` «antes» | Sin actividad |
+| P6 | Migrar | `npx supabase db push --dry-run` debe listar **exactamente** `0078` y `0079`. Después `npx supabase db push --db-url "<SUPABASE_DB_URL>&lock_timeout=900ms"` (o `?lock_timeout=900ms` si la cadena no lleva parámetros): con cualquier cerrojo ocupado la migración falla **ella**, atómica, antes que un usuario (`55P03`) | Sin error y `migration list` con `0078` y `0079`. Si falla por cerrojo o interbloqueo: **nada cambió** —comprobarlo—, esperar 2 minutos y repetir P5–P6 (tres intentos como mucho). Si falla por una comprobación propia, **no se reintenta**: se vuelve a P1 |
+| P7 | Código, enseguida | `git ls-remote origin refs/heads/main`, y `git push origin <SHA>:refs/heads/main` por avance rápido, sin `force`; **un** despliegue | READY sobre `<SHA>` |
+| P8 | Después, en lectura | `commission_agreement_problems()` igual a lo anticipado en P1; `verify:remote` **54/54**; `gate-compare antes → después --operation migrations --migrations 0078,0079 --expected-delta <P4>`; identificador servido (`DEPLOYMENT` §6.1); sin errores de ejecución | Todo igual a lo ensayado |
+| P9 | El dueño, con su sesión | «Configuración» → «Ganancias de vendedores» abre con la versión 1; la ficha de un vendedor dice «La mitad del precio…»; el panel de un vendedor con cobros enseña **la misma cifra que antes**; «Mi equipo» de un jefe abre | Lo que ve coincide |
+
+### 10.3 Lo que pasa entre migrar (P6) y el código servido (P7) — medido
+
+Mismo escenario, código publicado (`cac81e8`) contra la base ya migrada, con una sonda que entra por la interfaz con cada
+rol y repite las escrituras de ese código:
+
+| | Código publicado con `0077` | **Código publicado con `0079`** (la ventana) | Código nuevo con `0079` | Código nuevo con `0077` (orden equivocado) |
+|---|---|---|---|---|
+| Personal: panel, «Vendedores», fichas, «Usuarios» | 5/5 | **5/5** | 5/5 | 2/5: «Vendedores» y las fichas, página de error |
+| Vendedor: **panel** | ✓ | **página de error**, para todo vendedor | ✓ | página de error |
+| Jefe: «Mi equipo» y la ficha de un integrante | ✓ | **página de error** | ✓ | página de error |
+| Vendedor: boletas y pagos | ✓ | ✓ | ✓ | ✓ |
+| Alta de un vendedor por el personal | ✓ | **rechazada** («La mitad… no se puede asignar de nuevo»); la cuenta se borra (D-045) | ✓ (con acuerdo) | — |
+| Alta de un integrante, cambio de su ganancia, un cobro | ✓ | ✓, **con las reglas nuevas** | ✓ | — |
+
+**Nada queda a medias**: lo que falla lo rechaza la base entera; lo que pasa lo calcula ya el motor nuevo. Por eso la
+ventana se hace **sin usuarios** (P5) y el código va **enseguida** (P7): mientras dure, el primer destino de un vendedor
+al entrar —su panel— da error. Con el orden al revés rompe más, y por eso la migración va siempre primero y el código
+solo si la migración terminó. En el ensayo la migración tardó **8,4 s** con la CLI; las lecturas que llegan en ese
+tiempo **esperan** (hasta 2,6 s medidos con tráfico), no fallan.
+
+### 10.4 La actividad durante la transición
+
+| Quién | Qué se hace |
 |---|---|
-| **Mueve cómo se calcula el dinero** | El motor recuenta todas las rifas al final de la migración. Está diseñada para no cambiar un peso —y se detiene si cambia uno—, pero eso se mide sobre los datos reales, no se supone |
-| **No es aditiva** | Retira `commission_tiers`, `team_max_fixed_commission` y la firma vieja de `commission_summary`. El código publicado deja de funcionar en el panel del vendedor y en «Mi equipo» en cuanto se aplica, y el nuevo no funciona sin ella (`DEPLOYMENT` §3.3.b) |
-| **No se revierte con un despliegue** | Volver al código anterior no devuelve `commission_tiers`. La recuperación es el respaldo de 10.2 o una migración inversa, que **no está escrita** |
-| **Puede destapar lo que ya era incompatible** | Un integrante que hoy gana más que su padre en alguna rifa (BR-G28) queda medido en `team_shortfall`, no corregido (BR-G35) |
+| **Vendedores y personal** | Aviso del dueño y franja tranquila (P5). La comprobación de `pg_stat_activity` justo antes. Si alguien entra igual: con `lock_timeout` la migración se retira sola en vez de interbloquearse con él (I-182) y se reintenta |
+| **`pg_cron`** (recordatorios y avisos, cada minuto) | No tocan comisiones, pero leen `memberships`: esperan mientras dura la migración o la hacen fallar por cerrojo —se reintenta—. Se elige un minuto sin recordatorios que vencer |
+| **Cron de Vercel** (loterías) | Fuera de sus horas (P5); comprobado `lottery_sync_lock` libre |
+| **Entre P6 y P7** | Nada se despliega ni se migra aparte; el código va en **un** despliegue |
 
-### 10.1 Antes, en solo lectura (puerta 0)
+### 10.5 Respaldo y restauración
 
-1. Estado del proyecto: migraciones aplicadas hasta `0077` y ninguna posterior; el despliegue servido.
-2. **Los tramos de cada organización cumplen BR-G32** (primer tramo en 1, tarifas crecientes, como mucho 20):
-   si no, la migración se detiene diciendo cuál. Se lee `commission_tiers` por organización.
-3. **Ninguna estructura de tres niveles** (I-176): un vendedor que tiene equipo y a la vez vendedor padre. Si
-   existe, la migración se detiene; corregirla cambia dinero y la decide el dueño.
-4. Las rifas —estado y precio— y los integrantes fijos o por tramos cuyo padre conserva la mitad: son los
-   pares que BR-G28 puede declarar incompatibles.
-5. La foto de la puerta (`gate-db`, `repeatable read read only`) con `seller_commissions`, `commission_ledger`
-   por partes y `memberships`, para comparar después (`gate-compare`; `commission_tier_lists` y sus tramos ya
-   están en su lista).
+El respaldo es el de §5.1, **validado** restaurándolo en local antes de migrar (P3). Ensayado (I-183): la restauración
+devuelve **cada fila igual** —0 diferencias contra la foto del momento del respaldo—, pero no el historial de
+migraciones (se repara con `supabase migration repair`), ni los dos disparadores de `auth.users` (§5.2), ni algunos
+privilegios del esquema y de `pg_trgm`, que quedan funcionalmente equivalentes.
 
-### 10.2 Respaldo
+### 10.6 Recuperación
 
-Un respaldo **validado** del proyecto antes de aplicar nada, como en §9.2. Es el único camino de vuelta.
+| Situación | Qué se hace | Ensayado |
+|---|---|---|
+| **La migración falla** (P6) | Nada cambió: cada archivo es una transacción. Se comprueba con `migration list` y con la tabla `commission_tiers` presente. Si fue tráfico, P5–P6 otra vez; si fue una comprobación propia, P1 | ✅ Los cuatro fallos: tres niveles, conservación (I-180), `lock timeout` e interbloqueo con tráfico. En los cuatro la base siguió en `0077` |
+| **El despliegue o el código nuevo fallan** después de migrar | **Primero** *Instant Rollback* al despliegue anterior (lo pulsa el dueño; después, «Undo Rollback» antes de volver a desplegar, `DEPLOYMENT` §4.1): con la base migrada solo fallan el panel del vendedor y «Mi equipo». **Enseguida**, la recuperación de datos preservados: `psql "<SUPABASE_DB_URL>" -v ON_ERROR_STOP=1 -f supabase/recovery/0079_a_0077.sql` y `npx supabase migration repair --status reverted 0079 0078 --db-url "<SUPABASE_DB_URL>"`. En ese orden porque el inverso —recuperar primero— deja al código nuevo con la base vieja, que rompe más (§10.3) | ✅ En **258 ms**; estructura **idéntica** a `0077` construida desde cero (`gate-compare --structure-only`: `{}`); cifras de dinero idénticas; el código publicado vuelve a 12/12 pantallas y 7/7 escrituras |
+| **Aparecen problemas más tarde**, con ventas y cobros ya hechos | La misma recuperación: **conserva** toda boleta, cobro, asignación y reorganización posterior, y recuenta con el motor de `0077` sin mover un peso (se deshace entera si moviera uno) | ✅ Con dos ventas y cobros, un traslado (I-180) y un cambio de ganancia del padre hechos después de migrar |
+| **La recuperación se niega** | Pasa si alguien ya usó la configuración nueva —un fijo o unos tramos administrativos, una lista personalizada, una versión 2 de la lista general—: `0077` no puede guardarlo. **No se fuerza**: se corrige hacia delante o, si hay daño de datos, se restaura (fila siguiente) | ✅ Un fijo administrativo después de migrar: «Hay acuerdos administrativos distintos de la mitad… no se revierte», y **nada** cambió |
+| **Datos dañados: hay que restaurar el respaldo** | Último recurso y **nunca sin conciliar**: (1) volcar el estado actual con §5.1 —lo posterior al respaldo no se pierde—; (2) foto `gate-snapshot` y `gate-compare <foto del respaldo> <foto actual> --operation none`, que enumera **cada fila escrita después del respaldo**, tabla por tabla; (3) restaurar (§5.2), recrear los disparadores de `auth.users` y reparar el historial; (4) volver a registrar por las **mismas RPC** cada venta y cada cobro de la lista y comprobar que el dinero cuadra con el volcado; (5) los cambios de acuerdos, altas y reorganizaciones de la lista, **decididos uno por uno por el dueño**. Restaurar sin (2) y (4) pierde operaciones en silencio | ✅ La foto enumeró 7 cobros, 13 asignaciones, 8 boletas nuevas y 5 cambiadas, 12 membresías…; sin conciliar se perdían **$1.560.000 y 13 boletas pagadas**; tras volver a registrar 8 ventas y 7 cobros, **cuadra exacto** |
 
-### 10.3 Aplicar (puerta 1, la hace el dueño)
+### 10.7 Lo que NO se hace nunca
 
-En una hora sin cron (la sincronización de loterías y los recordatorios), aplicar **solo** la `0078` y
-promover el código de D-237 **enseguida**, midiendo la ventana (`DEPLOYMENT` §3.3.b). La migración:
-
-* crea la versión 1 de la lista general de cada organización con **exactamente** sus `commission_tiers`;
-* deja a toda membresía con la mitad como acuerdo administrativo y fija a los integrantes por tramos a la
-  versión 1;
-* recalcula y **se detiene** si `earned`, `team_earned` o el ledger por partes cambian en un solo peso;
-* comprueba sus propios privilegios (38 funciones, `scripts/earning-function-grants.ts`) y se detiene si no
-  coinciden.
-
-### 10.4 Después, en solo lectura
-
-1. `select * from commission_agreement_problems();` con la *service role*. **Cero filas** es lo esperado. Si hay
-   alguna —`par_incompatible`, `tres_niveles`, `faltante_de_equipo`, `rebaja_sin_cubrir`—, **no se corrige
-   nada**: se documenta el alcance y lo decide el dueño (BR-G35).
-2. `npm run verify:remote`: las comprobaciones de siempre y las tres de la `0078`.
-3. `gate-compare` contra la foto de 10.1: ninguna diferencia en lo congelado; en `seller_commissions`, solo las
-   columnas nuevas.
-4. El dueño, con su sesión: «Configuración» → «Ganancias de vendedores» abre con la versión 1; la ficha de un
-   vendedor dice «La mitad del precio…»; el panel de un vendedor con cobros enseña la misma cifra que antes.
-
-### 10.5 Lo que NO se hace nunca
-
-* **No** se corrige un par incompatible, un faltante o una estructura de tres niveles sin la decisión del dueño:
-  cambia dinero.
+* **No** se migra con tráfico, ni sin `lock_timeout` (I-182).
+* **No** se aplica la `0078` sin la `0079`: van en el mismo `db push`, en ese orden. Ni el código sin las dos.
+* **No** se vuelve atrás solo con *Instant Rollback* después de migrar: el código anterior no funciona con la base nueva.
+* **No** se fuerza la recuperación cuando se niega, ni se edita para que pase.
+* **No** se restaura el respaldo sin enumerar y conciliar lo escrito después.
+* **No** se corrige un par incompatible, un faltante, una fila desfasada o una estructura de tres niveles sin la
+  decisión del dueño: **cambia dinero**.
 * **No** se convierte la mitad en una cifra fija, ni se le asigna a nadie de nuevo (BR-G30).
-* **No** se aplica la `0078` sin promover el código en la misma ventana, ni el código sin la `0078`.
+
+### 10.8 Lo que el ensayo local no puede comprobar
+
+| Qué | Por qué queda pendiente |
+|---|---|
+| Lo que el diagnóstico encuentre en los datos reales | Leer producción no estaba autorizado |
+| Cuánto tardan las dos migraciones con los datos y la red reales | Se mide en P4 sobre la copia |
+| Si la API alojada reintenta un interbloqueo como la local (PostgREST 14.15 lo hizo) | Depende de su versión; por eso la ventana va sin tráfico y con `lock_timeout` |
+| Si el *pooler* de Supabase entrega `lock_timeout` a la sesión de la migración | En local la CLI se conecta directo a Postgres. Si no lo entrega, la migración igual se deshace entera ante un interbloqueo: `lock_timeout` es un refuerzo, **la protección es la ventana sin tráfico** |
+| Cuánto tarda el despliegue en Vercel, que es lo que dura la ventana de §10.3 | Se mide en P7 |
+| Los privilegios de las funciones que la recuperación recrea, en el proyecto alojado (I-132) | Quedan los del repositorio; tras recuperar se compara la estructura con la foto de P5 |
+| Una restauración del respaldo en el proyecto alojado | Solo se ensayó en local (I-183) |

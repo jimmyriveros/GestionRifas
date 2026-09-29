@@ -22,7 +22,7 @@
 import { config } from 'dotenv'
 import { Client } from 'pg'
 
-import { EARNING_FUNCTION_CHECKS } from './earning-function-grants'
+import { EARNING_0079_CHECKS, EARNING_FUNCTION_CHECKS } from './earning-function-grants'
 import { PRIZE_FUNCTION_CHECKS } from './prize-function-grants'
 
 config({ path: '.env.local', quiet: true })
@@ -643,6 +643,9 @@ const CHECKS: Check[] = [
   // la tabla mutable de tramos ya no exista. Las mismas comprobaciones que corre
   // tests/db/earning-agreements.test.ts. Fallan hasta que la 0078 se aplique.
   ...EARNING_FUNCTION_CHECKS,
+  // 0079 (D-238): reorganizar recalcula al padre nuevo (I-180) y el acuerdo de
+  // equipo solo lo cambia su padre (I-181). Fallan hasta que la 0079 se aplique.
+  ...EARNING_0079_CHECKS,
 ]
 
 async function main(): Promise<void> {

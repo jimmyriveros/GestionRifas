@@ -15602,3 +15602,145 @@ acuerdos y convertir la mitad en una cifra.
 | Publicar la `0078` y su código (`RUNBOOK` §10, **no autorizado**): diagnóstico de solo lectura, respaldo, migración y código en la misma ventana | Del dueño |
 | Si el diagnóstico encuentra pares incompatibles, faltantes o tres niveles en el proyecto real, qué hacer con cada uno: **cambia dinero** | Del dueño |
 | I-068: borrar `CommissionCard` o decidir dónde vuelven sus dos textos | Del dueño |
+
+## D-238 — Revisión de D-237 antes de publicarla: reorganizar recalcula al padre nuevo, el acuerdo de equipo solo lo cambia el padre, y la publicación se prepara y se ensaya
+
+**Fecha:** 2026-09-29 · **Encargo del dueño:** revisar y corregir la entrega de «Configuración de ganancias» (D-237,
+commit `aa11ad4`) antes de considerarla lista para publicar. Mantenimiento posterior a la Fase 9, **no es una fase** ni
+lleva etiqueta. Autorizado: investigar, corregir, probar en local y documentar. **No autorizado:** push, despliegue,
+cambios o conexiones a producción, ni «Cierre de cuentas». Migración nueva **`0079`**, **solo en local**; la `0078` no se
+toca. Precisa BR-G13, BR-G25, BR-G33, BR-G34 y BR-E08.
+
+### Los hallazgos de la revisión, uno por uno
+
+| # | Hallazgo | Veredicto | Evidencia |
+|---|---|---|---|
+| 1 | Cambiar a un integrante de padre con la misma tarifa descuenta sus ventas al padre anterior y no las suma al nuevo | ✅ **Confirmado** (**I-180**) | `E12-01`: 10 boletas a $20.000 trasladadas a un padre de $30.000 → el padre nuevo con 0 y $0 en vez de 10 y $100.000. `E12-02`: un directo de $20.000 que entra con la lista general, que a 10 boletas paga lo mismo. `E12-04`: el padre por tramos no subía de tramo. **Anterior a D-237**: reproducido con el motor de la `0031` sobre una base en `0077` —el padre nuevo guardaba 12 boletas y $480.000 cuando su propio recuento daba 20 y $800.000— |
+| 2 | El Dueño o el Administrador pueden cambiar el acuerdo de equipo de un integrante por la API, aunque la interfaz no ofrezca el botón | ✅ **Confirmado** (**I-181**) | `E13-01`/`E13-02` con sesiones reales del Dueño y del Administrador: fijo, modelo y lista cambiados por `memberships_update_staff`; un fijo escondido en un traslado; un alta dentro de un equipo con la ganancia puesta. **Anterior a D-237 en su origen**: la `0031` no miraba quién cambiaba esas columnas; la `0078` añadió la comprobación, pero con la excepción de la capacidad |
+| 2.a | …y por las RPC | ❌ **Descartado** | `team_set_commission_model` ya exigía ser el padre (`team_member_guard`), y `staff_set_seller_agreement` solo escribe el acuerdo administrativo. `E13-04` y `E13-05` lo fijan: el personal por la RPC del padre, el de otra organización por las tres puertas y cada vendedor sobre el suyo reciben el rechazo y **nada cambia** |
+| 3 | `commission_agreement_problems()` no sirve para decidir antes de migrar: nace en la propia `0078` | ✅ **Confirmado** | Se añade un diagnóstico previo que funciona contra `0077` (abajo) |
+| 4 | «Aplicar la migración y desplegar enseguida» no basta | ✅ **Confirmado, y con un hallazgo nuevo** (**I-182**) | Medido: con el código publicado y la base migrada, el panel de todo vendedor y «Mi equipo» dan error; y **con tráfico la `0078` se interbloquea y se deshace** |
+| 4.a | Volver al despliegue anterior recupera la aplicación | ❌ **Descartado** | Con la base ya migrada el código anterior rompe el panel del vendedor (§ ventana, abajo). Hace falta devolver también el esquema |
+
+### Hallazgo 1 — la causa y la corrección (I-180)
+
+**Causa.** `memberships_sync_commission` (desde la `0031`, conservado por la `0078`) recalculaba al integrante en todas
+sus rifas y, a mano, al padre **anterior**; al padre **nuevo** lo dejaba a la cascada del motor. Pero
+`recalc_seller_commission` sale antes de cascadear cuando lo del integrante no cambia —su camino de idempotencia
+(BR-G08)—, que es exactamente lo que pasa al trasladar con el mismo acuerdo de equipo o al entrar con una tarifa igual a
+la del acuerdo administrativo. `DATA_MODEL` §4.24 ya decía que el disparador recalculaba «al padre anterior y al nuevo»:
+no era cierto.
+
+**Corrección (`0079`), el cambio mínimo.** El disparador recalcula también al padre nuevo, en las rifas del integrante y
+con el integrante como procedencia de su línea de equipo (BR-G22). No se toca el motor: su salida anticipada es la que
+mantiene baratos los cobros, y el único camino que necesitaba la cascada era este. Si la cascada ya lo hizo, el segundo
+recálculo no escribe nada: **ningún movimiento ficticio ni duplicado**. Atómico: todo en la transacción del cambio.
+
+**Una consecuencia que hubo que cerrar.** Recalcular al padre nuevo hace que dos traslados cruzados —uno de A a B y otro
+de B a A— bloqueen las filas de los dos jefes en orden contrario. Medido quitando la defensa: **52 interbloqueos en 60
+pares**, que la API local reintentó sin decir nada (≈1.015 ms por par; con `deadlock_timeout` en 250 ms, 265 ms). El
+disparador de validación toma ahora, al reorganizar, los cerrojos de los dos jefes (`commission_team_lock`, el de
+BR-G33) **en un orden fijo** antes de tocar ninguna fila: **0 interbloqueos** y 16 ms por par.
+
+**Qué más se comprobó.** Salir de un equipo ya funcionaba (el padre anterior tenía su bucle). Los dos niveles y las
+validaciones de compatibilidad no cambian. La `0079` recuenta al aplicarse todas las filas y **se deshace si una sola
+cambiara**: una fila desfasada es dinero y la decide el dueño (BR-G35), no una migración.
+
+### Hallazgo 2 — permisos (I-181)
+
+**Qué hacía la base.** `memberships_validate_seller_agreements` aceptaba un cambio del acuerdo de equipo si quien lo
+hacía era el padre **o tenía** `sellers.earnings.manage`; y `memberships_update_staff` abre `memberships` al personal
+para reorganizar. La regla (BR-G34), la matriz de `SECURITY` §2 («solo su vendedor padre») y la interfaz decían otra
+cosa: el código era el que no la cumplía.
+
+**Corrección (`0079`).** El disparador mira lo que **pide** quien escribe —`commission_model`, `fixed_commission_amount`,
+`team_tier_list_id`— **antes** de completar nada, y solo lo acepta del padre actual (en un alta, del padre que la hace).
+El personal sigue decidiendo **quién** es el padre (BR-E06, BR-E08) y los acuerdos administrativos; que la base complete
+la lista general al entrar a un equipo es del sistema y no cuenta como cambiar el acuerdo. Sin sesión (la *service
+role*, una migración) no hay actor. Los permisos se comprueban **antes** que las reglas del acuerdo, como el alta desde
+`E1-05`: a quien no puede no se le explica por qué su valor no cabría.
+
+**El texto**, en la línea de la guía: «La ganancia de un integrante la decide su vendedor a cargo. Pídele que la cambie
+desde «Mi equipo».» Ninguna pantalla lleva a él.
+
+**Las pruebas que usaban la excepción.** `E11-21` metía a un vendedor en un equipo con un fijo puesto por el personal en
+el mismo cambio; `E11-28` probaba la regla de la lista con una sesión del personal. Se reescribieron **sin aflojarlas**:
+`E11-21` comprueba ahora que eso se rechaza y recorre el camino legítimo, y la regla de la lista se prueba sin sesión y
+por el alta del padre (`E13-06`). No se conservó ninguna excepción por comodidad de una preparación: las de las E2E van
+sin sesión (*service role*) y no se ven afectadas.
+
+**Contradicción registrada, no reinterpretada (I-184).** BR-E08 dice que el personal puede mover a un vendedor de equipo.
+Con la separación, un traslado lleva el acuerdo de equipo que la persona ya tenía —o la lista general— y **se rechaza si
+no cabe** en el padre nuevo (BR-G28); entonces no hay camino, porque el personal no puede cambiarlo y el padre nuevo
+solo actúa sobre su equipo. Antes se resolvía justo con la excepción que I-181 cierra. Opciones para el dueño, **ninguna
+aplicada**: aceptar la limitación; un traslado que el padre nuevo acepte con sus condiciones (funcionalidad nueva); o
+permitir al personal fijar la ganancia solo al trasladar, que contradice BR-G34.
+
+### El diagnóstico previo (`scripts/earning-precheck.ts`)
+
+Una herramienta de puerta más, sobre `gate-db.ts`: una transacción `repeatable read read only`, `--local` o `--production
+--project-ref <REF>` con el proyecto comprobado, informe en `build/gate/`, sin nombres ni datos de clientes, y salida
+`0` limpio · `2` detener · `1` sin veredicto. **Solo consultas `select`/`with` sobre el esquema `0077`**: no instala
+nada ni escribe nada (lo fija `P-01`).
+
+| Qué mira | Por qué | Gravedad |
+|---|---|---|
+| El esquema: `0077`, lo que la `0078` quita sin `if exists` y lo que crea | Si no, la migración falla o ya se aplicó | Bloquea |
+| Los tramos de cada organización contra BR-G32, y organizaciones sin tramos con integrantes por tramos que ya cobraron | La `0078` se detiene | Bloquea |
+| Tres niveles (I-176) y fijos de integrante por encima de $10.000.000 | La `0078` se detiene o no puede crear su restricción | Bloquea |
+| **Cada fila de `seller_commissions` contra un recuento con el motor de hoy**, y las que le faltan a un jefe con cobros de su equipo | La `0078` recuenta y se deshace si un peso cambia: es la huella de I-180 | Bloquea |
+| El ledger por partes (BR-G22) | La `0078` lo comprueba y se detiene | Bloquea |
+| Pares incompatibles, faltante de equipo y rebajas que el acuerdo conservado ya no cubre | La `0078` pasa y los deja medidos (BR-G35) | Decide el dueño |
+
+**Qué se comprueba en cada momento.** Antes de migrar, este diagnóstico en producción; sobre una copia aislada —el
+respaldo restaurado en local con los privilegios de producción—, que las comprobaciones propias de las dos migraciones
+pasan con los datos reales y cuánto tardan; después de migrar, `commission_agreement_problems()` tiene que listar
+**exactamente** lo que el diagnóstico anticipó. Ensayado: encontró los cinco problemas sembrados, la `0078` se detuvo
+donde dijo y, resuelto lo que bloqueaba, `commission_agreement_problems()` listó los mismos tres.
+
+### Publicación y recuperación: lo que se decidió y lo que se descartó
+
+| Decisión | Por qué |
+|---|---|
+| La `0078` y la `0079` en el **mismo** `db push`, **sin tráfico** y con `?lock_timeout=900ms` en la cadena de la CLI | Con tráfico la `0078` se interbloquea (I-182). Con `lock_timeout` falla **ella**, atómica, antes que un usuario —ensayado: `55P03` y nada aplicado— y se reintenta |
+| El código, **enseguida** y en un solo despliegue, después de que la migración termine | Medido lo que rompe la ventana; el orden inverso rompe más |
+| Recuperar con **`supabase/recovery/0079_a_0077.sql`**, un script de datos preservados, y no con el respaldo | Devuelve el esquema de `0077` **idéntico** —funciones con sus cuerpos y privilegios, disparadores, columnas— y conserva cada venta, cobro y reorganización posterior; recuenta con el motor de `0077` y se deshace si un peso cambia. Generado de una base `0077` construida con las migraciones, como el de D-221 |
+| El script **se niega** si alguien usó la configuración nueva | Un fijo o unos tramos administrativos, una lista personalizada o una versión 2 no caben en `0077`: se corrige hacia delante |
+| Tras un fallo del código: **primero** *Instant Rollback*, **después** la recuperación | Con la base migrada el código viejo solo rompe el panel y «Mi equipo»; al revés, el nuevo con la base vieja rompe también las fichas del personal |
+| Restaurar el respaldo solo con las escrituras posteriores **enumeradas y conciliadas** | Ensayado: la restauración sola perdía $1.560.000 y 13 boletas pagadas en silencio |
+| **Descartado:** editar la `0078` para tomar sus cerrojos al principio | Resolvería de raíz I-182, pero el encargo pide una migración nueva y una nueva no puede cambiar el orden de la `0078` |
+| **Descartado:** un modo de mantenimiento o compatibilidades temporales en la base | Infraestructura nueva sin necesidad: con la ventana sin tráfico basta, y está medida |
+
+**La ventana, medida.** Código publicado (`cac81e8`) contra la base migrada: el personal, 5/5 pantallas; el panel de
+todo vendedor, «Mi equipo» y la ficha de un integrante, **página de error**; boletas y pagos, bien; el alta de un
+vendedor por el personal, rechazada (la cuenta se borra, D-045); el alta de un integrante, el cambio de su ganancia y
+un cobro, bien y con las reglas nuevas. Nada queda a medias. Código nuevo con base migrada: 12/12. Código nuevo con la
+base de antes: 8 de 12 pantallas con error.
+
+### Mediciones
+
+Volumen: el escenario del ensayo, 5.401 boletas y 3.575 cobradas en la organización de pruebas, con equipos de los dos
+modelos, rebajas y una rifa cerrada. Mediana de 25 dentro de una transacción que se deshace, como `authenticated` con
+la identidad de quien actúa; **dos muestras alternas** de cada versión de los dos disparadores.
+
+| Operación | `0078` | `0079` | Lectura |
+|---|---:|---:|---|
+| Traslado entre padres con la misma tarifa | 4,93 / 4,85 ms | 5,31 / 5,22 ms | **+0,4 ms**: el padre nuevo y los cerrojos. Con la `0078` era incorrecto |
+| Un directo entra a un equipo | 6,67 / 6,43 ms | 7,21 / 7,60 ms | **+0,8 ms** |
+| Un integrante sale del equipo | 4,24 / 4,15 ms | 4,60 / 4,48 ms | **+0,3 ms**: el cerrojo del jefe de antes |
+| El personal cambia el acuerdo de un jefe | 4,36 / 4,69 ms | 4,54 / 4,09 ms | Igual |
+| El padre cambia la ganancia de un integrante | 3,57 / 3,20 ms | 3,22 / 3,05 ms | Igual |
+| Cobro de un directo · de un integrante · del jefe | 3,39 / 1,88 · 2,63 / 2,32 · 2,02 / 1,92 ms | 2,09 / 1,96 · 2,23 / 2,54 · 1,89 / 2,03 ms | Igual: el cobro no pasa por los disparadores de `memberships` |
+
+Las lecturas no cambian: la `0079` solo toca dos disparadores de escritura. Límites: una sola máquina, base local, sin
+red; los tiempos absolutos de producción serán otros, la diferencia entre versiones es lo que se mide.
+
+### Pendiente antes de autorizar la publicación
+
+| Qué | De quién |
+|---|---|
+| Autorizar la publicación de `RUNBOOK` §10, puerta por puerta | Del dueño |
+| El diagnóstico previo en producción, y qué hacer con lo que encuentre —filas desfasadas por I-180, pares, faltantes, rebajas—: **cambia dinero** | Del dueño |
+| I-184: qué hacer con un traslado cuyo acuerdo no cabe en el padre nuevo | Del dueño |
+| La copia aislada con los datos reales: duración de las dos migraciones y la recuperación ensayada sobre ella (P3–P4) | Con autorización, en la puerta |
+| I-068: borrar `CommissionCard` o decidir dónde vuelven sus dos textos | Del dueño (fuera de este encargo) |

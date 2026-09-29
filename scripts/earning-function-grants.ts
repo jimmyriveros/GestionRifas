@@ -118,3 +118,29 @@ export const EARNING_FUNCTION_CHECKS: RemoteCheck[] = [
     esperado: 0,
   },
 ]
+
+/**
+ * Las dos correcciones de la `0079` (D-238), por su cuerpo: no cambian quién
+ * ejecuta nada, así que la lista de arriba no las ve. Fallan hasta que la `0079`
+ * se aplique. Las corre también `tests/db/earning-agreements.test.ts`.
+ */
+export const EARNING_0079_CHECKS: RemoteCheck[] = [
+  {
+    // I-180: reorganizar recalcula al padre NUEVO aunque lo del integrante no cambie.
+    nombre: 'Reorganizar un equipo recalcula también al padre nuevo (0079)',
+    sql: `select p.proname as x from pg_proc p
+          where p.pronamespace = 'public'::regnamespace and p.proname = 'memberships_sync_commission'
+            and position('v_fila.raffle_id, new.parent_seller_id, null, null, new.profile_id' in p.prosrc) > 0`,
+    esperado: 1,
+  },
+  {
+    // I-181: el acuerdo de equipo solo lo cambia su padre, y al reorganizar se
+    // toman los cerrojos de los dos jefes en orden.
+    nombre: 'El acuerdo de equipo solo lo cambia su vendedor padre (0079)',
+    sql: `select p.proname as x from pg_proc p
+          where p.pronamespace = 'public'::regnamespace and p.proname = 'memberships_validate_seller_agreements'
+            and position('v_team_requested' in p.prosrc) > 0
+            and position('commission_team_lock(v_head)' in p.prosrc) > 0`,
+    esperado: 1,
+  },
+]

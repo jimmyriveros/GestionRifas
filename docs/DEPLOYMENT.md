@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-28, 18:00 UTC (§3.2.s: **I-173 EN PRODUCCIÓN** —D-235, `cac81e8`,
+**Actualizado:** 2026-09-29 (§3.3.b: la excepción de la `0078` pasa a ser **de la `0078` y la `0079`** —D-238, solo
+en local—, con la ventana medida, la migración sin tráfico y la recuperación de `RUNBOOK` §10; nada publicado). Antes,
+2026-09-28, 18:00 UTC (§3.2.s: **I-173 EN PRODUCCIÓN** —D-235, `cac81e8`,
 `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, READY a las 18:01:41 UTC, por avance rápido tras el CI 2/2 del PR #7; sin
 migraciones; punto de reversión, `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`); **revisado y aprobado por el dueño**
 con su sesión el 2026-09-29, con el caso de una boleta pendiente validado solo en local—). Antes, 2026-09-28, 14:00 UTC
@@ -1287,13 +1289,15 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > código anterior mientras llega el nuevo. Ahí el código se sube en el mismo comando, solo si la
 > migración terminó bien, y se mide la ventana: con `0057` fueron unos 62 s (§3.2.j).
 
-> **Excepción, pendiente: la `0078` (D-237).** Tampoco es aditiva: **retira** `commission_tiers`,
-> `team_max_fixed_commission` y la firma anterior de `commission_summary`, que el código publicado lee
-> en el panel del vendedor y en «Mi equipo». Y el código nuevo necesita las RPC de la `0078`. No hay
-> orden sin ventana: se aplica la migración y se promueve el código enseguida, en una hora sin cron, y
-> se mide la ventana como con la `0057`. **Tampoco se revierte con un despliegue anterior**: el
-> procedimiento completo, con su diagnóstico previo y su recuperación, está en `RUNBOOK` §10. **No está
-> autorizada**: nada de la `0078` existe en el proyecto real.
+> **Excepción, pendiente: la `0078` y la `0079` (D-237, D-238).** Tampoco son aditivas: **retiran**
+> `commission_tiers`, `team_max_fixed_commission` y la firma anterior de `commission_summary`, que el código
+> publicado lee en el panel del vendedor y en «Mi equipo»; y el código nuevo necesita lo que crean. No hay orden
+> sin ventana, y **medido en local** (D-238): mientras dure, el panel de todo vendedor y «Mi equipo» dan error con
+> el código publicado; al revés rompe más. Por eso van **las dos en el mismo `db push`, sin tráfico y con
+> `lock_timeout`** —con tráfico la `0078` se interbloquea y se deshace, I-182— y el código **enseguida**. **No se
+> revierte con un despliegue anterior**: primero *Instant Rollback* y después `supabase/recovery/0079_a_0077.sql`,
+> que devuelve el esquema de `0077` conservando lo escrito. Todo, con el diagnóstico previo sobre el esquema
+> anterior, en `RUNBOOK` §10. **No está autorizada**: nada de la `0078` ni de la `0079` existe en el proyecto real.
 
 ---
 

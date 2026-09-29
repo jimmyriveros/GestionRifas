@@ -1,6 +1,8 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.36 · **Actualizado:** 2026-09-29 (**§4.13 nueva**, D-237, **solo en local**: `earning-agreements.test.ts`
+- **Versión:** 2.37 · **Actualizado:** 2026-09-29, más tarde (**§4.13.a nueva**, D-238, **solo en local**: 16 pruebas
+  de base para reorganizar (I-180) y para quién cambia el acuerdo de equipo (I-181), con su mutación medida; 16
+  unitarias del diagnóstico previo; y qué se ensaya fuera de `test:db`). Antes, ese mismo día (**§4.13 nueva**, D-237, **solo en local**: `earning-agreements.test.ts`
   con **39** pruebas —un modelo independiente contra todas las filas y la mutación del cerrojo—, **30** unitarias que
   leen la `0078` para comparar frases y **9** E2E de escritorio y teléfono; §4.3, `E10-14` lee el tope de la base).
   Antes, 2026-09-28 en Bogotá (**§5**, D-236: `session-proxy.test.ts`, lo que Supabase
@@ -1353,6 +1355,39 @@ eso las preparaciones que no prueban la ganancia —`telefono-mascara`, `equipo-
 un **fijo mínimo**, y las que sí —«cobra por tramos» de `equipo`, el jefe de `ganancias`— ponen antes al jefe en la
 lista general. Las dos altas por interfaz de `vendedor1` prueban justo el camino por defecto y **necesitan la base
 recién sembrada**: si no, fallan diciendo la causa.
+
+#### 4.13.a La revisión antes de publicar (D-238, `0079`)
+
+La misma suite suma **16** pruebas (**55** en total) y un modelo más estricto: `modeloIndependiente()` —el cuerpo de
+`E11-36`, extraído para usarlo dos veces— compara también `team_tickets_paid` y exige que todo jefe con boletas
+cobradas de su equipo **tenga** fila en esa rifa, que es justo lo que I-180 dejaba sin escribir.
+
+| Grupo | Pruebas | Qué comprueba |
+|---|---|---|
+| Reorganizar (I-180) | E12-01..06 | Un traslado con la misma tarifa lleva las boletas al padre nuevo **en el mismo cambio**; un directo que entra ganando lo mismo; salir; un padre por tramos que sube y baja de tramo, **hacia atrás**, con el ajuste en lo propio y el integrante en lo del equipo; **todas** las rifas del integrante; repetirlo, pedirlo dos veces a la vez e ir y volver no dejan movimientos de más, y recontar todo a mano no escribe nada |
+| Concurrencia (I-180) | E12-07, E12-08 | Seis pares de traslados cruzados a la vez, por el Dueño y el Administrador: sin interbloqueos (la mediana por par, por debajo de medio segundo) y cuadrando; un traslado y un cobro del mismo integrante a la vez: el padre nuevo cuenta la boleta |
+| Cierre y verificación | E12-09, E12-10 | Modelo independiente, ledger por partes, nada incompatible; y las dos comprobaciones de la `0079` que corre `verify:remote` |
+| Quién cambia el acuerdo de equipo (I-181) | E13-01..06 | El Dueño y el Administrador, por PostgREST: fijo, modelo y lista; escondido en un traslado o en un alta dentro de un equipo; el personal por la RPC del padre y el de otra organización por las tres puertas; cada vendedor sobre el suyo, el de un compañero y el de otro equipo. **Cada rechazo, contra una foto** de acuerdos, ganancias, ledger y bitácora que no cambia. Y lo que sí: reorganizar, un alta dentro de un equipo con la lista general, y el padre por su RPC y por su alta |
+
+**Dos pruebas de D-237 usaban la excepción que I-181 cierra y se reescribieron sin aflojarlas**: `E11-21` metía a un
+vendedor en un equipo poniéndole el personal un fijo en el mismo cambio —ahora comprueba que eso se rechaza y recorre
+el camino legítimo: traslado a un padre donde la lista general cabe y el fijo lo pone ese padre—; y `E11-28` probaba
+la regla de la lista con una sesión del personal —ahora el personal recibe el rechazo de permisos, y la regla se
+comprueba sin sesión y por el alta del padre (`E13-06`)—.
+
+**La mutación de los cerrojos de la reorganización.** Quitando el paso 5 del disparador, 60 pares de traslados
+cruzados provocan **52 interbloqueos** en la base —que la API reintentaba sin decir nada, a ~1.015 ms por par; con
+`deadlock_timeout` en 250 ms, a 265— frente a **0** y 16 ms con él. `E12-07` fija esa firma.
+
+**Unitarias:** `tests/unit/earning-precheck.test.ts` (**16**): ninguna consulta del diagnóstico previo escribe,
+instala o cambia la sesión, ni lee una tabla que solo existe después de la `0078`; los tramos que la migración no
+aceptaría; y el veredicto (P-01..P-03).
+
+**El diagnóstico previo, la migración, la ventana y la recuperación no se prueban en `test:db`**: necesitan una base en
+`0077`. Se **ensayaron** en local con un escenario de 5.401 boletas y los problemas sembrados (`TEST_RESULTS`, D-238):
+reproducen I-180 con el motor de la `0031`, comprueban que la `0078` se detiene donde el diagnóstico dice, miden qué
+rompe cada combinación de código y base, y demuestran la recuperación y la restauración conciliada. El método está en
+`RUNBOOK` §10.
 
 ## 5. Pruebas unitarias clave
 

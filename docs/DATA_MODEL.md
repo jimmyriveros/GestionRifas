@@ -1,6 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.30 · **Estado:** implementado · **Actualizado:** 2026-09-29 (§4.3 y **§4.24 nueva**: la
+- **Versión:** 2.31 · **Estado:** implementado · **Actualizado:** 2026-09-29, más tarde (§4.3 y §4.24: la
+  **`0079`** —D-238, **solo en local**—: reorganizar recalcula también al padre nuevo (I-180), el acuerdo de equipo solo
+  lo cambia su vendedor padre (I-181) y §4.3 dice «mientras tenga vendedor padre», no «mientras pertenezca a un
+  equipo»; ni una tabla ni una columna nuevas). Antes, ese mismo día (§4.3 y **§4.24 nueva**: la
   configuración de ganancias —D-237, migración `0078`, **solo en local**—: listas de tramos inmutables y
   versionadas, dos acuerdos por membresía, el conteo del tramo y el faltante medido en `seller_commissions`, y
   `commission_tiers` retirada). Antes, el 2026-09-19, más tarde (§6.g.6: `0073` y `0074`
@@ -473,9 +476,12 @@ alguna vez hace falta que el vendedor escriba otra columna suya, el camino es un
 política—.
 
 **`commission_model` / `fixed_commission_amount`** (BR-G24, D-127): cómo se le paga a esta persona
-**mientras pertenezca a un equipo**. Viven aquí y no en una tabla aparte porque esta fila **es** la
-relación entre el vendedor padre y el integrante. Con `parent_seller_id` nulo quedan inertes pero no
-se borran: volver a entrar a un equipo las reactiva tal como estaban. ~~El **tope** del importe (la
+**mientras tenga vendedor padre** (`parent_seller_id` no nulo). *Corregido el 2026-09-29 (D-238): decía
+«mientras pertenezca a un equipo», que se leía como «mientras tenga equipo propio»; un jefe de equipo no
+tiene padre y cobra por su acuerdo administrativo aunque tenga integrantes.* Viven aquí y no en una tabla
+aparte porque esta fila **es** la relación entre el vendedor padre y el integrante, y **solo el padre las
+cambia** (BR-G34; desde la `0079` también contra el personal). Con `parent_seller_id` nulo quedan inertes
+pero no se borran: volver a entrar a un equipo las reactiva tal como estaban. ~~El **tope** del importe (la
 mitad del precio de la rifa, BR-G23) lo impone el trigger `memberships_validate_commission`.~~ **Desde
 la `0078` (D-237)** el tope es el acuerdo del propio padre (BR-G28) y lo impone
 `memberships_validate_seller_agreements`; el acuerdo administrativo —`direct_*`— rige mientras
@@ -1359,8 +1365,9 @@ activa y alguna fecha cambió).
 
 ### 4.24 Configuración de ganancias (`0078`, BR-G27..BR-G35, D-237)
 
-> 🧪 **Solo en local.** El proyecto real no tiene la `0078`; antes de publicarla, la puerta de `RUNBOOK`
-> §10 (diagnóstico de solo lectura y conservación medida).
+> 🧪 **Solo en local.** El proyecto real no tiene la `0078` ni la `0079` (D-238, que corrige dos disparadores de
+> esta sección sin cambiar ninguna tabla); antes de publicarlas, la puerta de `RUNBOOK` §10: el diagnóstico previo
+> sobre el esquema `0077` (`scripts/earning-precheck.ts`), la migración sin tráfico y la recuperación ensayada.
 
 Los tramos dejan de ser una tabla viva y pasan a ser **listas inmutables y versionadas**; cada vendedor
 tiene **dos acuerdos** en su membresía y rige uno (BR-G13).
@@ -1386,9 +1393,9 @@ que la empresa pone por un par incompatible **anterior**, BR-G35; cero en todo a
 
 | Pieza | Qué hace |
 |---|---|
-| `memberships_validate_seller_agreements` | `BEFORE INSERT OR UPDATE` de las columnas del acuerdo, el padre y el rol: completa `team_tier_list_id` con la versión vigente, valida qué lista puede usar cada acuerdo, quién puede cambiarlo (BR-G34), que nadie reciba la mitad de nuevo (BR-G30), los dos niveles (I-176), la compatibilidad padre–hijo bajo el cerrojo del equipo (BR-G28) y las rebajas ya concedidas (BR-G31) |
+| `memberships_validate_seller_agreements` | `BEFORE INSERT OR UPDATE` de las columnas del acuerdo, el padre y el rol: primero quién puede (BR-G34) —el acuerdo administrativo, el personal con la capacidad; el **de equipo, solo su vendedor padre** (`0079`, I-181), mirando lo que **pide** quien escribe antes de completar nada—; después completa `team_tier_list_id` con la versión vigente, valida qué lista puede usar cada acuerdo, que nadie reciba la mitad de nuevo (BR-G30), los dos niveles (I-176), la compatibilidad padre–hijo bajo el cerrojo del equipo (BR-G28) y las rebajas ya concedidas (BR-G31). Al **reorganizar** toma los cerrojos del jefe de antes y del de ahora, en orden (`0079`, BR-G33) |
 | `raffles_validate_team_agreements` | Crear una rifa, bajarle el precio o reactivarla no puede dejar a un integrante ganando más que un padre que conserva la mitad (BR-G28) |
-| `memberships_sync_commission` | El de siempre (BR-G25): recalcula hacia atrás al afectado y al padre anterior y al nuevo cuando cambia el acuerdo que rige o el equipo |
+| `memberships_sync_commission` | BR-G25: recalcula hacia atrás al afectado en todas sus rifas, a su padre **anterior** y a su padre **nuevo** en las rifas del integrante. *Hasta la `0079` al nuevo lo dejaba en manos de la cascada del motor, que no llega cuando lo del integrante no cambia (I-180): esta fila ya lo decía y no era cierto* |
 | `organizations_seed_commission_template` | Toda organización nueva nace con la versión 1 (sustituye a `organizations_seed_commission_tiers`) |
 | `recalc_seller_commission` | El motor de D-094, con el conteo del tramo del jefe (BR-G27), la parte del equipo `Σ N_hijo × (tarifa_padre − tarifa_hijo)` (BR-G20) y el faltante medido (BR-G35) |
 
