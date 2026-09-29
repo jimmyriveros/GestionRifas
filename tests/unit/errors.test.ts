@@ -24,6 +24,12 @@ describe('mapPgError', () => {
     expect(message).not.toContain('sale_price')
   })
 
+  it('la pausa de publicacion (D-239) dice lo que pasa y cuando volver, no «Ocurrió un error»', () => {
+    expect(mapPgError({ code: 'RIFAS_PAUSA', message: 'lo que sea' })).toBe(
+      'Estamos actualizando Rifas. Vuelve a intentarlo en unos minutos.',
+    )
+  })
+
   it('maneja errores sin forma reconocible sin lanzar', () => {
     expect(() => mapPgError(null)).not.toThrow()
     expect(() => mapPgError(undefined)).not.toThrow()

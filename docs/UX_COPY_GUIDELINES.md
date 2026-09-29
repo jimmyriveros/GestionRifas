@@ -421,6 +421,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Sorteo de esa lotería, distinto de la rifa | **Sorteo** de la lotería X | No usar «sorteo» para la rifa |
 | Que aún no hay hora oficial | **Horario por confirmar** | Pendiente de scrape, sin schedule |
 | Estar sin internet | **Sin conexión** | Offline, desconectado, sin red |
+| La pausa mientras se publica una actualización que no es compatible con la anterior | **Estamos actualizando Rifas**; volver a intentarlo, **Reintentar** (D-239) | Mantenimiento, fuera de servicio, caído, «error del servidor», «sistema no disponible» |
 | Código nuevo servido tras un despliegue | **Versión** | Build, actualización del sistema, parche |
 | Página pública con los números de un vendedor | **Catálogo** | Vitrina, tienda, landing, micrositio |
 | Su dirección, que el vendedor reparte | **Enlace** (público) | Link, URL, slug |
@@ -731,6 +732,15 @@ pantalla de error, no «Intentar nuevamente».
 **Nunca se dice que algo se guardó si no llegó al servidor.** Es la regla que ordena todo lo
 anterior: sin conexión no hay ventas ni abonos guardados «para después», y por tanto ningún texto
 puede sugerirlo.
+
+**La pausa de publicación dice qué pasa, cuándo volver y qué se conserva, y nada más** (D-239). Mientras se
+publica un cambio que no es compatible con lo anterior, la aplicación entera espera, y quien navega ve **«Estamos
+actualizando Rifas»** con **«Vuelve a entrar en unos minutos. Lo que ya registraste sigue guardado.»** y el botón
+**«Reintentar»**, la misma palabra de siempre. La segunda frase es verdad y es lo que quien vende necesita oír: la
+publicación no borra nada. Lo que **no** se dice: que se guardó algo durante la pausa —no se guarda nada— ni una
+hora exacta de vuelta, que nadie puede prometer. Una acción a medias responde **«Estamos actualizando Rifas. Vuelve a
+intentarlo en unos minutos.»** y deja lo escrito en su sitio. Y nunca, de ningún modo, «Tu cuenta está inactiva»: era
+lo que decía la guarda ante un corte (I-115), y durante una pausa sería falso para todo el mundo a la vez.
 
 **El aviso de versión nueva no da una orden, da permiso para esperar** (D-116). «Hay una nueva
 versión de Rifas · Actualiza cuando termines lo que estás haciendo. · [Actualizar]». La segunda frase
@@ -1797,6 +1807,8 @@ castigo donde solo había una espera.
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
+| «Estamos actualizando Rifas», «Vuelve a entrar en unos minutos. Lo que ya registraste sigue guardado.» y «Reintentar», la pantalla de la pausa | `src/app/mantenimiento/page.tsx` (D-239) |
+| «Estamos actualizando Rifas. Vuelve a intentarlo en unos minutos.», lo que responde una acción durante la pausa | `src/lib/maintenance-pause.ts` (`MAINTENANCE_PAUSE_MESSAGE`, D-239). **Vive también en SQL**, en `supabase/maintenance/pausa.sql`, para quien llame a la API: una prueba unitaria compara las dos letra por letra |
 | «Algo salió mal» y «Ocurrió un error inesperado. Intenta de nuevo.», la página de error general | `src/app/error.tsx` (D-196) |
 | «Reintentar» y «Reintentando…» de las **dos** páginas de error, la general y la del catálogo | `src/components/feedback/RetryButton.tsx` (D-196). La pantalla sin conexión tiene los suyos en `OfflineRetry`, que recarga y funciona sin JavaScript (D-116) |
 | Textos del catálogo público: título, introducción, aviso de que no se aparta | `src/app/(catalogo)/catalogo/[slug]/page.tsx` (D-159) |
@@ -1882,6 +1894,7 @@ Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extr
 | `CLAUDE.md` §27 fija ocho etiquetas, «Abonada» incluida; desde D-198 el portal administrativo enseña solo dos estados de pago | No se cambia ni se crea ninguna etiqueta: el personal ve «Sin pagar» y «Pagada», con las palabras de `constants.ts`, porque «Abonada» delataría lo abonado. El portal del vendedor sigue con las ocho |
 | El Anexo A reserva **Versión** para el código nuevo tras un despliegue; la lista general se guarda por versiones (D-237) | Se dice «Versión 3 · guardada el …» **siempre junto a la lista general**, como ya hacía un premio con «una versión nueva». El aviso de actualización de la aplicación sigue siendo el único que dice «versión» a secas; si algún día se confunden, se cambia aquí |
 | El encargo de D-237 decía «Configuración → Ganancias de vendedores», y «Configuración» era solo del vendedor (D-188) | Hay **una por portal, en el mismo sitio** —el menú del avatar— y con el mismo nombre: cada rol ve la suya y nunca una puerta a `/denied` |
+| La pantalla de la pausa vive en `/mantenimiento`, y «mantenimiento» es una palabra que el Anexo A no usa (D-239) | Una dirección no es un texto de la interfaz: la pantalla dice «Estamos actualizando Rifas» y no nombra la ruta. Si algún día se cambia, se cambia `MAINTENANCE_PATH` y el proxy a la vez |
 
 ## Anexo D — Estado de aplicación
 

@@ -1,6 +1,9 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-29 (§3.3.b: la excepción de la `0078` pasa a ser **de la `0078` y la `0079`** —D-238, solo
+**Actualizado:** 2026-09-29, al final (§3.3.b: la ventana de la `0078` y la `0079` la controla la **pausa de la API**
+—D-239, solo en local—; **§3.3.c nueva**: el puente de la pausa, `cac81e8` con solo el manejo de la pausa, **preparado y
+ensayado, sin publicar**; §4.1: tras la publicación, la reversión del código vuelve al puente). Antes, ese mismo día
+(§3.3.b: la excepción de la `0078` pasa a ser **de la `0078` y la `0079`** —D-238, solo
 en local—, con la ventana medida, la migración sin tráfico y la recuperación de `RUNBOOK` §10; nada publicado). Antes,
 2026-09-28, 18:00 UTC (§3.2.s: **I-173 EN PRODUCCIÓN** —D-235, `cac81e8`,
 `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, READY a las 18:01:41 UTC, por avance rápido tras el CI 2/2 del PR #7; sin
@@ -1289,15 +1292,27 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > código anterior mientras llega el nuevo. Ahí el código se sube en el mismo comando, solo si la
 > migración terminó bien, y se mide la ventana: con `0057` fueron unos 62 s (§3.2.j).
 
-> **Excepción, pendiente: la `0078` y la `0079` (D-237, D-238).** Tampoco son aditivas: **retiran**
+> **Excepción, pendiente: la `0078` y la `0079` (D-237, D-238, D-239).** Tampoco son aditivas: **retiran**
 > `commission_tiers`, `team_max_fixed_commission` y la firma anterior de `commission_summary`, que el código
 > publicado lee en el panel del vendedor y en «Mi equipo»; y el código nuevo necesita lo que crean. No hay orden
 > sin ventana, y **medido en local** (D-238): mientras dure, el panel de todo vendedor y «Mi equipo» dan error con
-> el código publicado; al revés rompe más. Por eso van **las dos en el mismo `db push`, sin tráfico y con
-> `lock_timeout`** —con tráfico la `0078` se interbloquea y se deshace, I-182— y el código **enseguida**. **No se
-> revierte con un despliegue anterior**: primero *Instant Rollback* y después `supabase/recovery/0079_a_0077.sql`,
-> que devuelve el esquema de `0077` conservando lo escrito. Todo, con el diagnóstico previo sobre el esquema
-> anterior, en `RUNBOOK` §10. **No está autorizada**: nada de la `0078` ni de la `0079` existe en el proyecto real.
+> el código publicado. Desde D-239 esa ventana **la controla la pausa de la API** (`RUNBOOK` §10.3): nadie entra
+> hasta que la base y el código servido son pareja, y el puente de §3.3.c —desplegado antes— es lo que ven mientras
+> tanto. Las dos van en el mismo `db push` con `lock_timeout`, pero **no son atómicas entre sí** (I-186): el estado
+> que quede lo dice `scripts/earning-recovery-check.ts`. **No se revierte con un despliegue anterior**: primero la
+> comprobación previa y, si se puede volver, primero el esquema (`supabase/recovery/0079_a_0077.sql`) y después el
+> código. Todo en `RUNBOOK` §10. **No está autorizada**: nada de la `0078` ni de la `0079` existe en el proyecto real.
+
+#### 3.3.c El puente de la pausa — **preparado y ensayado en local, SIN PUBLICAR** (D-239)
+
+| | |
+|---|---|
+| Qué es | `cac81e8` —lo que sirve producción— **más solo** el manejo de la pausa: `src/lib/maintenance-pause.ts`, la pantalla `/mantenimiento`, las guardas, `mapPgError`, las dos rutas de API, el proxy, y las herramientas y pruebas de la pausa. Ningún cambio de pantallas ni de base |
+| Por qué hace falta | Con la API cerrada, el código publicado cierra la sesión **global** de quien navega y dice «Tu cuenta está inactiva» (I-115). El puente lleva a `/mantenimiento` conservando la sesión |
+| Dónde está | Rama local `fix/puente-pausa-publicacion`: **`9a64986`**, un commit sobre `cac81e8`, **sin empujar** |
+| Verificado en local | `verify` exit 0 (1.812/1.812; I-171 reproducida primero en su árbol de trabajo nuevo y apartada reescribiendo el archivo en LF); `test:db` 1.452 + 1 sobre `0077`; E2E de la pausa 4/4 sobre `0077` y 3/3 sobre `0079`; `abrir` rechaza las tres parejas equivocadas y abre la correcta (`b21a1caa33c5` servido) |
+| Cómo se publicaría (puerta PB de `RUNBOOK` §10.2) | `git ls-remote origin refs/heads/main` tiene que ser `cac81e8`; `git push origin fix/puente-pausa-publicacion:refs/heads/main` por avance rápido, sin `force`; CI 2/2; READY; identificador servido (§6.1); `/mantenimiento` en 200 y la aplicación igual que antes. Su punto de reversión es `cac81e8` (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`) |
+| Después | Fusionarlo en `feature/detalle-boleta-admin` antes de su PR: los archivos de la pausa son idénticos en las dos ramas, así que la fusión no cambia ninguno, como la del puente de D-228. Desde que la publicación esté servida, la reversión del código vuelve **al puente**, que maneja la pausa |
 
 ---
 
@@ -1325,6 +1340,10 @@ producción a los despliegues nuevos, así que un arreglo empujado a `main` **se
 «Undo Rollback» en el panel o `vercel promote <despliegue>`. La reversión no reconstruye: sirve el despliegue anterior
 con sus variables y sus cron de entonces. Y la pulsa **el dueño**: el conector de Vercel de los agentes no tiene
 permisos de escritura comprobados.
+
+**Con la `0078` y la `0079` (D-239)**, el despliegue anterior será el **puente** de §3.3.c, y volver a él no basta:
+antes, la comprobación previa de `RUNBOOK` §10.5 y, si se puede, la recuperación del esquema. Si no se puede, **no se
+vuelve**: el código nuevo es el único que entiende esa base.
 
 ### 4.2 Base de datos
 

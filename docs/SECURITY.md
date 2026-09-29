@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.30 · **Estado:** implementado · **Actualizado:** 2026-09-29, más tarde (**§4.25**: la `0079` —D-238,
+- **Versión:** 2.31 · **Estado:** implementado · **Actualizado:** 2026-09-29, al final (**§4.26 nueva**: la pausa de
+  publicación —D-239, **solo en local**, temporal y fuera de las migraciones—: un gancho de PostgREST que, cerrado, rechaza
+  toda petición de la API salvo la de un perfil permitido, sin privilegios sobre su estado para ningún rol de la API).
+  Antes, ese mismo día, más tarde (**§4.25**: la `0079` —D-238,
   **solo en local**— hace cumplir en la base lo que la matriz de §2 ya decía: el acuerdo de equipo de un integrante lo
   cambia **solo su vendedor padre**; el Dueño y el Administrador lo cambiaban por PostgREST, I-181. Y reorganizar toma
   los cerrojos de los dos jefes en orden). Antes, ese mismo día (**§4.25 nueva**: la configuración de
@@ -1475,6 +1478,32 @@ Las fotos guardan el proyecto con el que se conectaron, nunca una credencial.
 **Las acciones del servidor** comprueban la capacidad con `authorizeCapability` antes de llamar a la base, y el
 alta del personal la comprueba **antes de enviar la invitación**, para que un rechazo no deje un correo con un
 enlace muerto; el alta del vendedor padre valida lo mismo con `team_commission_limits` antes del correo (§5).
+
+### 4.26 La pausa de publicación (`supabase/maintenance/`; D-239) — temporal, no es una migración
+
+Existe solo durante una ventana de publicación (`RUNBOOK` §10.3). Fuera de ella, el esquema `pausa` no está y
+`authenticator` no tiene gancho: `maintenance-pause.ts estado` lo dice.
+
+| Pieza | Privilegios |
+|---|---|
+| Esquema `pausa` | `USAGE` para `anon`, `authenticated` y `service_role` —PostgREST llama a la función con el rol de cada petición—; nada para PUBLIC |
+| `pausa.comprobar_peticion()` | `SECURITY DEFINER` con `search_path = ''` y todo calificado; `EXECUTE` para los tres roles de la API y ninguno más. No escribe nada: toma un cerrojo consultivo compartido de la transacción, lee una fila y, cerrada, lanza el 423 |
+| `pausa.estado` | Sin ningún privilegio para los roles de la API: la escribe solo quien opera, por conexión directa |
+| `pgrst.db_pre_request` en `authenticator` | Lo pone y lo quita la herramienta. `instalar` se niega a pisar otro gancho que ya exista |
+
+**Quién pasa con la pausa cerrada.** Solo una petición cuyo `sub` —del JWT que PostgREST ya validó— esté en
+`permitidos`, y nunca mientras quien opera tiene en exclusiva el cerrojo del drenaje. `service_role` no tiene perfil:
+**no pasa nunca**, así que el catálogo público, el programador y el despachador reciben 423. Un `sub` mal formado no
+se convierte, se trata como ausente.
+
+**Lo que no cubre, a propósito.** Las conexiones directas a la base (la de quien opera), `pg_cron` —se exige que
+ningún recordatorio venza en la ventana— y Supabase Auth, que no escribe en `public` salvo al crear una cuenta, y crear
+cuentas pasa por la aplicación.
+
+**Riesgos y cómo se evitan.** Una pausa olvidada **cerrada** deja la aplicación sin datos para todos: por eso `retirar`
+exige abrirla antes y `estado` la enseña. Una pausa instalada que PostgREST **no** recargó no protegería nada: `instalar`
+no la da por buena sin la cabecera «abierta» y `cerrar` exige el 423 en `anon` y en `service_role` antes de dejar
+seguir. Y `abrir` solo abre si la base, el commit y lo servido son pareja.
 
 ## 5. Protección de Server Actions y Route Handlers
 

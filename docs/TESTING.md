@@ -1,6 +1,8 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.37 · **Actualizado:** 2026-09-29, más tarde (**§4.13.a nueva**, D-238, **solo en local**: 16 pruebas
+- **Versión:** 2.38 · **Actualizado:** 2026-09-29, al final (**§4.13.b nueva**, D-239, **solo en local**: 3 pruebas de base
+  —I-184 y el guardia—, la suite de la pausa (8) y su E2E (4), que cierran la API local entera, y 48 unitarias —47 en dos archivos nuevos y 1 en `errors.test.ts`—). Antes,
+  ese mismo día, más tarde (**§4.13.a nueva**, D-238, **solo en local**: 16 pruebas
   de base para reorganizar (I-180) y para quién cambia el acuerdo de equipo (I-181), con su mutación medida; 16
   unitarias del diagnóstico previo; y qué se ensaya fuera de `test:db`). Antes, ese mismo día (**§4.13 nueva**, D-237, **solo en local**: `earning-agreements.test.ts`
   con **39** pruebas —un modelo independiente contra todas las filas y la mutación del cerrojo—, **30** unitarias que
@@ -1388,6 +1390,26 @@ aceptaría; y el veredicto (P-01..P-03).
 reproducen I-180 con el motor de la `0031`, comprueban que la `0078` se detiene donde el diagnóstico dice, miden qué
 rompe cada combinación de código y base, y demuestran la recuperación y la restauración conciliada. El método está en
 `RUNBOOK` §10.
+
+#### 4.13.b La preparación de la publicación (D-239, sin migración)
+
+| Suite | Pruebas | Qué comprueba |
+|---|---|---|
+| `tests/db/earning-agreements.test.ts` | +3 (**58**): `E13-07`, `E13-08`, `E14-01` | **I-184, limitación aceptada**: un traslado —fijo o por tramos— que no cabe en el padre nuevo se rechaza con la frase exacta de BR-G28 y **no cambia nada** (membresías, dinero, ledger, bitácora, avisos y la fila entera); el único camino, el de siempre. Y el **guardia** del script de recuperación, en solo lectura, nombra a la vez las tres condiciones de la organización |
+| `tests/db/maintenance-pause.test.ts` | **8** (MP-01..08) | La pausa contra la PostgREST local: abierta no cambia nada y lo dice; cerrada rechaza lecturas, escrituras y RPC de los tres roles en milisegundos, sin reintentos y sin tocar una fila, con Auth funcionando; un perfil permitido pasa, nadie más y nadie con el cerrojo en exclusiva; **cerrar espera** a una petición de 2,5 s que ya estaba dentro; el programador no escribe nada; `cerrar` se niega con un recordatorio en la ventana; retirar deja `authenticator` exactamente como estaba; no pisa otro gancho |
+| `tests/e2e/pausa-publicacion.spec.ts` | **4**, en serie | Quien navega llega a `/mantenimiento` **con su sesión**, una acción dice el mensaje y conserva lo escrito, el catálogo muestra su error, entrar lleva a la pausa, el Dueño permitido comprueba y el vendedor no, y `abrir` solo abre con la pareja correcta. Corre igual en el puente contra `0077` |
+| `tests/unit/maintenance-pause.test.ts` | **32** (M-01..M-04) | El SQL y la aplicación dicen lo mismo —código, estado, texto y cerrojo—; la pausa no toca `public`, no lleva nada que un volcado no pueda repetir (I-187) y solo la ejecutan los tres roles de la API; la orden de la herramienta, entera o nada; la pareja código-base; y ninguna guarda la toma por una cuenta inactiva. **Fallan tres** si `getActiveMembership` no la reconoce |
+| `tests/unit/earning-recovery-check.test.ts` | **15** (R-01..R-03) | Un solo guardia, del propio script y solo de consulta, que dice todas las condiciones; el estado sale del historial **y** del esquema —cinco incoherencias—; y el camino de cada estado |
+
+⚠️ **`maintenance-pause.test.ts` y `pausa-publicacion.spec.ts` cierran la API local ENTERA mientras corren.** `test:db`
+corre los archivos de uno en uno y Playwright con un solo *worker*, y las dos retiran la pausa en su `afterAll` pase lo
+que pase. Si una pasada se corta a la fuerza y todo empieza a responder 423, `npx tsx scripts/maintenance-pause.ts
+estado --local` lo dice, y `abrir`/`retirar` —o `db:reset`— lo arreglan.
+
+**Lo que no se prueba en `test:db`, y se ensayó** (`TEST_RESULTS`, D-239): los fallos de la migración con la CLI y el
+estado que dejan, las salidas desde `0078`, los tres escenarios de recuperación con la comprobación previa, y la
+restauración completa con su conciliación. El arnés vivió en `build/ensayo/` —ignorado por Git— y el método está en
+`RUNBOOK` §10 y §5.2.
 
 ## 5. Pruebas unitarias clave
 

@@ -15,10 +15,13 @@
  * Cada escenario comprueba ademas la invariante del ledger POR PARTES (BR-G22):
  * lo propio explica `earned` y lo del equipo explica `team_earned`.
  */
+import { readFileSync } from 'node:fs'
+
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { EARNING_0079_CHECKS, EARNING_FUNCTION_CHECKS } from '../../scripts/earning-function-grants'
+import { RECOVERY_SQL, recoveryGuard } from '../../scripts/earning-recovery-check'
 
 import {
   DB_URL,
@@ -1965,5 +1968,116 @@ describe('E13 — el acuerdo de equipo lo cambia su vendedor padre, y nadie mas 
       team_tier_list_id: personalizada,
     })
     expect(lista?.message).toBe('La ganancia por tramos de un integrante usa la lista general.')
+  })
+})
+
+// =============================================================================
+// I-184 — LIMITACION ACEPTADA (D-239): un traslado cuyo acuerdo de equipo no cabe
+// en el padre nuevo se RECHAZA. No se rebaja la ganancia del integrante, el
+// personal no gana permisos sobre ese acuerdo y la empresa no pone la diferencia.
+// Lo que falta demostrar, y demuestran estas dos pruebas: que el rechazo lo
+// explica con la frase de siempre (BR-G28) y que no cambia NADA.
+// =============================================================================
+
+/** Todo lo que un rechazo no puede tocar, con los avisos ademas de `fotoDinero`. */
+async function fotoCompleta(clave: string) {
+  const { rows } = await db.query(
+    `select (select count(*)::int from notifications where organization_id = $1) as avisos`,
+    [org],
+  )
+  return { ...(await fotoDinero()), avisos: rows[0].avisos, fila: await membresia(clave) }
+}
+
+describe('E13 — un traslado que no cabe en el padre nuevo se rechaza y no cambia nada (I-184)', () => {
+  it('E13-07: con un fijo del padre de antes, la frase dice el par y las cifras, y nada se mueve', async () => {
+    await altaDirecta('kq', 'Padre Veinte Mil', { mode: 'fixed_per_ticket', fixed: 20_000 })
+    const admin = await administrador()
+    // Hijo Permisos gana $25.000 fijos con Padre Permisos ($30.000) desde E13-06.
+    expect(Number((await membresia('kh')).fixed_commission_amount)).toBe(25_000)
+    const antes = await fotoCompleta('kh')
+
+    for (const actor of [dueno, admin]) {
+      const { error } = await actor
+        .from('memberships')
+        .update({ parent_seller_id: personas.get('kq')!.id })
+        .eq('organization_id', org)
+        .eq('profile_id', personas.get('kh')!.id)
+      expect(error?.code).toBe('23514')
+      expect(error?.message).toBe(
+        'Hijo Permisos no puede ganar $25.000 por boleta: Padre Veinte Mil gana $20.000 por boleta y de ahí sale su ganancia.',
+      )
+    }
+    // Ni el padre, ni su ganancia, ni un peso, ni una linea de bitacora o de aviso.
+    expect(await fotoCompleta('kh')).toEqual(antes)
+  })
+
+  it('E13-08: por tramos pasa igual, y el unico camino es el de siempre: su padre de ahora ajusta primero', async () => {
+    await altaIntegrante('kt', 'Hijo Por Tramos', 'pvar', { model: 'tiered' })
+    await venderYCobrar('kt', R1, 2)
+    const antes = await fotoCompleta('kt')
+
+    const { error } = await dueno
+      .from('memberships')
+      .update({ parent_seller_id: personas.get('trb')!.id })
+      .eq('organization_id', org)
+      .eq('profile_id', personas.get('kt')!.id)
+    expect(error?.code).toBe('23514')
+    expect(error?.message).toBe(
+      'Con 51 boletas cobradas, Hijo Por Tramos ganaría $40.000 por boleta y Padre De Ahora gana $30.000. La ganancia de un integrante sale de la de su vendedor a cargo y no puede superarla.',
+    )
+    expect(await fotoCompleta('kt')).toEqual(antes)
+
+    // El padre de ahora es quien decide lo que gana (BR-G34): si le fija algo que el
+    // padre nuevo cubre, el traslado entra. Nadie lo hace por el; D-239 no añade otro camino.
+    const { error: ajuste } = await (
+      await sesion('pvar')
+    ).rpc('team_set_commission_model', {
+      p_member_id: personas.get('kt')!.id,
+      p_model: 'fixed_per_ticket',
+      p_amount: 30_000,
+    })
+    expect(ajuste).toBeNull()
+    await trasladar('kt', 'trb')
+    expect(await estado('kt')).toMatchObject({ rate: 30_000, earned: 2 * 30_000 })
+    await ledgerCuadra('kt')
+    await ledgerCuadra('trb')
+  })
+})
+
+// =============================================================================
+// D-239 — la comprobacion previa de la recuperacion ejecuta el GUARDIA del propio
+// script, en solo lectura, y dice TODO lo que impide volver a 0077.
+// =============================================================================
+
+describe('E14 — el guardia de la recuperacion, en solo lectura (D-239)', () => {
+  it('E14-01: nombra cada condicion de esta organizacion a la vez y no cambia nada', async () => {
+    const guard = recoveryGuard(readFileSync(RECOVERY_SQL, 'utf8'))
+    const antes = await fotoCompleta('kp')
+
+    let message = ''
+    await db.query('begin isolation level repeatable read read only')
+    try {
+      await db.query(guard)
+    } catch (error) {
+      message = (error as Error).message
+    } finally {
+      await db.query('rollback')
+    }
+
+    const lineas = message.split('\n')
+    expect(lineas[0]).toBe('No se revierte:')
+    // Un acuerdo administrativo fijo (Padre Permisos), una lista personalizada, la
+    // version vigente de la lista general y un integrante por tramos en ella: las
+    // tres condiciones, cada una en su linea y con sus identificadores.
+    const acuerdos = lineas.find((l) =>
+      l.startsWith('Hay acuerdos administrativos distintos de la mitad'),
+    )
+    const listas = lineas.find((l) => l.startsWith('Hay listas de tramos que no son la versión 1'))
+    const integrantes = lineas.find((l) => l.startsWith('Hay integrantes por tramos en una lista'))
+    expect(acuerdos).toContain(personas.get('kp')!.id)
+    expect(listas).toContain((await membresia('propia')).direct_tier_list_id)
+    expect(listas).toContain((await plantillaVigente()).id)
+    expect(integrantes).toContain(personas.get('hmit')!.id)
+    expect(await fotoCompleta('kp')).toEqual(antes)
   })
 })

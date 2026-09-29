@@ -1,6 +1,7 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.31 · **Estado:** implementado · **Actualizado:** 2026-09-29, más tarde (§4.3 y §4.24: la
+- **Versión:** 2.32 · **Estado:** implementado · **Actualizado:** 2026-09-29, al final (**§4.25 nueva**: el esquema
+  `pausa` de D-239, temporal y fuera de las migraciones; el modelo no cambia). Antes, ese mismo día, más tarde (§4.3 y §4.24: la
   **`0079`** —D-238, **solo en local**—: reorganizar recalcula también al padre nuevo (I-180), el acuerdo de equipo solo
   lo cambia su vendedor padre (I-181) y §4.3 dice «mientras tenga vendedor padre», no «mientras pertenezca a un
   equipo»; ni una tabla ni una columna nuevas). Antes, ese mismo día (§4.3 y **§4.24 nueva**: la
@@ -1417,6 +1418,14 @@ si algo difiere. También se detiene si los tramos de una organización no cumpl
 estructura de tres niveles (I-176).
 
 ---
+
+### 4.25 Fuera del modelo: el esquema `pausa` (D-239) — temporal, no es una migración
+
+Durante una ventana de publicación existe un esquema `pausa` con una fila (`pausa.estado`: cerrada, perfiles permitidos)
+y la función que PostgREST llama antes de cada petición (`SECURITY` §4.26, `RUNBOOK` §10.3). Lo instala y lo retira
+`scripts/maintenance-pause.ts` desde `supabase/maintenance/`; **no** está en `supabase/migrations/`, no toca `public`
+y fuera de la ventana no existe. `pausa.estado` no tiene clave primaria a propósito: un respaldo tomado con la pausa
+instalada tiene que poder restaurarse (I-187).
 
 ## 4.bis Lo que falta del encargo de cobro — **NADA: LAS CINCO TABLAS EXISTEN**
 

@@ -4,8 +4,9 @@ import { WEEKLY_RESULTS_COPY } from '@/features/weekly-results/copy'
 import { renderWeeklyResultsPng } from '@/features/weekly-results/image/render'
 import { getWeeklyResults, getWeeklyResultsRaffle } from '@/features/weekly-results/queries'
 import { parseWeekParam, weeklyResultsFileName } from '@/features/weekly-results/week'
-import { getActiveMembership, getAuthUser } from '@/lib/auth/session'
+import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
 import { todayBogota } from '@/lib/dates'
+import { MAINTENANCE_PAUSE_MESSAGE, MaintenancePauseError } from '@/lib/maintenance-pause'
 
 /**
  * El PNG de «Resultados de la semana» (BR-H05, D-194, `docs/SECURITY.md` §5.3).
@@ -45,7 +46,14 @@ export async function GET(request: NextRequest) {
   const user = await getAuthUser()
   if (!user) return fail(401, COPY.signIn)
 
-  const membership = await getActiveMembership()
+  let membership: ActiveMembership | null
+  try {
+    membership = await getActiveMembership()
+  } catch (error) {
+    // D-239: la API en pausa de publicacion no es una cuenta inactiva.
+    if (error instanceof MaintenancePauseError) return fail(503, MAINTENANCE_PAUSE_MESSAGE)
+    throw error
+  }
   if (!membership) return fail(403, COPY.inactive)
   if (membership.role !== 'seller') return fail(403, COPY.forbidden)
 

@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation'
 import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoginForm } from '@/features/auth/components/LoginForm'
-import { dashboardPathForRole } from '@/lib/auth/guards'
-import { getActiveMembership, getAuthUser } from '@/lib/auth/session'
+import { dashboardPathForRole, getActiveMembershipOrMaintenance } from '@/lib/auth/guards'
+import { getAuthUser } from '@/lib/auth/session'
 
 type LoginPageProps = {
   searchParams: Promise<{ next?: string; error?: string; message?: string }>
@@ -15,7 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   const user = await getAuthUser()
   if (user) {
-    const membership = await getActiveMembership()
+    const membership = await getActiveMembershipOrMaintenance()
     if (membership) {
       redirect(dashboardPathForRole(membership.role))
     }

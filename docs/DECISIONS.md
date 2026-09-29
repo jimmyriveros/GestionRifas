@@ -15744,3 +15744,151 @@ red; los tiempos absolutos de producción serán otros, la diferencia entre vers
 | I-184: qué hacer con un traslado cuyo acuerdo no cabe en el padre nuevo | Del dueño |
 | La copia aislada con los datos reales: duración de las dos migraciones y la recuperación ensayada sobre ella (P3–P4) | Con autorización, en la puerta |
 | I-068: borrar `CommissionCard` o decidir dónde vuelven sus dos textos | Del dueño (fuera de este encargo) |
+
+> **Nota posterior, 2026-09-29 (D-239). Manda D-239 donde dicen distinto.** Tres cosas de esta entrada quedan
+> sustituidas: «Descartado: un modo de mantenimiento» —la ventana se controla ahora con la pausa de la API—; «tras un
+> fallo del código: primero *Instant Rollback*» —ahora, primero la comprobación previa y, si se puede volver, primero el
+> esquema—; y «la migración falla: nada cambió» —la `0079` puede fallar con la `0078` ya confirmada (I-186)—. **I-184 ya
+> no está pendiente**: el dueño decidió mantener el rechazo como limitación aceptada.
+
+## D-239 — La publicación de D-237 y D-238, preparada de verdad: pausa de la API, estados de la migración, comprobación previa de la recuperación y restauración completa
+
+**Fecha:** 2026-09-29 · **Encargo del dueño:** completar la preparación de la publicación de «Configuración de ganancias»
+(D-237, D-238) tomando como referencia `bb99272`. Mantenimiento posterior a la Fase 9, **no es una fase** ni lleva
+etiqueta. Autorizado: investigar, corregir, herramientas, ensayos y documentación **en local**. **No autorizado:**
+conexiones a producción, push, despliegues, cambios de datos reales ni «Cierre de cuentas». **Sin migración nueva**:
+la `0078` y la `0079` no se tocan. Sustituye, en lo que dicen distinto, dos decisiones de D-238 —«descartado: un modo
+de mantenimiento» y «tras un fallo del código: primero *Instant Rollback*»— y el §10 del `RUNBOOK` entero.
+
+### Las observaciones de la revisión, una por una
+
+| # | Observación | Veredicto | Evidencia (`TEST_RESULTS`, D-239) |
+|---|---|---|---|
+| 1 | «Si falla la migración, nada cambió: cada archivo es una transacción» no vale para el **conjunto** `0078` + `0079` | ✅ **Confirmada** | La CLI 2.111.0 confirma cada archivo con su fila de historial. Con un fallo aislado en la primera sentencia de la `0079`, y sin ninguno —una sesión corriente que toma `seller_commissions` justo al quedar registrada la `0078`—, `db push` termina en error y la base queda **en `0078`**: estructura idéntica a una `0078` construida desde cero, dinero idéntico (**I-186**) |
+| 2 | La ventana sin tráfico depende de avisar y de mirar `pg_stat_activity` una vez; nada impide que alguien entre después | ✅ **Confirmada** | La variante realista del punto 1 es exactamente eso: basta una sesión entre las dos migraciones. Y bloquear la API sin tocar la aplicación cerraba la sesión global de cada persona con «Tu cuenta está inactiva» (I-115) |
+| 3 | La recuperación puede negarse, y el procedimiento servía primero el código anterior | ✅ **Confirmada** | §10.6 de D-238: *Instant Rollback* antes del script. Con la configuración nueva usada, el script se niega y el código anterior quedaría servido sobre una base que no entiende |
+| 4 | Recuperar todas las filas no basta para dar la restauración por hecha (I-183) | ✅ **Confirmada, y con tres hallazgos nuevos** | Historial, disparadores de `auth.users`, ACL del esquema, privilegios por defecto y `pg_trgm`; además, un respaldo tomado **con la pausa instalada** no se restauraba (**I-187**), y restaurar conservando el esquema **ensanchaba** privilegios de tablas inmutables (**I-188**). Corregidos los dos |
+| 5 | Los 258 ms de la recuperación no son una garantía | ✅ **Confirmada** | Son ~0,1 s de SQL local sin red, sin esperas y con el guardia en verde; en producción mandan la latencia (≈120 sentencias de ida y vuelta) y los cerrojos |
+| 5.a | ¿La CLI aplica el conjunto en una sola transacción si se le pide? | ❌ **Descartada** | No hay opción: `db push` no ofrece atomicidad entre archivos. Aplicar las dos a mano en una transacción se descartó: no es el mecanismo previsto y la pausa con los procedimientos de estado bastan |
+| 5.b | ¿El `lock_timeout` de la cadena protege también a la `0079`? | ✅ Sí, **y por eso** puede dejar el estado intermedio | Se aplica a la sesión entera: la variante realista cancela la `0079` con `55P03` en su sentencia 6 |
+
+### I-184 — decisión del dueño: se mantiene el rechazo
+
+Un traslado cuyo acuerdo de equipo no cabe en el padre nuevo **se sigue rechazando** (BR-G28, BR-E08). Por decisión
+expresa del dueño **no** se reduce la ganancia del integrante, **no** se amplían los permisos del personal sobre el
+acuerdo de equipo, **no** se carga la diferencia al dueño ni a la empresa y **no** se construye ahora un flujo de
+propuestas. Es una **limitación aceptada**, no una decisión pendiente. El rechazo usa la frase de siempre —el par,
+con qué conteo y qué cifras— y no cambia nada: ni la membresía, ni un peso, ni una línea de bitácora o de aviso
+(`E13-07`, `E13-08`). Lo único que existe hoy, y no se añade nada: el padre **de ahora** puede fijarle antes una
+ganancia que el padre nuevo cubra (BR-G34); un vendedor directo que entra con la lista general no tiene ese camino.
+
+### La pausa de publicación (`supabase/maintenance/`, `scripts/maintenance-pause.ts`)
+
+**Qué hace.** Un gancho `pgrst.db_pre_request` —el mecanismo que Supabase documenta para el proyecto alojado— que
+PostgREST ejecuta al empezar **toda** petición de la API de datos, de `anon`, `authenticated` y `service_role`,
+lecturas, escrituras y RPC, antes de tocar una tabla. Cerrada, responde **423** con `RIFAS_PAUSA`; solo pasan los
+perfiles **permitidos** (por el `sub` del JWT que PostgREST ya validó). Se instala **abierta** antes de la ventana
+—comprobando que PostgREST la usa— y se retira al final; no es una migración y no toca `public`.
+
+| Vía de actividad | Cómo queda cubierta |
+|---|---|
+| Personas en la aplicación y quien llame a la API por su cuenta con su sesión | 423 en PostgREST; el navegador no habla con la base y el servidor no usa `pg` (medido) |
+| Peticiones en curso | **Drenaje**: cada petición toma un cerrojo consultivo compartido; `cerrar` pide el exclusivo y vuelve cuando termina la última. Mientras espera, nadie nuevo entra (un `try` compartido no pasa delante de un exclusivo en cola: medido) |
+| Catálogo público, programador de loterías y despachador de avisos (`service_role`) | 423: `service_role` no tiene perfil y no pasa nunca. El turno del programador falla sin escribir nada, ni su candado (`MP-05`) |
+| `pg_cron` (recordatorios de pago) | Corre dentro de la base: `cerrar` se **niega** si alguno vence dentro del horizonte (`MP-06`), y nadie puede crear ni mover uno durante la pausa. No se toca ninguna tarea programada |
+| Supabase Auth | Entrar funciona (y así la sesión sobrevive); crear cuentas pasa por la aplicación, que está en pausa |
+| Quien opera: migrar, verificar, recuperar | Conexión directa: la pausa no la toca, **a propósito** |
+
+**Cómo se abre, y solo así.** `abrir --migracion <v> --commit <sha>` comprueba tres cosas antes de abrir: la última
+migración aplicada es `<v>`, el commit **trae esa misma** como su última migración —código y base son **pareja**: el
+puente no abre sobre `0079`— y el sitio sirve el build de ese commit (`DEPLOYMENT` §6.1). Si algo no cuadra, la pausa
+sigue cerrada (medido con las tres combinaciones equivocadas).
+
+**Por qué 423 y no 503.** `postgrest-js` 2.109 reintenta un GET que recibe 503 tres veces, esperando `Retry-After` o
+1, 2 y 4 s: cada pantalla tardaría 7 s en enterarse. Un 423 no se reintenta: la aplicación lo ve en ~20 ms.
+
+**Por qué hace falta un despliegue preparatorio —el puente—.** Con la API cerrada, la guarda del código publicado
+toma la lectura fallida de la membresía por una cuenta inactiva, llama a `signOut()` —**global**, en todos los
+dispositivos— y dice «Tu cuenta está inactiva» (I-115). El puente es `cac81e8` con **solo** esto: la pausa es
+`MaintenancePauseError`; una pantalla lleva a `/mantenimiento` —«Estamos actualizando Rifas»— **conservando la
+sesión**, y una acción devuelve el mensaje y conserva lo escrito. El resto de I-115 no se toca. La publicación lleva
+lo mismo. Rama local `fix/puente-pausa-publicacion`, **sin publicar**; es además el punto de reversión del lote.
+
+| Alternativa | Por qué no |
+|---|---|
+| Solo avisar y mirar `pg_stat_activity` (D-238) | No impide que alguien entre después, y una sola sesión basta para el estado intermedio (medido) |
+| Pausar el proyecto en Vercel | Tapa la aplicación, no la API: una sesión sigue llegando a PostgREST; y no deja comprobar nada antes de abrir |
+| Revocar privilegios a los roles de la API | Tan eficaz como el gancho, pero hay que devolverlos exactos y mientras tanto la guarda cierra sesiones igual |
+| Desactivar cuentas, pausar recordatorios o `cron.alter_job` | Cambia datos reales o tareas programadas; el dueño ya lo descartó para las puertas (D-208) y no hace falta |
+| Un interruptor en la aplicación (variable, consulta en el proxy) | No detiene la API directa ni la `service_role`; una variable exige redesplegar para cambiarla |
+
+**Límites verificados.** No cubre conexiones directas —las de quien opera— ni procesos que alguien lance a mano; el
+catálogo público muestra su error de siempre, «Suele ser algo pasajero…», que durante la ventana promete «unos
+segundos» por minutos; y el registro del servidor anota `RIFAS_PAUSA` de las pantallas que Next renderiza en
+paralelo con la guarda (la persona ve `/mantenimiento`). En el proyecto alojado, que PostgREST recargue el gancho con
+`NOTIFY` **se comprueba al instalar** —`instalar` no da la pausa por buena sin la cabecera «abierta»—; no se ha podido
+medir allí.
+
+### Los estados de la migración, y cómo se sale de cada uno
+
+`scripts/earning-recovery-check.ts` lee el historial **y** el esquema en solo lectura y dice en cuál está la base;
+si no dicen lo mismo, `incoherente`, y se detiene sin reparar nada.
+
+| Estado | Cómo se llega (ensayado) | Salida |
+|---|---|---|
+| `0077` — ninguna | La `0078` choca con un cerrojo (`55P03` en su sentencia 90) o con una comprobación propia | Nada que revertir. Cerrojo: se resuelve y se repite P6. Comprobación: P1 |
+| `0078` — solo la primera | Un fallo de la `0079` después de confirmarse la `0078` | **Continuar**: `--dry-run` lista **solo** la `0079` y se aplica (ensayado: estructura igual a `0079`, dinero igual). **O volver**: script de recuperación y `migration repair --status reverted 0078` (ensayado: igual a `0077`) |
+| `0079` — las dos | La publicación | Si falla el código: la comprobación previa decide (abajo) |
+
+### La comprobación previa de la recuperación, y el orden
+
+El **guardia** de `supabase/recovery/0079_a_0077.sql` es la **única** definición de cuándo se puede volver: la
+herramienta lo lee del propio archivo —entre `-- guardia:inicio` y `-- guardia:fin`— y lo ejecuta en una transacción
+de solo lectura. Ahora dice **todas** las condiciones a la vez (antes, la primera). La comprobación del dinero del
+script solo se sabe ejecutándolo; con el guardia en verde las fórmulas de `0077` y `0079` coinciden, y si alguna vez
+no, el script se deshace entero.
+
+**El orden, con la pausa cerrada de principio a fin:** (1) comprobación previa; (2) si **no se puede**: la pausa
+sigue cerrada con el código **nuevo** —el que entiende esa base— mientras se prepara una corrección hacia delante o
+una restauración conciliada, y lo decide el dueño; nunca se sirve el código anterior; (3) si **se puede**: primero el
+**esquema** —el script es atómico: si falla, código y base siguen siendo pareja—, `migration repair`, la comprobación
+otra vez, y **después** el código anterior —*Instant Rollback* al puente—; (4) `abrir --migracion 0077 --commit
+<puente>`. Al revés —el código primero—, un script que fallara dejaría código viejo sobre base nueva.
+
+### La restauración del respaldo, completa
+
+**Tres hallazgos del ensayo, corregidos antes de darla por buena:**
+
+| Hallazgo | Corrección |
+|---|---|
+| El respaldo se toma en la ventana, con la pausa instalada, y su esquema la incluye; la clave primaria de `pausa.estado` salía como `alter table … add constraint`, que no se repite: `ON_ERROR_STOP` cortaba `schema.sql` **antes de las claves, índices, disparadores y políticas de `public`** (I-187) | `pausa.estado` sin clave: fila única por `check` e inserción condicional. Todo lo demás de la pausa ya salía repetible |
+| `DROP SCHEMA public CASCADE` se lleva el dueño y el USAGE de PUBLIC del esquema, los privilegios por defecto de `supabase_admin` —que `postgres` no puede volver a crear en el alojado— y, por eso, las concesiones de 31 funciones de `pg_trgm` | `restauracion_vaciar_public.sql`: vacía `public` —lo mismo que borraba el DROP, extensiones aparte— **sin** borrar el esquema |
+| Conservando el esquema, las tablas que crea `schema.sql` heredaban los privilegios por defecto de `postgres` **además** de los del respaldo: `service_role` con ALL sobre `raffle_prizes` y `raffle_prize_versions`, inmutables (I-188) | El vaciado quita esos privilegios por defecto; `schema.sql` los repone **al final**, que es donde `pg_dump` los escribe |
+
+**El procedimiento** (`RUNBOOK` §5.2 y §10.6): la pausa cerrada; foto y volcado del estado actual y la lista, fila por
+fila, de lo escrito después del respaldo; vaciar `public`; `roles.sql`, `schema.sql` y `data.sql`;
+`restauracion_despues.sql` —los dos disparadores de `auth.users` y la ACL materializada de
+`raffle_prize_transitions`—; `migration repair` hasta que el historial diga lo de la foto del respaldo; comparar
+estructura y filas con esa foto; comprobaciones funcionales con un perfil permitido; y conciliar.
+
+**Diferencia residual, clasificada:** una sola, el texto de `raffle_prize_transitions_prizes_check` —`((a AND b) AND
+c)` frente a `(a AND b AND c)`—, la misma condición reescrita al recargarla. Ninguna diferencia de privilegios.
+
+### Mediciones
+
+| Qué | Resultado |
+|---|---|
+| Arranque de la CLI | ~3,3 s por orden, antes de tocar la base |
+| `db push` de las dos, 4.893 boletas / 19.473 boletas | ~20 s / ~34–37 s de base, más la CLI |
+| Recuperación, 42 filas de comisión | ~0,05 s / ~0,1 s de SQL local; en producción, ≈120 sentencias × la ida y vuelta real |
+| Restauración completa (vaciar, tres archivos, después, historial) | 10,6 s en local; `schema.sql` son ~4.070 sentencias: en producción, minutos |
+| Drenaje sin peticiones / con una de 2,5 s dentro | 3–4 ms / lo que dura esa petición |
+
+### Pendiente
+
+| Qué | De quién |
+|---|---|
+| Autorizar la publicación de `RUNBOOK` §10, puerta por puerta —el puente primero— | Del dueño |
+| En solo lectura, antes: el diagnóstico previo, la configuración de `authenticator` sin otro gancho, la latencia a la base y el horizonte de recordatorios | Con autorización |
+| Validar en el proyecto alojado que PostgREST recarga el gancho y responde 423 —se ve al instalar— y una restauración allí | Con autorización, en la ventana |
+| I-068 | Del dueño (fuera de este encargo) |

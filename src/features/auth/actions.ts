@@ -2,8 +2,7 @@
 
 import { redirect } from 'next/navigation'
 
-import { dashboardPathForRole } from '@/lib/auth/guards'
-import { getActiveMembership } from '@/lib/auth/session'
+import { dashboardPathForRole, getActiveMembershipOrMaintenance } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { checkRateLimit, RATE_LIMITS, resetRateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
@@ -67,7 +66,9 @@ export async function login(input: unknown): Promise<ActionResult> {
     return { error: mapPgError(error) }
   }
 
-  const membership = await getActiveMembership()
+  // Con la API en pausa de publicacion (D-239) entra igual, con su sesion, y ve
+  // `/mantenimiento`: no es una cuenta inactiva y no se le cierra nada.
+  const membership = await getActiveMembershipOrMaintenance()
   if (!membership) {
     await supabase.auth.signOut()
     return { error: 'Tu cuenta está inactiva. Contacta a tu administrador.' }

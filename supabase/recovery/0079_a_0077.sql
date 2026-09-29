@@ -42,9 +42,16 @@
 begin;
 
 -- ------------------------------------------------------------- 0. Se puede volver
+-- EL GUARDIA es la ÚNICA definición de cuándo se puede volver sin perder datos.
+-- `scripts/earning-recovery-check.ts` lee este bloque —entre las dos marcas— y lo
+-- ejecuta en SOLO LECTURA antes de decidir nada (RUNBOOK §10.6, D-239): no hay una
+-- segunda copia de estas reglas que pueda divergir. Solo consulta; si algo no cabe
+-- en 0077, lanza UNA excepción con TODO lo que no cabe, una condición por línea.
+-- guardia:inicio
 do $guard$
 declare
-  v text;
+  v        text;
+  motivos  text[] := '{}';
 begin
   if to_regclass('public.commission_tier_lists') is null then
     raise exception 'Esta base no tiene la 0078: no hay nada que revertir.';
@@ -56,14 +63,14 @@ begin
      or m.direct_fixed_amount is not null
      or m.direct_tier_list_id is not null;
   if v is not null then
-    raise exception 'Hay acuerdos administrativos distintos de la mitad (%). El esquema de 0077 no puede guardarlos: no se revierte.', v;
+    motivos := motivos || format('Hay acuerdos administrativos distintos de la mitad (%s). El esquema de 0077 no puede guardarlos.', v);
   end if;
 
   select string_agg(l.id::text, ', ') into v
   from commission_tier_lists l
   where l.kind <> 'template' or l.template_version <> 1;
   if v is not null then
-    raise exception 'Hay listas de tramos que no son la versión 1 de la lista general (%). En 0077 solo cabe una lista por organización: no se revierte.', v;
+    motivos := motivos || format('Hay listas de tramos que no son la versión 1 de la lista general (%s). En 0077 solo cabe una lista por organización.', v);
   end if;
 
   select string_agg(m.profile_id::text, ', ') into v
@@ -75,7 +82,7 @@ begin
         and l.kind = 'template' and l.template_version = 1
     );
   if v is not null then
-    raise exception 'Hay integrantes por tramos en una lista que no es la versión 1 (%): no se revierte.', v;
+    motivos := motivos || format('Hay integrantes por tramos en una lista que no es la versión 1 (%s).', v);
   end if;
 
   select string_agg(o.id::text, ', ') into v
@@ -85,10 +92,15 @@ begin
     where l.organization_id = o.id and l.kind = 'template' and l.template_version = 1
   );
   if v is not null then
-    raise exception 'Hay organizaciones sin la versión 1 de su lista general (%): no se revierte.', v;
+    motivos := motivos || format('Hay organizaciones sin la versión 1 de su lista general (%s).', v);
+  end if;
+
+  if cardinality(motivos) > 0 then
+    raise exception E'No se revierte:\n%', array_to_string(motivos, E'\n');
   end if;
 end
 $guard$;
+-- guardia:fin
 
 -- ------------------------------------------------- 1. La foto de antes, para comparar
 create temporary table antes_0079_a_0077 on commit drop as

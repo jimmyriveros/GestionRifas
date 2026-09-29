@@ -18,6 +18,9 @@ const PUBLIC_PATHS = [
   '/auth/callback',
   '/denied',
   '/offline',
+  // La pantalla de la pausa de publicacion (D-239): texto fijo, sin consultas.
+  // La ve quien tiene sesion —las guardas lo traen aqui— y quien no la tiene.
+  '/mantenimiento',
   // El programador no trae sesion. El Route Handler valida un secreto
   // (D-148). Sin esta entrada el proxy redirigiria a /login con 307.
   '/api/lottery/sync',

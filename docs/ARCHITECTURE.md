@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.47 · **Estado:** implementado · **Actualizado:** 2026-09-29 (**§8.30 nueva**: la configuración de
+- **Versión:** 1.48 · **Estado:** implementado · **Actualizado:** 2026-09-29, al final (**§8.31 nueva**: la pausa de
+  publicación vista desde la aplicación —D-239, **solo en local**—: la lectura de la membresía lanza, las pantallas van a
+  `/mantenimiento` conservando la sesión y las acciones devuelven su texto). Antes, ese mismo día (**§8.30 nueva**: la configuración de
   ganancias —D-237, **solo en local**—: un solo editor de tramos, los dos acuerdos leídos en una petición, el campo
   «Cómo le vas a pagar» sin textos propios y la «Configuración» del personal). Antes, 2026-09-19, más tarde (**§8.2.c**: campos
   que comparten fila, `FormItem` con `content-start`, D-210). Antes, ese mismo día (**§8.23**: el código de
@@ -2420,6 +2422,25 @@ capacidad se comprueba **antes** de enviar la invitación, y el alta del equipo 
 
 **«Configuración» del personal** vive, como la del vendedor, en el menú del avatar (`UserMenu`), y es un resumen
 que no carga formularios (§8.23).
+
+### 8.31 La pausa de publicación, vista desde la aplicación (D-239)
+
+La base es la que impide operar (`SECURITY` §4.26); la aplicación solo decide qué ve cada quien. Todo pasa por la
+lectura de la membresía, que ya es lo primero de cada pantalla y de cada acción:
+
+| Pieza | Qué hace |
+|---|---|
+| `src/lib/maintenance-pause.ts` | El código (`RIFAS_PAUSA`), el estado (423), la ruta (`/mantenimiento`), el texto de una acción y `isMaintenancePause` —por el código, y un HEAD sin cuerpo por el estado—. `MaintenancePauseError` |
+| `getActiveMembership` (`lib/auth/session.ts`) | Con la pausa, **lanza** `MaintenancePauseError`: no devuelve «sin membresía», que las guardas tomarían por una cuenta inactiva (I-115) |
+| `getActiveMembershipOrMaintenance` (`lib/auth/guards.ts`) | Para PANTALLAS: redirige a `/mantenimiento`. La usan `requireActiveMembership` —y con ella todo el layout protegido—, la portada, el login y su acción |
+| `authorizeAction` | Para ACCIONES: devuelve el texto de la pausa, sin redirigir, para no perder lo escrito. Toda Server Action pasa por ella |
+| Las dos rutas de API con sesión | 503 con el texto |
+| `mapPgError` | El texto de la pausa para lo que falle después de la guarda |
+| `/mantenimiento` | Prerenderizada, pública (`PUBLIC_PATHS`), sin consultas ni JavaScript: un enlace «Reintentar» a `/`, que vuelve a repartir por rol |
+
+Nada de esto cuesta una petición cuando no hay pausa: reacciona al error, no pregunta el estado. El catálogo público
+no se tocó —cae en su página de error de siempre— y el resto de I-115 tampoco: un corte de PostgREST que no es la pausa
+sigue su camino de antes. Es el mismo código en el puente (`cac81e8` + esto) y en la publicación.
 
 ## 9. Configuración regional
 

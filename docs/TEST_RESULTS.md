@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (revisión de D-237 antes de publicarla, D-238, `0079`, solo en local, 2026-09-29)** | **1.839/1.839** en 91 archivos (+16, `earning-precheck.test.ts`: el diagnóstico previo solo lee y no toca tablas nuevas) | **1.499 ✅ y 1 omitida** en 60 archivos (+16: reorganizar, I-180, y quién cambia el acuerdo de equipo, I-181; **12 de ellas fallan con la `0078`**). Segunda pasada sobre la misma base: 1 fallo de `list-order`, **anterior y reproducido en `aa11ad4`** (I-185) | Dirigida **65/65** (`ganancias`, `ganancias-movil`, `equipo`, `equipo-movil`, `owner-users`, `telefono-mascara`) desde la base recién sembrada. La completa, **no** repetida: la de D-237, 966/973, es histórica | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayo de publicación y recuperación**: diagnóstico, `0078` detenida donde dijo, ventana medida, interbloqueo con tráfico (I-182), recuperación con estructura idéntica y restauración conciliada |
+| **Post-9 vigente (la publicación de D-237 y D-238 preparada, D-239, sin migración, solo en local, 2026-09-29)** | **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa de la recuperación, +1 de `mapPgError`) | **1.510 ✅ y 1 omitida** en 61 archivos (+8 de la pausa contra la PostgREST local; +3 de `earning-agreements`: I-184 y el guardia) | Dirigida **103/103** (la pausa y los recorridos de las guardas); la de la pausa también en el puente, 4/4 sobre `0077` y 3/3 sobre `0079`. La completa, no repetida | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayados**: la migración a medias (I-186) y sus dos salidas, los tres escenarios de recuperación, la restauración completa y conciliada (I-183, con I-187 e I-188 corregidas), y el puente (`verify` 1.812, `test:db` 1.452 + 1) |
+| Post-9 anterior (revisión de D-237 antes de publicarla, D-238, `0079`, solo en local, 2026-09-29) | **1.839/1.839** en 91 archivos (+16, `earning-precheck.test.ts`: el diagnóstico previo solo lee y no toca tablas nuevas) | **1.499 ✅ y 1 omitida** en 60 archivos (+16: reorganizar, I-180, y quién cambia el acuerdo de equipo, I-181; **12 de ellas fallan con la `0078`**). Segunda pasada sobre la misma base: 1 fallo de `list-order`, **anterior y reproducido en `aa11ad4`** (I-185) | Dirigida **65/65** (`ganancias`, `ganancias-movil`, `equipo`, `equipo-movil`, `owner-users`, `telefono-mascara`) desde la base recién sembrada. La completa, **no** repetida: la de D-237, 966/973, es histórica | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayo de publicación y recuperación**: diagnóstico, `0078` detenida donde dijo, ventana medida, interbloqueo con tráfico (I-182), recuperación con estructura idéntica y restauración conciliada |
 | Post-9 anterior (configuración de ganancias, D-237, `0078`, solo en local, 2026-09-29) | **1.823/1.823** en 90 archivos (+30, `commission-tiers.test.ts`, que lee la `0078` para comparar frases; `schemas.test.ts` da un acuerdo al alta de un vendedor) | **1.483 ✅ y 1 omitida** en 60 archivos (+39, `earning-agreements.test.ts`: un modelo independiente contra todas las filas, conservación y la mutación del cerrojo), dos veces | Completa **966/973** en 53,8 min: 2 provocados por este trabajo y corregidos (**18/18** al repetirlos sobre la base que dejó la completa), 3 anteriores (I-090, la hermana de I-164, I-106) y 2 intermitencias ajenas (I-178; I-179, reproducida en `b793016`). Nuevas: `ganancias` (6) y `ganancias-movil` (3) | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
 | Post-9 anterior (I-174 resuelta: lo que Supabase escribe, también en la redirección a `/login`, D-236, solo en local, 2026-09-28 en Bogotá) | **1.793/1.793** en 89 archivos (+12, `session-proxy.test.ts`): **8 de las 12 fallan con el proxy anterior** y pasan con la corrección, también en 5 pasadas en orden aleatorio | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | Subconjunto de 42 (`security`, `owner-users`, `navegacion` y `navegacion-movil`): **42/42** con la base recién sembrada. Con la base como la dejó `test:db`, 40/42: `owner-users:15` y `:43`, **iguales con el proxy anterior** (I-151). Build de producción con GoTrue local: la 307 **ya lleva** el borrado; errores del servidor **2 + 2 → 2 + 0**. Sin la E2E completa | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
 | Post-9 anterior (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). **Aprobado** por el dueño tras revisar en producción; el caso de una boleta pendiente, **validado solo en local** (no hay ninguna en producción) |
@@ -16175,3 +16176,115 @@ funciones de la `0078` y de la `0079` extraídas de los archivos de migración):
 | `npm run test:db` otra vez, **sobre la misma base** | ⚠️ **1.498 + 1 omitida y 1 fallo**: `list-order` «Vendedores» —«expected 49 to be 25»— | **Anterior a D-238, reproducido**: `aa11ad4` con la base en `0078`, primera pasada 1.483 + 1 y segunda con **el mismo** fallo. Otras suites dejan ~24 vendedores por pasada en «Rifas Demo» (ninguno de `earning-agreements`). Registrado como **I-185**; no se corrigió |
 | `npm run db:reset`, reiniciar Kong, `seed:local` y la E2E de los recorridos afectados: `ganancias` (6), `ganancias-movil` (3), `equipo` (14), `equipo-movil` (5), `owner-users` (8) y `telefono-mascara` (29) | ✅ **65/65** en 3,6 min | El servidor de desarrollo escribió una vez `The destination stream closed early`, sin fallo: ya visto antes (D-137) |
 | E2E completa | **No se ejecutó ahora.** La referencia sigue siendo la de D-237, **966/973**, con sus siete fallos explicados: es un resultado **histórico**, no una suite aprobada | La `0079` no cambia ninguna pantalla; las que pasan por lo que cambia son las 65 de arriba |
+
+## D-239 — La publicación de D-237 y D-238, preparada: pausa, estados de la migración, recuperación y restauración (2026-09-29, solo en local)
+
+Rama `feature/detalle-boleta-admin` sobre `bb99272`, sin empujar; el puente, en la rama local
+`fix/puente-pausa-publicacion` sobre `cac81e8`. **Nada se leyó ni se escribió en producción.** Base local en Docker
+(Postgres 17.6, PostgREST 14.15, GoTrue 2.194), CLI de Supabase **2.111.0** —la de la publicación—. El arnés de ensayo
+—un escenario, fallos aislados, sesiones intrusas y la conciliación— vivió en `build/ensayo/`, ignorado por Git.
+
+**El escenario** («Ensayo publicación»): tres jefes en la mitad, seis integrantes fijos y por tramos, cuatro directos
+—dos con rebajas—, dos rifas activas ($120.000 y $100.000), una cerrada con ventas y un borrador; **4.860 boletas y
+3.900 cobradas** vendidas y cobradas por `bulk_assign_tickets` y `create_payment` con la identidad de cada vendedor
+(escala 4: 19.440 y 15.600). Diagnóstico previo: limpio. Referencias de estructura: bases limpias en `0077`, `0078` y
+`0079`, levantadas con las migraciones y fotografiadas con `gate-snapshot`.
+
+### a. Línea base, antes de tocar nada
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset && npm run seed:local && npm run test:db` | ✅ **1.499 + 1 omitida** (60 archivos, 157,8 s), igual que el relevo |
+| `npm run verify` | ✅ exit 0: **1.839/1.839** en 91 archivos, lint 0 errores y los 2 avisos de siempre, build |
+
+### b. Supuestos medidos antes de diseñar
+
+| Supuesto | Resultado |
+|---|---|
+| `postgres` puede fijar `pgrst.db_pre_request` en `authenticator` | ✅ (en una transacción deshecha); `authenticator` solo tenía `statement_timeout` y `lock_timeout` de 8 s |
+| PostgREST recoge el gancho con `NOTIFY pgrst, 'reload config'`, en un esquema propio | ✅ Prototipo desechable: cerrado, **423** con el cuerpo propio para `anon`, `service_role` y una RPC por POST; abierto, 200 con la cabecera; retirado, todo como antes |
+| Un `try` compartido no pasa delante de un exclusivo en cola, y funciona en solo lectura | ✅ Con A compartido y B esperando el exclusivo, C `try` → `false`; en `read only`, `true` |
+| `postgrest-js` 2.109 ante un 503 | Reintenta el GET tres veces (`Retry-After` o 1, 2 y 4 s): se eligió **423** |
+| Vías de actividad | El navegador no usa el cliente de Supabase; el servidor no usa `pg`; `service_role` en el catálogo, el programador y el despachador; `pg_cron` y Auth, fuera de PostgREST |
+
+### c. La migración que falla a medias (I-186)
+
+Todas con la pausa cerrada y `db push --db-url "…?lock_timeout=900ms" --yes`, como en la publicación.
+
+| Variante | Resultado |
+|---|---|
+| **Fallo aislado** en la primera sentencia de la `0079` (un disparador de eventos solo en la base desechable, que falla si la `0078` ya está registrada) | `Applying 0078…` y `Applying 0079…`, `LegacyDbPushApplyError … FALLO PROVOCADO`, exit 1. **Estado `0078`**: historial `0077,0078`; estructura contra la `0078` de referencia **`{}`**; cifras idénticas (42 filas, 5.728 movimientos, $222.360.000 de comisiones, $455.310.000 cobrados) |
+| Continuar desde ahí | `--dry-run`: **solo** la `0079`; aplicada; estado `0079`; estructura contra la referencia **`{}`**; cifras idénticas |
+| Volver desde `0078` | Recuperación 429 ms, «42 filas de comisión recontadas sin mover dinero»; `migration repair --status reverted 0078`; estado `0077`; estructura contra `0077` **`{}`**; cifras idénticas |
+| **Realista 1**: una sesión con `commission_tiers` tomado 30 s | La `0078` se cancela en su sentencia 90 con `55P03`: **estado `0077`**, nada aplicado, cifras idénticas |
+| **Realista 2**: una sesión que toma `seller_commissions` en exclusiva al ver registrada la `0078` | La `0079` se cancela en su sentencia 6 con `55P03`: **estado `0078`**, cifras idénticas. Sin ningún mecanismo artificial |
+| Primer intento de la realista 1, con el cerrojo solo 5 s | Se aplicaron las dos: el cerrojo se soltó antes de que la `0078` llegara a `commission_tiers`. Se repitió sosteniéndolo |
+
+### d. La pausa
+
+| Prueba | Resultado |
+|---|---|
+| `maintenance-pause.ts` en local: `instalar` → `cerrar` → `permitir` → `retirar` | Usada por PostgREST en 18–301 ms; drenada en 3–4 ms; 423 para `anon` y `service_role`; el Dueño permitido 200 «permitida» y el vendedor 423, en ~20 ms por `supabase-js`; retirada en 16–20 ms y `authenticator` igual que antes |
+| `tests/db/maintenance-pause.test.ts` | ✅ **8/8** (MP-01..08) en 4,9 s: con una RPC de 2,5 s dentro, `cerrar` volvió después de ella (>1,5 s) y la RPC terminó bien |
+| `tests/e2e/pausa-publicacion.spec.ts`, código de la publicación sobre `0079` | ✅ **4/4**, incluido `abrir` comprobando el identificador servido por el servidor de desarrollo |
+| El puente sobre `0077` | ✅ **4/4** |
+| El puente sobre `0079` —la combinación incompatible—, pausa cerrada | ✅ **3/3**: `/mantenimiento` con la sesión intacta, el catálogo con su error, solo el Dueño permitido |
+| `abrir` con el puente servido y la base en `0079` | ❌ «El código de cac81e8 espera la base en 0077, y está en 0079: no son pareja»; ❌ con el commit de la publicación, «no sirve el build de bb99272»; ❌ con `0077`, «la última migración aplicada es 0079». La pausa **siguió cerrada** |
+| Recuperación a `0077` y `abrir --migracion 0077 --commit cac81e8` | ✅ «base en 0077 y sitio con el build `b21a1caa33c5`» —el que producción sirve hoy para `cac81e8`—, abierta y retirada |
+| Registro del servidor durante la pausa | `RIFAS_PAUSA` de páginas renderizadas en paralelo con la guarda; esperado |
+
+### e. Recuperación: los tres escenarios
+
+| Escenario | Resultado |
+|---|---|
+| Ventana completa: pausa, diagnóstico, respaldo (12,7 s, 17,4 MB, 0 `"auth".`) y foto, migración | ✅ Estado `0079`, `commission_agreement_problems()` 0, `verify:remote` en verde |
+| **5.1** Justo después de migrar | Comprobación: se puede volver. Recuperación **445 ms**; historial reparado; estado `0077`; estructura contra `0077` **`{}`**; cifras idénticas |
+| **5.2** Con ventas, cobros, un traslado y una ganancia de equipo posteriores (+67 boletas, +55 cobradas) | Recuperación 432 ms; esas operaciones **conservadas** (4.960 boletas, 3.956 pagadas, $461.310.000); estructura **`{}`**; otra vez a `0079` con esa actividad: cifras idénticas |
+| **5.3** Tras un fijo administrativo y una versión 2 de la lista | Comprobación: **no se puede volver**, con las **dos** condiciones y sus identificadores; el script, igual, se niega (`exit 3`); estado y cifras sin cambios |
+| **5.4** Estado intermedio | Las salidas de §c |
+| Escala 4 (19.473 boletas, 22.828 movimientos) | `db push` 37,0–40,1 s; recuperación 472–493 ms con ~400 ms de `docker exec`, es decir **~0,1 s de SQL** |
+| Arranque de la CLI | ~3,3 s por orden |
+
+### f. Restauración del respaldo (I-183)
+
+Respaldo con la pausa cerrada; migrar; actividad posterior —ventas, cobros, traslado, ganancia de equipo, un fijo
+administrativo, una versión 2 y **un alta nueva**—; el incidente: cerrar, «no se puede volver», restaurar.
+
+| Intento | Resultado |
+|---|---|
+| Primero, el procedimiento de antes (`DROP SCHEMA public CASCADE`) | ❌ **I-187**: `schema.sql` se cortó en «multiple primary keys for table estado» —el esquema `pausa`, en el volcado— y con `ON_ERROR_STOP` no llegaron las claves, índices, disparadores ni políticas de `public`. Corregido `pausa.estado` y repetido |
+| El procedimiento de antes, ya sin ese corte | Filas iguales al respaldo, pero estructura distinta: la ACL del esquema `public`, los tres privilegios por defecto de `supabase_admin` en `public`, las concesiones de **31** funciones de `pg_trgm`, la ACL de `raffle_prize_transitions`, los dos disparadores de `auth.users` y el historial en `0079` |
+| Vaciando `public` sin borrar el esquema | ❌ **I-188**: las tablas heredaban los privilegios por defecto de `postgres`: `service_role` ALL sobre `raffle_prizes` y `raffle_prize_versions`, `authenticated` lectura sobre `raffle_prize_transitions`. Corregido apartándolos en el vaciado |
+| **El procedimiento final** (`RUNBOOK` §5.2) | Vaciar y los tres archivos, 5,0 s; completo, **10,6 s**. Estructura contra el respaldo: **solo** `raffle_prize_transitions_prizes_check`, `((a AND b) AND c)` frente a `(a AND b AND c)`. Filas: **0 distintas**. Cifras idénticas al respaldo |
+| Una cuenta nueva **antes** del paso 3 | «**SIN perfil**»: el disparador de `auth.users` no estaba |
+| Funcionales, con el vendedor permitido | ✅ alta con perfil, cambio de correo en el perfil, entrar, leer su membresía por la API (200), vender y cobrar por la RPC con su sesión, comisión recalculada |
+| Lo escrito después del respaldo (`gate-compare … --operation none`) | DETENER con la lista: `tickets` +67, `payments` +2, `payment_allocations` +55, `memberships` +1 y 6 cambiadas, `profiles` +1, `seller_commissions` 40 cambiadas, `commission_ledger` +100, `audit_logs` +217, `notifications` +109, `raffles` 2 cambiadas |
+| Conciliación: ventas, cobros, el traslado y la ganancia de equipo, otra vez por las mismas RPC | Cobrado **$461.310.000**, **3.956** pagadas y **4.960** boletas: **cuadra exacto** con antes de restaurar. Solo difieren las ganancias de `s2` —su fijo administrativo, que `0077` no puede guardar— y queda una cuenta de Auth sin perfil, la del alta: las decide el dueño |
+| `test:db` **del puente** contra la base restaurada | 59 de 60 archivos; falla `price-migration` E7 por la rifa de $100.000 del escenario: **reproducido sin restaurar** (I-189) |
+
+### g. El puente (`fix/puente-pausa-publicacion`)
+
+| Comando | Resultado | Errores y correcciones |
+|---|---|---|
+| `git apply --3way` del parche sobre `cac81e8` | Aplicado limpio en los 11 archivos, más los 8 nuevos | — |
+| `npm ci` en su árbol de trabajo | ✅ | — |
+| `npm run test:db` sobre `0077` sembrada | ✅ **1.452 + 1** en 60 archivos | — |
+| `npm run verify` (con las variables locales, sin copiar `.env.local`) | Primero ❌ `admin-privacy.test.ts:283`: **I-171**, el CRLF de un árbol de trabajo nuevo; comprobado —`eligibility.ts` con 178 `\r`— y reescrito en LF desde su blob. Después ✅ exit 0: **1.812/1.812** en 89 archivos, build con `/mantenimiento` estática | Un `git checkout` del archivo no lo reescribía por no estar modificado; se borró antes |
+
+### h. Verificación final, ejecutada ahora
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset && npm run seed:local && npm run test:db` | ✅ **1.510 + 1 omitida** en 61 archivos (166 s): +8 de la pausa y +3 de `earning-agreements` |
+| `npm run verify` | ✅ exit 0: **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa, +1 de `mapPgError`), lint 0 errores y los 2 avisos de siempre, build |
+| `npm run db:reset && npm run seed:local` y las E2E de lo tocado: `pausa-publicacion`, `security`, `reports`, `resultados-semana`, `navegacion`, `owner-users`, `rifa-fechas-aviso` y `navegacion-movil` | ✅ **103/103** en 4,9 min |
+| La E2E completa | **No se ejecutó.** La referencia sigue siendo la de D-237, 966/973 con sus siete fallos explicados: histórica |
+
+### i. Errores propios, en orden
+
+| Error | Corrección |
+|---|---|
+| El guion del escenario creaba el borrador como activa y lo pasaba a borrador | Se crea como borrador |
+| Una prueba unitaria contaba un `grant` de un comentario | Se cuentan sin comentarios |
+| El primer script de funcionales deshacía su venta borrando movimientos del ledger | Se reordenó: la venta con dinero va al final, después del cuadre |
+| La nota del resumen de la ronda D leía una clave que el informe no tiene | Se leyó el informe entero |

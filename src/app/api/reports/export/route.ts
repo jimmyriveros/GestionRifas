@@ -2,9 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { buildReportCsv, reportFilePrefix } from '@/features/reports/export'
 import { parseReportFilters, reportKeysForRole } from '@/features/reports/schemas'
-import { getActiveMembership, getAuthUser } from '@/lib/auth/session'
+import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
 import { csvFilename, csvHeaders } from '@/lib/csv'
 import { todayBogota } from '@/lib/dates'
+import { MAINTENANCE_PAUSE_MESSAGE, MaintenancePauseError } from '@/lib/maintenance-pause'
 
 /**
  * Descarga de un reporte en CSV (CLAUDE.md §24).
@@ -33,7 +34,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Debes iniciar sesión.' }, { status: 401 })
   }
 
-  const membership = await getActiveMembership()
+  let membership: ActiveMembership | null
+  try {
+    membership = await getActiveMembership()
+  } catch (error) {
+    // D-239: la API en pausa de publicacion no es una cuenta inactiva.
+    if (error instanceof MaintenancePauseError) {
+      return NextResponse.json({ error: MAINTENANCE_PAUSE_MESSAGE }, { status: 503 })
+    }
+    throw error
+  }
   if (!membership) {
     return NextResponse.json({ error: 'Tu cuenta está inactiva.' }, { status: 403 })
   }
