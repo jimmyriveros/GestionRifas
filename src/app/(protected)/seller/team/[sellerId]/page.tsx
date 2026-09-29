@@ -8,8 +8,9 @@ import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   getCommissionContext,
-  getMaxFixedCommission,
-  listCommissionTiers,
+  getCommissionTemplate,
+  getTeamCommissionLimits,
+  listSellerAgreements,
 } from '@/features/commissions/queries'
 import { TeamCommissionCard } from '@/features/team/components/TeamCommissionCard'
 import { TeamMemberActions } from '@/features/team/components/TeamMemberActions'
@@ -34,17 +35,26 @@ export default async function TeamMemberPage({
   const { sellerId } = await params
   const membership = await requireRole(['seller'])
 
-  const [comisiones, tiers, maxFixed] = await Promise.all([
+  const [comisiones, template] = await Promise.all([
     getCommissionContext(),
-    listCommissionTiers(),
-    getMaxFixedCommission(membership.organizationId),
+    // La lista general: lo que recibiria el integrante al pasar a tramos (D-237).
+    getCommissionTemplate(membership.organizationId),
   ])
   const raffle = comisiones.raffle
 
   const member = await getTeamMember(membership.profileId, sellerId, raffle?.id)
   if (!member) notFound()
 
-  const sales = await listTeamMemberSales(sellerId)
+  // Despues del `notFound`: los limites solo los puede pedir quien lidera un
+  // equipo. Los dos acuerdos van en UNA lectura: el del padre decide como se
+  // dice el tope (BR-G28) y el del integrante trae sus tramos.
+  const [sales, agreements, limits] = await Promise.all([
+    listTeamMemberSales(sellerId),
+    listSellerAgreements(membership.organizationId, [membership.profileId, sellerId]),
+    getTeamCommissionLimits(membership.organizationId),
+  ])
+  const ownAgreement = agreements.get(membership.profileId) ?? null
+  const memberAgreement = agreements.get(sellerId) ?? null
   const commission = comisiones.bySeller.get(sellerId) ?? null
 
   return (
@@ -102,8 +112,13 @@ export default async function TeamMemberPage({
           fixedCommissionAmount: member.fixedCommissionAmount,
         }}
         commission={commission}
-        tiers={tiers}
-        maxFixed={maxFixed}
+        options={{
+          currentTiers: memberAgreement?.team.list?.tiers ?? null,
+          template: template?.tiers ?? null,
+          maxFixed: limits.maxFixed,
+          parentTiered: ownAgreement?.effective.mode === 'tiered',
+          templateProblem: limits.templateProblem,
+        }}
         raffleName={raffle?.name ?? null}
       />
 

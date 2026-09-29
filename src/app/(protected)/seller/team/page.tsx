@@ -3,14 +3,17 @@ import { UsersIcon } from 'lucide-react'
 import { EmptyState } from '@/components/data/EmptyState'
 import { MetricCard } from '@/components/data/MetricCard'
 import { PageHeader } from '@/components/data/PageHeader'
+import { EARNINGS_COPY } from '@/features/commissions/copy'
 import {
   getCommissionContext,
-  getMaxFixedCommission,
-  listCommissionTiers,
+  getCommissionTemplate,
+  getSellerAgreement,
+  getTeamCommissionLimits,
 } from '@/features/commissions/queries'
 import { AddTeamMemberButton } from '@/features/team/components/AddTeamMemberButton'
 import { TeamMemberList } from '@/features/team/components/TeamMemberList'
-import { getOwnTeamStatus, listTeamWithTotals } from '@/features/team/queries'
+import { listTeamWithTotals } from '@/features/team/queries'
+import type { CommissionOptions } from '@/features/users/components/UserDialog'
 import { requireRole } from '@/lib/auth/guards'
 import { formatCOP } from '@/lib/money'
 
@@ -24,24 +27,40 @@ import { formatCOP } from '@/lib/money'
 export default async function TeamPage() {
   const membership = await requireRole(['seller'])
 
-  const [own, comisiones, tiers, maxFixed] = await Promise.all([
-    getOwnTeamStatus(membership.profileId),
+  const [agreement, comisiones, template] = await Promise.all([
+    // Su acuerdo dice si pertenece a un equipo y con que regla cobra el; la
+    // lista general, lo que recibiria un integrante por tramos (D-237). Van en
+    // el mismo `Promise.all` que ya existia: la pantalla sigue costando UNA
+    // espera antes de leer el equipo.
+    getSellerAgreement(membership.organizationId, membership.profileId),
     getCommissionContext(),
-    // Los dos alimentan la seccion «Cómo le vas a pagar» del alta (BR-G24). Van
-    // en el mismo `Promise.all` que ya existia: la pantalla sigue costando UNA
-    // espera, y el dialogo se abre con los datos puestos en vez de pedirlos al
-    // tocarlo.
-    listCommissionTiers(),
-    getMaxFixedCommission(membership.organizationId),
+    getCommissionTemplate(membership.organizationId),
   ])
   const raffle = comisiones.raffle
-  const commissionOptions = { tiers, maxFixed }
+  const canAdd = agreement !== null && agreement.parentSellerId === null
 
   // Ventas y ganancia, de LA MISMA rifa (BR-G04). Mezclar «vendidas en todas
   // las rifas» con «ganado en esta» daria dos cifras que no se pueden comparar.
-  const members = await listTeamWithTotals(membership.profileId, raffle?.id)
+  //
+  // Los limites de la seccion «Cómo le vas a pagar» (BR-G28) van en la misma
+  // espera que el equipo, y solo si puede agregar: los pide la base a quien
+  // lidera un equipo, y a nadie mas.
+  const [members, limits] = await Promise.all([
+    listTeamWithTotals(membership.profileId, raffle?.id),
+    canAdd ? getTeamCommissionLimits(membership.organizationId) : Promise.resolve(null),
+  ])
 
-  const canAdd = !own.belongsToTeam
+  const commissionOptions: CommissionOptions | null = limits
+    ? {
+        audience: 'team',
+        tiers: template?.tiers ?? [],
+        maxFixed: limits.maxFixed,
+        parentTiered: agreement?.effective.mode === 'tiered',
+        tieredDisabledReason:
+          template === null ? EARNINGS_COPY.field.noTemplate : limits.templateProblem,
+      }
+    : null
+
   // Se suman aqui los totales que SQL ya calculo por integrante, igual que
   // `listSellersWithInventory` suma sus filas por rifa. No es calcular dinero en el
   // navegador —esto corre en el servidor y los sumandos vienen de la base—, y es
@@ -67,14 +86,14 @@ export default async function TeamPage() {
             : 'Los vendedores que agregas trabajan con sus propias boletas y tú ves cómo les va.'
         }
         compactAction={
-          canAdd && members.length > 0 ? (
+          commissionOptions && members.length > 0 ? (
             <AddTeamMemberButton commission={commissionOptions} />
           ) : undefined
         }
       />
 
       {members.length === 0 ? (
-        canAdd ? (
+        commissionOptions ? (
           <EmptyState
             icon={<UsersIcon className="size-8" aria-hidden />}
             title="Todavía no tienes vendedores en tu equipo"
@@ -90,14 +109,24 @@ export default async function TeamPage() {
         )
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <MetricCard label="Vendedores" value={members.length} />
-            <MetricCard label="Boletas vendidas" value={teamSales} />
-            <MetricCard label="Recaudado" value={formatCOP(teamCollected)} />
-            {/* «Ganas tú» y no «Ganancia»: las otras tres cifras son del
-                equipo y esta es suya, y sin decirlo se leerian las cuatro
-                como si fueran lo mismo. */}
-            <MetricCard label="Ganas tú" value={formatCOP(teamEarned)} />
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <MetricCard label="Vendedores" value={members.length} />
+              <MetricCard label="Boletas vendidas" value={teamSales} />
+              <MetricCard label="Recaudado" value={formatCOP(teamCollected)} />
+              {/* «Ganas tú» y no «Ganancia»: las otras tres cifras son del
+                  equipo y esta es suya, y sin decirlo se leerian las cuatro
+                  como si fueran lo mismo. */}
+              <MetricCard label="Ganas tú" value={formatCOP(teamEarned)} />
+            </div>
+            {/* BR-G27: con tramos, lo que vende el equipo tambien lo sube de
+                tramo. Es lo unico de esta pantalla que no se deduce mirandola,
+                y solo es verdad para quien cobra por tramos. */}
+            {agreement?.effective.mode === 'tiered' ? (
+              <p className="text-muted-foreground text-body-small">
+                {EARNINGS_COPY.seller.teamTierNote}
+              </p>
+            ) : null}
           </div>
 
           <TeamMemberList members={members} commissions={comisiones.bySeller} />

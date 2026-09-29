@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.28 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (**§4.15**: `0073` y `0074`
+- **Versión:** 2.29 · **Estado:** implementado · **Actualizado:** 2026-09-29 (**§4.25 nueva**: la configuración de
+  ganancias —D-237, `0078`, **solo en local**—: nadie cambia su propio acuerdo, las listas no las escribe ninguna
+  sesión, el alta exige padre o capacidad, las listas personalizadas son de su dueño, el cerrojo por jefe y la matriz
+  exacta de 38 funciones que la migración comprueba al aplicarse). Antes, el 2026-09-19, más tarde (**§4.15**: `0073` y `0074`
   **en producción**, con su autocomprobación y `verify:remote` 46/46). Antes, ese mismo día (**§4.15**, Bre-B y «Otros» —D-209,
   `0073` y `0074`, **solo en local**—: las dos RPC de cuentas que escriben cambian de firma y conservan su matriz,
   dos funciones internas de la regla solo para `service_role`, una migración que comprueba sus propios privilegios y
@@ -166,6 +169,11 @@ defensas no se relajan: se duplican.
 | Reportes globales — **solo recuentos de boletas**, sin dinero ni clientes (BR-Q08) | ✓ | ✓ | ✗ |
 | Reportes de dinero y cartera: ventas, recaudo, saldos, clientes y pagos (BR-Q08) | ✗ | ✗ | P |
 | Ver la ganancia y los movimientos de comisión de un vendedor (BR-G12, BR-Q08) | ✗ | ✗ | P (y el vendedor padre, la de su equipo) |
+| **Configuración de ganancias** (`0078`, §4.25) |
+| Guardar la lista general de tramos y dar o cambiar el acuerdo administrativo de un vendedor — por la **capacidad** `sellers.earnings.manage` (BR-G34) | ✓ | ✓ | ✗ |
+| Ver con qué regla se le paga a un vendedor: su fijo o sus tramos, **nunca lo ganado** (BR-G12) | ✓ | ✓ | P (el suyo, y el vendedor padre los de su equipo) |
+| Elegir la ganancia de un integrante: fijo con tope o la lista general (BR-G24, BR-G28) | ✗ | ✗ | Solo su vendedor padre |
+| Cambiar su propio acuerdo | ✗ | ✗ | ✗ — **nadie** |
 | Ver auditoría — redactada, por `admin_audit_log` (BR-Q10) | ✓ | ✓ | ✗ |
 | **Resultados de loterías** |
 | Ver programación y resultado oficiales | ✓ | ✓ | ✓ (lectura; son nacionales) |
@@ -1443,6 +1451,25 @@ solo puede escribir en la base **local**: su dirección está escrita en el cód
 procedencia comprobada** (I-145): las dos fotos, `gate-snapshot/v2`, íntegras, del mismo proyecto y del que se pidió,
 distintas y en orden, y la conexión con ese proyecto comprobada aunque no haya diferencias; si no, no hay veredicto.
 Las fotos guardan el proyecto con el que se conectaron, nunca una credencial.
+
+### 4.25 La configuración de ganancias (`0078`; BR-G27..BR-G35; D-237)
+
+> 🧪 **Solo en local.** Nada de esto existe todavía en el proyecto real.
+
+| Riesgo | Cómo se cierra |
+|---|---|
+| Un vendedor se sube su propia ganancia | Ninguna sesión escribe `commission_tier_lists` ni sus tramos (solo `SELECT`, sin políticas de escritura). `memberships_validate_seller_agreements` rechaza con `42501` cualquier cambio del acuerdo administrativo sin la capacidad `sellers.earnings.manage`, y del de equipo sin ser su vendedor padre o tenerla (BR-G34). **Nadie cambia el suyo**: el padre no tiene la capacidad y el personal no vende |
+| Un alta que se salta el acuerdo | El disparador exige, en todo `INSERT` de un vendedor con sesión, ser su vendedor padre o tener la capacidad —antes que cualquier regla del acuerdo, para no explicarle a quien no puede un acuerdo que no le toca (E11)—. La mitad no se asigna por ningún camino (BR-G30) |
+| Usar la lista de otro vendedor | Una lista personalizada solo la puede usar su dueño (`owner_profile_id`): el disparador lo comprueba en todo camino y la FK compuesta impide otra organización. La RLS no deja **leer** las ajenas |
+| El personal recupera la cartera | Configurar un acuerdo no devuelve ninguna cifra de ganancia (D-198): la ficha lee la regla y recuentos de boletas cobradas de `admin_ticket_inventory`. `admin_audit_redact` conoce las claves nuevas de una membresía y de `commission_template` |
+| Un identificador manipulado | `staff_set_seller_agreement` busca al vendedor dentro de `current_staff_org_ids()` y responde lo mismo a uno ajeno y a uno inexistente. `team_commission_limits` solo responde a quien puede liderar un equipo |
+| Dos cambios a la vez dejan un par incompatible | Todo cambio que puede mover el dinero de un equipo toma `commission_team_lock(jefe)` antes de validar (BR-G33). Medido quitándolo: `E11-31` falla en 3 de 3 pasadas, y con él `E11-37` y `E11-38`, que encuentran el par incompatible que deja |
+| Una función nace ejecutable por quien no debe | Matriz exacta en `scripts/earning-function-grants.ts` —6 RPC de sesión, 2 de la *service role*, **30 internas que no ejecuta nadie**—, escrita en la migración, que **se comprueba a sí misma** al aplicarse; la repiten `verify:remote` y la suite E11. Es el patrón de §4.23 (I-132): en el proyecto alojado toda función nueva de `public` nace ejecutable por `service_role` |
+| Un reintento cobra dos veces | Guardar la misma lista o el mismo acuerdo no escribe nada (`changed = false`), y el motor recuenta: la diferencia es cero (BR-G08) |
+
+**Las acciones del servidor** comprueban la capacidad con `authorizeCapability` antes de llamar a la base, y el
+alta del personal la comprueba **antes de enviar la invitación**, para que un rechazo no deje un correo con un
+enlace muerto; el alta del vendedor padre valida lo mismo con `team_commission_limits` antes del correo (§5).
 
 ## 5. Protección de Server Actions y Route Handlers
 

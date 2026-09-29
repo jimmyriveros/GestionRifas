@@ -19,6 +19,12 @@ export const ACCOUNTS = {
   otherSeller: 'vendedor2@demo.test',
   /** Vendedor de «Rifas Control»: su rifa NO permite que cree boletas. */
   controlSeller: 'vendedor@control.test',
+  /**
+   * Dueño de «Rifas Control». Lo usan las pruebas que cambian la lista general
+   * de tramos (D-237): hacerlo en la organizacion de las demas suites movería
+   * los tramos que ellas esperan.
+   */
+  controlOwner: 'owner@control.test',
 } as const
 
 /**

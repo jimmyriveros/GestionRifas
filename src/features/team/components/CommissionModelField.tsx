@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 
 import { MoneyInput } from '@/components/form/MoneyInput'
 import {
@@ -11,34 +11,46 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import type { CommissionTier } from '@/features/commissions/queries'
+import { EARNINGS_COPY } from '@/features/commissions/copy'
 import { COMMISSION_MODEL_LABELS, type CommissionModel } from '@/lib/constants'
-import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
+const COPY = EARNINGS_COPY.field
+
 /**
- * Como se le va a pagar a un integrante del equipo (BR-G24, D-127).
+ * «Cómo le vas a pagar»: la eleccion entre ganancia por tramos y ganancia fija
+ * (BR-G24, D-127), en las DOS altas y en los DOS cambios de acuerdo (D-237).
+ *
+ * UN SOLO CAMPO PARA TODOS. Lo usan el alta de un integrante que hace su
+ * vendedor padre, el alta de un vendedor que hace el personal y los dialogos de
+ * cambio de cada uno. Lo que cambia entre ellos no son las dos tarjetas ni el
+ * campo de la cifra, sino tres cosas que se pasan por props:
+ *
+ *   * `tieredCardContent` — lo que se lee DENTRO de la tarjeta de tramos. El
+ *     vendedor padre ve ahi la lista que recibira su integrante.
+ *   * `tieredDetails` — lo que aparece DEBAJO de las tarjetas cuando se eligen
+ *     tramos. El personal ve ahi la lista y puede personalizarla: un editor no
+ *     puede vivir dentro de la tarjeta, que es un `<label>`.
+ *   * `note` y `fixedHint` — la consecuencia que no se ve en la pantalla («su
+ *     ganancia sale de la tuya») y el tope de la cifra, cuando lo hay.
  *
  * DOS TARJETAS, UN RADIO DE VERDAD. Se dibujan como tarjetas de precio pero por
  * debajo son un `<fieldset>` con dos `<input type="radio">` reales, no divs con
  * `onClick`. De ahi salen gratis las flechas del teclado, el `Tab` que entra al
  * grupo una sola vez, el anuncio de «2 de 2» de los lectores de pantalla y el
- * envio con Enter. Una version con botones lo habria tenido que reimplementar
- * todo a mano y peor.
+ * envio con Enter.
  *
  * LA ELECCION NO SE MARCA SOLO CON COLOR (CLAUDE.md §27): la tarjeta elegida
  * lleva ademas un visto, borde grueso y `aria-checked` real. El hueco del visto
- * se reserva siempre para que elegir no desplace el texto de la otra —el mismo
- * criterio de `OptionList`—.
+ * se reserva siempre para que elegir no desplace el texto de la otra.
  *
- * LOS TRAMOS NO ESTAN ESCRITOS AQUI. Llegan por props desde `commission_tiers`
- * (BR-G03): el negocio puede cambiarlos sin desplegar, y una tarjeta que
- * prometiera «$20.000» mientras la base de datos paga otra cosa seria peor que
- * no decir nada.
+ * UNA TARJETA QUE NO SE PUEDE ELEGIR LO DICE (BR-G28). Si la lista general no
+ * cabe en el acuerdo del vendedor padre, la tarjeta de tramos se deshabilita y
+ * lleva debajo la frase de la base que explica por que. Ofrecerla para que el
+ * disparador la rechace al guardar seria peor.
  *
  * EL CAMPO DE LA CIFRA SOLO EXISTE CON LA SEGUNDA TARJETA. No se deshabilita: se
- * quita. Un campo deshabilitado que aparece y desaparece de la ruta del `Tab`
- * confunde mas que un campo que sencillamente no esta mientras no aplica.
+ * quita.
  */
 export function CommissionModelField({
   value,
@@ -46,28 +58,39 @@ export function CommissionModelField({
   amount,
   onAmountChange,
   amountRef,
-  tiers,
-  maxFixed,
+  tieredCardContent,
+  tieredDetails,
+  tieredDisabledReason = null,
+  note,
+  fixedHint = null,
   disabled = false,
   error,
 }: {
-  value: CommissionModel
+  /** `null`: ninguna elegida todavia, como quien hoy cobra la mitad (BR-G30). */
+  value: CommissionModel | null
   onChange: (value: CommissionModel) => void
   amount: number | null
   onAmountChange: (value: number | null) => void
   amountRef?: React.Ref<HTMLInputElement>
-  tiers: CommissionTier[]
-  /** La mitad del precio de la rifa. `null` si no hay ninguna rifa (BR-G23). */
-  maxFixed: number | null
+  tieredCardContent?: ReactNode
+  tieredDetails?: ReactNode
+  /** Por que no se pueden elegir los tramos. `null` si se pueden. */
+  tieredDisabledReason?: string | null
+  /** La consecuencia que no se ve en la pantalla. `null` si no hay que decir ninguna. */
+  note: string | null
+  /** El tope de la cifra fija, ya redactado. `null` si no hay tope que decir. */
+  fixedHint?: string | null
   disabled?: boolean
   /** Mensaje de validacion del importe, si lo hay. */
   error?: string
 }) {
   const isFixed = value === 'fixed_per_ticket'
+  const reasonId = useId()
+  const tieredBlocked = tieredDisabledReason !== null && value !== 'tiered'
 
   return (
     <fieldset className="space-y-3" disabled={disabled}>
-      <legend className="mb-2 text-sm leading-none font-medium">Cómo le vas a pagar</legend>
+      <legend className="mb-2 text-sm leading-none font-medium">{COPY.legend}</legend>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <ModelCard
@@ -75,9 +98,11 @@ export function CommissionModelField({
           selected={value === 'tiered'}
           onSelect={() => onChange('tiered')}
           title={COMMISSION_MODEL_LABELS.tiered}
-          description="Gana más por cada boleta a medida que cobra más. Al subir de tramo, el valor nuevo se aplica a todas las boletas que ya cobró en la rifa."
+          description={COPY.tieredDescription}
+          blocked={tieredBlocked}
+          describedBy={tieredBlocked ? reasonId : undefined}
         >
-          <TierTable tiers={tiers} />
+          {tieredCardContent}
         </ModelCard>
 
         <ModelCard
@@ -85,23 +110,29 @@ export function CommissionModelField({
           selected={isFixed}
           onSelect={() => onChange('fixed_per_ticket')}
           title={COMMISSION_MODEL_LABELS.fixed_per_ticket}
-          description="Tú defines un valor. Gana esa misma cantidad por cada boleta que cobre completa, venda las que venda."
+          description={COPY.fixedDescription}
         />
       </div>
 
-      {/*
-        La consecuencia va aqui abajo y no dentro de una tarjeta: vale para las
-        dos. Es lo unico que quien elige no puede deducir mirando la pantalla, y
-        es exactamente el cambio que pidio el dueño (D-127).
-      */}
-      <p className="text-muted-foreground text-sm">
-        Su ganancia sale de la tuya: de cada boleta que cobre tu equipo, tú recibes lo que quede
-        después de pagarle.
-      </p>
+      {/* El motivo va FUERA de la tarjeta, que se atenua al estar apagada: asi
+          se lee con todo su contraste. El radio lo anuncia con
+          `aria-describedby`. */}
+      {tieredBlocked ? (
+        <p id={reasonId} className="text-body-small text-pretty">
+          {tieredDisabledReason}
+        </p>
+      ) : null}
+
+      {/* La consecuencia va aqui abajo y no dentro de una tarjeta: vale para
+          las dos. Es lo unico que quien elige no puede deducir mirando la
+          pantalla (D-127). */}
+      {note === null ? null : <p className="text-muted-foreground text-sm">{note}</p>}
+
+      {value === 'tiered' ? tieredDetails : null}
 
       {isFixed ? (
         <FormItem>
-          <FormLabel>Ganancia por boleta</FormLabel>
+          <FormLabel>{COPY.fixedLabel}</FormLabel>
           <FormControl>
             <MoneyInput
               ref={amountRef}
@@ -112,15 +143,7 @@ export function CommissionModelField({
             />
           </FormControl>
           <FormDescription>
-            {maxFixed === null ? (
-              <>Ejemplo: si escribes $30.000, ganará $30.000 por cada boleta que cobre completa.</>
-            ) : (
-              <>
-                Ejemplo: si escribes {formatCOP(30_000)}, ganará {formatCOP(30_000)} por cada boleta
-                que cobre completa. Puedes darle hasta {formatCOP(maxFixed)}, que es lo que ganas tú
-                por boleta.
-              </>
-            )}
+            {fixedHint === null ? COPY.fixedExample : `${COPY.fixedExample} ${fixedHint}`}
           </FormDescription>
           {error ? <FormMessage>{error}</FormMessage> : null}
         </FormItem>
@@ -135,6 +158,8 @@ function ModelCard({
   onSelect,
   title,
   description,
+  blocked = false,
+  describedBy,
   children,
 }: {
   name: string
@@ -142,6 +167,9 @@ function ModelCard({
   onSelect: () => void
   title: string
   description: string
+  /** No se puede elegir: la tarjeta se deshabilita y otro texto dice por que. */
+  blocked?: boolean
+  describedBy?: string
   children?: ReactNode
 }) {
   return (
@@ -177,32 +205,11 @@ function ModelCard({
         name={name}
         checked={selected}
         onChange={onSelect}
+        disabled={blocked}
         className="sr-only"
         aria-label={title}
+        aria-describedby={describedBy}
       />
     </label>
-  )
-}
-
-/** Los tramos vigentes, tal como estan configurados hoy (BR-G03). */
-function TierTable({ tiers }: { tiers: CommissionTier[] }) {
-  if (tiers.length === 0) return null
-
-  return (
-    <dl className="mt-1 space-y-1 text-xs">
-      {tiers.map((tier, index) => {
-        const next = tiers[index + 1]
-        const rango = next
-          ? `${tier.minTickets} a ${next.minTickets - 1} boletas`
-          : `${tier.minTickets} boletas o más`
-
-        return (
-          <div key={tier.minTickets} className="flex justify-between gap-2">
-            <dt className="text-muted-foreground">{rango}</dt>
-            <dd className="tabular-nums">{formatCOP(tier.rate)}</dd>
-          </div>
-        )
-      })}
-    </dl>
   )
 }

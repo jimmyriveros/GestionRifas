@@ -22,6 +22,7 @@
 import { config } from 'dotenv'
 import { Client } from 'pg'
 
+import { EARNING_FUNCTION_CHECKS } from './earning-function-grants'
 import { PRIZE_FUNCTION_CHECKS } from './prize-function-grants'
 
 config({ path: '.env.local', quiet: true })
@@ -174,8 +175,13 @@ const CHECKS: Check[] = [
               'mark_reminder_occurrence_attended',
               -- 0053: cada quien registra y quita SU dispositivo (BR-V06, D-190)
               'upsert_push_subscription', 'delete_push_subscription',
+              -- 0078 (D-237): la configuracion de ganancias. Las tres del personal
+              -- autorizan por la capacidad sellers.earnings.manage; la del padre,
+              -- por current_profile_leads_team
+              'save_commission_template', 'staff_create_seller_membership',
+              'staff_set_seller_agreement', 'team_commission_limits',
               'taken_ticket_combinations', 'team_confirm_email_change', 'team_delete_member',
-              'team_max_fixed_commission', 'team_member_sales', 'team_sales_summary',
+              'team_member_sales', 'team_sales_summary',
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
               'ticket_sale_price_limits', 'update_payment_allocation',
               'update_ticket_sale_price',
@@ -633,6 +639,10 @@ const CHECKS: Check[] = [
   // 0066 (D-207, I-132): la lista blanca exacta de las funciones de premios.
   // Son las MISMAS comprobaciones que corre tests/db/prize-function-privileges.test.ts.
   ...PRIZE_FUNCTION_CHECKS,
+  // 0078 (D-237, I-132): la lista exacta de la configuracion de ganancias, y que
+  // la tabla mutable de tramos ya no exista. Las mismas comprobaciones que corre
+  // tests/db/earning-agreements.test.ts. Fallan hasta que la 0078 se aplique.
+  ...EARNING_FUNCTION_CHECKS,
 ]
 
 async function main(): Promise<void> {

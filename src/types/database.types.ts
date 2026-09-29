@@ -218,37 +218,80 @@ export type Database = {
           },
         ]
       }
-      commission_tiers: {
+      commission_tier_list_items: {
         Row: {
-          created_at: string
-          id: string
+          list_id: string
           min_tickets: number
-          organization_id: string
           rate: number
-          updated_at: string
         }
         Insert: {
-          created_at?: string
-          id?: string
+          list_id: string
           min_tickets: number
-          organization_id: string
           rate: number
-          updated_at?: string
         }
         Update: {
-          created_at?: string
-          id?: string
+          list_id?: string
           min_tickets?: number
-          organization_id?: string
           rate?: number
-          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "commission_tiers_organization_id_fkey"
+            foreignKeyName: "commission_tier_list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "commission_tier_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_tier_lists: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["commission_tier_list_kind"]
+          organization_id: string
+          owner_profile_id: string | null
+          template_version: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["commission_tier_list_kind"]
+          organization_id: string
+          owner_profile_id?: string | null
+          template_version?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["commission_tier_list_kind"]
+          organization_id?: string
+          owner_profile_id?: string | null
+          template_version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_tier_lists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_tier_lists_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_tier_lists_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -835,6 +878,9 @@ export type Database = {
         Row: {
           commission_model: Database["public"]["Enums"]["commission_model"]
           created_at: string
+          direct_commission_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          direct_fixed_amount: number | null
+          direct_tier_list_id: string | null
           fixed_commission_amount: number | null
           id: string
           invited_by: string | null
@@ -847,6 +893,7 @@ export type Database = {
           public_slug: string | null
           public_whatsapp_number: string | null
           role: Database["public"]["Enums"]["app_role"]
+          team_tier_list_id: string | null
           updated_at: string
           weekly_results_custom_message: string | null
           weekly_results_use_custom_message: boolean
@@ -857,6 +904,9 @@ export type Database = {
         Insert: {
           commission_model?: Database["public"]["Enums"]["commission_model"]
           created_at?: string
+          direct_commission_mode?: Database["public"]["Enums"]["commission_agreement_mode"]
+          direct_fixed_amount?: number | null
+          direct_tier_list_id?: string | null
           fixed_commission_amount?: number | null
           id?: string
           invited_by?: string | null
@@ -869,6 +919,7 @@ export type Database = {
           public_slug?: string | null
           public_whatsapp_number?: string | null
           role: Database["public"]["Enums"]["app_role"]
+          team_tier_list_id?: string | null
           updated_at?: string
           weekly_results_custom_message?: string | null
           weekly_results_use_custom_message?: boolean
@@ -879,6 +930,9 @@ export type Database = {
         Update: {
           commission_model?: Database["public"]["Enums"]["commission_model"]
           created_at?: string
+          direct_commission_mode?: Database["public"]["Enums"]["commission_agreement_mode"]
+          direct_fixed_amount?: number | null
+          direct_tier_list_id?: string | null
           fixed_commission_amount?: number | null
           id?: string
           invited_by?: string | null
@@ -891,6 +945,7 @@ export type Database = {
           public_slug?: string | null
           public_whatsapp_number?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          team_tier_list_id?: string | null
           updated_at?: string
           weekly_results_custom_message?: string | null
           weekly_results_use_custom_message?: boolean
@@ -899,6 +954,20 @@ export type Database = {
           whatsapp_use_custom_message?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "memberships_direct_tier_list_fk"
+            columns: ["direct_tier_list_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "commission_tier_lists"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "memberships_team_tier_list_fk"
+            columns: ["team_tier_list_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "commission_tier_lists"
+            referencedColumns: ["id", "organization_id"]
+          },
           {
             foreignKeyName: "memberships_invited_by_fkey"
             columns: ["invited_by"]
@@ -1872,8 +1941,10 @@ export type Database = {
           rate: number
           seller_id: string
           team_earned: number
+          team_shortfall: number
           team_tickets_paid: number
           tickets_paid: number
+          tier_tickets_paid: number
           updated_at: string
         }
         Insert: {
@@ -1883,8 +1954,10 @@ export type Database = {
           rate?: number
           seller_id: string
           team_earned?: number
+          team_shortfall?: number
           team_tickets_paid?: number
           tickets_paid?: number
+          tier_tickets_paid?: number
           updated_at?: string
         }
         Update: {
@@ -1894,8 +1967,10 @@ export type Database = {
           rate?: number
           seller_id?: string
           team_earned?: number
+          team_shortfall?: number
           team_tickets_paid?: number
           tickets_paid?: number
+          tier_tickets_paid?: number
           updated_at?: string
         }
         Relationships: [
@@ -3037,6 +3112,81 @@ export type Database = {
           subscription_id: string
         }[]
       }
+      commission_agreement_floor: {
+        Args: {
+          p_fixed: number
+          p_list: string
+          p_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_price: number
+        }
+        Returns: number
+      }
+      commission_agreement_max: {
+        Args: {
+          p_fixed: number
+          p_list: string
+          p_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_price: number
+        }
+        Returns: number
+      }
+      commission_agreement_problems: {
+        Args: never
+        Returns: {
+          detail: string
+          organization_id: string
+          parent_id: string
+          problem: string
+          raffle_id: string
+          seller_id: string
+        }[]
+      }
+      commission_agreement_rate: {
+        Args: {
+          p_count: number
+          p_fixed: number
+          p_list: string
+          p_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_price: number
+        }
+        Returns: number
+      }
+      commission_create_tier_list: {
+        Args: {
+          p_created_by: string
+          p_kind: Database["public"]["Enums"]["commission_tier_list_kind"]
+          p_organization_id: string
+          p_owner: string
+          p_tiers: Json
+        }
+        Returns: string
+      }
+      commission_current_template: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
+      commission_direct_agreement_json: {
+        Args: {
+          p_fixed: number
+          p_list: string
+          p_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+        }
+        Returns: Json
+      }
+      commission_discount_problem: {
+        Args: {
+          p_fixed: number
+          p_list: string
+          p_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_organization_id: string
+          p_seller_id: string
+        }
+        Returns: string
+      }
+      commission_effective_agreement: {
+        Args: { p_organization_id: string; p_seller_id: string }
+        Returns: Record<string, unknown>
+      }
       commission_floor_rate: {
         Args: {
           p_organization_id: string
@@ -3045,9 +3195,87 @@ export type Database = {
         }
         Returns: number
       }
-      commission_rate_for: {
-        Args: { p_count: number; p_org: string }
+      commission_half_raffle_violation: {
+        Args: {
+          p_child_fixed: number
+          p_child_id: string
+          p_child_list: string
+          p_child_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_price: number
+          p_raffle_id: string
+          p_status: Database["public"]["Enums"]["raffle_status"]
+        }
+        Returns: {
+          at_count: number
+          child_rate: number
+          parent_rate: number
+        }[]
+      }
+      commission_list_json: { Args: { p_list: string }; Returns: Json }
+      commission_pair_problem: {
+        Args: {
+          p_actor: string
+          p_child_fixed: number
+          p_child_id: string
+          p_child_list: string
+          p_child_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_organization_id: string
+          p_parent_fixed: number
+          p_parent_id: string
+          p_parent_list: string
+          p_parent_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_side: string
+        }
+        Returns: string
+      }
+      commission_pair_problem_detail: {
+        Args: {
+          p_child_fixed: number
+          p_child_id: string
+          p_child_list: string
+          p_child_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_organization_id: string
+          p_parent_fixed: number
+          p_parent_list: string
+          p_parent_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+        }
+        Returns: {
+          at_count: number
+          child_rate: number
+          parent_rate: number
+          raffle_id: string
+          raffle_name: string
+          raffle_price: number
+        }[]
+      }
+      commission_pair_violation: {
+        Args: {
+          p_child_fixed: number
+          p_child_list: string
+          p_child_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_parent_fixed: number
+          p_parent_list: string
+          p_parent_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+        }
+        Returns: {
+          at_count: number
+          child_rate: number
+          parent_rate: number
+        }[]
+      }
+      commission_parent_cap: {
+        Args: {
+          p_child_id: string
+          p_organization_id: string
+          p_parent_fixed: number
+          p_parent_list: string
+          p_parent_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+        }
         Returns: number
+      }
+      commission_person_name: {
+        Args: { p_profile_id: string }
+        Returns: string
       }
       commission_rate_for_seller: {
         Args: {
@@ -3057,6 +3285,16 @@ export type Database = {
           p_seller_id: string
         }
         Returns: number
+      }
+      commission_resolve_tier_list: {
+        Args: {
+          p_created_by: string
+          p_current_list: string
+          p_organization_id: string
+          p_seller_id: string
+          p_tiers: Json
+        }
+        Returns: string
       }
       commission_summary: {
         Args: { p_raffle_id?: string }
@@ -3074,16 +3312,16 @@ export type Database = {
           team_tickets_paid: number
           tickets_paid: number
           tickets_to_next: number
+          tier_tickets_paid: number
         }[]
       }
-      commission_team_earned: {
-        Args: {
-          p_organization_id: string
-          p_parent_id: string
-          p_raffle_id: string
-        }
-        Returns: Record<string, unknown>
+      commission_team_lock: { Args: { p_head_id: string }; Returns: undefined }
+      commission_team_mode: {
+        Args: { p_model: Database["public"]["Enums"]["commission_model"] }
+        Returns: Database["public"]["Enums"]["commission_agreement_mode"]
       }
+      commission_tiers_normalized: { Args: { p_tiers: Json }; Returns: Json }
+      commission_tiers_problem: { Args: { p_tiers: Json }; Returns: string }
       confirm_lottery_result: {
         Args: {
           p_draw_number: string
@@ -3864,6 +4102,14 @@ export type Database = {
         Args: { p_endpoint: string; p_reason: string }
         Returns: boolean
       }
+      save_commission_template: {
+        Args: { p_organization_id: string; p_tiers: Json }
+        Returns: {
+          changed: boolean
+          list_id: string
+          template_version: number
+        }[]
+      }
       search_normalize: { Args: { value: string }; Returns: string }
       seller_prize_award_totals: {
         Args: {
@@ -4009,6 +4255,28 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      staff_create_seller_membership: {
+        Args: {
+          p_fixed_amount?: number
+          p_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_organization_id: string
+          p_profile_id: string
+          p_tiers?: Json
+        }
+        Returns: string
+      }
+      staff_set_seller_agreement: {
+        Args: {
+          p_fixed_amount?: number
+          p_mode: Database["public"]["Enums"]["commission_agreement_mode"]
+          p_seller_id: string
+          p_tiers?: Json
+        }
+        Returns: {
+          changed: boolean
+          raffles_recalculated: number
+        }[]
+      }
       sync_lottery_schedules: {
         Args: { p_draws: Json; p_source: Json }
         Returns: Json
@@ -4020,6 +4288,14 @@ export type Database = {
           weekly_number: string
         }[]
       }
+      team_commission_limits: {
+        Args: { p_organization_id: string }
+        Returns: {
+          max_fixed: number
+          template_list_id: string
+          template_problem: string
+        }[]
+      }
       team_confirm_email_change: {
         Args: {
           p_member_id: string
@@ -4029,10 +4305,6 @@ export type Database = {
         Returns: undefined
       }
       team_delete_member: { Args: { p_member_id: string }; Returns: undefined }
-      team_max_fixed_commission: {
-        Args: { p_organization_id: string }
-        Returns: number
-      }
       team_member_guard: { Args: { p_member_id: string }; Returns: string }
       team_member_sales: {
         Args: { p_limit?: number; p_member_id: string }
@@ -4260,6 +4532,7 @@ export type Database = {
     Enums: {
       app_role: "owner" | "admin" | "seller"
       bank_account_type: "savings" | "checking"
+      commission_agreement_mode: "half_price" | "fixed_per_ticket" | "tiered"
       commission_model: "tiered" | "fixed_per_ticket"
       commission_movement:
         | "sale"
@@ -4268,6 +4541,7 @@ export type Database = {
         | "seller_change"
         | "initial_balance"
         | "discount"
+      commission_tier_list_kind: "template" | "custom"
       lottery_assignment_status: "sold" | "available" | "late_assignment"
       lottery_code:
         | "cundinamarca"
@@ -4449,6 +4723,7 @@ export const Constants = {
     Enums: {
       app_role: ["owner", "admin", "seller"],
       bank_account_type: ["savings", "checking"],
+      commission_agreement_mode: ["half_price", "fixed_per_ticket", "tiered"],
       commission_model: ["tiered", "fixed_per_ticket"],
       commission_movement: [
         "sale",
@@ -4458,6 +4733,7 @@ export const Constants = {
         "initial_balance",
         "discount",
       ],
+      commission_tier_list_kind: ["template", "custom"],
       lottery_assignment_status: ["sold", "available", "late_assignment"],
       lottery_code: [
         "cundinamarca",

@@ -46,6 +46,18 @@ test.afterAll(async () => {
 })
 
 /**
+ * Las altas por la interfaz de este archivo son las de `vendedor1`, que conserva
+ * la MITAD del precio, con la forma que el dialogo ofrece por defecto: la lista
+ * general. Eso solo cabe mientras ninguna rifa en borrador o activa sea tan
+ * barata que la mitad quede por debajo del tramo mas alto (BR-G28, D-237), y
+ * otras suites —las de rifas y premios— dejan rifas de $50.000. Con la base
+ * recien sembrada, y en la pasada completa, este archivo corre antes. Si la
+ * tarjeta de tramos aparece apagada, es eso y no un defecto: hay que sembrar.
+ */
+const PRECONDICION_TRAMOS =
+  'Otra suite dejó una rifa más barata y en ella los tramos no caben en la mitad de vendedor1 (BR-G28): siembra la base de nuevo.'
+
+/**
  * La comision que el motor tiene calculada AHORA para ese vendedor, en la rifa
  * que la pantalla va a mostrar.
  *
@@ -61,7 +73,7 @@ async function comisionDe(email: string) {
   const { data: perfil } = await svc.from('profiles').select('id').eq('email', email).single()
   const { data: filas } = await svc
     .from('seller_commissions')
-    .select('tickets_paid, rate, earned, raffle_id, raffles!inner(status)')
+    .select('tickets_paid, tier_tickets_paid, rate, earned, raffle_id, raffles!inner(status)')
     .eq('seller_id', perfil!.id)
     .eq('raffles.status', 'active')
     .order('tickets_paid', { ascending: false })
@@ -69,13 +81,28 @@ async function comisionDe(email: string) {
   const fila = filas?.[0]
   if (!fila) return null
 
-  const { data: tramo } = await svc
-    .from('commission_tiers')
-    .select('min_tickets')
-    .gt('min_tickets', fila.tickets_paid)
-    .order('min_tickets', { ascending: true })
-    .limit(1)
-    .maybeSingle()
+  // D-237: el siguiente tramo sale de la lista del acuerdo que RIGE —la del
+  // equipo con vendedor padre, la administrativa sin el— y se cuenta con las
+  // boletas del tramo, no con las propias.
+  const { data: acuerdo } = await svc
+    .from('memberships')
+    .select('parent_seller_id, team_tier_list_id, direct_tier_list_id')
+    .eq('profile_id', perfil!.id)
+    .single()
+  const lista = acuerdo?.parent_seller_id
+    ? acuerdo.team_tier_list_id
+    : (acuerdo?.direct_tier_list_id ?? null)
+
+  const { data: tramo } = lista
+    ? await svc
+        .from('commission_tier_list_items')
+        .select('min_tickets')
+        .eq('list_id', lista)
+        .gt('min_tickets', fila.tier_tickets_paid)
+        .order('min_tickets', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+    : { data: null }
 
   return {
     ticketsPaid: Number(fila.tickets_paid),
@@ -110,7 +137,11 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
      * prueba le agregara gente — y otra de este mismo archivo lo hace. Con
      * cuentas propias el resultado no depende del orden de ejecución (I-035).
      */
-    const alta = async (nombre: string, padre: string | null) => {
+    const alta = async (
+      nombre: string,
+      padre: string | null,
+      acuerdo: { commission_model?: 'fixed_per_ticket'; fixed_commission_amount?: number } = {},
+    ) => {
       const email = uniqueEmail(nombre.toLowerCase().replace(/\s+/g, '-'))
       const { data: created } = await svc.auth.admin.createUser({
         email,
@@ -118,12 +149,14 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
         email_confirm: true,
         user_metadata: { full_name: nombre, phone: '3002223344' },
       })
-      await svc.from('memberships').insert({
+      const { error } = await svc.from('memberships').insert({
         organization_id: pm!.organization_id,
         profile_id: created!.user!.id,
         role: 'seller',
         parent_seller_id: padre,
+        ...acuerdo,
       })
+      if (error) throw error
       return created!.user!.id
     }
 
@@ -132,7 +165,13 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
     const sueltoNombre = `Suelto ${marca}`
 
     const jefeId = await alta(jefeNombre, null)
-    const integranteId = await alta(integranteNombre, jefeId)
+    // Un fijo minimo y no tramos: el jefe conserva la mitad, y en una rifa mas
+    // barata que haya dejado otra suite un integrante por tramos podria ganar
+    // mas que el, cosa que la base ya no admite (BR-G28, D-237).
+    const integranteId = await alta(integranteNombre, jefeId, {
+      commission_model: 'fixed_per_ticket',
+      fixed_commission_amount: 1_000,
+    })
     await alta(sueltoNombre, null)
 
     await loginAs(page, ACCOUNTS.owner)
@@ -166,16 +205,23 @@ test.describe('El portal administrativo ve la estructura comercial', () => {
     await expect(page.getByRole('link', { name: integranteNombre })).toBeVisible()
 
     // BR-G13: la ficha dice CON QUÉ REGLA se le paga a cada quien, para que el
-    // Dueño no tenga que deducirlo del número.
+    // Dueño no tenga que deducirlo del número. Desde D-237 en su propia tarjeta,
+    // «Cómo se le paga»: la regla, nunca lo ganado.
+    await expect(page.getByRole('heading', { name: 'Cómo se le paga' })).toBeVisible()
     await expect(
       page.getByText('La mitad del precio de cada boleta que cobre completa'),
     ).toBeVisible()
 
     await page.goto(`/owner/sellers/${integranteId}`)
     await expect(page.getByRole('link', { name: jefeNombre }).first()).toBeVisible()
+    // Un integrante: su acuerdo de equipo, y quien lo decide. Decia «Por
+    // niveles» para TODO integrante, tambien para este, que cobra un fijo.
     await expect(
-      page.getByText('Por niveles, según el total de boletas que lleve cobradas'),
+      page.getByText(`${formatCOP(1_000)} por cada boleta que cobre completa`),
     ).toBeVisible()
+    await expect(page.getByText(`Lo decide ${jefeNombre}, su vendedor a cargo.`)).toBeVisible()
+    // Y el personal no puede cambiarlo: es de su vendedor padre (BR-G34).
+    await expect(page.getByRole('button', { name: 'Cambiar' })).toHaveCount(0)
   })
 })
 
@@ -252,16 +298,34 @@ test.describe('Mi ganancia', () => {
         user_metadata: { full_name: `${nombre} ${stamp}`, phone: '3001234567' },
       })
       await svc.auth.admin.updateUserById(data!.user!.id, { password: 'DesarrolloLocal2026' })
-      await svc.from('memberships').insert({
+      const { error } = await svc.from('memberships').insert({
         organization_id: pm!.organization_id,
         profile_id: data!.user!.id,
         role: 'seller',
         parent_seller_id: padre,
       })
+      if (error) throw error
       return { id: data!.user!.id, email }
     }
 
     const jefe = await alta('jefe-nivel', null)
+    // El jefe cobra por la lista general, la MISMA que recibe el integrante: el
+    // par es compatible con cualquier rifa que otra suite haya dejado, cosa que
+    // con la mitad no pasaria en una mas barata (BR-G28, D-237). Lo que se
+    // prueba aqui es la tarjeta del integrante.
+    const { data: plantilla } = await svc
+      .from('commission_tier_lists')
+      .select('id')
+      .eq('organization_id', pm!.organization_id)
+      .eq('kind', 'template')
+      .order('template_version', { ascending: false })
+      .limit(1)
+      .single()
+    await svc
+      .from('memberships')
+      .update({ direct_commission_mode: 'tiered', direct_tier_list_id: plantilla!.id })
+      .eq('profile_id', jefe.id)
+      .throwOnError()
     const integrante = await alta('integrante-nivel', jefe.id)
 
     // Tres boletas cobradas por el camino real: el integrante registra el pago.
@@ -393,6 +457,10 @@ test.describe('Mi equipo', () => {
     await dialog.getByLabel('Nombre completo').fill('Pedro Martínez E2E')
     await dialog.getByLabel('Teléfono').fill('3001234567')
     await dialog.getByLabel('Correo electrónico').fill(email)
+    await expect(
+      dialog.getByRole('radio', { name: 'Ganancia por tramos' }),
+      PRECONDICION_TRAMOS,
+    ).toBeChecked()
     await dialog.getByRole('button', { name: 'Enviar invitación' }).click()
 
     await expectToast(page, /Ya está en tu equipo/i)
@@ -621,6 +689,10 @@ test.describe('Corregir a un integrante', () => {
     await dialog.getByLabel('Nombre completo').fill(nombre)
     await dialog.getByLabel('Teléfono').fill('3001234567')
     await dialog.getByLabel('Correo electrónico').fill(email)
+    await expect(
+      dialog.getByRole('radio', { name: 'Ganancia por tramos' }),
+      PRECONDICION_TRAMOS,
+    ).toBeChecked()
     await dialog.getByRole('button', { name: 'Enviar invitación' }).click()
 
     await expectToast(page, /Ya está en tu equipo/i)

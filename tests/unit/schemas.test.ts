@@ -147,12 +147,16 @@ describe('transiciones de estado de rifa (BR-R03)', () => {
 })
 
 describe('createUserSchema (BR-U08, BR-U03)', () => {
+  // Desde D-237 un vendedor nace con su acuerdo (BR-G30): el alta del personal
+  // sin «Cómo le vas a pagar» ya no es valida. `commission-tiers.test.ts`
+  // comprueba ese rechazo; aqui se da un acuerdo cualquiera para probar lo demas.
   const base = {
     fullName: 'Ana Perez',
     alias: '',
     phone: '3001234567',
     email: 'ANA@Demo.test',
     role: 'seller',
+    commissionModel: 'tiered',
   }
 
   it('normaliza el correo a minusculas', () => {

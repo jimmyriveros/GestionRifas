@@ -352,11 +352,20 @@ test.describe('Teléfono que no sirve para WhatsApp (sección 15)', () => {
 })
 
 test.describe('Aislamiento (sección 22)', () => {
-  test('el personal no ve «Configuración» ni alcanza la pantalla', async ({ page }) => {
+  test('el personal no alcanza la configuración del vendedor: la suya es otra', async ({
+    page,
+  }) => {
     await loginAs(page, ACCOUNTS.owner)
 
+    // Desde D-237 el personal tiene SU «Configuración» —las ganancias de los
+    // vendedores— en el mismo sitio del menú. Lo que se sigue comprobando es
+    // que no lleva a la del vendedor y que esa sigue fuera de su alcance.
     await page.getByRole('button', { name: /Menú de usuario/ }).click()
-    await expect(page.getByRole('menuitem', { name: 'Configuración' })).toHaveCount(0)
+    await expect(page.getByRole('menuitem', { name: 'Configuración' })).toHaveAttribute(
+      'href',
+      '/owner/settings',
+    )
+    await expect(page.locator('a[href^="/seller/settings"]')).toHaveCount(0)
 
     await page.goto('/seller/settings/whatsapp')
     await expect(page).toHaveURL(/\/denied/)

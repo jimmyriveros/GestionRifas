@@ -535,7 +535,14 @@ describe('E5 — el vendedor no puede tocar su comision', () => {
         tickets_paid: 999,
         rate: 99_999,
       }),
-      seller.from('commission_tiers').update({ rate: 99_999 }).eq('min_tickets', 1),
+      // Desde la 0078 (D-237) los tramos viven en listas inmutables que solo
+      // escriben las RPC: ni crear una lista ni tocar un tramo desde una sesion.
+      seller.from('commission_tier_lists').insert({
+        organization_id: ctx.demoOrg.id,
+        kind: 'custom',
+        owner_profile_id: sellerId,
+      }),
+      seller.from('commission_tier_list_items').update({ rate: 99_999 }).eq('min_tickets', 1),
     ]
 
     for (const escritura of escrituras) {

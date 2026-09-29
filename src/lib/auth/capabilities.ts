@@ -22,21 +22,28 @@ import type { AppRole } from '@/lib/constants'
  * PURO Y SIN `server-only`: lo importan el resolvedor y esas pruebas.
  */
 
-/** Catalogo cerrado. Una capacidad que no este aqui es «no» para todo el mundo. */
-export const APP_CAPABILITIES = ['raffles.prizes.manage'] as const
+/**
+ * Catalogo cerrado. Una capacidad que no este aqui es «no» para todo el mundo.
+ *
+ *   * `raffles.prizes.manage`   — configurar los premios de una rifa (D-200).
+ *   * `sellers.earnings.manage` — la lista general de tramos y los acuerdos de
+ *     ganancia de los vendedores (D-237). La ganancia de un integrante la sigue
+ *     eligiendo su vendedor padre, que no necesita esta capacidad.
+ */
+export const APP_CAPABILITIES = ['raffles.prizes.manage', 'sellers.earnings.manage'] as const
 
 export type AppCapability = (typeof APP_CAPABILITIES)[number]
 
 /**
- * La politica inicial, la del encargo de premios configurables:
+ * La politica inicial:
  *
  *   * el Dueno tiene TODAS las capacidades del catalogo;
- *   * el Administrador recibe `raffles.prizes.manage` por compatibilidad,
- *     mientras no exista el modulo de permisos;
+ *   * el Administrador recibe las dos por compatibilidad, mientras no exista el
+ *     modulo de permisos: ya configuraba premios y ya daba de alta vendedores;
  *   * el Vendedor no tiene ninguna.
  */
 export const ROLE_DEFAULT_CAPABILITIES: Record<AppRole, readonly AppCapability[]> = {
   owner: APP_CAPABILITIES,
-  admin: ['raffles.prizes.manage'],
+  admin: ['raffles.prizes.manage', 'sellers.earnings.manage'],
   seller: [],
 }

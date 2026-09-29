@@ -1,5 +1,12 @@
 import { z } from 'zod'
 
+import {
+  agreementFields,
+  agreementFormFields,
+  commissionModelSchema,
+  requireAmountForFixed,
+  requireValidCustomTiers,
+} from '@/features/commissions/schemas'
 import { PHONE_REGEX } from '@/lib/constants'
 
 /**
@@ -41,8 +48,40 @@ export const userFormSchema = z.object({
 })
 export type UserFormInput = z.infer<typeof userFormSchema>
 
-export const createUserSchema = userFormSchema.extend({ role: manageableRoleSchema })
+/**
+ * El alta del personal. Con `seller` exige ademas el acuerdo con el que nace
+ * (BR-G30, D-237): una ganancia fija o por tramos —la lista general o unos
+ * personalizados—, nunca la mitad. Con `admin` esos campos se ignoran: un
+ * administrador no vende.
+ */
+export const createUserSchema = userFormSchema
+  .extend({ role: manageableRoleSchema, ...agreementFields, commissionModel: commissionModelSchema.optional() })
+  .superRefine((values, ctx) => {
+    if (values.role !== 'seller') return
+    if (!values.commissionModel) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['commissionModel'],
+        message: 'Elige cómo se le va a pagar: una ganancia fija o por tramos.',
+      })
+      return
+    }
+    requireAmountForFixed(values, ctx)
+  })
 export type CreateUserInput = z.infer<typeof createUserSchema>
+
+/**
+ * El formulario compartido de alta y edicion (`UserDialog`): los datos de la
+ * persona y, cuando la seccion «Cómo le vas a pagar» se dibuja, su acuerdo. Sin
+ * la seccion, `commissionModel` se queda en `tiered` sin tramos y valida igual
+ * que el alta de un administrador. Cada accion vuelve a validar con SU esquema.
+ */
+export const userDialogSchema = userFormSchema
+  .extend(agreementFormFields)
+  .superRefine((values, ctx) => {
+    requireAmountForFixed(values, ctx)
+    requireValidCustomTiers(values, ctx)
+  })
 
 export const updateUserSchema = z.object({
   profileId: z.uuid('Usuario no válido.'),

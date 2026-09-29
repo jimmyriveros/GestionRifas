@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-174 resuelta: lo que Supabase escribe, también en la redirección a `/login`, D-236, solo en local, 2026-09-28 en Bogotá)** | **1.793/1.793** en 89 archivos (+12, `session-proxy.test.ts`): **8 de las 12 fallan con el proxy anterior** y pasan con la corrección, también en 5 pasadas en orden aleatorio | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | Subconjunto de 42 (`security`, `owner-users`, `navegacion` y `navegacion-movil`): **42/42** con la base recién sembrada. Con la base como la dejó `test:db`, 40/42: `owner-users:15` y `:43`, **iguales con el proxy anterior** (I-151). Build de producción con GoTrue local: la 307 **ya lleva** el borrado; errores del servidor **2 + 2 → 2 + 0**. Sin la E2E completa | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
+| **Post-9 vigente (configuración de ganancias, D-237, `0078`, solo en local, 2026-09-29)** | **1.823/1.823** en 90 archivos (+30, `commission-tiers.test.ts`, que lee la `0078` para comparar frases; `schemas.test.ts` da un acuerdo al alta de un vendedor) | **1.483 ✅ y 1 omitida** en 60 archivos (+39, `earning-agreements.test.ts`: un modelo independiente contra todas las filas, conservación y la mutación del cerrojo), dos veces | Completa **966/973** en 53,8 min: 2 provocados por este trabajo y corregidos (**18/18** al repetirlos sobre la base que dejó la completa), 3 anteriores (I-090, la hermana de I-164, I-106) y 2 intermitencias ajenas (I-178; I-179, reproducida en `b793016`). Nuevas: `ganancias` (6) y `ganancias-movil` (3) | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
+| Post-9 anterior (I-174 resuelta: lo que Supabase escribe, también en la redirección a `/login`, D-236, solo en local, 2026-09-28 en Bogotá) | **1.793/1.793** en 89 archivos (+12, `session-proxy.test.ts`): **8 de las 12 fallan con el proxy anterior** y pasan con la corrección, también en 5 pasadas en orden aleatorio | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | Subconjunto de 42 (`security`, `owner-users`, `navegacion` y `navegacion-movil`): **42/42** con la base recién sembrada. Con la base como la dejó `test:db`, 40/42: `owner-users:15` y `:43`, **iguales con el proxy anterior** (I-151). Build de producción con GoTrue local: la 307 **ya lleva** el borrado; errores del servidor **2 + 2 → 2 + 0**. Sin la E2E completa | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
 | Post-9 anterior (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). **Aprobado** por el dueño tras revisar en producción; el caso de una boleta pendiente, **validado solo en local** (no hay ninguna en producción) |
 | Post-9 anterior (I-173 resuelta: los estados de «Estado y resumen de pago» por el ancho de la tarjeta, D-235, solo en local, 2026-09-28) | **1.781/1.781** en 88 archivos, igual que antes: el cambio es de maquetación | **1.444 ✅ y 1 omitida**, igual que antes | La prueba nueva **falla con el componente anterior** («se pisan 27 px a 320 px») y pasa con la corrección; `detalle-boleta-composicion` **20/20** sin dejar filas; las 31 suites que abren el detalle del vendedor: **326/327**: el fallo es I-090 (`ventas-por-fecha:163`), que sola pasa —en esa pasada cayó I-164, `:257`—. Capturas: 112 de la tarjeta y 14 de página por fase; después, **0 de 56** medidas con problema | ✅ exit 0 | Solo en local, sin empujar |
 | Post-9 anterior (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Revisado por el dueño **como Administrador y como Vendedor**, con sus registros limpios (16:29–16:32 UTC); **como Dueño, no confirmado** en producción |
@@ -15968,3 +15969,62 @@ sesión ya no existe en Auth, y el proxy la borra al redirigir: es el camino de 
 | `owner-users:15` y `:43` en rojo | Datos que deja `test:db` —«1–25 de 37 vendedores»—: el vendedor invitado **sí** se crea, pero cae en la página 2 (I-151, ampliada) | Ninguna, fuera del encargo; con la base recién sembrada pasan |
 
 **No se hizo:** la E2E completa; ninguna lectura ni escritura en producción; ningún `push`.
+
+## D-237 — Configuración de ganancias (2026-09-29, solo en local)
+
+Mantenimiento posterior a la Fase 9 (`ConfiguracionGanancias.txt`), en cuatro etapas internas. Migración `0078`,
+**solo en local**; producción no se tocó. Estrategia en `TESTING` §4.13; contrato y decisiones en D-237.
+
+### Línea base (antes de tocar nada)
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase start` · `db:reset` + `seed:local` | ✅ |
+| `npm run verify` | ✅ exit 0 · **1.793/1.793** unitarias · lint 0 errores y los 2 avisos de siempre · build |
+| `npm run test:db` | ✅ **1.444 + 1 omitida** (59 archivos) |
+
+### Etapa 2 — la base
+
+| Qué | Resultado | Errores encontrados y corrección |
+|---|---|---|
+| Primera versión de la `0078` | Aplicaba, pero **`cannot ALTER TABLE … pending trigger events`** | La RLS se activa al crear las tablas y la comprobación diferida de las listas de la versión 1 se fuerza con `set constraints … immediate` |
+| `commission_summary` como sesión | **42501** | Llamaba a una pieza interna del motor desde una función de invocador: la regla va en línea |
+| Rendimiento de la primera versión | Abono de integrante **2,13 → 2,84 ms**; cambio de ganancia de integrante **2,89 → 5,4 ms** | El motor leía el acuerdo de cada hijo con una llamada por hijo: reescrito con un agregado para todo el equipo |
+| `test:db` con la regla nueva | **7 fallos** en seis suites | Seis suites suponían la regla anterior (claves de la bitácora, RPC públicas, la tabla `commission_tiers`, el suelo de la rebaja, el tope de la mitad y su limpieza). Y **`E1-05`** destapó un defecto propio: el disparador le explicaba la regla de la mitad a quien no podía dar de alta → la puerta de permisos va **antes** |
+| «1 boletas cobradas» en los rechazos | Error de redacción | `commission_tickets_phrase` |
+| `earning-agreements.test.ts` | **39/39**, en 4 pasadas | — |
+| Mutación: sin `commission_team_lock` | `E11-31` falla **3 de 3**, y con él `E11-37` y `E11-38` | Se restauró el cerrojo: el cerrojo es el arreglo, no un retraso |
+| Conservación sobre el volumen (5.529 boletas, 37 filas) | **0 diferencias**, dos veces, en `tickets_paid`, `rate`, `earned`, `team_tickets_paid`, `team_earned` y el ledger por partes | — |
+
+### Etapa 3 — la interfaz, comprobada en el navegador (servidor `dev:local`)
+
+| Qué | Resultado |
+|---|---|
+| «Configuración» y «Ganancias de vendedores» (Dueño) | Se abre con la versión 1; agregar un tramo con la misma cifra que el anterior muestra el error de la base **en su fila** tras intentar guardar. Un desfase de 3 px entre la fila 1 y las demás —el hueco del botón medía 44 px en escritorio— corregido |
+| Alta del personal con tramos personalizados | Crea la membresía por `staff_create_seller_membership`; la ficha dice «Con tramos personalizados…» |
+| Cambio a un fijo desde la ficha | «Sus tramos de ahora», el guardado desactivado sin cambios, el aviso «…no hay nada que recalcular» y la ficha actualizada |
+| Alta del equipo con un fijo sobre el tope | «No puedes pagarle más de $60.000…» **sin crear cuenta ni enviar correo** (comprobado en `auth.users`) |
+| El texto de ejemplo «21» en «Desde» de cualquier fila | Engañaba en la fila 5: retirado |
+
+### Etapa 4 — cierre
+
+| Comando | Resultado | Errores y corrección |
+|---|---|---|
+| `tests/unit/commission-tiers.test.ts` | **30/30** | El barrido de términos prohibidos llamaba a una función con argumentos de otra forma: se prueban dos juegos de argumentos |
+| `npm run verify` (primera) | ❌ **3 fallos** en `schemas.test.ts` | Creaban un vendedor **sin acuerdo**, que desde BR-G30 no es válido: la prueba le da uno; el rechazo lo cubre `commission-tiers.test.ts` |
+| `npm run verify` (final) | ✅ exit 0 · **1.823/1.823** unitarias en 90 archivos, lint 0 errores y los 2 avisos de siempre, build | — |
+| `npm run test:db` (final, base recién sembrada) | ✅ **1.483 + 1 omitida** (60 archivos), igual que la primera pasada del día | — |
+| E2E `ganancias` + `ganancias-movil` + `equipo` (primera) | 19/21 | `equipo.spec.ts:352` —un `\$` que el script de edición quitó de una expresión regular— y `ganancias` —correos con espacios en la preparación—: los dos, de la prueba |
+| E2E `equipo.spec.ts` repetida contra el mismo servidor | 2 fallos: «Demasiados intentos. Espera 58 minutos» | **El cupo de invitaciones en memoria** del servidor de desarrollo, agotado por las pasadas repetidas: no es un defecto. De paso, una oferta rechazada deja de gastar cupo |
+| Revisión del código | Un fallo real: tramos a medio personalizar **viajaban con el fijo elegido** y el servidor los rechazaba | Solo viajan con los tramos elegidos; prueba E2E nueva |
+| E2E completa, base recién sembrada | ❌ **966/973** en 53,8 min | Los siete, uno por uno, en D-237 («Etapa 4»): **2 provocados por este trabajo** —`telefono-mascara:576`, la preparación rechazada por BR-G28 con las rifas de $50.000 que dejan otras suites, y `whatsapp-invitacion:355`, que afirmaba que el personal no tiene «Configuración»—, corregidos; **3 anteriores** —I-090, la hermana de I-164, I-106—; y **2 intermitencias ajenas** —I-178 e I-179— |
+| Las corregidas y las nuevas, **sobre la base que dejó la completa** (con las rifas de $50.000) | ✅ **18/18** | El alta por interfaz de `equipo.spec.ts`, ahí, falla diciendo la causa (I-177) |
+| `historial-abonos-cliente:161` y `premios-ganados:164`, 15 + 40 veces en la base (`b793016`, `0077`) y con D-237 (`0078`) | Historial **55/55** y **55/55**; premios **54/55** y **53/55**, con la misma firma en los dos lados | Reproducida en la base: no es de este trabajo (I-178, I-179) |
+
+### Rendimiento
+
+Tablas completas, con su lectura, en D-237 («Etapa 4»). Resumen: los abonos y las lecturas quedan dentro del ruido
+—el caso de control sube lo mismo—; cambiar la ganancia de un integrante, **+0,8 ms** (la compatibilidad bajo el
+cerrojo); el panel del vendedor hace **una petición menos**; las fichas del personal, dos más en paralelo y dentro
+del ruido en la segunda muestra; la ficha del integrante se dejó en **una** lectura de acuerdos tras medirla; y
+«Vendedores», **+1 petición y +8 ms** por traer la lista general con la página.

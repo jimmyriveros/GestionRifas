@@ -23,6 +23,8 @@
 import { Client as PgClient } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { formatCOP } from '@/lib/money'
+
 import {
   DB_URL,
   loadSeedContext,
@@ -561,20 +563,37 @@ describe('E10 — valor fijo por boleta', () => {
     await expectLedgerCuadra(hijo2Id)
   })
 
-  it('E10-14: el valor fijo no puede pasar de la mitad del precio', async () => {
+  it('E10-14: el valor fijo no puede pasar de lo que gana el padre (la mitad del precio)', async () => {
+    // El tope, leido de la base: la mitad del precio de la rifa MAS BARATA donde
+    // el integrante puede ganar (0078, D-237, BR-G28). Con la base recien
+    // sembrada es la de esta suite ($60.000); en una segunda pasada puede ser la
+    // rifa en borrador que deja `volume-phase6` ($50.000), y la prueba tiene que
+    // aguantar las dos (I-035).
+    const { rows: tope } = await db.query(
+      `select commission_parent_cap($1, $2, 'half_price', null, null) as cap`,
+      [ctx.demoOrg.id, hijo2Id],
+    )
+    const cap = Number(tope[0].cap)
+    expect(cap).toBeLessThanOrEqual(MITAD)
+
     const { error } = await ctx.svc
       .from('memberships')
-      .update({ commission_model: 'fixed_per_ticket', fixed_commission_amount: MITAD + 1 })
+      .update({ commission_model: 'fixed_per_ticket', fixed_commission_amount: cap + 1 })
       .eq('profile_id', hijo2Id)
       .eq('organization_id', ctx.demoOrg.id)
 
     expect(error).not.toBeNull()
-    expect(error!.message).toContain('No puedes pagarle más de')
+    // Sin sesion (la service role) el rechazo nombra a los dos en tercera
+    // persona y dice en que rifa; al propio padre, por su RPC, se le habla de
+    // «tú» (E10-19).
+    expect(error!.message).toContain('no puede ganar')
+    expect(error!.message).toContain(`gana ${formatCOP(cap)} por boleta en la rifa «`)
 
-    // Y el tope justo se acepta: ahi el padre cede su parte entera.
-    await setModelo(hijo2Id, 'fixed_per_ticket', MITAD)
+    // Y el tope justo se acepta: en la rifa mas barata el padre cede su parte
+    // entera, y en la de esta suite se queda con la diferencia.
+    await setModelo(hijo2Id, 'fixed_per_ticket', cap)
     const p = await comision(padreId)
-    expect(p.teamEarned).toBe(21 * (MITAD - 25_000)) // solo lo del hijo por tramos
+    expect(p.teamEarned).toBe(21 * (MITAD - 25_000) + 3 * (MITAD - cap))
     await expectLedgerCuadra(padreId)
 
     await setModelo(hijo2Id, 'fixed_per_ticket', 30_000)

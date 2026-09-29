@@ -62,12 +62,20 @@ async function conIntegrante(): Promise<void> {
   })
   memberId = created!.user!.id
 
-  await svc.from('memberships').insert({
+  // Un fijo minimo, y no tramos: el vendedor padre conserva la mitad y otras
+  // suites dejan rifas mas baratas, donde un integrante por tramos podria ganar
+  // mas que el y la base lo rechaza (BR-G28, D-237). Aqui la ganancia no es lo
+  // que se prueba. Y el error se lanza: sin membresia, las pantallas medidas
+  // serian otras.
+  const { error } = await svc.from('memberships').insert({
     organization_id: pm!.organization_id,
     profile_id: memberId,
     role: 'seller',
     parent_seller_id: parent!.id,
+    commission_model: 'fixed_per_ticket',
+    fixed_commission_amount: 1_000,
   })
+  if (error) throw error
 }
 
 /** Cuanto se sale la pagina por el lado derecho. Cero o negativo es correcto. */

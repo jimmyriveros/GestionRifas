@@ -633,11 +633,19 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
         'parent_seller_id',
         'commission_model',
         'fixed_commission_amount',
+        // Desde la 0078 (D-237): los dos acuerdos de ganancia. Los configura el
+        // personal y no son cartera: dicen COMO se le paga, no cuanto lleva.
+        'team_tier_list_id',
+        'direct_commission_mode',
+        'direct_fixed_amount',
+        'direct_tier_list_id',
         'public_slug',
         'public_catalog_enabled',
         'public_whatsapp_number',
         'public_raffle_id',
       ],
+      // La lista general de tramos (0078, D-237): la version y sus tramos.
+      commission_template: ['list_id', 'template_version', 'tiers'],
       // Desde la 0058 (D-199) el personal configura los premios y ve su
       // bitacora. Es la lista blanca de `admin_audit_redact` en la 0059: ni
       // cliente, ni precio de venta, ni abonos (I-140).
@@ -713,9 +721,14 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
       })
 
       for (const fila of data!) {
-        expect(['ticket', 'raffle', 'membership', 'user', 'raffle_prize']).toContain(
-          fila.entity_type,
-        )
+        expect([
+          'ticket',
+          'raffle',
+          'membership',
+          'user',
+          'raffle_prize',
+          'commission_template',
+        ]).toContain(fila.entity_type)
         expect([
           'ticket.assign_client',
           'ticket.bulk_assign',

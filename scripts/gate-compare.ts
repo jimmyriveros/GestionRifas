@@ -129,7 +129,11 @@ const FROZEN_TABLES = [
   'profiles',
   'memberships',
   'raffles',
+  // Hasta la 0078; desde ella, las listas de tramos (D-237). La lista general
+  // solo cambia cuando el personal la guarda, que no es actividad de una puerta.
   'commission_tiers',
+  'commission_tier_lists',
+  'commission_tier_list_items',
   'seller_payment_accounts',
   'seller_payment_reminders',
   'payment_reminder_occurrences',

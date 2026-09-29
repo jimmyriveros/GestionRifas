@@ -1,6 +1,9 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.35 · **Actualizado:** 2026-09-28 en Bogotá (**§5**, D-236: `session-proxy.test.ts`, lo que Supabase
+- **Versión:** 2.36 · **Actualizado:** 2026-09-29 (**§4.13 nueva**, D-237, **solo en local**: `earning-agreements.test.ts`
+  con **39** pruebas —un modelo independiente contra todas las filas y la mutación del cerrojo—, **30** unitarias que
+  leen la `0078` para comparar frases y **9** E2E de escritorio y teléfono; §4.3, `E10-14` lee el tope de la base).
+  Antes, 2026-09-28 en Bogotá (**§5**, D-236: `session-proxy.test.ts`, lo que Supabase
   escribe en la respuesta del proxy y en su redirección a `/login`; también en la fila 25 de la matriz). Antes,
   2026-09-19, más tarde (la prueba de oscuro de D-210 exige `.dark` y el token
   `#0a0a0a`; un `addInitScript` al nacer la página no enciende el tema). Antes, ese mismo día (**alineación de campos**, D-210: `formularios-alineacion.spec.ts`
@@ -581,7 +584,7 @@ suites según el orden de ejecución (la trampa de I-035).
 | E10-11 | Cambiar el valor fijo | Recalcula hacia atrás, y **le sale del bolsillo al padre** |
 | E10-12 | De fijo a tramos | Recalcula con su recuento real |
 | E10-13 | De tramos a fijo | Recalcula por el valor fijo |
-| E10-14 | Valor por encima de la mitad | Rechazado; el tope justo se acepta y deja al padre en cero |
+| E10-14 | Valor por encima del tope | Rechazado; el tope justo se acepta y deja al padre en cero. *Desde D-237 el tope lo lee de la base (`commission_parent_cap`): es el acuerdo del padre, que aquí conserva la mitad, y no depende de qué otras rifas haya dejado una suite anterior* |
 | E10-15 | `tiered` con importe / `fixed` sin importe | Las dos rechazadas |
 | E10-16 | El padre cambia la configuración | Funciona y queda en `audit_logs` con quién lo hizo |
 | E10-17 | Un vendedor toca a alguien de otro equipo | Rechazado, sin cambiar nada |
@@ -1299,6 +1302,57 @@ tomar la foto, un par válido sin cambios (CONTINUAR, con sus capturas en el inf
 al que la orden no puede conectarse (sin veredicto aunque no haya diferencias) y `--structure-only` entre entornos,
 SIN VEREDICTO y sin opciones de puerta. Las 15 fallaron contra las herramientas sin corregir. Dura unos 20 s. El
 ensayo de las seis migraciones necesita `db reset --version 0066` y se hace aparte (`RUNBOOK` §9.3, `TEST_RESULTS`).
+
+### 4.13 Configuración de ganancias (BR-G27..BR-G35; D-237)
+
+`tests/db/earning-agreements.test.ts` — **39** pruebas (`E11-01`..`E11-39`), migración `0078`, **solo en local**.
+
+**Las cifras no se copian del código que las calcula.** `E11-36` recorre **todas** las filas de
+`seller_commissions` de la organización y las compara con un modelo escrito aparte en la prueba —tramos,
+conteo del jefe, `Σ N_hijo × (tarifa_padre − tarifa_hijo)`, rebajas—; `E11-37` comprueba el ledger por
+partes (BR-G22) en todas y que nada queda incompatible. Las dos corren al final, sobre lo que dejaron las
+demás.
+
+| Grupo | Pruebas | Qué comprueba |
+|---|---|---|
+| La migración | E11-01 | Cada organización tiene su versión 1 válida y ningún integrante por tramos queda sin versión |
+| Altas del personal | E11-02..05, E11-33 | Fijo, lista general (retroactiva) y personalizada con los límites exactos; personalizar no mueve a nadie; un alta que falla no deja membresía ni lista |
+| Lista general | E11-06..08 | Una versión nueva no toca a quien ya tenía la suya; guardar lo mismo no versiona y dos guardados a la vez crean **una**; una lista inválida lo dice con palabras |
+| Reparto y conteo | E11-09..15 | $30.000/$20.000 → $10.000 al padre y $90.000 a la empresa; **el ejemplo del encargo** (25 → $700.000); un padre sin ventas propias sube de tramo; varios integrantes; una venta del hijo mueve la tarifa del padre y su margen sobre **otro** integrante; una propia del padre cambia el reparto de todo su equipo; corregir un abono baja a los dos hacia atrás |
+| Compatibilidad | E11-16..22 | El padre no puede pagar más de lo que gana, ni con un tramo **futuro**; bajar el acuerdo del padre se rechaza sin cambiar nada; con la mitad, rifa por rifa —nueva, más barata, cerrada con ventas—; entrar y salir conserva cada acuerdo; **dos niveles** (I-176) |
+| Rebajas y precio | E11-23..25 | La rebaja máxima sale del acuerdo de cada quien; la del integrante la paga él y ya concedida bloquea bajarle el acuerdo; un cambio de precio mueve a quien cobra la mitad y a nadie más |
+| Aislamiento y permisos | E11-26..29 | Un vendedor no toca la lista ni ningún acuerdo, tampoco el suyo; la personalizada la ven su dueño y el personal; ids manipulados, otra organización; la mitad no se asigna desde una sesión |
+| Concurrencia y reintentos | E11-30..32 | Dos ventas a la vez del mismo equipo cuentan las dos; el cambio del padre y el del hijo a la vez: uno espera y queda compatible; reintentar no escribe |
+| Historia y lectura | E11-34, E11-35 | La bitácora explica cada versión y cada acuerdo; `commission_summary` dice la regla, el conteo y el siguiente tramo |
+| Modelo independiente | E11-36, E11-37 | Todas las filas contra el modelo de la prueba; ledger por partes y nada incompatible |
+| Lo preexistente | E11-38 | Un par incompatible anterior se **anota** en `team_shortfall`, no se esconde (BR-G35) |
+| Privilegios | E11-39 | Quién ejecuta cada una de las 38 funciones: exactamente la lista de `scripts/earning-function-grants.ts` |
+
+**La prueba de mutación del cerrojo.** Quitando `commission_team_lock` de la validación, `E11-31` falla en 3 de 3
+pasadas —y con él `E11-37` y `E11-38`, que encuentran el par incompatible que deja—: un cerrojo que solo retrasa no
+es un arreglo, y esto demuestra que este no lo es.
+
+**Unitarias:** `tests/unit/commission-tiers.test.ts` (**30**) —la validación de una lista con las frases de la base
+**leídas de la `0078`**, el «hasta» derivado, cómo se lee un acuerdo, los textos con singular y plural, ningún término
+prohibido por el glosario, y los esquemas de las altas y los cambios: la mitad no es opción de ningún formulario—.
+`schemas.test.ts` da ya un acuerdo al alta de un vendedor (BR-G30).
+
+**E2E:** `ganancias.spec.ts` (**6**, escritorio) —la lista general se guarda entera y como versión nueva, con el
+error de la base en su fila, y vuelve a la de antes; un vendedor no entra en la configuración del personal; el alta
+con tramos personalizados, rechazada antes de invitar si falta una cifra, y el cambio a un fijo con su bitácora; el
+teclado —flechas entre las dos formas, Enter para personalizar y agregar, Escape para salir—; unos tramos a medias no
+viajan con el fijo elegido; y
+**el jefe por tramos**: conteo de 25, lo propio, lo del equipo y el total en su panel, la nota en «Mi equipo», y el
+cambio del personal rechazado por su integrante y luego recalculado—. Cambia la lista general de **«Rifas
+Control»**, no la de la demo, y la deja como estaba. `ganancias-movil.spec.ts` (**3**, móvil) —sin desplazamiento
+lateral a 412 y 320 px, dianas de 44 px—. `equipo.spec.ts` lee el siguiente tramo de la lista del acuerdo que rige.
+
+**Una preparación que cuelga un integrante de quien conserva la mitad depende de las rifas que haya** (BR-G28,
+I-177): otras suites dejan rifas de $50.000 en borrador, y ahí un integrante por tramos ganaría más que su padre. Por
+eso las preparaciones que no prueban la ganancia —`telefono-mascara`, `equipo-movil`, la estructura de `equipo`— usan
+un **fijo mínimo**, y las que sí —«cobra por tramos» de `equipo`, el jefe de `ganancias`— ponen antes al jefe en la
+lista general. Las dos altas por interfaz de `vendedor1` prueban justo el camino por defecto y **necesitan la base
+recién sembrada**: si no, fallan diciendo la causa.
 
 ## 5. Pruebas unitarias clave
 

@@ -376,6 +376,14 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Que la ganancia suba según cuántas boletas lleve cobradas | **Ganancia por tramos**; cada escalón es un **tramo** | Comisión escalonada, niveles, rangos |
 | Una cantidad igual por cada boleta, sin escalones | **Ganancia fija por boleta** | Tarifa plana, monto fijo, cuota |
 | Volver a calcular lo ya cobrado con la ganancia nueva | **Recalcular** | Reprocesar, actualizar, recomputar |
+| La lista de tramos que se ofrece al dar de alta a un vendedor | **Lista general** (de tramos) (D-237) | Plantilla, tabla por defecto, esquema, tabla de comisiones |
+| Cada vez que se guarda esa lista | **Versión**: «Versión 3 · guardada el …», como la versión nueva de un premio (Anexo C) | Revisión, edición, actualización |
+| Unos tramos escritos solo para una persona | **Tramos personalizados**; la acción, **Personalizar tramos**; volver, **Usar la lista general** (D-237) | Tramos propios en un botón, excepción, tabla especial, custom |
+| Los que tiene un vendedor cuando no son la lista general vigente, en el cambio | **Sus tramos de ahora** (D-237) | Tramos actuales, anteriores, heredados |
+| La regla que conservan los vendedores de antes | **La mitad del precio de cada boleta que cobre completa** (D-237) | 50 %, comisión del 50 %, mitad a secas |
+| La sección de «Configuración» del personal con la lista general | **Ganancias de vendedores** (D-237) | Comisiones, tabla de comisiones, esquema de pago |
+| La tarjeta de la ficha que dice cómo cobra un vendedor | **Cómo se le paga**; su botón, **Cambiar** (D-237) | Esquema, plan, modalidad; «Editar», que es «Editar datos» |
+| Las boletas que suben de tramo a un jefe | **Tus boletas y las de tu equipo** (D-237) | Conteo agregado, volumen del equipo |
 | Conjunto de vendedores a cargo de otro vendedor | **Equipo** | Red, grupo, downline, sucursal |
 | Vendedor que pertenece al equipo de otro | **Vendedor** (a secas), o **integrante** del equipo | Sub-vendedor, hijo, subordinado, mini admin |
 | Incorporar un vendedor a tu equipo | **Agregar vendedor** | Crear sub-vendedor, reclutar, vincular |
@@ -661,6 +669,48 @@ confirmación encima, porque taparía la cifra que se acaba de escribir.
 **«Cambiar», no «Editar», para la ganancia.** «Editar datos» ya existe en esa misma pantalla y es
 otra cosa —corregir un teléfono no recalcula nada—. Dos botones «Editar» a un centímetro que hacen
 cosas de gravedad distinta se tocan por error.
+
+**El tope ya no es «lo que ganas tú», a secas, si el padre cobra por tramos** (D-237). Desde que un
+vendedor directo puede cobrar por tramos, lo que gana por boleta **cambia con el volumen**, y el tope de
+un integrante es su **primer tramo**. Por eso la frase se dice de dos formas, las mismas que usa la base
+al rechazar: **«Puedes darle hasta $20.000, que es lo que ganas tú por boleta en tu primer tramo.»** y,
+con la mitad o un fijo, la de siempre. Y si la lista general no cabe en su acuerdo, la tarjeta de
+tramos se apaga y **dice por qué debajo, con la frase de la base** —qué conteo, qué cifras y el fijo
+más alto que sí cabe—: ofrecerla para que se rechace al guardar sería peor.
+
+**La lista general es una plantilla, y eso se dice ANTES de guardar** (D-237). Lo único que quien la
+edita no puede deducir es que **nadie que ya cobra por tramos cambia de lista**. Por eso el aviso ámbar
+aparece en cuanto la lista deja de ser la guardada —«Al guardar, esta lista se usará en las próximas
+altas y en los cambios de ganancia. Nadie que ya gane por tramos cambia de lista.»— y el guardado dice
+qué versión quedó: «La lista general quedó guardada como versión 3.». Sin cambios, **«No cambiaste
+nada, así que no se guardó una versión nueva.»**, la misma familia que un premio.
+
+**El «hasta» no se escribe: se lee.** Cada tramo del editor dice su rango en palabras —«De 21 a 50
+boletas», «51 boletas o más»— calculado con lo que hay escrito; verlo cambiar mientras se teclea
+enseña la regla sin explicarla. El primer tramo empieza siempre en 1 y la pantalla lo dice una vez:
+«El primer tramo siempre empieza en 1 boleta.» Los errores de cada fila son **los de la base**, y
+solo se pintan después del primer intento de guardar.
+
+**La mitad del precio se conserva, no se ofrece** (BR-G30). Ninguna tarjeta de «Cómo le vas a pagar»
+dice «mitad». Quien la tiene la ve en su ficha —«La mitad del precio de cada boleta que cobre completa»
+y «La conserva de antes. Si se cambia, no se puede volver a asignar.»— y, al abrir el cambio, lo que
+pierde **antes** de elegir: «Hoy gana la mitad del precio de cada boleta. Si eliges otra forma de pago,
+ya no podrás volver a dársela.» Ahí no hay ninguna tarjeta marcada: elegir por la persona sería decidir
+sin que nadie lo pidiera.
+
+**El cambio del personal dice qué recalcula, con recuentos y sin dinero** (BR-G31, D-198). «Al guardar,
+volvemos a calcular lo que Ana lleva ganado en «Rifa Navidad» (12 boletas cobradas), y lo que gana por
+las ventas de su equipo. Puede subir o bajar.» Las cifras son **boletas cobradas**, que el personal ya
+ve en el inventario; lo ganado no se escribe en ninguna parte de la ficha. Sin nada cobrado, el aviso
+lo dice y el botón es **«Guardar cambios»**; con algo que recalcular, **«Guardar y recalcular»**.
+
+**El tramo del jefe cuenta su equipo, y eso se dice donde sube** (BR-G27). En su panel: «Tu tramo cuenta
+tus boletas y las de tu equipo: 25 boletas cobradas.» y «Te faltan 6 boletas, tuyas o de tu equipo, para
+$30.000 por boleta». En «Mi equipo», una línea bajo las cifras: «Las boletas que cobra tu equipo también
+cuentan para tu tramo.» Solo se escribe a quien cobra por tramos: con la mitad o un fijo sería falso.
+Y lo ganado se dice en tres líneas —«Llevas … ganados por tus boletas», «Y … por las ventas de tu
+equipo», «En total, …»—; «por tus boletas» solo aparece cuando hay equipo, que es lo que distingue las
+dos.
 
 **Nadie es un «sub-vendedor» en pantalla.** Dentro del código existe `parent_seller_id` y la
 documentación habla de jerarquía, pero para el usuario todos son **vendedores**: unos tienen equipo y
@@ -1699,9 +1749,12 @@ castigo donde solo había una espera.
 | Encabezados y rótulos del dinero de «Boletas de este cliente» («Saldo pendiente», «Saldo», «de $120.000», «58 % abonado») | `src/features/tickets/components/ClientTicketsTable.tsx` y `ClientTicketCardList.tsx` (D-130) |
 | Lo que anuncia una barra de cobro a quien no la ve (`aria-label`) | Lo pasa quien la usa, en `label`; la redacción vigente es «42 % abonado» (D-130) |
 | «Seleccionar varias» y su «Cancelar» | `src/features/tickets/selection/components/TicketSelectionModeButton.tsx` (D-108) |
-| Nombres de las dos formas de pagar a un integrante | `src/lib/constants.ts` (`COMMISSION_MODEL_LABELS`, D-127) |
-| Textos de las dos tarjetas de elección, el tope y el campo de la cifra | `src/features/team/components/CommissionModelField.tsx` (D-127) |
-| Aviso de recálculo y «Guardar y recalcular» | `src/features/team/components/TeamCommissionDialog.tsx` (D-127) |
+| Nombres de las dos formas de pagar a un vendedor | `src/lib/constants.ts` (`COMMISSION_MODEL_LABELS`, D-127): los mismos en las dos altas y los dos cambios (D-237) |
+| Todos los textos de la configuración de ganancias: «Configuración» y «Ganancias de vendedores», la lista general, el editor de tramos, «Cómo le vas a pagar» —con la nota, el tope y el ejemplo de la cifra—, la ficha «Cómo se le paga», el cambio y sus avisos, y lo que lee el vendedor en su panel y en «Mi equipo» | `src/features/commissions/copy.ts` (`EARNINGS_COPY`), **todos juntos** (D-237). `CommissionModelField` ya no escribe ninguno |
+| Las frases que rechazan una lista de tramos | `src/features/commissions/tiers.ts` (`TIER_MESSAGES`). **Viven también en SQL**, en `commission_tiers_problem` de la `0078`, y una prueba unitaria las compara letra por letra: cambiar una es cambiar las dos, con una migración nueva |
+| Lo que responde la base cuando un acuerdo no cabe (par padre–hijo, rifa, rebajas, la mitad) | Los `raise` de la `0078`: `commission_pair_problem`, `commission_discount_problem` y los de `memberships_validate_seller_agreements` y las RPC. Dicen qué par, con qué conteo y qué cifras |
+| El rechazo previo del alta del equipo cuando la cifra supera el tope | `src/features/team/actions.ts` (`teamOfferProblem`), con las **mismas palabras** que la base: «No puedes pagarle más de … por boleta: es lo que ganas tú por cada boleta, y de ahí sale su ganancia.» |
+| Aviso de recálculo y «Guardar y recalcular» del integrante | `src/features/team/components/TeamCommissionDialog.tsx` (D-127) |
 | Rótulos de la tarjeta «Cuánto gana» de la ficha del integrante | `src/features/team/components/TeamCommissionCard.tsx` (D-127) |
 | Errores de validación de formularios | `schemas.ts` de cada módulo de `src/features/` (mensajes de Zod) |
 | Errores devueltos por el servidor | `src/lib/errors.ts` (`mapPgError`) y los `RAISE` de las migraciones |
@@ -1826,6 +1879,8 @@ Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extr
 | `CLAUDE.md` §27 fija las etiquetas de estado; la guía §4 pide términos consistentes | No hay conflicto real: §27 y `constants.ts` son la fuente de esas ocho etiquetas; esta guía manda en todo lo demás. |
 | La guía §6 desaconseja «Continuar» y «Aceptar»; algunos diálogos necesitan un botón de cierre | «Continuar» solo cuando el siguiente paso sea evidente; para cerrar sin actuar, **Cancelar** o **Volver**, nunca «Aceptar». |
 | `CLAUDE.md` §27 fija ocho etiquetas, «Abonada» incluida; desde D-198 el portal administrativo enseña solo dos estados de pago | No se cambia ni se crea ninguna etiqueta: el personal ve «Sin pagar» y «Pagada», con las palabras de `constants.ts`, porque «Abonada» delataría lo abonado. El portal del vendedor sigue con las ocho |
+| El Anexo A reserva **Versión** para el código nuevo tras un despliegue; la lista general se guarda por versiones (D-237) | Se dice «Versión 3 · guardada el …» **siempre junto a la lista general**, como ya hacía un premio con «una versión nueva». El aviso de actualización de la aplicación sigue siendo el único que dice «versión» a secas; si algún día se confunden, se cambia aquí |
+| El encargo de D-237 decía «Configuración → Ganancias de vendedores», y «Configuración» era solo del vendedor (D-188) | Hay **una por portal, en el mismo sitio** —el menú del avatar— y con el mismo nombre: cada rol ve la suya y nunca una puerta a `/denied` |
 
 ## Anexo D — Estado de aplicación
 

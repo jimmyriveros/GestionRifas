@@ -390,9 +390,14 @@ describe('E8 — el precio de venta se puede rebajar', () => {
   it('E8-05: el limite de un integrante es su tramo MAS BAJO, no el vigente', async () => {
     const ticketId = await boletaDisponible(equipoId)
 
+    // Su tramo mas bajo es el de la version de la lista general que recibio al
+    // entrar al equipo (0078, D-237), no el de la lista que rija hoy.
     const { rows: tramo } = await db.query(
-      `select min(rate)::bigint as suelo from commission_tiers where organization_id = $1`,
-      [ctx.demoOrg.id],
+      `select min(i.rate)::bigint as suelo
+         from commission_tier_list_items i
+         join memberships m on m.team_tier_list_id = i.list_id
+        where m.profile_id = $1 and m.organization_id = $2`,
+      [equipoId, ctx.demoOrg.id],
     )
     const { rows } = await db.query(`select min_sale_price from ticket_sale_price_limits($1)`, [
       ticketId,

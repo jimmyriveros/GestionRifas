@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { EARNINGS_COPY } from '@/features/commissions/copy'
 import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
@@ -20,11 +21,25 @@ type SellerEarningsCardProps = {
    */
   teamEarned: number
   /**
+   * Las dos cosas juntas, tal como las da el servidor (`totalEarned`). Solo se
+   * escribe cuando hay de las dos: con una sola, repetiria la misma cifra.
+   */
+  totalEarned: number
+  /**
+   * Las boletas que deciden su tramo, cuando su equipo ya cuenta (BR-G27):
+   * las suyas mas las de su equipo. `null` si no aplica: sin tramos, o sin nada
+   * cobrado por su equipo, el conteo es el de sus propias boletas y no hay nada
+   * que explicar.
+   */
+  tierCount: number | null
+  /**
    * Siguiente tramo, para quien cobra por tramos y todavia tiene uno por
    * delante (BR-G02). `null` en los demas casos: quien cobra la mitad del
-   * precio no tiene niveles que subir, y quien ya llego arriba tampoco.
+   * precio o un fijo no tiene tramos que subir, y quien ya llego arriba tampoco.
    */
   nextTier: { ticketsToNext: number; rate: number } | null
+  /** Si lo que cobra su equipo ya cuenta para su tramo: cambia la frase. */
+  teamCounts: boolean
   className?: string
 }
 
@@ -43,18 +58,26 @@ type SellerEarningsCardProps = {
  * significa otra cosa es exactamente el error que D-171 vino a corregir. Se
  * queda fuera, y se lee como lo que es.
  *
- * LO QUE SI ERA UNA TARJETA GRANDE Y NO VUELVE. «Tu ganancia» desaparecio en
- * D-112 y no se resucita: aqui el titular es lo que se gana POR BOLETA, y lo
- * acumulado va debajo, en su linea, como venia estando desde entonces.
+ * PROPIO, EQUIPO Y TOTAL (D-237). Quien tiene equipo lee las tres cifras por
+ * separado: lo que gano por sus boletas, lo que le dejo su equipo y la suma.
+ * Y si cobra por tramos, la tarjeta le dice que su tramo cuenta tambien las
+ * boletas de su equipo, que es lo unico que la cifra de arriba no explica: un
+ * jefe puede subir de tramo sin haber vendido nada ese dia.
  */
 export function SellerEarningsCard({
   earningPerTicket,
   ticketPrice,
   earned,
   teamEarned,
+  totalEarned,
+  tierCount,
   nextTier,
+  teamCounts,
   className,
 }: SellerEarningsCardProps) {
+  const copy = EARNINGS_COPY.seller
+  const withTeam = teamEarned > 0
+
   return (
     <Card className={cn(className)}>
       <CardHeader>
@@ -69,9 +92,9 @@ export function SellerEarningsCard({
             tuyo —lo que cuesta la boleta— quedaba encima del que si lo es. */}
         <p className="text-metric-large tabular-nums">{formatCOP(earningPerTicket)}</p>
 
-        {/* El bloque entero se calla cuando no hay ninguna de las cuatro
-            lineas: sin rifa activa y sin boletas cobradas no hay nada que
-            contar, y un hueco vacio bajo la cifra parece algo que no cargo. */}
+        {/* El bloque entero se calla cuando no hay ninguna linea: sin rifa
+            activa y sin boletas cobradas no hay nada que contar, y un hueco
+            vacio bajo la cifra parece algo que no cargo. */}
         <div className="text-muted-foreground text-body-small space-y-1 empty:hidden">
           {ticketPrice === null ? null : (
             <p className="tabular-nums">Precio de la boleta: {formatCOP(ticketPrice)}</p>
@@ -79,21 +102,25 @@ export function SellerEarningsCard({
           {/* Lo GANADO, que era el titular de la tarjeta grande que
               desaparecio: sin esta linea, quien cobra por tramos perderia de
               vista lo unico que de verdad es suyo. */}
-          {earned > 0 ? <p className="tabular-nums">Llevas {formatCOP(earned)} ganados</p> : null}
+          {earned > 0 ? <p className="tabular-nums">{copy.ownEarned(earned, withTeam)}</p> : null}
           {/* Lo que le deja el equipo, en su propia linea (BR-G20). La cifra de
               arriba dice lo que gana por CADA boleta suya, y esto no cabe ahi:
               son boletas de otras personas. */}
-          {teamEarned > 0 ? (
-            <p className="tabular-nums">Y {formatCOP(teamEarned)} por las ventas de tu equipo</p>
+          {withTeam ? <p className="tabular-nums">{copy.teamEarned(teamEarned)}</p> : null}
+          {earned > 0 && withTeam ? (
+            <p className="text-foreground font-medium tabular-nums">
+              {copy.totalEarned(totalEarned)}
+            </p>
           ) : null}
+          {tierCount === null ? null : <p className="tabular-nums">{copy.tierCount(tierCount)}</p>}
           {/* Y el incentivo, para quien cobra por tramos. Se dice cuanto falta y
               cuanto pasaria a valer CADA boleta, no cuanto ganaria en total: eso
               ultimo es una proyeccion y no puede parecer dinero suyo (BR-G02). */}
           {nextTier === null ? null : (
             <p>
-              {nextTier.ticketsToNext === 1
-                ? `Te falta 1 boleta para ${formatCOP(nextTier.rate)} por boleta`
-                : `Te faltan ${nextTier.ticketsToNext} boletas para ${formatCOP(nextTier.rate)} por boleta`}
+              {teamCounts
+                ? copy.nextTierWithTeam(nextTier.ticketsToNext, nextTier.rate)
+                : copy.nextTier(nextTier.ticketsToNext, nextTier.rate)}
             </p>
           )}
         </div>

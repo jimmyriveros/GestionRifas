@@ -8,12 +8,17 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CatalogSettingsCard } from '@/features/catalog/components/CatalogSettingsCard'
 import { catalogPublicUrl, getCatalogSettings, isCatalogLive } from '@/features/catalog/queries'
+import { SellerAgreementCard } from '@/features/commissions/components/SellerAgreementCard'
+import type { RecalculatedRaffle } from '@/features/commissions/components/SellerAgreementDialog'
+import { getCommissionTemplate, getSellerAgreement } from '@/features/commissions/queries'
 import { SellerPrizeSummary } from '@/features/prize-awards/components/SellerPrizeSummary'
 import { readAdminSellerPrizeTotals } from '@/features/prize-awards/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { getSellerWithInventory } from '@/features/sellers/queries'
+import { readAdminTicketInventory } from '@/features/tickets/admin-queries'
 import { listOrgMembers } from '@/features/users/queries'
 import { UserRowActions } from '@/features/users/components/UserRowActions'
+import { hasCapability } from '@/lib/auth/capability-resolver'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateEs } from '@/lib/dates'
 
@@ -29,6 +34,11 @@ import { formatDateEs } from '@/lib/dates'
  * cuantos con el valor pendiente y a cuantos clientes DISTINTOS les tocaron.
  * Ese ultimo es un recuento que calcula la base; ningun dato de esos clientes
  * llega, y no es el numero de clientes de su cartera (BR-J21).
+ *
+ * Desde D-237 ensena COMO SE LE PAGA —la regla, no lo ganado— y deja cambiarla
+ * a quien tiene la capacidad `sellers.earnings.manage`. Lo que se recalcula al
+ * cambiarla se explica con RECUENTOS de boletas cobradas, los mismos que el
+ * personal ya ve en el inventario: ni un importe de su cartera.
  */
 export default async function SellerDetailPage({
   params,
@@ -41,20 +51,39 @@ export default async function SellerDetailPage({
 
   if (!seller) notFound()
 
-  // Su lugar en la estructura comercial (BR-E08), su catalogo publico (BR-K12)
-  // y sus premios ganados (D-208). En la MISMA espera: son lecturas
-  // independientes.
-  const [orgSellers, catalog, raffles, prizes] = await Promise.all([
-    listOrgMembers(['seller']),
-    getCatalogSettings(sellerId),
-    listRaffleOptions(),
-    readAdminSellerPrizeTotals(sellerId),
-  ])
+  // Su lugar en la estructura comercial (BR-E08), su catalogo publico (BR-K12),
+  // sus premios ganados (D-208) y su acuerdo de ganancia con la lista general
+  // (D-237). En la MISMA espera: son lecturas independientes. El inventario por
+  // rifa ya lo leyo `getSellerWithInventory` y esta memorizado por peticion:
+  // pedirlo aqui no cuesta otra consulta.
+  const [orgSellers, catalog, raffles, prizes, agreement, template, inventory, canManage] =
+    await Promise.all([
+      listOrgMembers(['seller']),
+      getCatalogSettings(sellerId),
+      listRaffleOptions(),
+      readAdminSellerPrizeTotals(sellerId),
+      getSellerAgreement(membership.organizationId, sellerId),
+      getCommissionTemplate(membership.organizationId),
+      readAdminTicketInventory(null),
+      hasCapability(membership, 'sellers.earnings.manage'),
+    ])
 
   const team = orgSellers.filter((member) => member.parentSellerId === sellerId)
   const parent = seller.parentSellerId
     ? (orgSellers.find((member) => member.profileId === seller.parentSellerId) ?? null)
     : null
+
+  // Las rifas que recalcularia un cambio de acuerdo (BR-G31): donde el o su
+  // equipo tienen boletas cobradas. Son recuentos, no dinero.
+  const counted = new Set([sellerId, ...team.map((member) => member.profileId)])
+  const paidByRaffle = new Map<string, number>()
+  for (const row of inventory) {
+    if (!counted.has(row.sellerId) || row.ticketsPaid === 0) continue
+    paidByRaffle.set(row.raffleId, (paidByRaffle.get(row.raffleId) ?? 0) + row.ticketsPaid)
+  }
+  const recalculated: RecalculatedRaffle[] = raffles
+    .filter((raffle) => paidByRaffle.has(raffle.id))
+    .map((raffle) => ({ name: raffle.name, count: paidByRaffle.get(raffle.id) ?? 0 }))
 
   return (
     <div className="space-y-6">
@@ -103,6 +132,18 @@ export default async function SellerDetailPage({
           clientes con premio son un NÚMERO; ningún dato suyo llega (D-208). */}
       <SellerPrizeSummary sellerId={seller.profileId} result={prizes} />
 
+      {agreement ? (
+        <SellerAgreementCard
+          seller={{ profileId: seller.profileId, fullName: seller.fullName }}
+          agreement={agreement}
+          parentName={parent?.fullName ?? null}
+          hasTeam={team.length > 0}
+          template={template ? { id: template.id, tiers: template.tiers } : null}
+          recalculated={recalculated}
+          canManage={canManage}
+        />
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
@@ -110,27 +151,19 @@ export default async function SellerDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Vendedor a cargo">
-              {parent ? (
-                <Link href={`/owner/sellers/${parent.profileId}`} className="hover:underline">
-                  {parent.fullName}
-                </Link>
-              ) : (
-                <span className="text-muted-foreground">Depende del Dueño o el Administrador</span>
-              )}
-            </Field>
-
-            {/* BR-G13: dos formas de pago. Es la REGLA, no una cifra: lo que
-                lleva ganado es de su cartera y ya no se ensena aqui (D-198). */}
-            <Field label="Cómo se le paga">
-              {parent === null ? (
-                <span>La mitad del precio de cada boleta que cobre completa</span>
-              ) : (
-                <span>Por niveles, según el total de boletas que lleve cobradas</span>
-              )}
-            </Field>
-          </div>
+          {/* «Cómo se le paga» vive en su propia tarjeta desde D-237: aqui
+              decia «la mitad» o «por niveles» segun tuviera padre, y ya no es
+              verdad —un vendedor directo puede cobrar un fijo o por tramos, y
+              un integrante, un fijo—. */}
+          <Field label="Vendedor a cargo">
+            {parent ? (
+              <Link href={`/owner/sellers/${parent.profileId}`} className="hover:underline">
+                {parent.fullName}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">Depende del Dueño o el Administrador</span>
+            )}
+          </Field>
 
           <div>
             <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">

@@ -131,10 +131,19 @@ export async function purgeSellers(ids: string[]): Promise<void> {
     // actor —`membership.create` y `membership.delete`, esta ultima escrita por
     // el disparador en esta misma transaccion—, asi que la limpieza por actor de
     // arriba no las alcanza: cada pasada de una suite con vendedores propios
-    // dejaba dos.
-    await db.query('delete from audit_logs where entity_id = any($1)', [
+    // dejaba dos. Tambien las que hablan de la PERSONA —su acuerdo de ganancia
+    // (D-237) se anota con el perfil como entidad y el personal como actor—.
+    await db.query('delete from audit_logs where entity_id = any($1) or entity_id = any($2)', [
       membresias.map((fila) => fila.id),
+      ids,
     ])
+    // Sus listas de tramos personalizadas (D-237). Se irian solas al borrar el
+    // perfil, pero borrarlas aqui deja la base limpia aunque la cuenta de Auth
+    // no llegue a borrarse.
+    await db.query(
+      `delete from commission_tier_lists where kind = 'custom' and owner_profile_id = any($1)`,
+      [ids],
+    )
     await db.query('commit')
   } catch (error) {
     await db.query('rollback')
@@ -330,6 +339,45 @@ export async function purgeTestRaffles(options: {
       )
     }
     await db.query('delete from audit_logs where entity_id = any($1)', [entityIds])
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}
+
+/**
+ * Las versiones de la lista general que creo una prueba (D-237), con su
+ * bitacora, para que la vigente vuelva a ser la que habia.
+ *
+ * SOLO LAS POSTERIORES a `afterVersion` y solo las que ningun acuerdo usa: una
+ * version que ya recibio alguien es historia de su acuerdo y no se toca. En UNA
+ * transaccion, y un fallo se LANZA, como el resto de las limpiezas.
+ */
+export async function purgeTemplateVersions(
+  organizationId: string,
+  afterVersion: number,
+): Promise<void> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    const { rows } = await db.query<{ id: string }>(
+      `select l.id from commission_tier_lists l
+        where l.organization_id = $1
+          and l.kind = 'template'
+          and l.template_version > $2
+          and not exists (
+            select 1 from memberships m
+             where m.direct_tier_list_id = l.id or m.team_tier_list_id = l.id
+          )`,
+      [organizationId, afterVersion],
+    )
+    const ids = rows.map((row) => row.id)
+    await db.query('delete from audit_logs where entity_id = any($1)', [ids])
+    await db.query('delete from commission_tier_lists where id = any($1)', [ids])
     await db.query('commit')
   } catch (error) {
     await db.query('rollback')

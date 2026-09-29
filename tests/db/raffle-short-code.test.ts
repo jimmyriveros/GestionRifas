@@ -194,7 +194,8 @@ describe('I-157 — dos rifas creadas a la vez al cruzar el 1.000', () => {
       const ids = rows.map((row) => row.id)
       await limpieza.query('delete from seller_commissions where organization_id = $1', [ORG_CONC])
       await limpieza.query('delete from raffles where organization_id = $1', [ORG_CONC])
-      await limpieza.query('delete from commission_tiers where organization_id = $1', [ORG_CONC])
+      // Sus listas de tramos (0078): la version 1 que le dio el alta de la organizacion.
+      await limpieza.query('delete from commission_tier_lists where organization_id = $1', [ORG_CONC])
       await limpieza.query(
         'delete from audit_logs where entity_id = any($1) or organization_id = $2',
         [ids, ORG_CONC],

@@ -72,7 +72,7 @@ type AccountValues = {
  * Que campos se exigen depende de la forma, igual que el CHECK.
  *
  * Se escribe UNA vez y se aplica al alta y a la edicion, que son el mismo
- * formulario (el patron de `requireAmountForFixed` en `team/schemas.ts`).
+ * formulario (el patron de `requireAmountForFixed` en `commissions/schemas.ts`).
  */
 function requireFieldsForKind(values: AccountValues, ctx: z.RefinementCtx) {
   switch (accountShape(values.kind)) {

@@ -27,14 +27,21 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { AgreementTiersBlock } from '@/features/commissions/components/AgreementTiersBlock'
+import { TierTable } from '@/features/commissions/components/TierTable'
+import { EARNINGS_COPY } from '@/features/commissions/copy'
+import type { EditableTier, Tier } from '@/features/commissions/tiers'
 import { CommissionModelField } from '@/features/team/components/CommissionModelField'
-import type { CommissionTier } from '@/features/commissions/queries'
-import { createTeamMemberSchema } from '@/features/team/schemas'
 import { ROLE_LABELS, type CommissionModel } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 import { createUser, updateUser } from '../actions'
-import { userFormDefaults, type ManageableRole, type UserFormInput } from '../schemas'
+import {
+  userDialogSchema,
+  userFormDefaults,
+  type ManageableRole,
+  type UserFormInput,
+} from '../schemas'
 
 export type EditableUser = {
   profileId: string
@@ -60,18 +67,39 @@ export type CreateOverride = {
 }
 
 /**
- * Los datos que necesita la seccion «Cómo le vas a pagar» (BR-G24, D-127).
+ * Los datos que necesita la seccion «Cómo le vas a pagar» (BR-G24, D-127,
+ * D-237).
  *
- * Su presencia es lo que la enciende: el alta del portal administrativo no la
- * pasa y no la ve, porque un vendedor de la organizacion cobra la mitad del
- * precio y no hay nada que elegir (BR-G13). Solo el alta de un integrante de
- * equipo la pasa.
+ * Su presencia es lo que la enciende, y la `audience` decide que se ofrece:
+ *
+ *   * `team`  — el alta de un integrante que hace su vendedor padre: la lista
+ *               general tal cual o una cifra fija con tope (BR-G28).
+ *   * `staff` — el alta de un vendedor que hace el personal: la lista general,
+ *               unos tramos personalizados o una cifra fija. La mitad del
+ *               precio ya no se asigna a nadie (BR-G30).
+ *
+ * El alta de un administrador no la pasa: un administrador no vende.
  */
-export type CommissionOptions = {
-  tiers: CommissionTier[]
-  /** La mitad del precio de la rifa: el tope. `null` si no hay ninguna rifa. */
-  maxFixed: number | null
-}
+export type CommissionOptions =
+  | {
+      audience: 'team'
+      /** La lista general que recibiria por tramos. */
+      tiers: Tier[]
+      /**
+       * Lo mas que le puede pagar fijo: lo que gana el padre por boleta en el
+       * peor caso (BR-G28). `null` si no hay precio contra el que medirlo.
+       */
+      maxFixed: number | null
+      /** Si el padre cobra por tramos: cambia como se dice el tope. */
+      parentTiered: boolean
+      /** Por que la lista general no cabe en el acuerdo del padre, o `null`. */
+      tieredDisabledReason: string | null
+    }
+  | {
+      audience: 'staff'
+      /** La lista general vigente. `null` si la organizacion no tiene ninguna. */
+      template: Tier[] | null
+    }
 
 /**
  * Lo que sale del formulario.
@@ -86,6 +114,23 @@ export type CommissionOptions = {
 export type UserDialogValues = UserFormInput & {
   commissionModel: CommissionModel
   fixedCommissionAmount?: number | null
+  /**
+   * Solo en el alta del personal: los tramos escritos para esta persona.
+   * `null` = la lista general vigente (BR-G29).
+   */
+  customTiers?: EditableTier[] | null
+}
+
+/**
+ * Con que tarjeta empieza elegida. Los tramos, salvo que no se puedan ofrecer:
+ * empezar con una tarjeta apagada seleccionada seria empezar con un error.
+ */
+function initialCommissionModel(commission: CommissionOptions | undefined): CommissionModel {
+  if (!commission) return 'tiered'
+  if (commission.audience === 'team') {
+    return commission.tieredDisabledReason === null ? 'tiered' : 'fixed_per_ticket'
+  }
+  return commission.template === null ? 'fixed_per_ticket' : 'tiered'
 }
 
 /**
@@ -191,12 +236,13 @@ function UserDialogForm({
   const isEdit = user !== undefined
   const emailLocked = isEdit && edit?.emailEditable !== true
 
-  // UN solo esquema para los dos usos, por lo mismo que hay un solo formulario:
-  // el del integrante es el superconjunto, y con `commissionModel` en `tiered`
-  // —su valor por defecto— valida exactamente igual que el del portal
-  // administrativo. Ver `UserDialogValues`.
+  // UN solo esquema para todos los usos, por lo mismo que hay un solo
+  // formulario: es el superconjunto, y sin la seccion de ganancia —su
+  // `commissionModel` se queda en `tiered` y sin tramos— valida exactamente
+  // igual que el alta de un administrador. Ver `UserDialogValues`.
+  const initialModel = initialCommissionModel(commission)
   const form = useForm<UserDialogValues>({
-    resolver: zodResolver(createTeamMemberSchema),
+    resolver: zodResolver(userDialogSchema),
     defaultValues: user
       ? {
           fullName: user.fullName,
@@ -204,12 +250,14 @@ function UserDialogForm({
           phone: user.phone,
           email: user.email,
           commissionModel: 'tiered',
+          customTiers: null,
         }
-      : { ...userFormDefaults, commissionModel: 'tiered' },
+      : { ...userFormDefaults, commissionModel: initialModel, customTiers: null },
   })
 
   const commissionModel = useWatch({ control: form.control, name: 'commissionModel' })
   const fixedAmount = useWatch({ control: form.control, name: 'fixedCommissionAmount' })
+  const customTiers = useWatch({ control: form.control, name: 'customTiers' })
 
   // El correo que se esta escribiendo, para avisar EN EL MOMENTO en que deja de
   // ser el de siempre. Un aviso permanente se lee como decorado; uno que
@@ -238,7 +286,14 @@ function UserDialogForm({
             })
         : create
           ? await create.submit(values)
-          : await createUser({ ...values, role })
+          : await createUser({
+              ...values,
+              role,
+              // Los tramos personalizados solo viajan con los tramos elegidos:
+              // quien empezó a escribirlos y se pasó al fijo no tiene por qué
+              // terminarlos, y el servidor los validaría igual.
+              customTiers: values.commissionModel === 'tiered' ? values.customTiers : null,
+            })
 
       if ('error' in result) {
         setServerError(result.error)
@@ -356,7 +411,7 @@ function UserDialogForm({
             quien se esta agregando y luego cuanto se le paga. Solo en el alta —
             cambiarselo a alguien que ya vende recalcula dinero hacia atras y
             eso pide su propio aviso, asi que vive en su propio dialogo
-            (`TeamCommissionDialog`). */}
+            (`TeamCommissionDialog`, `SellerAgreementDialog`). */}
         {commission && !isEdit ? (
           <CommissionModelField
             value={commissionModel}
@@ -371,10 +426,39 @@ function UserDialogForm({
             }}
             amount={fixedAmount ?? null}
             onAmountChange={(value) => form.setValue('fixedCommissionAmount', value)}
-            tiers={commission.tiers}
-            maxFixed={commission.maxFixed}
             disabled={isPending}
             error={form.formState.errors.fixedCommissionAmount?.message}
+            {...(commission.audience === 'team'
+              ? {
+                  tieredCardContent: <TierTable tiers={commission.tiers} className="mt-1" />,
+                  tieredDisabledReason: commission.tieredDisabledReason,
+                  note: EARNINGS_COPY.field.teamNote,
+                  fixedHint:
+                    commission.maxFixed === null
+                      ? null
+                      : EARNINGS_COPY.field.teamCap(commission.maxFixed, commission.parentTiered),
+                }
+              : {
+                  tieredDisabledReason:
+                    commission.template === null ? EARNINGS_COPY.field.noTemplateStaff : null,
+                  note: commissionModel === 'tiered' ? EARNINGS_COPY.field.staffTeamNote : null,
+                  tieredDetails: (
+                    <AgreementTiersBlock
+                      template={commission.template}
+                      kept={null}
+                      source={customTiers ? 'custom' : 'template'}
+                      customTiers={customTiers ?? []}
+                      onChange={(source, tiers) =>
+                        form.setValue('customTiers', source === 'custom' ? tiers : null)
+                      }
+                      // Los errores de cada tramo, despues del primer intento
+                      // de enviar: no antes de que se termine de escribir.
+                      showErrors={form.formState.submitCount > 0}
+                      disabled={isPending}
+                      idPrefix="alta-vendedor"
+                    />
+                  ),
+                })}
           />
         ) : null}
 

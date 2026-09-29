@@ -15350,3 +15350,255 @@ con sesión revocada, en fragmentos, renovada con `/user` caído y renovada y te
 fragmentos a una cookie sin cabeceras de caché; y el recorrido de un navegador, con **dos** renovaciones fallidas— y
 pasan las 4 de control. Con la corrección, **12/12**, también en orden aleatorio. Resultados y medición en
 `TEST_RESULTS` (I-174).
+
+## D-237 — Configuración de ganancias: una lista general versionada, dos acuerdos por vendedor, el tramo del jefe cuenta su equipo y la compatibilidad padre–hijo se valida en la base
+
+**Fecha:** 2026-09-29 · **Encargo del dueño:** `ConfiguracionGanancias.txt` —configurar las ganancias de los
+vendedores, antesala del futuro «Cierre de cuentas»—. Mantenimiento posterior a la Fase 9, **no es una fase** ni
+lleva etiqueta. **Solo en local**: migración `0078`, sin push, sin despliegue y sin tocar el proyecto real.
+Sustituye, en lo que dicen distinto, **BR-G03, BR-G13, BR-G18, BR-G20, BR-G21, BR-G23 y BR-G24** (D-096, D-127):
+el detalle de cada una, en `BUSINESS_RULES` §3.c.
+
+### Etapa 1 — lo que había, medido antes de tocar nada
+
+| Hecho | Consecuencia para el encargo |
+|---|---|
+| Los tramos vivían en `commission_tiers`, **una fila por tramo y organización, mutable**, y el motor los leía **en vivo** | Cambiar un tramo movía al instante el dinero de todos los integrantes por tramos. No servía como plantilla |
+| Quien no tenía vendedor padre cobraba **siempre la mitad** del precio vigente (`commission_rate_for_seller`, BR-G13); no había forma de darle a un vendedor directo un fijo o unos tramos | Las altas del personal no podían ofrecer nada |
+| El padre cobraba por su equipo **mitad − tarifa del hijo** (`commission_team_earned`, BR-G20), con la mitad escrita en la fórmula | Con un padre fijo o por tramos, la bolsa de $60.000 sería falsa |
+| El tope del fijo de un integrante era **la mitad del precio MÁS ALTO de las rifas activas** (`team_max_fixed_commission`) y no se miraban los tramos del hijo | Un tramo del hijo podía superar lo del padre y el faltante lo ponía la empresa (el `greatest(0, …)` por integrante) |
+| El tramo del padre contaba **solo sus boletas** | Contradice la regla nueva: propias + equipo |
+| **Tres niveles eran posibles**: `memberships_validate_parent_seller` solo mira que el padre nuevo no tenga padre, no que el que entra no tenga equipo. Reproducido en local (transacción deshecha): un vendedor con equipo quedó colgado de otro | **I-176**, anterior a este encargo |
+| El personal no ve ganancias ni la cartera (D-198, BR-Q08); sí ve con qué regla se paga (BR-G12 acotada) | Configurar acuerdos sin recuperar acceso a la cartera |
+| No existe pantalla de movimientos del ledger; `commission_ledger` lo lee solo la base y las pruebas | «El historial explica propio y equipo por separado» es BR-G22 en la base, y se conserva |
+
+**Línea base del entorno:** `verify` 1.793/1.793 y `test:db` 1.444 + 1 omitida, iguales al relevo.
+
+### Piezas que se reutilizan y consumidores afectados
+
+| Se reutiliza (REUSE → EXTEND) | Consumidores que cambian |
+|---|---|
+| El motor de D-094/D-127: `recalc_seller_commission` —recuento, no suma de eventos; ledger por partes; cascada integrante → padre—, sus disparadores de `tickets`, `raffles` y `memberships`, `commission_summary`, `commission_floor_rate` → `ticket_sale_price_limits` | `commission_rate_for_seller`, `commission_floor_rate`, `commission_summary`, `team_set_commission_model`; se retiran `commission_tiers`, `commission_rate_for`, `commission_team_earned`, `team_max_fixed_commission` y `memberships_validate_commission` |
+| El alta compartida `UserDialog` + `CommissionModelField` («Cómo le vas a pagar») y `inviteMember` con su compensación (D-045) | El alta del personal, «Mi equipo», la ficha del integrante, el panel del vendedor (`SellerEarningsCard`), la ficha administrativa |
+| La capacidad central de D-200 (`has_org_capability` / `authorizeCapability`) | Catálogo con una capacidad más |
+| `audit_memberships` (bitácora genérica de cada columna) y `write_audit_log` para las acciones con nombre | `admin_audit_redact` con las claves nuevas |
+| `admin_ticket_inventory` (recuentos sin dinero) para explicar qué rifas se recalculan | — |
+
+### El contrato
+
+**1. Persistencia.**
+
+| Pieza | Qué es |
+|---|---|
+| `commission_tier_lists` + `commission_tier_list_items` | Listas de tramos **inmutables**: cada una es una `template` (versión N de la lista general de la organización) o una `custom` (de un solo vendedor). Se crean enteras en una transacción y **nunca se modifican**; los tramos se guardan como «desde cuántas boletas» y la tarifa, y el «hasta» se deriva del siguiente |
+| La lista general vigente | La `template` de versión más alta de la organización. **Guardarla crea una versión nueva**; ninguna existente cambia |
+| `memberships.direct_commission_mode` + `direct_fixed_amount` + `direct_tier_list_id` | El **acuerdo administrativo**: `half_price` (la mitad del precio vigente, BR-G15), `fixed_per_ticket` o `tiered`. Rige mientras `parent_seller_id` es nulo |
+| `memberships.commission_model` + `fixed_commission_amount` (+ `team_tier_list_id`, nueva) | El **acuerdo de equipo**, el de siempre (BR-G24), ahora con la versión de la lista que recibió. Rige mientras hay vendedor padre |
+| `seller_commissions.tier_tickets_paid` | El **conteo para determinar el tramo**, aparte del propio (`tickets_paid`) y del equipo (`team_tickets_paid`) |
+| `seller_commissions.team_shortfall` | Lo que la empresa pone por un par incompatible **preexistente**. Cero en todo acuerdo admitido; existe para medirlo, no para esconderlo |
+
+**2. Compatibilidad de los vendedores actuales (la migración).** Cada organización recibe la versión 1 de su
+lista general con **exactamente** sus `commission_tiers`; todo integrante por tramos queda fijado a esa versión;
+**toda membresía existente** —activa o no, de cualquier rol— queda con acuerdo administrativo `half_price`, que
+es lo que cobraba. La mitad **no se convierte** en una cifra. Resultado exigido: ni un peso distinto en
+`earned`, `team_earned` ni en el ledger. Si los tramos de una organización no cumplen las reglas nuevas, la
+migración **se detiene** diciendo cuál, en vez de reinterpretarlos.
+
+**3. Precedencia.** `parent_seller_id` nulo → acuerdo administrativo; no nulo → acuerdo de equipo. Entrar o salir
+de un equipo cambia cuál rige y recalcula hacia atrás (BR-G16, sin cambios); **ninguno de los dos se borra**:
+el que no rige queda inerte y vuelve tal cual. Un integrante que un padre da de alta nace con el administrativo
+por defecto (`half_price`, inerte) para que salir del equipo siga haciendo lo de siempre.
+
+**4. Conteos y fórmulas, por rifa** (`N_*` = boletas **pagadas por completo**, BR-G01):
+
+| | Conteo del tramo | Tarifa | Ganancia |
+|---|---|---|---|
+| Integrante | `N_hijo` | Su acuerdo de equipo con `N_hijo` | `N_hijo × tarifa − sus rebajas` |
+| Jefe de equipo (sin padre) | `N_propio + N_equipo` | Su acuerdo administrativo con ese conteo | Propia: `N_propio × tarifa − sus rebajas`; equipo: `Σ N_hijo × (tarifa_padre − tarifa_hijo)` |
+| Vendedor sin equipo | `N_propio` | Su acuerdo administrativo | `N_propio × tarifa − sus rebajas` |
+
+La mitad y el fijo no dependen del conteo: el conteo nuevo **no altera** a quien conserva la mitad. La
+empresa se queda `precio oficial − tarifa del jefe` por cada boleta del equipo, y la rebaja la asume siempre
+quien la concede (BR-G17).
+
+**5. Compatibilidad padre–hijo.** Como el conteo del padre incluye las boletas del hijo y las listas son
+crecientes, el peor caso es que el padre no tenga otra cosa: el acuerdo del hijo es compatible **si para todo
+conteo `n ≥ 1` su tarifa no supera la del padre con `n`**. Se comprueba en cada límite de las dos listas. Contra
+un padre en la mitad, en cada rifa donde el hijo puede ganar: las en borrador o activas —tope, el máximo del
+hijo— y las cerradas donde tiene boletas vendidas —tope, su tarifa con esas boletas—. Se valida al crear o
+cambiar cualquiera de los dos acuerdos, al reorganizar equipos y al crear una rifa, bajarle el precio o
+reactivarla. Un rechazo **no cambia nada** y dice qué par, con qué conteo y qué cifras.
+
+**6. Propagación.** Una venta del hijo recalcula al hijo y, en cascada, al padre: su tramo, lo propio y lo del
+equipo, en la misma transacción; los compañeros no se tocan. Una venta del padre recalcula su tramo y, con él,
+lo propio y lo del equipo. Cambiar un acuerdo o el padre recalcula todas las rifas del afectado y del padre
+anterior (BR-G25). Cambiar la lista general **no recalcula a nadie**.
+
+**7. Permisos.** Capacidad nueva `sellers.earnings.manage` (D-200), del Dueño y del Administrador: la lista
+general y los acuerdos administrativos. El padre conserva la suya —la ganancia de sus integrantes— y no puede
+tocar la lista general ni su propio acuerdo. Nadie cambia el suyo. Las listas se leen por RLS: la general, toda
+la organización; una personalizada, su dueño y el personal. Ninguna sesión escribe las tablas nuevas: solo las
+RPC.
+
+**8. Mediciones iniciales** (volumen local: 5.529 boletas, 3.379 pagos, un jefe con 6 integrantes —4 por
+tramos, 2 fijos, uno inactivo—, 20 vendedores de fondo, rebajas y una rifa cerrada; arnés en el scratchpad de la
+sesión). Base: mediana de 25 repeticiones dentro de una transacción que se deshace; pantallas: build de
+producción (`next build` + `next start`) contra un proxy que cuenta las peticiones, mediana de 9 tras 2 de
+calentamiento.
+
+| Operación (base de datos) | Primera | Mediana | p90 |
+|---|---:|---:|---:|
+| Abono completo de un integrante (cascada al jefe) | 14,2 ms | 2,13 ms | 3,21 ms |
+| Abono completo del jefe | 2,1 ms | 1,84 ms | 2,11 ms |
+| Abono de un vendedor sin equipo (control) | 1,7 ms | 1,53 ms | 1,76 ms |
+| Corregir un abono de integrante (deja de estar pagada) | 3,0 ms | 2,15 ms | 2,38 ms |
+| El jefe cambia la ganancia de un integrante | 5,0 ms | 2,89 ms | 3,41 ms |
+| `commission_summary(rifa)` como jefe | 3,3 ms | 2,27 ms | 2,81 ms |
+| `team_sales_summary(rifa)` como jefe | 8,2 ms | 7,57 ms | 8,70 ms |
+
+| Pantalla (servidor) | Peticiones a Supabase | Mediana | Primera tras arrancar |
+|---|---:|---:|---:|
+| Panel del vendedor, jefe | 16 | 139 ms | 223 ms |
+| Mi equipo, jefe | 12 | 127 ms | 143 ms |
+| Ficha de un integrante, jefe | 12 | 129 ms | 163 ms |
+| Panel del vendedor, integrante | 16 | 129 ms | 132 ms |
+| Vendedores, personal | 6 | 118 ms | 159 ms |
+| Ficha del jefe, personal | 10 | 120 ms | 133 ms |
+| Ficha de un integrante, personal | 10 | 119 ms | 122 ms |
+
+La «primera» de la tabla de pantallas es la primera petición de esa ruta tras arrancar el servidor, con las
+anteriores ya calientes: solo la primera fila es un arranque en frío de verdad.
+
+### Etapa 2 — la base: lo que se construyó y las decisiones que no estaban en el contrato
+
+La `0078` implementa el contrato entero (`DATA_MODEL` §4.24, `SECURITY` §4.25, BR-G27..BR-G35). Lo que el
+contrato no decía y hubo que decidir al escribirla, **decisiones propias de esta implementación**, no reglas del
+dueño:
+
+| Decisión | Por qué |
+|---|---|
+| Contra un padre que conserva la mitad, la compatibilidad se mira **rifa por rifa** —borrador o activa: el máximo del hijo; cerrada con ventas del hijo: su tarifa con esas boletas— y se vuelve a mirar al **crear una rifa, bajarle el precio o reactivarla** (`raffles_validate_team_agreements`) | La mitad depende del precio de cada rifa: una rifa más barata puede dejar a un integrante ganando más que su padre sin que ninguno de los dos haya cambiado nada |
+| Un **cerrojo por jefe** (`pg_advisory_xact_lock(hashtextextended('commission_team:' \|\| jefe, 0))`) antes de validar cualquier cambio que toque al equipo | Dos cambios simultáneos —el del padre y el de su integrante— validados cada uno contra la foto anterior del otro dejaban un par incompatible. Con el cerrojo, uno espera al otro (`E11-31`); quitándolo, falla 3 de 3 |
+| Un par incompatible **anterior** no se recorta ni se esconde: la fórmula de siempre y `team_shortfall` con lo que la empresa está poniendo (BR-G35) | El encargo prohíbe recortar, poner a cero o pasar el faltante a la empresa en silencio. Medirlo es la única forma de decidirlo después |
+| Cambiar un acuerdo **se rechaza si las rebajas ya concedidas no caben** en la nueva tarifa mínima (BR-G31) | Si no, la ganancia de esas ventas quedaría en negativo o recortada a cero, que es exactamente lo que BR-G19 impide |
+| La capacidad `sellers.earnings.manage`, con su espejo en TypeScript y en `has_org_capability` (D-200) | El dueño puede querer algún día un Administrador que no toque dinero; con la capacidad, ese día no hay que tocar ninguna acción |
+| Las 38 funciones con su `EXECUTE` exacto, escrito en la migración y **comprobado por ella misma** | El patrón de I-132: en el proyecto alojado toda función nueva de `public` nace ejecutable por `service_role` |
+| El disparador exige ser el padre o tener la capacidad **en todo alta de vendedor con sesión**, antes de cualquier regla del acuerdo | La primera versión le explicaba la regla de la mitad a quien ni siquiera podía dar de alta: la prueba `E1-05` lo vio |
+| `commission_tickets_phrase` en toda frase con un conteo | «1 boletas cobradas» salía en los rechazos (D-111) |
+| **I-176 cerrada** en el mismo disparador, y la migración **se detiene** si ya existiera una estructura de tres niveles | Deshacerla cambiaría dinero; eso no lo decide una migración |
+
+**La primera versión del motor era lenta, y se midió antes de darla por buena.** Con el mismo volumen, el abono de un
+integrante pasó de 2,13 a **2,84 ms** y el cambio de ganancia de un integrante de 2,89 a **5,4 ms**: el motor leía
+el acuerdo de cada integrante con una llamada por hijo. Se reescribió para leer los conteos y las tarifas de todo el
+equipo en **un** agregado y con la tarifa en línea; los números de la Etapa 4 son los de esa versión.
+
+**Conservación, demostrada dos veces sobre el volumen** (5.529 boletas, 37 filas de `seller_commissions`): antes y
+después de aplicar la `0078`, **0 diferencias** en `tickets_paid`, `rate`, `earned`, `team_tickets_paid`,
+`team_earned` y el ledger por partes. Además, la propia migración compara lo mismo y se detiene si difiere.
+
+`test:db`: **1.483 + 1 omitida** (60 archivos), con la suite nueva `earning-agreements.test.ts` (39) y seis
+suites anteriores ajustadas a la regla nueva —ninguna para aflojarla—: `admin-privacy` (claves nuevas),
+`catalog` (RPC públicas), `commissions` `E5-15` (las listas no se escriben), `sale-discount` `E8-05` (el suelo sale
+de SU lista), `team-commission` `E10-14` (el tope lo da la base) y `raffle-short-code` (limpieza de listas).
+
+### Etapa 3 — la interfaz
+
+| Pantalla | Qué hace |
+|---|---|
+| «Configuración» del personal (`/owner/settings`) | Resumen con una sección, «Ganancias de vendedores»; se entra desde el menú del avatar, como a la del vendedor |
+| «Ganancias de vendedores» (`/owner/settings/earnings`) | La lista general: desde, hasta derivado, ganancia por boleta; agregar, cambiar y quitar tramos; guardar **entera**; los errores de la base por fila; el aviso de que nadie que ya cobra por tramos cambia de lista |
+| «Nuevo vendedor» del personal | El mismo `UserDialog` con «Cómo le vas a pagar»: tramos (la lista general o **personalizados**) o fijo; nunca la mitad. Crea la membresía con `staff_create_seller_membership` |
+| Ficha administrativa | «Cómo se le paga»: la regla que rige, de dónde salen sus tramos, si tiene equipo; «Cambiar» para quien no tiene padre, con el aviso de qué rifas recalcula (recuentos, sin dinero) |
+| Panel del vendedor | La tarifa con el conteo del tramo; lo propio, lo del equipo y el total; «Tu tramo cuenta tus boletas y las de tu equipo» y lo que falta, «tuyas o de tu equipo» |
+| «Mi equipo» y la ficha del integrante | El alta y el cambio con el tope de la base —«en tu primer tramo» si el padre cobra por tramos— y la tarjeta de tramos apagada, con su motivo, si la lista general no cabe; los tramos que el integrante conserva |
+
+Decisiones de la interfaz, **propias** de esta implementación:
+
+| Decisión | Por qué |
+|---|---|
+| El alta del personal empieza en **tramos con la lista general**; si no hubiera lista, en fijo | Es lo que ya hacía el alta del equipo, y ninguna de las dos es la mitad |
+| Quien conserva la mitad abre el cambio **sin ninguna tarjeta elegida**, con el aviso de lo que pierde | Elegir por la persona sería decidir sin que nadie lo pidiera, en algo que no se puede deshacer |
+| Unos tramos que no son la general vigente se ofrecen como **«Sus tramos de ahora»**, y guardar sin tocarlos no mueve la lista | Si se presentaran como la lista general, un guardado sin cambios le cambiaría la versión a alguien sin que nadie lo pidiera |
+| El personal **no cambia el acuerdo de un integrante**: la ficha dice «Lo decide {padre}, su vendedor a cargo» | BR-G34: lo decide el padre. Su acuerdo administrativo, inerte mientras esté en el equipo, conserva la mitad y se podrá cambiar si sale |
+| El alta del equipo valida la oferta con `team_commission_limits` **antes del correo y antes del cupo** | Un rechazo después de invitar deja un correo con un enlace muerto; y una oferta rechazada no envía nada, así que no debe gastar el cupo de D-062 |
+| El alta del personal comprueba la **capacidad** antes de invitar | Por lo mismo |
+| La ficha del integrante lee los dos acuerdos **en una petición** (`listSellerAgreements`) | La primera versión hacía dos: se midió y se juntaron |
+| «Vendedores» lee la lista general **con la página**, no al abrir el diálogo | Es el patrón de «Mi equipo»: el diálogo se abre con los datos puestos. Cuesta una petición en paralelo (+8 ms medidos) |
+| `CommissionCard` sigue desmontada y **sin tocar** (I-068) | Borrarla es decisión del dueño; su nota dice que sus textos ya no son verdad |
+
+### Etapa 4 — pruebas, mediciones y documentación
+
+**Pruebas al cerrar.** `verify` exit 0 (**1.823/1.823** unitarias en 90 archivos, lint 0 errores y los 2 avisos de siempre, build); `test:db` **1.483 + 1 omitida** (60 archivos), dos veces, la segunda sobre la base recién sembrada al cerrar; E2E completa desde la base recién
+sembrada: **966/973** en 53,8 min. Los siete fallos, uno por uno:
+
+| Fallo | Qué era | Qué se hizo |
+|---|---|---|
+| `telefono-mascara:576` | **Provocado por este trabajo.** Su preparación colgaba un integrante por tramos de `vendedor1`, que conserva la mitad, y otras suites habían dejado rifas de **$50.000** en borrador: la base lo rechazó. Es BR-G28 funcionando | La preparación usa un fijo mínimo, que cabe en cualquier rifa. También las de `equipo-movil`, `equipo` y `ganancias`, que dependían de lo mismo y pasaban solo por el orden (I-177) |
+| `whatsapp-invitacion:355` | **Provocado por este trabajo.** Afirmaba que el personal no tiene «Configuración» | Comprueba lo que de verdad protegía: que la del personal lleva a `/owner/settings` y que la del vendedor sigue fuera de su alcance |
+| `ventas-por-fecha:163` | I-090, anterior y documentada | — |
+| `ventas-por-fecha:257` | La hermana de I-164, anterior y documentada sin acotar | — |
+| `catalogo-publico-movil:103` | I-106, anterior y documentada | — |
+| `historial-abonos-cliente:161` | Una lectura sin reintento justo después de `goForward()` (I-178). La ficha del cliente no cambió | Aislada no se reproduce: **55/55** en la base y **55/55** con D-237. Queda documentada, con su arreglo propuesto |
+| `premios-ganados:164` | Tras `reload()`, a veces `goBack()` no navega (I-179). La pantalla no cambió | **Reproducido en `b793016`, sin este trabajo**: aislada, falla **1 de 55** en la base y **2 de 55** con D-237 —15 + 40 repeticiones en cada lado—, siempre con la misma firma |
+
+Repetidas después **sobre la base tal como la dejó la completa**, con las rifas de $50.000 presentes: las dos
+corregidas, las preparaciones endurecidas, `ganancias`, `ganancias-movil` y `equipo-movil`, **18/18**. Y el alta por
+interfaz de `equipo.spec.ts`, en esa misma base, falla ahora diciendo la causa en vez de a ciegas (I-177). Las
+comparaciones con la base se hicieron en un árbol de trabajo de `b793016` fuera del repositorio, con la base local
+en `0077` (`db reset --local --version 0077`) y su propio servidor de desarrollo.
+
+**Mediciones después**, con el mismo volumen, el mismo arnés y el código final (base: mediana de 25 dentro de una
+transacción que se deshace; pantallas: build de producción contra el proxy que cuenta, mediana de 9 tras 2 de
+calentamiento). **El caso de control —el abono de un vendedor sin equipo, que no pasa por nada nuevo— también
+varía**: 1,53 → 1,83 ms. Es la medida del ruido de la máquina entre las dos sesiones.
+
+| Operación (base de datos) | Antes | Después | Lectura |
+|---|---:|---:|---|
+| Abono completo de un integrante (cascada al jefe) | 2,13 ms | 2,31 ms | Dentro del ruido |
+| Abono completo del jefe | 1,84 ms | 1,95 ms | Dentro del ruido |
+| Abono de un vendedor sin equipo (**control**) | 1,53 ms | 1,83 ms | El ruido |
+| Corregir un abono de integrante | 2,15 ms | 2,07 ms | Igual |
+| El jefe cambia la ganancia de un integrante | 2,89 ms | 3,67 ms | **+0,8 ms**: la compatibilidad bajo el cerrojo. Operación rara; aceptado |
+| `commission_summary(rifa)` como jefe | 2,27 ms | 2,25 ms | Igual |
+| `team_sales_summary(rifa)` como jefe | 7,57 ms | 7,73 ms | Igual |
+| Guardar la lista general | — | 1,72 ms | Nueva |
+| El personal cambia el acuerdo de un jefe (2 rifas) | — | 4,24 ms | Nueva, con recálculo |
+| Pasar a la lista general / personalizar | — | 3,04 / 3,43 ms | Nuevas |
+| El jefe consulta sus límites | — | 1,55 ms | Nueva |
+
+| Pantalla (servidor) | Peticiones antes → después | Mediana antes → después (dos muestras) |
+|---|---:|---:|
+| Panel del vendedor, jefe | 16 → **15** | 139 → 139 / 133 ms |
+| Mi equipo, jefe | 12 → 12 | 127 → 130 / 125 ms |
+| Ficha de un integrante, jefe | 12 → 14 → **13** | 129 → 136 / 131 ms |
+| Panel del vendedor, integrante | 16 → **15** | 129 → 128 / 126 ms |
+| Vendedores, personal | 6 → **7** | 118 → 125 / 126 ms |
+| Ficha del jefe, personal | 10 → **12** | 120 → 127 / 122 ms |
+| Ficha de un integrante, personal | 10 → **12** | 119 → 127 / 120 ms |
+| «Configuración» y «Ganancias de vendedores» | — | 104–107 ms, 6 peticiones |
+
+**Lectura.** El panel del vendedor hace una petición **menos** —el acuerdo y sus tramos llegan embebidos en una—.
+Las fichas del personal suman dos peticiones **en paralelo** porque ahora enseñan algo que antes no existía —el
+acuerdo y la lista general—, y la mediana queda dentro del ruido en la segunda muestra. La ficha del integrante tenía
+dos peticiones más y se dejó en una tras medir. El único coste que se mantiene es **+1 petición en «Vendedores»**
+(+8 ms en las dos muestras): la lista general para el alta, que se decidió traer con la página (tabla anterior).
+
+### Lo que queda listo para «Cierre de cuentas»
+
+| Pieza | Para qué le sirve al cierre |
+|---|---|
+| `seller_commissions` por vendedor y rifa, con lo propio (`earned`), lo del equipo (`team_earned`), el conteo del tramo (`tier_tickets_paid`) y el faltante medido (`team_shortfall`) | Las cifras de un cierre ya existen y son una función del estado, no una suma de eventos |
+| El ledger por partes (`team_movement`, `from_seller_id`) | Explica cada cifra y de qué integrante vino |
+| Acuerdos con listas **inmutables y versionadas**, y la bitácora `user.commission_agreement` / `commission_template.update` | Un cierre puede fijar **con qué acuerdo** se liquidó —el identificador de la lista— sin miedo a que alguien cambie después los tramos |
+| `commission_agreement_problems()` | Lo que habría que resolver antes de cerrar una rifa |
+
+**Fuera, a propósito:** pantallas de liquidación, pagos a vendedores, congelar una rifa, cambios masivos de
+acuerdos y convertir la mitad en una cifra.
+
+### Pendiente
+
+| Qué | De quién |
+|---|---|
+| Publicar la `0078` y su código (`RUNBOOK` §10, **no autorizado**): diagnóstico de solo lectura, respaldo, migración y código en la misma ventana | Del dueño |
+| Si el diagnóstico encuentra pares incompatibles, faltantes o tres niveles en el proyecto real, qué hacer con cada uno: **cambia dinero** | Del dueño |
+| I-068: borrar `CommissionCard` o decidir dónde vuelven sus dos textos | Del dueño |

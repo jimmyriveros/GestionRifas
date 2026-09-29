@@ -245,11 +245,6 @@ export const HISTORY_FUNCTION_GRANTS: ReadonlyArray<{
   })),
 ]
 
-/** Nombres de las funciones de la entrega (para detectar una sobrecarga sin clasificar). */
-export const PRIZE_FUNCTION_NAMES = [
-  ...new Set(PRIZE_FUNCTION_GRANTS.map((f) => f.signature.slice(0, f.signature.indexOf('(')))),
-]
-
 export type RemoteCheck = {
   nombre: string
   sql: string
@@ -269,20 +264,19 @@ const matrizSql = (
     )
     .join(',\n              ')
 
-const esperadoSql = matrizSql(PRIZE_FUNCTION_GRANTS)
-
 /**
- * Las comprobaciones de la `0066` que corre `npm run verify:remote`. Las mismas
- * que ejecuta la prueba de base de datos contra la pila local.
+ * La consulta que compara el EXECUTE EFECTIVO de cada función con el esperado,
+ * para PUBLIC, anon, authenticated y service_role. Devuelve una fila por
+ * diferencia (o por función que no existe). La comparten las listas de premios
+ * (`0066`) y la de la configuración de ganancias (`0078`,
+ * `scripts/earning-function-grants.ts`): una sola forma de medirlo.
  */
-export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
-  {
-    // 0066 (D-207, I-132): cada función de la entrega, con su EXECUTE efectivo
-    // exacto para PUBLIC, anon, authenticated y service_role.
-    nombre: 'Funciones de premios con EXECUTE distinto de la lista blanca exacta (0066)',
-    sql: `with esperado (firma, publico, anonimo, autenticado, servicio) as (
+export function executeMatrixSql(
+  grants: ReadonlyArray<{ signature: string; expected: ExecuteMatrix }>,
+): string {
+  return `with esperado (firma, publico, anonimo, autenticado, servicio) as (
             values
-              ${esperadoSql}
+              ${matrizSql(grants)}
           )
           select e.firma || ' -> ' || case when r.oid is null then 'no existe' else concat_ws(', ',
                    case when v.publico is distinct from e.publico then 'PUBLIC=' || v.publico end,
@@ -304,7 +298,31 @@ export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
               or v.publico is distinct from e.publico
               or v.anonimo is distinct from e.anonimo
               or v.autenticado is distinct from e.autenticado
-              or v.servicio is distinct from e.servicio`,
+              or v.servicio is distinct from e.servicio`
+}
+
+/** Una sobrecarga nueva con el nombre de una función de la lista no puede escapar de ella. */
+export function unclassifiedOverloadsSql(
+  grants: ReadonlyArray<{ signature: string; expected: ExecuteMatrix }>,
+): string {
+  const nombres = [...new Set(grants.map((f) => f.signature.slice(0, f.signature.indexOf('('))))]
+  return `select p.oid::regprocedure::text as x
+            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public'
+             and p.proname = any (array[${nombres.map(literal).join(', ')}])
+             and p.oid::regprocedure::text <> all (array[${grants.map((f) => literal(f.signature)).join(', ')}])`
+}
+
+/**
+ * Las comprobaciones de la `0066` que corre `npm run verify:remote`. Las mismas
+ * que ejecuta la prueba de base de datos contra la pila local.
+ */
+export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
+  {
+    // 0066 (D-207, I-132): cada función de la entrega, con su EXECUTE efectivo
+    // exacto para PUBLIC, anon, authenticated y service_role.
+    nombre: 'Funciones de premios con EXECUTE distinto de la lista blanca exacta (0066)',
+    sql: executeMatrixSql(PRIZE_FUNCTION_GRANTS),
     esperado: 0,
   },
   {
@@ -321,11 +339,7 @@ export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
     // 0066: una sobrecarga nueva con el nombre de una función de la entrega no
     // puede escapar de la lista.
     nombre: 'Funciones de premios sin clasificar en la lista blanca (0066)',
-    sql: `select p.oid::regprocedure::text as x
-            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-           where n.nspname = 'public'
-             and p.proname = any (array[${PRIZE_FUNCTION_NAMES.map(literal).join(', ')}])
-             and p.oid::regprocedure::text <> all (array[${PRIZE_FUNCTION_GRANTS.map((f) => literal(f.signature)).join(', ')}])`,
+    sql: unclassifiedOverloadsSql(PRIZE_FUNCTION_GRANTS),
     esperado: 0,
   },
   {
@@ -335,31 +349,7 @@ export const PRIZE_FUNCTION_CHECKS: RemoteCheck[] = [
     // comprobar: sin la 0072, `current_seller_org_ids()` fallaría aquí (I-143).
     // Falla contra el proyecto real hasta que se promuevan.
     nombre: 'Funciones del historial de premios con EXECUTE distinto de su lista (0067, 0068, 0070, 0072)',
-    sql: `with esperado (firma, publico, anonimo, autenticado, servicio) as (
-            values
-              ${matrizSql(HISTORY_FUNCTION_GRANTS)}
-          )
-          select e.firma || ' -> ' || case when r.oid is null then 'no existe' else concat_ws(', ',
-                   case when v.publico is distinct from e.publico then 'PUBLIC=' || v.publico end,
-                   case when v.anonimo is distinct from e.anonimo then 'anon=' || v.anonimo end,
-                   case when v.autenticado is distinct from e.autenticado then 'authenticated=' || v.autenticado end,
-                   case when v.servicio is distinct from e.servicio then 'service_role=' || v.servicio end) end as x
-            from esperado e
-            cross join lateral (select to_regprocedure('public.' || e.firma)::oid as oid) r
-            left join lateral (
-              select exists (
-                       select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-                        where p.oid = r.oid and a.grantee = 0 and a.privilege_type = 'EXECUTE') as publico,
-                     has_function_privilege('anon', r.oid, 'EXECUTE') as anonimo,
-                     has_function_privilege('authenticated', r.oid, 'EXECUTE') as autenticado,
-                     has_function_privilege('service_role', r.oid, 'EXECUTE') as servicio
-               where r.oid is not null
-            ) v on true
-           where r.oid is null
-              or v.publico is distinct from e.publico
-              or v.anonimo is distinct from e.anonimo
-              or v.autenticado is distinct from e.autenticado
-              or v.servicio is distinct from e.servicio`,
+    sql: executeMatrixSql(HISTORY_FUNCTION_GRANTS),
     esperado: 0,
   },
 ]

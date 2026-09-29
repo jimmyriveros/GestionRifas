@@ -28,9 +28,10 @@ export type OrgMember = {
   parentSellerId: string | null
   /**
    * Como se le paga MIENTRAS pertenezca a un equipo (BR-G24). Con
-   * `parentSellerId` nulo esto no aplica —cobra la mitad del precio (BR-G13)—
-   * pero se conserva: sacar a alguien del equipo y volver a meterlo lo devuelve
-   * a la configuracion que tenia, en vez de reiniciarla en silencio (D-127).
+   * `parentSellerId` nulo esto no aplica —rige su acuerdo administrativo, que
+   * se lee con `getSellerAgreement` (D-237)— pero se conserva: sacar a alguien
+   * del equipo y volver a meterlo lo devuelve a la configuracion que tenia, en
+   * vez de reiniciarla en silencio (D-127).
    */
   commissionModel: CommissionModel
   /** Su cifra fija por boleta. `null` con `tiered`, que es lo normal. */

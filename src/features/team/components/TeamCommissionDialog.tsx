@@ -17,7 +17,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Form } from '@/components/ui/form'
-import type { CommissionTier } from '@/features/commissions/queries'
+import { TierTable } from '@/features/commissions/components/TierTable'
+import { EARNINGS_COPY } from '@/features/commissions/copy'
+import type { Tier } from '@/features/commissions/tiers'
 import type { CommissionModel } from '@/lib/constants'
 
 import { setTeamCommission } from '../actions'
@@ -40,13 +42,30 @@ import { CommissionModelField } from './CommissionModelField'
  * modo que no se puede confirmar sin haber leido que hay un recalculo. Un
  * `ConfirmDialog` encima habria tapado la cifra que se acaba de escribir, que es
  * justo lo que hay que poder revisar antes de decir que si.
+ *
+ * LO QUE SE OFRECE SALE DE LA BASE (BR-G28, D-237): el tope de la cifra y si la
+ * lista general cabe en el acuerdo del propio vendedor padre llegan en
+ * `options`, leidos de `team_commission_limits`. Seguir por tramos no cambia
+ * la version que el integrante ya tiene, y por eso la tarjeta de tramos ensena
+ * SUS tramos mientras los conserve y la lista general solo si se pasa a ella.
  */
+export type TeamCommissionOptions = {
+  /** Los tramos que tiene hoy, si cobra por tramos. */
+  currentTiers: Tier[] | null
+  /** La lista general vigente: la que recibiria al pasar a tramos. */
+  template: Tier[] | null
+  maxFixed: number | null
+  /** Si el vendedor padre cobra por tramos: cambia como se dice el tope. */
+  parentTiered: boolean
+  /** Por que no puede pasar a tramos, o `null`. */
+  templateProblem: string | null
+}
+
 export function TeamCommissionDialog({
   open,
   onOpenChange,
   member,
-  tiers,
-  maxFixed,
+  options,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -56,8 +75,7 @@ export function TeamCommissionDialog({
     commissionModel: CommissionModel
     fixedCommissionAmount: number | null
   }
-  tiers: CommissionTier[]
-  maxFixed: number | null
+  options: TeamCommissionOptions
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,12 +90,7 @@ export function TeamCommissionDialog({
         {/* El formulario en un componente aparte que Radix monta y desmonta con
             el dialogo: cada apertura empieza con lo que hay guardado, sin
             sincronizar estado con un efecto (mismo patron que `UserDialog`). */}
-        <CommissionForm
-          member={member}
-          tiers={tiers}
-          maxFixed={maxFixed}
-          onDone={() => onOpenChange(false)}
-        />
+        <CommissionForm member={member} options={options} onDone={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   )
@@ -85,8 +98,7 @@ export function TeamCommissionDialog({
 
 function CommissionForm({
   member,
-  tiers,
-  maxFixed,
+  options,
   onDone,
 }: {
   member: {
@@ -95,10 +107,19 @@ function CommissionForm({
     commissionModel: CommissionModel
     fixedCommissionAmount: number | null
   }
-  tiers: CommissionTier[]
-  maxFixed: number | null
+  options: TeamCommissionOptions
   onDone: () => void
 }) {
+  // Quien ya cobra por tramos los conserva al «seguir» por tramos; quien no,
+  // recibiria la lista general vigente, y esa es la que se ensena.
+  const staysTiered = member.commissionModel === 'tiered'
+  const cardTiers = staysTiered ? (options.currentTiers ?? []) : (options.template ?? [])
+  const tieredBlocked = staysTiered
+    ? null
+    : options.template === null
+      ? EARNINGS_COPY.field.noTemplate
+      : options.templateProblem
+
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -166,8 +187,14 @@ function CommissionForm({
           }}
           amount={amount ?? null}
           onAmountChange={(value) => form.setValue('fixedCommissionAmount', value)}
-          tiers={tiers}
-          maxFixed={maxFixed}
+          tieredCardContent={<TierTable tiers={cardTiers} className="mt-1" />}
+          tieredDisabledReason={tieredBlocked}
+          note={EARNINGS_COPY.field.teamNote}
+          fixedHint={
+            options.maxFixed === null
+              ? null
+              : EARNINGS_COPY.field.teamCap(options.maxFixed, options.parentTiered)
+          }
           disabled={isPending}
           error={form.formState.errors.fixedCommissionAmount?.message}
         />

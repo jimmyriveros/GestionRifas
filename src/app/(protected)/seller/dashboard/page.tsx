@@ -24,8 +24,8 @@ import {
 import { SellerCatalogCard } from '@/features/catalog/components/SellerCatalogCard'
 import { catalogPublicUrl, getCatalogSettings, isCatalogLive } from '@/features/catalog/queries'
 import { LotteryResultsSection } from '@/features/lottery/components/LotteryResultsSection'
-import { getCommissionContext, getFirstTierRate } from '@/features/commissions/queries'
-import { getOwnTeamStatus } from '@/features/team/queries'
+import { firstTicketRate } from '@/features/commissions/agreement'
+import { getCommissionContext, getSellerAgreement } from '@/features/commissions/queries'
 import { requireRole } from '@/lib/auth/guards'
 import { formatDateRangeEs, todayBogota } from '@/lib/dates'
 
@@ -90,16 +90,15 @@ export default async function SellerDashboardPage({
   const rangeKey = parseDashboardRange(single(params.range))
   const range = resolveDashboardRange(rangeKey, todayBogota())
 
-  const [dashboard, comisiones, firstTierRate, own, partialTotals, activity, catalog] =
+  const [dashboard, comisiones, agreement, partialTotals, activity, catalog] =
     await Promise.all([
       getSellerDashboard(),
       getCommissionContext(),
-      getFirstTierRate(),
-      // BR-G13, BR-G24: quien no pertenece a un equipo cobra la mitad del precio;
-      // dentro de un equipo, por tramos o una cifra fija. Hace falta saberlo
-      // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no hay
-      // fila de comision que leer.
-      getOwnTeamStatus(membership.profileId),
+      // D-237: el acuerdo que rige —la mitad, un fijo o unos tramos, con o sin
+      // vendedor padre— con su lista embebida, en UNA lectura. Hace falta
+      // aunque todavia no haya cobrado ninguna boleta, que es justo cuando no
+      // hay fila de comision que leer.
+      getSellerAgreement(membership.organizationId, membership.profileId),
       getPartialTicketTotals(),
       getSellerActivity(range),
       // Su enlace publico (BR-K12). Entra en la MISMA espera que las demas: es
@@ -117,33 +116,35 @@ export default async function SellerDashboardPage({
   const catalogAvailable = catalog?.raffleId ? (availableByRaffle[catalog.raffleId] ?? 0) : null
 
   // La comision es por rifa (BR-G04): sin rifa activa no hay ninguna de la que
-  // hablar, y el indicador cae en la regla general en vez de inventar una cifra.
+  // hablar, y el indicador cae en la regla que le toca en vez de inventar una
+  // cifra.
   //
   // OJO CON LA FILA VACIA: `commission_summary` devuelve fila tambien para quien
   // todavia no ha cobrado ninguna boleta, y ahi su `rate` vale 0 porque el
   // primer tramo empieza en la boleta 1. Tomar ese cero como «tu ganancia por
   // boleta» le diria a un vendedor nuevo que no gana nada. Por eso la fila solo
-  // manda cuando hay boletas cobradas, y si no, se aplica la regla que le toca
-  // (BR-G13), igual que hacia la tarjeta «Tu ganancia» que esto sustituye.
+  // manda cuando hay boletas que cuenten para su TRAMO —las suyas o, si tiene
+  // equipo, tambien las de su equipo (BR-G27)—: un jefe que todavia no vendio
+  // ninguna ya sube de tramo con lo que venden los suyos.
   const commission = comisiones.bySeller.get(membership.profileId) ?? null
-  const hasEarnings = commission !== null && commission.ticketsPaid > 0
-  const halfPrice = Math.floor((comisiones.raffle?.ticketPrice ?? 0) / 2)
+  const hasTierCount = commission !== null && commission.tierTicketsPaid > 0
 
-  // La regla que le toca cuando todavia no hay fila que leer. El orden es el de
-  // BR-G13/BR-G24 y las tres ramas son distintas: a quien cobra una cifra fija
-  // no se le puede ofrecer el primer tramo, que fue lo que hizo esta pantalla
-  // hasta que existio el modelo fijo.
-  const rateSinVentas = !own.belongsToTeam
-    ? halfPrice
-    : own.commissionModel === 'fixed_per_ticket'
-      ? (own.fixedCommissionAmount ?? 0)
-      : firstTierRate
+  // La regla que le toca cuando todavia no hay fila que leer, del acuerdo que
+  // RIGE (D-237): la mitad del precio, su cifra fija o su primer tramo. A quien
+  // cobra una cifra fija no se le puede ofrecer el primer tramo.
+  const rateSinVentas = agreement
+    ? (firstTicketRate(agreement.effective, comisiones.raffle?.ticketPrice ?? null) ?? 0)
+    : 0
 
-  const earningPerTicket = hasEarnings ? commission.rate : rateSinVentas
+  const earningPerTicket = hasTierCount ? commission.rate : rateSinVentas
+
+  // Su equipo ya cuenta para su tramo cuando ha cobrado algo: es lo que cambia
+  // como se dicen el conteo y lo que falta para subir.
+  const teamCounts = commission !== null && commission.teamTicketsPaid > 0
 
   // El siguiente tramo solo existe para quien cobra por tramos y aun le queda
-  // uno (BR-G02, BR-G13). Es lo unico que se conserva de la tarjeta «Tu
-  // ganancia» ademas del dinero: sin ello, subir de nivel dejaria de verse.
+  // uno (BR-G02). Es lo unico que se conserva de la tarjeta «Tu ganancia»
+  // ademas del dinero: sin ello, subir de tramo dejaria de verse.
   const nextTier =
     commission !== null &&
     commission.byTiers &&
@@ -271,9 +272,12 @@ export default async function SellerDashboardPage({
           className="md:col-span-6 lg:col-span-5"
           earningPerTicket={earningPerTicket}
           ticketPrice={comisiones.raffle?.ticketPrice ?? null}
-          earned={hasEarnings ? commission.earned : 0}
+          earned={commission?.earned ?? 0}
           teamEarned={commission?.teamEarned ?? 0}
+          totalEarned={commission?.totalEarned ?? 0}
+          tierCount={teamCounts && commission?.byTiers ? commission.tierTicketsPaid : null}
           nextTier={nextTier}
+          teamCounts={teamCounts}
         />
 
         {/* NIVEL 3 — lo que ya paso. */}

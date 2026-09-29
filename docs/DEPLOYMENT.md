@@ -1287,6 +1287,14 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > código anterior mientras llega el nuevo. Ahí el código se sube en el mismo comando, solo si la
 > migración terminó bien, y se mide la ventana: con `0057` fueron unos 62 s (§3.2.j).
 
+> **Excepción, pendiente: la `0078` (D-237).** Tampoco es aditiva: **retira** `commission_tiers`,
+> `team_max_fixed_commission` y la firma anterior de `commission_summary`, que el código publicado lee
+> en el panel del vendedor y en «Mi equipo». Y el código nuevo necesita las RPC de la `0078`. No hay
+> orden sin ventana: se aplica la migración y se promueve el código enseguida, en una hora sin cron, y
+> se mide la ventana como con la `0057`. **Tampoco se revierte con un despliegue anterior**: el
+> procedimiento completo, con su diagnóstico previo y su recuperación, está en `RUNBOOK` §10. **No está
+> autorizada**: nada de la `0078` existe en el proyecto real.
+
 ---
 
 ## 4. Reversión

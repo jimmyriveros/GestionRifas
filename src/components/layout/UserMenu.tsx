@@ -96,19 +96,18 @@ export function UserMenu({ fullName, email, role, navItems = [] }: UserMenuProps
         <TourLauncher />
         <InstallMenuItem />
         {/*
-          «Configuración» es del VENDEDOR: lo que hay dentro es su grupo de
-          WhatsApp (D-176), y `/seller/settings` vive en un portal cuyo layout
-          exige el rol. Enseñarsela al Dueño o al Administrador seria ofrecerles
-          una puerta que da a `/denied`.
+          «Configuración» tiene una por portal, en el MISMO sitio (D-237): la
+          del vendedor —su grupo de WhatsApp, sus cuentas y sus recordatorios—
+          y la del personal —las ganancias de los vendedores—. Cada una vive en
+          un portal cuyo layout exige el rol, asi que cada rol ve la suya y
+          nunca una puerta que da a `/denied`.
         */}
-        {role === 'seller' ? (
-          <DropdownMenuItem asChild>
-            <Link href="/seller/settings">
-              <SettingsIcon />
-              Configuración
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
+        <DropdownMenuItem asChild>
+          <Link href={role === 'seller' ? '/seller/settings' : '/owner/settings'}>
+            <SettingsIcon />
+            Configuración
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/account/password">
             <KeyRoundIcon />

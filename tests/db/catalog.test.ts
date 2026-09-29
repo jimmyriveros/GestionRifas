@@ -286,9 +286,15 @@ describe('funciones privilegiadas', () => {
       'set_seller_weekly_results_message',
       'set_ticket_clearance_delivery',
       'taken_ticket_combinations',
+      // 0078 (D-237): la configuracion de ganancias. Las tres del personal
+      // autorizan por la CAPACIDAD `sellers.earnings.manage`; la del padre, por
+      // `current_profile_leads_team`. Ninguna recibe actor: sale de auth.uid().
+      'save_commission_template',
+      'staff_create_seller_membership',
+      'staff_set_seller_agreement',
+      'team_commission_limits',
       'team_confirm_email_change',
       'team_delete_member',
-      'team_max_fixed_commission',
       'team_member_sales',
       'team_sales_summary',
       'team_set_commission_model',

@@ -1,6 +1,8 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-19 (§5.2: un respaldo restaurado **no recrea los dos disparadores de `auth.users`**, medido al
+**Actualizado:** 2026-09-29 (**§10 nueva**, pendiente y **no autorizada**: cómo se publicaría la `0078` de D-237
+—diagnóstico previo en solo lectura, respaldo, migración y código en la misma ventana, y `commission_agreement_problems()`
+después—; nada de eso se ha ejecutado). Antes, 2026-09-19 (§5.2: un respaldo restaurado **no recrea los dos disparadores de `auth.users`**, medido al
 validar el de la promoción de D-209). Antes, 2026-09-18 (§9 **rehecha en la Etapa 4 de D-208**: el estado real de producción comprobado en solo lectura —`0001`–`0066`, el despliegue servido es `6da9bcb` y no `da81663`, y las dos coincidencias, idénticas a lo confirmado—, el cargador con su modo de producción probado, las herramientas de puerta versionadas —foto por fila, comparación con la «Opción A» y sonda del historial—, la conciliación de totales **recalculados** en vez de «el historial tiene dos premios» y la recuperación; **sigue sin ejecutarse**. Antes, ese mismo día, §9 nueva: **el procedimiento de promoción del historial de premios ganados**, preparado en la Etapa 3 de D-208 y **no ejecutado** —`0067`–`0072`, el cargador de los dos premios reconocidos y el despliegue, en cuatro puertas, con la línea base por fila y la «Opción A» de la Entrega 5—; antes, el 2026-09-17, §8.0 y §8.1: **la puerta 1 pasa a `0058`–`0066`** y a un commit nuevo; el primer intento, autorizado el 2026-09-17, **se suspendió antes de escribir** porque el preflight vio que el proyecto alojado concede EXECUTE a `service_role` en toda función nueva (I-132, D-207); antes, el 2026-09-16, §8.3: **la puerta 2 la hace el Dueño con su sesión**, desde Editar, y el agente solo verifica en modo lectura; el aviso de fechas llega también al Dueño —`0065`, D-206 corregida—, y el bloque SQL sin sesión queda descartado porque dejaba la bitácora a nombre de «Sistema»; antes, ese mismo día, §8: el procedimiento de producción con **tres puertas** —migraciones y despliegue, extender la fecha de fin con su aviso, y la transición— y lo que pasa con los sorteos que conservan el sistema de siempre, D-206; antes, ese mismo día, la transición preparada para la Entrega 5, D-204). Guía de diagnóstico rápido para quien opera la aplicación en
 producción. El detalle técnico de cada `I-0xx` citado está en
 [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) — aquí solo el síntoma y qué hacer.
@@ -1032,3 +1034,68 @@ produjo ninguna coincidencia) y el tramo del **10/08 al 24/08**, que sigue pendi
 * **No** se lee el historial con la clave de servicio desde la aplicación.
 * **No** se confirma el resultado de un sorteo antiguo sin evidencia oficial; y si un día se confirma uno del
   sistema de siempre con coincidencias vendidas, **su premio no aparece solo**: hay que reconocerlo (I-142).
+
+---
+
+## 10. Publicar la configuración de ganancias (`0078`, D-237) — **PENDIENTE, NO AUTORIZADA**
+
+> Nada de esto se ha ejecutado. La `0078` y su código viven **solo en local** (rama
+> `feature/detalle-boleta-admin`, commit de D-237). Publicarlos exige la autorización expresa del dueño, y
+> cada paso que escribe lo hace **el dueño con su propia sesión**; quien prepara la puerta se detiene, le da
+> los pasos y verifica en solo lectura.
+
+### 10.0 Por qué esta migración tiene puerta propia
+
+| Riesgo | Por qué |
+|---|---|
+| **Mueve cómo se calcula el dinero** | El motor recuenta todas las rifas al final de la migración. Está diseñada para no cambiar un peso —y se detiene si cambia uno—, pero eso se mide sobre los datos reales, no se supone |
+| **No es aditiva** | Retira `commission_tiers`, `team_max_fixed_commission` y la firma vieja de `commission_summary`. El código publicado deja de funcionar en el panel del vendedor y en «Mi equipo» en cuanto se aplica, y el nuevo no funciona sin ella (`DEPLOYMENT` §3.3.b) |
+| **No se revierte con un despliegue** | Volver al código anterior no devuelve `commission_tiers`. La recuperación es el respaldo de 10.2 o una migración inversa, que **no está escrita** |
+| **Puede destapar lo que ya era incompatible** | Un integrante que hoy gana más que su padre en alguna rifa (BR-G28) queda medido en `team_shortfall`, no corregido (BR-G35) |
+
+### 10.1 Antes, en solo lectura (puerta 0)
+
+1. Estado del proyecto: migraciones aplicadas hasta `0077` y ninguna posterior; el despliegue servido.
+2. **Los tramos de cada organización cumplen BR-G32** (primer tramo en 1, tarifas crecientes, como mucho 20):
+   si no, la migración se detiene diciendo cuál. Se lee `commission_tiers` por organización.
+3. **Ninguna estructura de tres niveles** (I-176): un vendedor que tiene equipo y a la vez vendedor padre. Si
+   existe, la migración se detiene; corregirla cambia dinero y la decide el dueño.
+4. Las rifas —estado y precio— y los integrantes fijos o por tramos cuyo padre conserva la mitad: son los
+   pares que BR-G28 puede declarar incompatibles.
+5. La foto de la puerta (`gate-db`, `repeatable read read only`) con `seller_commissions`, `commission_ledger`
+   por partes y `memberships`, para comparar después (`gate-compare`; `commission_tier_lists` y sus tramos ya
+   están en su lista).
+
+### 10.2 Respaldo
+
+Un respaldo **validado** del proyecto antes de aplicar nada, como en §9.2. Es el único camino de vuelta.
+
+### 10.3 Aplicar (puerta 1, la hace el dueño)
+
+En una hora sin cron (la sincronización de loterías y los recordatorios), aplicar **solo** la `0078` y
+promover el código de D-237 **enseguida**, midiendo la ventana (`DEPLOYMENT` §3.3.b). La migración:
+
+* crea la versión 1 de la lista general de cada organización con **exactamente** sus `commission_tiers`;
+* deja a toda membresía con la mitad como acuerdo administrativo y fija a los integrantes por tramos a la
+  versión 1;
+* recalcula y **se detiene** si `earned`, `team_earned` o el ledger por partes cambian en un solo peso;
+* comprueba sus propios privilegios (38 funciones, `scripts/earning-function-grants.ts`) y se detiene si no
+  coinciden.
+
+### 10.4 Después, en solo lectura
+
+1. `select * from commission_agreement_problems();` con la *service role*. **Cero filas** es lo esperado. Si hay
+   alguna —`par_incompatible`, `tres_niveles`, `faltante_de_equipo`, `rebaja_sin_cubrir`—, **no se corrige
+   nada**: se documenta el alcance y lo decide el dueño (BR-G35).
+2. `npm run verify:remote`: las comprobaciones de siempre y las tres de la `0078`.
+3. `gate-compare` contra la foto de 10.1: ninguna diferencia en lo congelado; en `seller_commissions`, solo las
+   columnas nuevas.
+4. El dueño, con su sesión: «Configuración» → «Ganancias de vendedores» abre con la versión 1; la ficha de un
+   vendedor dice «La mitad del precio…»; el panel de un vendedor con cobros enseña la misma cifra que antes.
+
+### 10.5 Lo que NO se hace nunca
+
+* **No** se corrige un par incompatible, un faltante o una estructura de tres niveles sin la decisión del dueño:
+  cambia dinero.
+* **No** se convierte la mitad en una cifra fija, ni se le asigna a nadie de nuevo (BR-G30).
+* **No** se aplica la `0078` sin promover el código en la misma ventana, ni el código sin la `0078`.

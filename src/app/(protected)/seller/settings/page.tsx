@@ -1,15 +1,7 @@
-import {
-  BellIcon,
-  ChevronRightIcon,
-  ImageIcon,
-  LandmarkIcon,
-  type LucideIcon,
-  MessageCircleIcon,
-} from 'lucide-react'
-import Link from 'next/link'
+import { BellIcon, ImageIcon, LandmarkIcon, MessageCircleIcon } from 'lucide-react'
 
 import { PageHeader } from '@/components/data/PageHeader'
-import { Card, CardContent } from '@/components/ui/card'
+import { SettingsCard } from '@/components/data/SettingsCard'
 import { ACCOUNT_COPY } from '@/features/payment-accounts/accounts'
 import { countActivePaymentAccounts } from '@/features/payment-accounts/queries'
 import {
@@ -109,37 +101,4 @@ function countLabel(
   if (count === 0) return copy.none
   if (count === 1) return copy.one
   return copy.many(count)
-}
-
-/**
- * La tarjeta entera es el enlace, con su flecha a la derecha: la misma forma que
- * `ClientLinkCard` (D-101). Una diana de toda la fila se acierta sin mirar.
- */
-function SettingsCard({
-  href,
-  icon: Icon,
-  title,
-  status,
-}: {
-  href: string
-  icon: LucideIcon
-  title: string
-  status: string
-}) {
-  return (
-    <Card className="py-0 transition-colors hover:bg-accent/50">
-      <CardContent className="p-0">
-        <Link href={href} className="flex items-center gap-3 p-4">
-          <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full">
-            <Icon className="size-5" aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="text-body-medium block font-medium">{title}</span>
-            <span className="text-body-small text-muted-foreground block">{status}</span>
-          </span>
-          <ChevronRightIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
-        </Link>
-      </CardContent>
-    </Card>
-  )
 }

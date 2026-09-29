@@ -477,6 +477,13 @@ async function crearPersona(opciones: {
     profile_id: persona.id,
     role: opciones.rol,
     parent_seller_id: opciones.padre ?? null,
+    // Un integrante nunca gana mas que su vendedor padre en ninguna rifa
+    // (BR-G28, D-237). El padre de estas pruebas conserva la mitad, y otras
+    // suites dejan rifas mas baratas: por tramos no cabria. Un fijo minimo cabe
+    // en cualquiera, y aqui la ganancia no es lo que se prueba.
+    ...(opciones.padre
+      ? { commission_model: 'fixed_per_ticket' as const, fixed_commission_amount: 1_000 }
+      : {}),
   })
   if (error) throw error
   return persona.id

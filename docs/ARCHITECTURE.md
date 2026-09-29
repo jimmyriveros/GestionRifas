@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.46 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (**§8.2.c**: campos
+- **Versión:** 1.47 · **Estado:** implementado · **Actualizado:** 2026-09-29 (**§8.30 nueva**: la configuración de
+  ganancias —D-237, **solo en local**—: un solo editor de tramos, los dos acuerdos leídos en una petición, el campo
+  «Cómo le vas a pagar» sin textos propios y la «Configuración» del personal). Antes, 2026-09-19, más tarde (**§8.2.c**: campos
   que comparten fila, `FormItem` con `content-start`, D-210). Antes, ese mismo día (**§8.23**: el código de
   Bre-B y «Otros» **servido en producción**, `6401bd0`; la arquitectura no cambia). Antes, ese mismo día (**§8.23**: Bre-B y «Otros» —D-209,
   **solo en local**—: `accountShape` decide el campo, la llave va en un `Input` de texto y no en `PhoneInput`, y un
@@ -428,7 +430,8 @@ Las dos barras **nunca conviven**: la lateral es `hidden md:flex` y la inferior,
 | `LotteryResultsCard` | Recuadro de resultados oficiales de los dos Paneles (D-147, §8.19). Server Component **puro**: recibe `data` ya leído, no consulta nada. Su prop `variant` elige entre las dos formas: `full` —el portal administrativo— y `compact` —el panel del vendedor, dos filas y el resto tras un `<details>` nativo (D-180)— |
 | `LotteryResultsSection` | Lo que ponen las dos páginas (D-155, §8.19.d): hace la lectura local dentro de un `<Suspense>` propio, con `LotteryResultsFallback` como hueco, para que el Panel no la espere. Propaga `variant` a los dos, de modo que el hueco tenga la forma y el título de la tarjeta que va a llegar |
 | `LotteryCompactCard` | El armazón de la forma compacta (D-181). **Único componente cliente del recuadro**, y solo por dos cosas que el HTML no da: que el detalle se despliegue **encima** del contenido y que se cierre al tocar fuera. Recibe el detalle ya dibujado en el servidor; no consulta, no calcula y no conoce ninguna regla |
-| `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext` |
+| `CommissionCard` | «Tu ganancia» del panel del vendedor (D-095). No calcula nada: recibe la fila de `commission_summary`. Separa **lo ganado** de **la proyección** deliberadamente, y la barra lleva su valor en `aria-valuetext`. **Desmontada** desde D-112 (I-068), y sus textos dan por hecha la regla anterior a D-237 |
+| `TierListEditor` / `TierTable` / `CommissionModelField` | Escribir y leer una lista de tramos, y elegir cómo se le paga a un vendedor en las dos altas y los dos cambios (§8.30, D-237) |
 | `NotificationBell` / `NotificationMenu` | Campanita del encabezado (D-093). El servidor lee la bandeja al pintar la pantalla; sin peticiones desde el navegador ni tiempo real. El contador va también en el `aria-label`, no solo en el punto rojo |
 | `TableSection` | Tarjeta con título —y acción opcional— que envuelve un listado (§8.14, D-113). La tabla de dentro se aplana con `SECTION_TABLE_CLASSES` para no pintar dos bordes concéntricos; el relleno está calculado para que la primera columna quede alineada con el título |
 | `ConfirmDialog` | Confirmación de acciones sensibles (anular, desactivar, aprobar). Sus dos botones traen el **suelo táctil de 44 px** en el teléfono —36 desde `sm`— porque lo pone `AlertDialogAction`/`AlertDialogCancel`, no esta pantalla ni sus consumidores (D-177). **No le pases `size` a los botones de un diálogo de confirmación.** ⚠️ En la familia `Dialog` es al revés: su pie es un `div` que **no** renderiza los botones, así que ahí **sí** hay que pasar `size="touch"` en cada uno (D-178). La «X» de la esquina la traen ya `ui/dialog.tsx` y `ui/sheet.tsx` |
@@ -2384,6 +2387,39 @@ de uso:
 | Las seis series `data/category/*` se usan igual: todas cumplen 3:1 en los tres ámbitos | Desde D-232 la 6 es `gold/700` en claro (4,92:1); la excepción y el bloqueo de I-172 se retiraron |
 | `accent/indigo` tiene dos tonos: el de siempre (`surface`, `foreground`) y uno intenso (`surface-strong`, `border-strong`), con `foreground-subtle` y `border` para el suave | Nacieron para los números de la boleta (D-233), pero son del acento, no de la pantalla: un tono se elige con sus tres roles juntos |
 | `bg-accent` (shadcn, gris de hover) y `bg-accent-<familia>-surface` son cosas distintas | Los nombres son los de Figma, que no se renombran |
+
+### 8.30 Configuración de ganancias: una lista general, dos acuerdos y un solo editor (D-237)
+
+> 🧪 **Solo en local**, con la migración `0078` (`DATA_MODEL` §4.24, `SECURITY` §4.25).
+
+**El dinero sigue en PostgreSQL** (BR-G05). Ninguna pantalla calcula una ganancia: leen `commission_summary`
+—que ahora trae `tier_tickets_paid`— y el acuerdo de cada vendedor, y escriben por cuatro RPC. Lo único que la
+interfaz «calcula» es lo que se lee de una regla: el «hasta» de un tramo y la tarifa de la primera boleta de quien
+todavía no ha cobrado ninguna (`firstTicketRate`).
+
+| Pieza | Qué es |
+|---|---|
+| `src/features/commissions/tiers.ts` | **Puro**: el tipo de un tramo, los límites y la validación de una lista con **las frases de la base**, el «hasta» derivado y la forma `{min_tickets, rate}` de las RPC. Lo usan el editor, los esquemas y sus pruebas |
+| `src/features/commissions/agreement.ts` | **Puro**: `Agreement` y `SellerAgreement` —los dos acuerdos y el que rige—, `firstTicketRate` y de dónde salen unos tramos (`tierListOrigin`) |
+| `src/features/commissions/queries.ts` | `server-only`. `getSellerAgreement` lee **los dos acuerdos con sus listas embebidas en UNA petición** (las FK `memberships_direct_tier_list_fk` y `memberships_team_tier_list_fk`); `getCommissionTemplate`, la versión vigente; `getTeamCommissionLimits`, lo que un jefe puede ofrecer. La RLS decide quién ve qué |
+| `src/features/commissions/schemas.ts` | Los campos del acuerdo y sus reglas, compartidos por las **dos** altas y los **dos** cambios. Una versión «de formulario» admite tramos a medio escribir; la del servidor, solo completos |
+| `src/features/commissions/actions.ts` | `saveCommissionTemplate` y `setSellerAgreement`, con `authorizeCapability('sellers.earnings.manage')`. Devuelven `changed` para que la pantalla diga si hubo cambio |
+| `src/features/commissions/copy.ts` | **Todos** sus textos (`EARNINGS_COPY`, Anexo B de la guía) |
+| `TierListEditor` | **Un solo editor** de tramos, controlado —recibe y devuelve la lista entera—, para la lista general y para personalizar. En el teléfono cada fila se parte en dos líneas |
+| `TierTable` | La lista para **leerla**; sustituye a la tabla privada que tenía `CommissionModelField` |
+| `AgreementTiersBlock` | Debajo de «Cómo le vas a pagar», solo del personal: la lista que se aplicará —general, «sus tramos de ahora» o personalizada— y la salida para personalizar |
+| `CommissionModelField` | Sigue siendo **el** campo de las dos altas y los dos cambios: dos tarjetas, un radio de verdad. Desde D-237 no escribe textos ni tramos; recibe lo que va dentro de la tarjeta de tramos, lo que va debajo, la nota, el tope y **por qué no se pueden elegir los tramos**, si no se puede |
+| `SellerAgreementCard` / `SellerAgreementDialog` | La ficha administrativa «Cómo se le paga» y su cambio explícito, con el aviso de qué rifas recalcula —recuentos de `admin_ticket_inventory`, **sin dinero**— |
+| `CommissionTemplateForm` | La lista general, en `/owner/settings/earnings`. La página la monta con `key` = versión |
+| `SettingsCard` | La tarjeta-enlace de un resumen de «Configuración», extraída de la del vendedor (D-188) para que las dos se lean igual |
+
+**El alta del personal** sigue siendo `UserDialog` + `inviteMember` (D-045): con `agreement`, la membresía no se
+inserta, nace en `staff_create_seller_membership` junto con su lista; si falla, la cuenta se borra igual. La
+capacidad se comprueba **antes** de enviar la invitación, y el alta del equipo valida la oferta con
+`team_commission_limits` también antes del correo y del cupo (D-062).
+
+**«Configuración» del personal** vive, como la del vendedor, en el menú del avatar (`UserMenu`), y es un resumen
+que no carga formularios (§8.23).
 
 ## 9. Configuración regional
 

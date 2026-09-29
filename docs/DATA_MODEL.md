@@ -1,6 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.29 · **Estado:** implementado · **Actualizado:** 2026-09-19, más tarde (§6.g.6: `0073` y `0074`
+- **Versión:** 2.30 · **Estado:** implementado · **Actualizado:** 2026-09-29 (§4.3 y **§4.24 nueva**: la
+  configuración de ganancias —D-237, migración `0078`, **solo en local**—: listas de tramos inmutables y
+  versionadas, dos acuerdos por membresía, el conteo del tramo y el faltante medido en `seller_commissions`, y
+  `commission_tiers` retirada). Antes, el 2026-09-19, más tarde (§6.g.6: `0073` y `0074`
   **aplicadas en producción** a las 17:53 UTC; el modelo no cambia). Antes, ese mismo día (§4.15 y §6.g.6: **Bre-B y «Otros»**
   —D-209, migraciones `0073` y `0074`, **solo en local**—: dos valores más en `payment_account_kind`, la columna
   `identifier`, el CHECK de forma con una rama por forma, el CHECK del identificador, el índice de duplicados con una
@@ -306,7 +309,11 @@ Panel decir «Verificado por 2 fuentes» en vez de hacerlo pasar por oficial.
 | `invited_by` | `uuid` | FK → `profiles(id)`, `NULL` |
 | `parent_seller_id` | `uuid` | `NULL`, FK compuesta → `memberships(profile_id, organization_id)` (`0022`, BR-E01) |
 | `commission_model` | `commission_model` | `NOT NULL DEFAULT 'tiered'` (`0031`, BR-G24) |
-| `fixed_commission_amount` | `bigint` | `NULL`; obligatoria y `> 0` con `fixed_per_ticket` (`0031`, BR-G24) |
+| `fixed_commission_amount` | `bigint` | `NULL`; obligatoria y `> 0` con `fixed_per_ticket` (`0031`, BR-G24); `≤ 10.000.000` (`0078`) |
+| `team_tier_list_id` | `uuid` | `NULL`; la versión de la lista general que recibió su acuerdo de equipo por tramos; FK compuesta → `commission_tier_lists(id, organization_id)` (`0078`, BR-G24) |
+| `direct_commission_mode` | `commission_agreement_mode` | `NOT NULL DEFAULT 'half_price'`: el acuerdo administrativo (`0078`, BR-G13, BR-G30) |
+| `direct_fixed_amount` | `bigint` | `NULL`; `1..10.000.000` y obligatoria con `fixed_per_ticket` (`0078`) |
+| `direct_tier_list_id` | `uuid` | `NULL`; obligatoria con `tiered`; FK compuesta → `commission_tier_lists(id, organization_id)` (`0078`, BR-G29) |
 | `public_slug` | `text` | `NULL`, único en TODO el sistema; formato `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–80 (`0043`, BR-K02) |
 | `public_catalog_enabled` | `boolean` | `NOT NULL DEFAULT false` (`0043`, BR-K04) |
 | `public_whatsapp_number` | `text` | `NULL`, solo dígitos `^[1-9][0-9]{7,14}$` (`0043`, BR-K05) |
@@ -467,11 +474,12 @@ política—.
 
 **`commission_model` / `fixed_commission_amount`** (BR-G24, D-127): cómo se le paga a esta persona
 **mientras pertenezca a un equipo**. Viven aquí y no en una tabla aparte porque esta fila **es** la
-relación entre el vendedor padre y el integrante. Con `parent_seller_id` nulo quedan inertes —esa
-persona cobra la mitad del precio (BR-G13)— pero no se borran: volver a entrar a un equipo las
-reactiva tal como estaban. El **tope** del importe (la mitad del precio de la rifa, BR-G23) no cabe en
-un `CHECK` porque hay que consultar `raffles`, así que lo impone el trigger
-`memberships_validate_commission`, que cubre tanto el alta como la edición.
+relación entre el vendedor padre y el integrante. Con `parent_seller_id` nulo quedan inertes pero no
+se borran: volver a entrar a un equipo las reactiva tal como estaban. ~~El **tope** del importe (la
+mitad del precio de la rifa, BR-G23) lo impone el trigger `memberships_validate_commission`.~~ **Desde
+la `0078` (D-237)** el tope es el acuerdo del propio padre (BR-G28) y lo impone
+`memberships_validate_seller_agreements`; el acuerdo administrativo —`direct_*`— rige mientras
+`parent_seller_id` es nulo. Todo en §4.24.
 
 ⚠️ **Este índice garantiza «como máximo uno», no «exactamente uno».** Durante siete fases esta
 sección decía «exactamente un Owner activo», y el resto del modelo lo daba por cierto — hasta que la
@@ -1348,6 +1356,58 @@ activa y alguna fecha cambió).
 | Bitácora | `audit_logs` `raffle.dates_change` con las fechas, `change_id` y `notified`, además del `raffle.update` de `audit_raffles` |
 
 **El texto no vive en la base** (I-030): lo arma `src/features/notifications/text.ts`.
+
+### 4.24 Configuración de ganancias (`0078`, BR-G27..BR-G35, D-237)
+
+> 🧪 **Solo en local.** El proyecto real no tiene la `0078`; antes de publicarla, la puerta de `RUNBOOK`
+> §10 (diagnóstico de solo lectura y conservación medida).
+
+Los tramos dejan de ser una tabla viva y pasan a ser **listas inmutables y versionadas**; cada vendedor
+tiene **dos acuerdos** en su membresía y rige uno (BR-G13).
+
+| Tabla | Qué guarda |
+|---|---|
+| `commission_tier_lists` | Una lista entera. `kind = 'template'` → versión `template_version` (1, 2, 3…) de la lista general, única por organización; la vigente es la más alta. `kind = 'custom'` → la de un solo vendedor (`owner_profile_id`). `created_by` nulo = el sistema. CHECK `commission_tier_lists_shape` |
+| `commission_tier_list_items` | Sus tramos: PK `(list_id, min_tickets)` y `rate`; CHECK `min_tickets 1..100000` y `rate 1..10.000.000`. **El «hasta» no se guarda**: es el inicio del siguiente menos uno |
+
+| Garantía | Cómo |
+|---|---|
+| Toda lista nueva es válida | Disparador de restricción **diferido** `commission_tier_lists_complete`: al confirmar, `commission_tiers_problem(commission_list_json(id))` tiene que ser nulo, sea cual sea el camino (BR-G32) |
+| Se escribe entera, una vez | `commission_tier_list_items_guard`: solo se insertan tramos en la transacción que creó la lista (`created_at = now()`) |
+| No se modifica nunca | `commission_tier_lists_immutable` sobre las dos tablas: ningún `UPDATE` |
+| Quién lee | RLS forzada: la general, toda la organización; una personalizada, su dueño y el personal. **Ninguna política de escritura**: solo las funciones (BR-G34) |
+
+**`memberships`** gana el acuerdo administrativo —`direct_commission_mode`, `direct_fixed_amount`,
+`direct_tier_list_id`— y `team_tier_list_id` para el de equipo (§4.3), con
+`memberships_direct_agreement_shape` (las tres formas y ninguna más), `memberships_team_tier_list_shape`
+(la lista del equipo, solo y siempre con tramos dentro de un equipo) y `memberships_team_fixed_cap`.
+**`seller_commissions`** gana `tier_tickets_paid` (el conteo del tramo, BR-G27) y `team_shortfall` (lo
+que la empresa pone por un par incompatible **anterior**, BR-G35; cero en todo acuerdo admitido).
+
+| Pieza | Qué hace |
+|---|---|
+| `memberships_validate_seller_agreements` | `BEFORE INSERT OR UPDATE` de las columnas del acuerdo, el padre y el rol: completa `team_tier_list_id` con la versión vigente, valida qué lista puede usar cada acuerdo, quién puede cambiarlo (BR-G34), que nadie reciba la mitad de nuevo (BR-G30), los dos niveles (I-176), la compatibilidad padre–hijo bajo el cerrojo del equipo (BR-G28) y las rebajas ya concedidas (BR-G31) |
+| `raffles_validate_team_agreements` | Crear una rifa, bajarle el precio o reactivarla no puede dejar a un integrante ganando más que un padre que conserva la mitad (BR-G28) |
+| `memberships_sync_commission` | El de siempre (BR-G25): recalcula hacia atrás al afectado y al padre anterior y al nuevo cuando cambia el acuerdo que rige o el equipo |
+| `organizations_seed_commission_template` | Toda organización nueva nace con la versión 1 (sustituye a `organizations_seed_commission_tiers`) |
+| `recalc_seller_commission` | El motor de D-094, con el conteo del tramo del jefe (BR-G27), la parte del equipo `Σ N_hijo × (tarifa_padre − tarifa_hijo)` (BR-G20) y el faltante medido (BR-G35) |
+
+**Funciones.** Las RPC de sesión: `save_commission_template`, `staff_create_seller_membership`,
+`staff_set_seller_agreement`, `team_set_commission_model` (redefinida), `team_commission_limits` y
+`commission_summary` (con `tier_tickets_paid`). Solo la *service role*: `recalc_seller_commission` y el
+diagnóstico `commission_agreement_problems()`. Las **30** restantes no las ejecuta nadie directamente. La
+lista exacta vive en `scripts/earning-function-grants.ts` y la migración se comprueba a sí misma al
+aplicarse (`SECURITY` §4.24).
+
+**Retiradas:** la tabla `commission_tiers` y las funciones `commission_rate_for`,
+`commission_team_earned`, `team_max_fixed_commission` y `memberships_validate_commission`.
+
+**Datos que la migración deja (D-237 §2).** Cada organización recibe la versión 1 con **exactamente** sus
+`commission_tiers`; todo integrante por tramos queda fijado a esa versión; **toda** membresía —activa o
+no, de cualquier rol— queda con acuerdo administrativo `half_price`. El recálculo final no puede cambiar
+un peso: la migración compara `earned`, `team_earned` y el ledger por partes antes y después y se detiene
+si algo difiere. También se detiene si los tramos de una organización no cumplen BR-G32 o si existe una
+estructura de tres niveles (I-176).
 
 ---
 

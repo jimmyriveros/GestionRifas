@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { authorizeAction } from '@/lib/auth/guards'
+import { authorizeAction, authorizeCapability } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -45,6 +45,18 @@ export async function createUser(input: unknown): Promise<ActionResult> {
   }
   const values = parsed.data
 
+  // Un vendedor nace con su acuerdo (BR-G30), y darselo es de quien tiene la
+  // capacidad (D-237). Se comprueba ANTES de enviar la invitacion: si la base
+  // lo rechazara despues, la cuenta se borraria, pero el correo ya habria
+  // salido con un enlace que no sirve.
+  if (values.role === 'seller') {
+    const capability = await authorizeCapability('sellers.earnings.manage', {
+      roles: ['owner', 'admin'],
+      deniedMessage: 'No tienes permiso para dar de alta vendedores con su ganancia.',
+    })
+    if ('error' in capability) return capability
+  }
+
   // Cada invitacion envia un correo y consume cuota de Auth. Se limita por
   // ORGANIZACION, no por quien invita: si no, bastaria con alternar entre dos
   // administradores para duplicar el cupo (D-062).
@@ -61,6 +73,18 @@ export async function createUser(input: unknown): Promise<ActionResult> {
     invitedBy: auth.membership.profileId,
     role: values.role,
     values,
+    ...(values.role === 'seller' && values.commissionModel
+      ? {
+          agreement: {
+            mode: values.commissionModel,
+            fixedAmount:
+              values.commissionModel === 'fixed_per_ticket'
+                ? (values.fixedCommissionAmount ?? null)
+                : null,
+            tiers: values.commissionModel === 'tiered' ? (values.customTiers ?? null) : null,
+          },
+        }
+      : {}),
   })
   if ('error' in result) return result
 

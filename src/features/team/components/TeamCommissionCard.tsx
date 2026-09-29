@@ -5,11 +5,12 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { CommissionSummary, CommissionTier } from '@/features/commissions/queries'
+import { TierTable } from '@/features/commissions/components/TierTable'
+import type { CommissionSummary } from '@/features/commissions/queries'
 import { COMMISSION_MODEL_LABELS, type CommissionModel } from '@/lib/constants'
 import { formatCOP } from '@/lib/money'
 
-import { TeamCommissionDialog } from './TeamCommissionDialog'
+import { TeamCommissionDialog, type TeamCommissionOptions } from './TeamCommissionDialog'
 
 /**
  * «Cuánto gana», en la ficha de un integrante del equipo (BR-G24, D-127).
@@ -29,12 +30,14 @@ import { TeamCommissionDialog } from './TeamCommissionDialog'
  *
  *   sin boletas cobradas -> solo la regla, porque todavia no hay dinero
  *   con boletas cobradas -> la regla y lo que lleva ganado
+ *
+ * Con tramos, la regla incluye SUS tramos (D-237): la version de la lista
+ * general que recibio, que no cambia aunque la lista general cambie.
  */
 export function TeamCommissionCard({
   member,
   commission,
-  tiers,
-  maxFixed,
+  options,
   raffleName,
 }: {
   member: {
@@ -45,8 +48,7 @@ export function TeamCommissionCard({
   }
   /** Su comision en la rifa de la que se esta hablando. `null` si aun no vende. */
   commission: CommissionSummary | null
-  tiers: CommissionTier[]
-  maxFixed: number | null
+  options: TeamCommissionOptions
   raffleName: string | null
 }) {
   const [open, setOpen] = useState(false)
@@ -83,6 +85,9 @@ export function TeamCommissionCard({
               ? 'Gana lo mismo por cada boleta que cobre completa, venda las que venda.'
               : 'Gana más por cada boleta a medida que cobra más. El valor nuevo se aplica a todas las que ya cobró.'}
           </p>
+          {!esFijo && options.currentTiers ? (
+            <TierTable tiers={options.currentTiers} className="max-w-xs pt-1 text-sm" />
+          ) : null}
         </div>
 
         {ticketsPaid > 0 && commission !== null ? (
@@ -110,13 +115,7 @@ export function TeamCommissionCard({
         )}
       </CardContent>
 
-      <TeamCommissionDialog
-        open={open}
-        onOpenChange={setOpen}
-        member={member}
-        tiers={tiers}
-        maxFixed={maxFixed}
-      />
+      <TeamCommissionDialog open={open} onOpenChange={setOpen} member={member} options={options} />
     </Card>
   )
 }

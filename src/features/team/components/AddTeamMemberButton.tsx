@@ -10,12 +10,12 @@ import { createTeamMember } from '../actions'
 
 /**
  * «Agregar vendedor»: abre el MISMO formulario que usa el portal
- * administrativo, con otro destino, otras palabras y una seccion mas (BR-E04).
+ * administrativo, con otro destino y otras palabras (BR-E04).
  *
- * Esa seccion —«Cómo le vas a pagar»— es la unica diferencia de campos entre
- * las dos altas, y existe solo aqui porque solo aqui hay algo que elegir: un
- * vendedor dado de alta por el personal cobra la mitad del precio y no depende
- * de nadie (BR-G13, BR-G24).
+ * La seccion «Cómo le vas a pagar» la tienen las dos altas desde D-237. La de
+ * aqui es la del equipo: la lista general tal cual o una cifra fija, con el
+ * tope que le cabe al propio vendedor padre (BR-G28). Personalizar tramos es
+ * del personal.
  */
 export function AddTeamMemberButton({
   label = 'Agregar vendedor',

@@ -3,11 +3,14 @@ import 'server-only'
 import { listRaffleOptions, type RaffleOption } from '@/features/raffles/queries'
 import { createClient } from '@/lib/supabase/server'
 
+import type { Agreement, AgreementMode, SellerAgreement, TierListInfo } from './agreement'
+import { fromDbTiers } from './tiers'
+
 /**
  * Lectura de comisiones.
  *
- * TODO pasa por `commission_summary` (migracion 0024): ninguna pantalla suma,
- * multiplica ni decide tramos por su cuenta. Es la regla del proyecto para el
+ * TODO pasa por `commission_summary` (migracion 0024, ampliada en la 0078):
+ * ninguna pantalla suma, multiplica ni decide tramos por su cuenta. Es la regla del proyecto para el
  * dinero —se calcula en SQL— y ademas lo que pedia el encargo: una sola fuente
  * de verdad en el servidor.
  *
@@ -17,17 +20,17 @@ import { createClient } from '@/lib/supabase/server'
  */
 
 /**
- * Con que regla se le paga a este vendedor (BR-G13, BR-G24).
+ * Con que regla se le paga a este vendedor: la del acuerdo que RIGE (D-237).
  *
- *   `half_price` — no pertenece a ningun equipo: la mitad del precio vigente de
- *                  la rifa. Incluye al vendedor que ARMO un equipo.
- *   `tiered`     — integrante de un equipo, por tramos.
- *   `fixed`      — integrante de un equipo, con una cifra fija pactada con su
- *                  vendedor padre.
+ *   `half_price` — la mitad del precio vigente de la rifa. Solo la conserva
+ *                  quien ya la tenia y no pertenece a ningun equipo (BR-G30).
+ *   `tiered`     — por tramos: los de la lista general o unos propios.
+ *   `fixed`      — una cifra fija por boleta.
  *
- * Las tres se explican con palabras distintas y ninguna sirve para las otras
- * dos: a quien cobra fijo no se le puede hablar de subir de nivel, y a quien
- * cobra la mitad tampoco, pero por motivos que no son el mismo.
+ * Desde D-237 las tres existen con y sin vendedor padre: un vendedor directo
+ * tambien puede cobrar un fijo o por tramos. Se explican con palabras distintas
+ * y ninguna sirve para las otras dos: a quien cobra fijo no se le puede hablar
+ * de subir de tramo, y a quien cobra la mitad tampoco.
  */
 export type PayModel = 'half_price' | 'tiered' | 'fixed'
 
@@ -37,12 +40,19 @@ export type CommissionSummary = {
   payModel: PayModel
   /**
    * Verdadero solo con `tiered`. Es exactamente la condicion que habilita
-   * hablar de «subir de nivel», y por eso sigue existiendo aparte de
+   * hablar de «subir de tramo», y por eso sigue existiendo aparte de
    * `payModel`: las pantallas preguntan por la capacidad, no por el nombre.
    */
   byTiers: boolean
   /** Boletas pagadas por completo: las que cuentan para la comision (BR-G01). */
   ticketsPaid: number
+  /**
+   * Las boletas que deciden su TRAMO (BR-G27): las suyas mas las de su equipo si
+   * lo tiene; las suyas si no. Es con este conteo, y no con `ticketsPaid`, con
+   * el que se sube de tramo, y por eso tambien es el que cuenta
+   * `ticketsToNext`.
+   */
+  tierTicketsPaid: number
   /** Lo que vale hoy cada boleta pagada. */
   rate: number
   /**
@@ -55,8 +65,8 @@ export type CommissionSummary = {
   /** Boletas cobradas por los integrantes de su equipo (BR-G20). Cero sin equipo. */
   teamTicketsPaid: number
   /**
-   * Lo que le queda por las ventas de su equipo: por cada boleta cobrada, la
-   * mitad del precio menos la tarifa del integrante (BR-G20). Cero sin equipo.
+   * Lo que le queda por las ventas de su equipo: por cada boleta cobrada, SU
+   * tarifa menos la del integrante (BR-G20, D-237). Cero sin equipo.
    */
   teamEarned: number
   /** Lo que se le debe en total por esta rifa. Es lo que se le paga. */
@@ -76,11 +86,18 @@ export type CommissionSummary = {
    * como dato contable.
    */
   discounts: number
-  /** Cuantas boletas hacen falta para el siguiente nivel; null si no hay mas. */
+  /**
+   * Desde cuantas boletas aplica el siguiente tramo, cuanto paga y cuantas le
+   * faltan, contadas como su tramo (`tierTicketsPaid`). `null` sin tramos
+   * por delante.
+   */
   nextMinTickets: number | null
   nextRate: number | null
   ticketsToNext: number | null
-  /** PROYECCION: lo que ganaria al llegar al siguiente nivel. No es dinero ganado. */
+  /**
+   * PROYECCION de lo PROPIO al llegar al siguiente tramo. No es dinero ganado.
+   * `null` con equipo: ahi el siguiente tramo depende de quien venda.
+   */
   projectedEarned: number | null
 }
 
@@ -94,6 +111,7 @@ function mapRow(row: {
   earned: number
   team_tickets_paid: number
   team_earned: number
+  tier_tickets_paid: number
   next_min_tickets: number | null
   next_rate: number | null
   tickets_to_next: number | null
@@ -113,6 +131,7 @@ function mapRow(row: {
       row.pay_model === 'tiered' || row.pay_model === 'fixed' ? row.pay_model : 'half_price',
     byTiers: row.by_tiers,
     ticketsPaid,
+    tierTicketsPaid: Number(row.tier_tickets_paid ?? 0),
     rate,
     earned,
     teamTicketsPaid: Number(row.team_tickets_paid ?? 0),
@@ -194,73 +213,218 @@ export async function getCommissionContext(): Promise<CommissionContext> {
 }
 
 /**
- * Lo que se paga por la primera boleta.
- *
- * Sirve para explicarle la regla a quien todavia no ha cobrado ninguna, que es
- * justo cuando no hay fila de comision que leer. Sale de la tabla de tramos, no
- * de una constante: si el negocio cambia lo que paga, el texto cambia con el.
+ * Una lista de tramos tal como llega embebida de PostgREST. La RLS decide si
+ * llega: la general la lee toda la organizacion; una personalizada, su dueño y
+ * el personal (D-237 §7).
  */
-export async function getFirstTierRate(): Promise<number> {
+type DbTierList = {
+  id: string
+  kind: 'template' | 'custom'
+  template_version: number | null
+  items: Array<{ min_tickets: number; rate: number }> | null
+} | null
+
+function mapTierList(row: DbTierList): TierListInfo | null {
+  if (!row) return null
+  return {
+    id: row.id,
+    kind: row.kind,
+    templateVersion: row.template_version,
+    tiers: fromDbTiers(row.items ?? []),
+  }
+}
+
+/**
+ * Los dos acuerdos de una membresia con sus listas, en UNA peticion: las listas
+ * vienen embebidas por las dos claves foraneas de la `0078`, en vez de una
+ * segunda ida y vuelta para leer los tramos.
+ */
+const AGREEMENT_SELECT = `
+  profile_id,
+  parent_seller_id,
+  commission_model,
+  fixed_commission_amount,
+  direct_commission_mode,
+  direct_fixed_amount,
+  direct_list:commission_tier_lists!memberships_direct_tier_list_fk ( id, kind, template_version, items:commission_tier_list_items ( min_tickets, rate ) ),
+  team_list:commission_tier_lists!memberships_team_tier_list_fk ( id, kind, template_version, items:commission_tier_list_items ( min_tickets, rate ) )
+`
+
+type AgreementRow = {
+  profile_id: string
+  parent_seller_id: string | null
+  commission_model: 'tiered' | 'fixed_per_ticket'
+  fixed_commission_amount: number | null
+  direct_commission_mode: AgreementMode
+  direct_fixed_amount: number | null
+  direct_list: DbTierList
+  team_list: DbTierList
+}
+
+function mapAgreement(row: AgreementRow): SellerAgreement {
+  const direct: Agreement = {
+    mode: row.direct_commission_mode,
+    fixedAmount:
+      row.direct_commission_mode === 'fixed_per_ticket' && row.direct_fixed_amount !== null
+        ? Number(row.direct_fixed_amount)
+        : null,
+    list: row.direct_commission_mode === 'tiered' ? mapTierList(row.direct_list) : null,
+  }
+  const team: Agreement = {
+    mode: row.commission_model,
+    fixedAmount:
+      row.commission_model === 'fixed_per_ticket' && row.fixed_commission_amount !== null
+        ? Number(row.fixed_commission_amount)
+        : null,
+    list: row.commission_model === 'tiered' ? mapTierList(row.team_list) : null,
+  }
+
+  return {
+    profileId: row.profile_id,
+    parentSellerId: row.parent_seller_id,
+    // D-237 §3: con vendedor padre rige el de equipo; sin el, el administrativo.
+    effective:
+      row.parent_seller_id === null ? { ...direct, source: 'direct' } : { ...team, source: 'team' },
+    direct,
+    team,
+  }
+}
+
+/**
+ * El acuerdo de un vendedor, o `null` si quien pregunta no puede verlo.
+ *
+ * Lo leen tres lectores y los tres por la RLS de siempre (`memberships_select`):
+ * el propio vendedor, su vendedor padre y el personal de su organizacion. Un id
+ * ajeno y uno inexistente devuelven lo mismo.
+ *
+ * NO ES CARTERA (D-198): dice con que regla se le paga, no cuanto lleva. Por eso
+ * el personal lo lee aunque no vea ninguna ganancia.
+ */
+export async function getSellerAgreement(
+  organizationId: string,
+  profileId: string,
+): Promise<SellerAgreement | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('commission_tiers')
-    .select('rate')
-    .order('min_tickets', { ascending: true })
+    .from('memberships')
+    .select(AGREEMENT_SELECT)
+    .eq('organization_id', organizationId)
+    .eq('profile_id', profileId)
+    .eq('role', 'seller')
+    .maybeSingle()
+
+  if (error) throw error
+  return data ? mapAgreement(data as unknown as AgreementRow) : null
+}
+
+/**
+ * Los acuerdos de VARIOS vendedores en una sola peticion, por id de perfil.
+ *
+ * Existe para las pantallas que necesitan el de quien mira y el de otro a la
+ * vez —la ficha de un integrante: el del padre dice como se escribe el tope, y
+ * el del integrante, sus tramos—: dos lecturas de la misma tabla en la misma
+ * espera eran dos idas y vueltas. Quien no se puede ver sencillamente no esta
+ * en el mapa, igual que en `getSellerAgreement`.
+ */
+export async function listSellerAgreements(
+  organizationId: string,
+  profileIds: readonly string[],
+): Promise<Map<string, SellerAgreement>> {
+  if (profileIds.length === 0) return new Map()
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('memberships')
+    .select(AGREEMENT_SELECT)
+    .eq('organization_id', organizationId)
+    .in('profile_id', [...profileIds])
+    .eq('role', 'seller')
+
+  if (error) throw error
+  return new Map(
+    ((data ?? []) as unknown as AgreementRow[]).map((row) => [row.profile_id, mapAgreement(row)]),
+  )
+}
+
+export type CommissionTemplate = TierListInfo & {
+  templateVersion: number
+  /** Cuando se guardo esta version. */
+  savedAt: string
+}
+
+/**
+ * La lista general VIGENTE: la version mas alta de la organizacion (BR-G29).
+ *
+ * La lee cualquiera de la organizacion —es la regla del juego—. `null` solo si
+ * la organizacion no tiene ninguna, que no deberia pasar: la `0078` le da la
+ * version 1 a cada organizacion y el alta de una nueva tambien.
+ */
+export async function getCommissionTemplate(
+  organizationId: string,
+): Promise<CommissionTemplate | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('commission_tier_lists')
+    .select('id, kind, template_version, created_at, items:commission_tier_list_items ( min_tickets, rate )')
+    .eq('organization_id', organizationId)
+    .eq('kind', 'template')
+    .order('template_version', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (error) throw error
-  return Number(data?.rate ?? 0)
+  if (!data || data.template_version === null) return null
+
+  return {
+    id: data.id,
+    kind: 'template',
+    templateVersion: data.template_version,
+    tiers: fromDbTiers(data.items ?? []),
+    savedAt: data.created_at,
+  }
 }
 
-export type CommissionTier = {
-  /** Desde cuantas boletas cobradas aplica esta tarifa. */
-  minTickets: number
-  rate: number
+export type TeamCommissionLimits = {
+  /**
+   * La ganancia fija mas alta que el vendedor que consulta puede pagarle a un
+   * integrante: lo que el gana por boleta en el peor caso (BR-G28). `null` si su
+   * acuerdo depende de un precio y no hay ninguna rifa.
+   */
+  maxFixed: number | null
+  /** La version de la lista general que recibiria un integrante por tramos. */
+  templateListId: string | null
+  /**
+   * Por que la lista general NO cabe en su acuerdo, dicho para una persona, o
+   * `null` si cabe. Con una frase aqui, la pantalla no ofrece los tramos.
+   */
+  templateProblem: string | null
 }
 
 /**
- * Los tramos vigentes de la organizacion, para poder ENSEÑARLOS.
+ * Lo que un vendedor a cargo puede ofrecerle a un integrante (BR-G28).
  *
- * La tarjeta que ofrece «ganancia por tramos» tiene que decir cuales son, y no
- * puede llevarlos escritos: son filas de `commission_tiers` y el negocio puede
- * cambiarlos sin desplegar (BR-G03). Escritos en el componente, el dia que
- * cambiaran la pantalla prometeria una cifra y la base de datos pagaria otra.
+ * Sale de la MISMA funcion que aplica la base (`commission_parent_cap`,
+ * `commission_pair_problem`), para que la pantalla no ofrezca algo que el
+ * disparador va a rechazar. Solo informa: la ultima palabra la tiene el
+ * disparador, que ademas mira las rifas cerradas y las rebajas.
  *
- * La politica `commission_tiers_select` deja leerlos a todo miembro de la
- * organizacion: son la regla del juego, no un dato de nadie.
+ * Solo la puede pedir quien puede formar equipo: activo y sin vendedor padre.
  */
-export async function listCommissionTiers(): Promise<CommissionTier[]> {
+export async function getTeamCommissionLimits(
+  organizationId: string,
+): Promise<TeamCommissionLimits> {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from('commission_tiers')
-    .select('min_tickets, rate')
-    .order('min_tickets', { ascending: true })
+    .rpc('team_commission_limits', { p_organization_id: organizationId })
+    .single()
 
   if (error) throw error
-  return (data ?? []).map((row) => ({
-    minTickets: Number(row.min_tickets),
-    rate: Number(row.rate),
-  }))
-}
 
-/**
- * El tope de la ganancia fija: la mitad del precio de la rifa (BR-G23).
- *
- * Sale de la misma funcion que aplica el trigger, no de una cuenta hecha aqui:
- * si el formulario calculara su propio tope y la base de datos otro, el usuario
- * veria un mensaje de error despues de que la pantalla le dijera que su cifra
- * era valida. `null` significa que la organizacion no tiene ninguna rifa y no
- * hay precio contra el que medir.
- */
-export async function getMaxFixedCommission(organizationId: string): Promise<number | null> {
-  const supabase = await createClient()
-  const { data, error } = await supabase.rpc('team_max_fixed_commission', {
-    p_organization_id: organizationId,
-  })
-
-  if (error) throw error
-  return data === null ? null : Number(data)
+  return {
+    maxFixed: data?.max_fixed === null || data?.max_fixed === undefined ? null : Number(data.max_fixed),
+    templateListId: data?.template_list_id ?? null,
+    templateProblem: data?.template_problem ?? null,
+  }
 }
 
 /**

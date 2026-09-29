@@ -2,9 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { getTeamCommissionLimits } from '@/features/commissions/queries'
 import { inviteMember, sendInvitation } from '@/features/users/invite'
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
+import { formatCOP } from '@/lib/money'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -39,6 +41,15 @@ export async function createTeamMember(input: unknown): Promise<ActionResult> {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
   }
   const values = parsed.data
+
+  // BR-G28: lo que la base va a rechazar se dice ANTES de enviar la invitacion.
+  // El disparador sigue teniendo la ultima palabra —mira ademas las rifas
+  // cerradas—, pero si el rechazo llegara despues, la cuenta se borraria y a
+  // la persona ya le habria llegado un correo con un enlace que no sirve. Va
+  // antes que los limites: una oferta rechazada no envia correo y no debe
+  // gastar cupo.
+  const offer = await teamOfferProblem(auth.membership.organizationId, values)
+  if (offer) return { error: offer }
 
   // DOS limites, porque protegen cosas distintas. El del vendedor evita que uno
   // solo agote de golpe el cupo de toda la organizacion —hasta esta version
@@ -76,6 +87,37 @@ export async function createTeamMember(input: unknown): Promise<ActionResult> {
   revalidatePath('/seller/team')
   revalidatePath('/seller/dashboard')
   return { ok: true }
+}
+
+/**
+ * Si el acuerdo que se le ofrece a un integrante nuevo no cabe en el del
+ * vendedor padre, la frase que lo explica; si cabe, `null`. Con las mismas
+ * cifras que usa el disparador (`team_commission_limits`, D-237).
+ */
+async function teamOfferProblem(
+  organizationId: string,
+  values: { commissionModel: string; fixedCommissionAmount?: number | null },
+): Promise<string | null> {
+  let limits: Awaited<ReturnType<typeof getTeamCommissionLimits>>
+  try {
+    limits = await getTeamCommissionLimits(organizationId)
+  } catch (error) {
+    // La base solo responde a quien puede liderar un equipo. Quien ya pertenece
+    // al de otro no ve el boton; si llega aqui, se le dice lo mismo que diria
+    // la pantalla, no el mensaje de una consulta.
+    if ((error as { code?: string } | null)?.code === '42501') {
+      return 'Solo un vendedor a cargo de su equipo puede agregar vendedores.'
+    }
+    return mapPgError(error)
+  }
+
+  if (values.commissionModel === 'tiered') return limits.templateProblem
+
+  const amount = values.fixedCommissionAmount ?? 0
+  if (limits.maxFixed !== null && amount > limits.maxFixed) {
+    return `No puedes pagarle más de ${formatCOP(limits.maxFixed)} por boleta: es lo que ganas tú por cada boleta, y de ahí sale su ganancia.`
+  }
+  return null
 }
 
 function refreshTeam(memberId: string): void {
@@ -201,9 +243,11 @@ export async function updateTeamMember(input: unknown): Promise<ActionResult> {
  *   * QUIEN puede    — `team_member_guard`, la misma puerta que ya gobierna
  *                      corregir y eliminar a un integrante (0026). Un vendedor
  *                      ajeno y uno inexistente responden igual.
- *   * CUANTO puede   — el trigger `memberships_validate_commission`, que topa
- *                      el valor fijo en la mitad del precio de la rifa: el
- *                      bolsillo del propio vendedor padre (BR-G23).
+ *   * CUANTO puede   — el trigger `memberships_validate_seller_agreements`
+ *                      (0078), que no deja que el integrante gane mas que su
+ *                      vendedor padre con ningun conteo ni en ninguna rifa: el
+ *                      bolsillo del propio vendedor padre (BR-G28). Pasar a
+ *                      tramos toma la version vigente de la lista general.
  *   * QUE PASA CON
  *     LO YA COBRADO  — el trigger `memberships_sync_commission`, que recalcula
  *                      todas las rifas del integrante Y la parte de su vendedor

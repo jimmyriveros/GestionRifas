@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
 
+import { toDbTiers, type Tier } from '@/features/commissions/tiers'
 import type { CommissionModel } from '@/lib/constants'
 
 import type { ManageableRole, UserFormInput } from './schemas'
@@ -46,10 +47,17 @@ type InviteMemberInput = {
   parentSellerId?: string
   /**
    * Solo para equipos: como se le va a pagar (BR-G24). Sin este dato la
-   * membresia nace con el default de la columna —`tiered` sin importe—, que es
-   * lo que corresponde a un vendedor dado de alta por el personal.
+   * membresia nace con el default de la columna —`tiered` sin importe—.
    */
   commission?: { model: CommissionModel; amount: number | null }
+  /**
+   * Solo para el alta de un vendedor que hace el personal: su acuerdo
+   * administrativo (BR-G30, D-237). Con este dato la membresia NO se inserta
+   * directamente: nace en `staff_create_seller_membership`, que la crea junto
+   * con su lista personalizada en una sola transaccion. `tiers` nulos = la
+   * lista general vigente.
+   */
+  agreement?: { mode: CommissionModel; fixedAmount: number | null; tiers: Tier[] | null }
 }
 
 function siteUrl(): string {
@@ -91,7 +99,7 @@ export async function sendInvitation(
 }
 
 export async function inviteMember(input: InviteMemberInput): Promise<ActionResult> {
-  const { organizationId, invitedBy, role, values, parentSellerId, commission } = input
+  const { organizationId, invitedBy, role, values, parentSellerId, commission, agreement } = input
 
   const invited = await sendInvitation(values.email, {
     full_name: values.fullName,
@@ -104,6 +112,32 @@ export async function inviteMember(input: InviteMemberInput): Promise<ActionResu
   const profileId = invited.profileId
 
   const supabase = await createClient()
+
+  if (agreement) {
+    // La membresia y su acuerdo en UNA transaccion (BR-G30): si la lista o la
+    // cifra no pasan, no queda ni la una ni el otro, y la cuenta se borra aqui
+    // mismo, igual que en el otro camino. Quien llama ya comprobo la sesion y
+    // la capacidad; la base vuelve a comprobar `sellers.earnings.manage`.
+    const { error: agreementError } = await supabase.rpc('staff_create_seller_membership', {
+      p_organization_id: organizationId,
+      p_profile_id: profileId,
+      p_mode: agreement.mode,
+      // `undefined` y no `null`: omitirlo es pedir el `default null` de la
+      // funcion, igual que en `setTeamCommission`.
+      p_fixed_amount:
+        agreement.mode === 'fixed_per_ticket' ? (agreement.fixedAmount ?? undefined) : undefined,
+      p_tiers:
+        agreement.mode === 'tiered' && agreement.tiers ? toDbTiers(agreement.tiers) : undefined,
+    })
+
+    if (agreementError) {
+      await admin.auth.admin.deleteUser(profileId)
+      return { error: mapPgError(agreementError) }
+    }
+
+    return { ok: true }
+  }
+
   const { error: membershipError } = await supabase.from('memberships').insert({
     organization_id: organizationId,
     profile_id: profileId,

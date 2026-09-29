@@ -1,54 +1,18 @@
 import { z } from 'zod'
 
+import { commissionFields, requireAmountForFixed } from '@/features/commissions/schemas'
 import { userFormSchema } from '@/features/users/schemas'
-import { COMMISSION_MODEL_VALUES } from '@/lib/constants'
 
 /**
- * Como se le paga a un integrante (BR-G24, D-127).
- *
- * Aqui solo se comprueba la FORMA: que el modelo sea uno de los dos y que, con
- * el fijo, haya una cifra entera de pesos mayor que cero (BR-P02). El TOPE —la
- * mitad del precio de la rifa— depende de un dato que el navegador no tiene y
- * que ademas puede cambiar mientras el formulario esta abierto, asi que lo
- * aplica el trigger `memberships_validate_commission`. Esto es la primera
- * linea, no la unica (docs/SECURITY.md 1).
+ * Como se le paga a un integrante (BR-G24, D-127): los dos campos y la regla que
+ * los une viven en `features/commissions/schemas.ts` desde D-237, porque ahora
+ * los usan tambien el alta y el cambio del personal. Aqui solo se componen.
  *
  * El importe viaja SIEMPRE que el modelo sea fijo y se ignora cuando es por
- * tramos: quien decide si guardarlo es la base de datos, no el navegador. Un
- * formulario manipulado que enviara `tiered` con importe se topa ademas con la
- * restriccion `memberships_commission_model_amount`.
+ * tramos: quien decide si guardarlo es la base de datos, no el navegador. El
+ * TOPE —lo que el propio vendedor padre gana por boleta en el peor caso— lo
+ * aplica el disparador `memberships_validate_seller_agreements` (BR-G28).
  */
-export const commissionModelSchema = z.enum(COMMISSION_MODEL_VALUES)
-
-const fixedCommissionAmount = z
-  .number('Escribe cuánto ganará por cada boleta.')
-  .int('La ganancia se escribe en pesos, sin centavos.')
-  .positive('La ganancia debe ser mayor que cero.')
-  .nullable()
-
-/**
- * Los dos campos, con la regla que los une: el fijo exige importe.
- *
- * Se escribe una sola vez y la comparten el alta y la edicion, que son dos
- * pantallas distintas de la misma decision.
- */
-export const commissionFields = {
-  commissionModel: commissionModelSchema,
-  fixedCommissionAmount: fixedCommissionAmount.optional(),
-}
-
-export function requireAmountForFixed(
-  values: { commissionModel: string; fixedCommissionAmount?: number | null },
-  ctx: z.RefinementCtx,
-): void {
-  if (values.commissionModel === 'fixed_per_ticket' && !values.fixedCommissionAmount) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['fixedCommissionAmount'],
-      message: 'Escribe cuánto ganará por cada boleta que cobre completa.',
-    })
-  }
-}
 
 /**
  * Edicion y borrado de un integrante del equipo (BR-E15..BR-E17).
