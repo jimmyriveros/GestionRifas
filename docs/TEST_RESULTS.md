@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). **Aprobado** por el dueño tras revisar en producción; el caso de una boleta pendiente, **validado solo en local** (no hay ninguna en producción) |
+| **Post-9 vigente (I-174 resuelta: lo que Supabase escribe, también en la redirección a `/login`, D-236, solo en local, 2026-09-28 en Bogotá)** | **1.793/1.793** en 89 archivos (+12, `session-proxy.test.ts`): **8 de las 12 fallan con el proxy anterior** y pasan con la corrección, también en 5 pasadas en orden aleatorio | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | Subconjunto de 42 (`security`, `owner-users`, `navegacion` y `navegacion-movil`): **42/42** con la base recién sembrada. Con la base como la dejó `test:db`, 40/42: `owner-users:15` y `:43`, **iguales con el proxy anterior** (I-151). Build de producción con GoTrue local: la 307 **ya lleva** el borrado; errores del servidor **2 + 2 → 2 + 0**. Sin la E2E completa | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
+| Post-9 anterior (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). **Aprobado** por el dueño tras revisar en producción; el caso de una boleta pendiente, **validado solo en local** (no hay ninguna en producción) |
 | Post-9 anterior (I-173 resuelta: los estados de «Estado y resumen de pago» por el ancho de la tarjeta, D-235, solo en local, 2026-09-28) | **1.781/1.781** en 88 archivos, igual que antes: el cambio es de maquetación | **1.444 ✅ y 1 omitida**, igual que antes | La prueba nueva **falla con el componente anterior** («se pisan 27 px a 320 px») y pasa con la corrección; `detalle-boleta-composicion` **20/20** sin dejar filas; las 31 suites que abren el detalle del vendedor: **326/327**: el fallo es I-090 (`ventas-por-fecha:163`), que sola pasa —en esa pasada cayó I-164, `:257`—. Capturas: 112 de la tarjeta y 14 de página por fase; después, **0 de 56** medidas con problema | ✅ exit 0 | Solo en local, sin empujar |
 | Post-9 anterior (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Revisado por el dueño **como Administrador y como Vendedor**, con sus registros limpios (16:29–16:32 UTC); **como Dueño, no confirmado** en producción |
 | Post-9 anterior (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá) | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
@@ -15889,3 +15890,80 @@ dispositivo: el recorrido se reconoce por su forma y por las boletas que abre.
 **Lo que los registros no muestran:** otros estados de boleta en la hora legible —solo una sin abonos— ni el ancho de
 la pantalla. Si la revisión incluyó más, fue antes de las 23:15 UTC, y queda con la confirmación del dueño. **Ningún
 error relacionado con esta entrega** en lo que sí se leyó.
+
+---
+
+## I-174 — Lo que Supabase escribe, también en la redirección a `/login` (D-236, 2026-09-28 en Bogotá, solo en local)
+
+Encargo del dueño: corregir **en local** el defecto de propagación de cookies y cabeceras que encontró la revisión de
+Codex al investigar la agrupación `Invalid Refresh Token`, **sin** presentarlo como la causa del incidente. Rama
+`feature/detalle-boleta-admin`, encima de `a84f3b7`; los dos commits locales de documentación de la publicación de
+I-173 (`9118032`, `a84f3b7`) y los tres archivos del usuario, **intactos**. Nada en producción: ni lecturas ni
+escrituras. Herramientas de medición en el scratchpad de la sesión, fuera del repositorio.
+
+### Línea base, antes de tocar nada
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset && npm run seed:local` | ✅ exit 0 |
+| `npm run test:db` | ✅ **1.444** y 1 omitida, 59 archivos |
+| `npm run verify` | ✅ exit 0: tipos, lint con 0 errores y los 2 avisos de siempre (`DataTable`, `BulkTicketCreator`), **1.781/1.781** en 88 archivos y build |
+
+### El defecto, reproducido antes de corregirlo
+
+**1. Con Auth simulado** (`tests/unit/session-proxy.test.ts`, todo ficticio). Contra el proxy **sin modificar**
+fallan **8 de 12**, cada una por el defecto: la 307 sin el borrado —sesión revocada, y en fragmentos—, la 307 sin la
+sesión renovada cuando `/user` falla, la 307 sin el borrado cuando Auth termina la sesión recién renovada, `/login` y
+las dos renovaciones sin `Cache-Control`/`Expires`/`Pragma`, y el recorrido de un navegador con **dos** renovaciones
+fallidas. Pasan las 4 de control: sesión vigente, cookie que Auth no reconoce, y sin sesión en ruta pública y
+protegida.
+
+**2. En tiempo real:** build de producción con las variables de `dev:local`, `next start` en `localhost:3100` y GoTrue
+**local**; un usuario **ficticio** creado y borrado por la propia medición, y `vendedor1@demo.test` para una ruta
+protegida. Solo se registran nombres, atributos y longitudes: ningún token ni valor de cookie.
+
+| Caso | Antes | Después |
+|---|---|---|
+| Refresh token tras un cierre **global**, pedido directamente a GoTrue | 400 `{"code":"refresh_token_not_found","message":"Invalid Refresh Token: Refresh Token Not Found"}` | Igual: es Auth |
+| Sesión revocada y caducada, `/seller/tickets` | 307 a `/login?next=%2Fseller%2Ftickets`, **sin `Set-Cookie`** ni cabeceras de caché; CSP ✅ | 307 igual con `sb-127-auth-token=; Path=/; Max-Age=0; SameSite=lax` y `private, no-cache, no-store, must-revalidate, max-age=0` · `Expires: 0` · `Pragma: no-cache`; CSP ✅ |
+| El navegador sigue a `/login` | 200 **con** el borrado: la renovación se repite ahí | 200 **sin** `Set-Cookie`: llega sin cookie |
+| Registros `Invalid Refresh Token` del servidor | **2** en la ruta protegida + **2** en `/login` | **2 + 0** |
+| Sesión caducada y renovable, `/offline` | 200, cookie nueva (el refresh token cambia); `Cache-Control` el de la página, sin `Expires` ni `Pragma` | 200, cookie nueva y las tres cabeceras de Supabase |
+| Ídem en `/seller/dashboard` con el vendedor 1 | 200 con la cookie nueva; sin `Expires` ni `Pragma` | 200 con la cookie nueva y las tres cabeceras |
+| Sin sesión, `/seller/tickets` y `/catalogo/no-existe` | 307 con `next`, y 404; sin `Set-Cookie` | Igual |
+
+Los **dos** registros por petición no son dos llamadas: hay una renovación, compartida, y el error lo imprimen los dos
+suscriptores de `onAuthStateChange` (`@supabase/ssr` y `supabase-js`). Atributos medidos de la cookie de sesión:
+`Path=/; Expires=…; Max-Age=34560000; SameSite=lax`, **sin `HttpOnly` ni `Secure`** (I-175).
+
+### La corrección
+
+`src/lib/supabase/proxy.ts`: `setAll(cookiesToSet, headers)` guarda su última llamada y `applySessionWrites` la aplica
+a `supabaseResponse` y a la redirección (D-236). `getUser()`, la CSP, el nonce, las cabeceras del request, las rutas
+públicas y el `next`, sin cambios.
+
+### Después
+
+| Comando | Resultado |
+|---|---|
+| `npx vitest run tests/unit/session-proxy.test.ts` | ✅ **12/12**; 5 pasadas más con `--sequence.shuffle`, **12/12** cada una |
+| La medición en tiempo real, sobre un build nuevo | ✅ la columna «Después» de arriba |
+| E2E, base como la dejó `test:db`: `security`, `owner-users`, `navegacion`, `navegacion-movil` | ⚠️ **40/42**: `owner-users:15` y `:43` |
+| Las dos, con el proxy **anterior** y la misma base | ❌ fallan igual: no las causa este cambio |
+| Las 42, tras `db:reset` y `seed:local` | ✅ **42/42** en 1,8 min |
+| `npm run test:db` | ✅ **1.444** y 1 omitida |
+| `npm run verify` | ✅ exit 0: lint 0 errores y los 2 avisos de siempre, **1.793/1.793** en 89 archivos, build |
+| `npm run db:reset && npm run seed:local`, al terminar | ✅ la base local, sembrada y sin datos encima |
+
+**Qué ejercitó la E2E de este cambio:** «Sesión de usuario desactivado» (`security.spec.ts:399`) deja una cookie cuya
+sesión ya no existe en Auth, y el proxy la borra al redirigir: es el camino de I-174, y pasa.
+
+### Errores encontrados, y cómo se corrigieron
+
+| Error | Causa | Corrección |
+|---|---|---|
+| Las 12 pruebas nuevas fallaban, también las de control | `supabase-js` exige `WebSocket` al crear el cliente y Node 20 no lo trae; el servidor de Next lo define al arrancar (`node-environment-baseline`) y la prueba no pasa por ahí | La prueba lo define con `ws` si falta, como `tests/db/helpers.ts` |
+| `tsc`: tres accesos indexados | `noUncheckedIndexedAccess` | `?.` y un `?? ''` en la prueba |
+| `owner-users:15` y `:43` en rojo | Datos que deja `test:db` —«1–25 de 37 vendedores»—: el vendedor invitado **sí** se crea, pero cae en la página 2 (I-151, ampliada) | Ninguna, fuera del encargo; con la base recién sembrada pasan |
+
+**No se hizo:** la E2E completa; ninguna lectura ni escritura en producción; ningún `push`.

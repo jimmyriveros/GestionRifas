@@ -15259,3 +15259,94 @@ Tres cosas distintas, que no se mezclan:
 | **Aprobado por el dueño** | El resultado y el cierre de I-173 / D-235: «Apruebo el resultado y el cierre de I-173 / D-235». El coste en tableta estaba escrito arriba antes de su aprobación | Su mensaje |
 | **Revisado por el dueño en producción** | El detalle de boleta del vendedor, con su sesión, en los estados que tenía a mano: «todo lo que pude comprobar se ve bien» | Sus registros, en la hora legible: el detalle de una boleta vendida sin abonos, dos veces, sin errores ni operaciones (`TEST_RESULTS`, publicación de I-173) |
 | **Validado solo en local, aceptado así** | El caso del defecto: «Pendiente de aprobación» a 320–390 px. En producción **no hay ninguna** boleta pendiente —0, leído en solo lectura—, y el dueño lo acepta con las capturas y la prueba de regresión | 56 medidas y 112 capturas por fase, y la prueba que falla con el componente anterior (`TEST_RESULTS`, I-173). **No** se crearon datos reales para probarlo, y **no** consta como probado en producción |
+
+---
+
+## D-236 — El proxy aplica a TODA respuesta, también a la redirección a `/login`, las cookies y las cabeceras de caché que pide Supabase (I-174)
+
+**Estado:** **implementada y verificada SOLO EN LOCAL**, sin publicar. Publicarla necesita la autorización expresa del
+dueño. **No** confirma la causa del incidente de producción (ver «Lo que esto no demuestra»).
+
+**Fecha:** 2026-09-28 en Bogotá (2026-09-29 UTC) · **Encargo del dueño:** corregir en local el defecto de propagación
+de cookies y cabeceras que encontró la revisión de Codex al investigar la agrupación `Invalid Refresh Token` del proxy,
+con la corrección mínima, sin cambiar el alcance de `signOut()`, los tiempos de sesión, las políticas, las dependencias
+ni la configuración de Supabase. Mantenimiento posterior a la Fase 9; **no es una Fase 10**.
+
+### Lo que dijo la revisión, contrastado
+
+| Hallazgo de la revisión | Contraste en este encargo |
+|---|---|
+| Sin usuario y en ruta protegida, el proxy devuelve un `NextResponse.redirect()` nuevo que no lleva lo que Supabase escribió en `supabaseResponse` | ✅ **Confirmado**, desde la Fase 1 (`34b3cb1`) y en la versión publicada `cac81e8`: prueba unitaria y build de producción con GoTrue local (abajo) |
+| `setAll` no aplica su segundo argumento, `Cache-Control`, `Expires` y `Pragma` | ✅ **Confirmado.** `@supabase/ssr` 0.12.0 —la de siempre en este proyecto— lo entrega desde la 0.10.0; su tipo y la guía oficial dicen que hay que aplicarlo, y que una respuesta nueva debe recibir antes «las cookies y las cabeceras de caché». El ejemplo oficial de proxy tampoco lo hace en su rama de redirección |
+| `logout()` llama a `signOut()` sin alcance, que es global | ✅ **Cierto**: `auth-js` 2.109.0 declara `scope: 'global'` por defecto; también lo usan `login()` y `requireActiveMembership()` con una cuenta inactiva. Medido en local: tras un cierre global, el refresh token de esa sesión recibe **exactamente** el error de producción. **No demuestra** que eso causara el incidente |
+
+### El defecto, medido antes de tocarlo
+
+Con `@supabase/ssr`, `getUser()` renueva una sesión caducada y, si Auth rechaza el refresh token con la sesión ya
+caducada, **la borra** y pide a `setAll` vaciar sus cookies (`Max-Age=0`, fragmento a fragmento). En una ruta
+protegida ese borrado se quedaba en una respuesta que nadie devolvía:
+
+| Build de producción, GoTrue local, usuario ficticio | Antes | Después |
+|---|---|---|
+| Sesión revocada, `/seller/tickets` | 307 **sin** `Set-Cookie` ni cabeceras de caché | 307 con el borrado y las tres cabeceras |
+| El navegador sigue a `/login` | Vuelve con la misma cookie: **otra** renovación fallida, y ahí se borra | Llega sin cookie: ninguna renovación |
+| Errores `Invalid Refresh Token` en el servidor | **2 + 2** | **2 + 0** |
+| Sesión renovada en `/offline` y en `/seller/dashboard` | Cookie nueva; `Cache-Control` el de la página, sin `Expires` ni `Pragma` | Cookie nueva y las tres cabeceras de Supabase, que Next respeta |
+
+Los **dos** registros por petición no son dos llamadas a Auth: hay **una**, compartida, y la imprimen los dos
+suscriptores de `onAuthStateChange` —el de `@supabase/ssr` y el propio de `supabase-js`— desde `_emitInitialSession`.
+Es la propia biblioteca quien escribe ese error; el proxy no registra nada.
+
+### La decisión
+
+`setAll(cookiesToSet, headers)` guarda su **última** llamada —cookies con sus opciones, y cabeceras— y la aplica con
+`applySessionWrites` a `supabaseResponse` **y a la redirección a `/login`**. Todo lo demás, igual: `getUser()` sigue
+decidiendo, la CSP y su nonce, las cabeceras del request actualizado, las rutas públicas y el `next` con la ruta.
+
+- **La última llamada basta.** `@supabase/ssr` acumula lo escrito y lo borrado durante la vida del cliente, así que
+  cada llamada trae el estado completo; `supabaseResponse` ya se reconstruía en cada una por lo mismo. Si una sesión
+  se renueva y enseguida Auth la da por terminada, gana el borrado.
+- **Las cabeceras, tal como llegan.** Hoy son tres; una lista fija perdería la que añada una versión futura.
+- **Cada cookie con SUS atributos**, reaplicando `name`, `value` y `options` como los dio Supabase, no releyéndolos
+  de otra respuesta.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Copiar a la redirección `supabaseResponse.cookies.getAll()` | Reserializa cookies ya interpretadas y recalcula su `Expires`; y el `cookies.setAll()` que cita la guía oficial no existe en `ResponseCookies` de Next |
+| Copiar solo `Cache-Control`, `Expires` y `Pragma` por nombre | Duplica lo que decide la biblioteca y se queda atrás si cambia |
+| Cambiar el alcance de `signOut()` o los tiempos de sesión | Fuera del encargo, y es una decisión del dueño |
+
+### Límites conocidos
+
+- `ResponseCookies` de Next indexa por **nombre**: dos escrituras del mismo nombre con distinto `Domain` se quedarían
+  en una. `@supabase/ssr` solo las emite si se configura `cookieOptions.domain`, y este proyecto no lo hace. No se toca.
+- Lo que Supabase escribiera **después** de responder no podría viajar. No ocurre aquí: el proxy espera a `getUser()`.
+
+### Lo que esto no demuestra
+
+- **La causa del incidente.** El mensaje de producción es el que da Auth cuando el refresh token ya no existe; un
+  cierre de sesión global desde otro dispositivo lo produce, y también otras terminaciones de sesión. Nada de lo medido
+  dice cuál fue.
+- **Que el error desaparezca.** La primera renovación fallida de una sesión muerta se sigue intentando y registrando;
+  lo que cambia es que el navegador borra la cookie en esa misma respuesta y no la repite en `/login`.
+- **Una exposición por caché.** Las páginas dinámicas ya salían con el `Cache-Control` de Next, las rutas `/api` que
+  devuelven datos ponen su propio `no-store` y una 307 sin cabeceras de frescura no la guarda una caché compartida.
+  Lo que faltaba era cumplir el contrato de la biblioteca en toda respuesta que escribe cookies.
+
+### Aprobado, decidido y pendiente
+
+| | Qué |
+|---|---|
+| **Pedido por el dueño** | Corregir en local la propagación de cookies y de cabeceras de caché, en la respuesta normal y en la redirección, con atributos, borrados y fragmentos; conservar CSP, nonce, cabeceras del request, rutas y `next`; mantener `getUser()`; pruebas de regresión que fallen con el código anterior; no ocultar errores ni registrar tokens |
+| **Decidido por el agente** | Aplicar la última llamada a `setAll` a las dos respuestas; aplicar las cabeceras tal como llegan; la prueba `tests/unit/session-proxy.test.ts` con Auth simulado y todo ficticio; corregir en `SECURITY` §3 la fila que decía «HTTP-only» (I-175) |
+| **Pendiente del dueño** | Si cerrar sesión debe cerrar **solo este dispositivo** o **todos**; publicar D-236; si endurecer los atributos de las cookies (I-175) |
+
+### Pruebas
+
+`tests/unit/session-proxy.test.ts`, **12**: con el proxy anterior fallan **las 8** que cubren el defecto —redirección
+con sesión revocada, en fragmentos, renovada con `/user` caído y renovada y terminada; `/login`, renovación y paso de
+fragmentos a una cookie sin cabeceras de caché; y el recorrido de un navegador, con **dos** renovaciones fallidas— y
+pasan las 4 de control. Con la corrección, **12/12**, también en orden aleatorio. Resultados y medición en
+`TEST_RESULTS` (I-174).

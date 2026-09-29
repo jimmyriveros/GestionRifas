@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type SetAllCookies } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import type { Database } from '@/types/database.types'
@@ -47,6 +47,27 @@ function isPublicPath(pathname: string) {
 export type CspContext = { nonce: string; policy: string }
 
 /**
+ * Lo que Supabase pide escribir en la respuesta al llamar a `setAll` (I-174,
+ * D-236): las cookies de la sesion —renovadas, o vaciadas con `Max-Age=0`
+ * cuando la sesion ya no sirve, fragmento a fragmento— y las cabeceras que
+ * impiden cachear esa respuesta (`Cache-Control`, `Expires`, `Pragma`).
+ */
+type SessionWrites = {
+  cookies: Parameters<SetAllCookies>[0]
+  headers: Parameters<SetAllCookies>[1]
+}
+
+/** Aplica esas escrituras tal cual: cada cookie con SUS atributos. */
+function applySessionWrites(response: NextResponse, writes: SessionWrites) {
+  for (const { name, value, options } of writes.cookies) {
+    response.cookies.set(name, value, options)
+  }
+  for (const [name, value] of Object.entries(writes.headers)) {
+    response.headers.set(name, value)
+  }
+}
+
+/**
  * Refresca la sesion de Supabase en cada request y bloquea el acceso a rutas
  * protegidas cuando no hay usuario autenticado.
  *
@@ -77,6 +98,12 @@ export async function updateSession(request: NextRequest, csp?: CspContext) {
   }
 
   let supabaseResponse = buildResponse()
+  /**
+   * Se guarda la ULTIMA llamada a `setAll`, igual que `supabaseResponse` se
+   * reconstruye en cada una: `@supabase/ssr` acumula lo escrito y lo borrado,
+   * asi que cada llamada ya trae el estado completo de la sesion.
+   */
+  let sessionWrites: SessionWrites = { cookies: [], headers: {} }
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -86,14 +113,13 @@ export async function updateSession(request: NextRequest, csp?: CspContext) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value)
           }
+          sessionWrites = { cookies: cookiesToSet, headers }
           supabaseResponse = buildResponse()
-          for (const { name, value, options } of cookiesToSet) {
-            supabaseResponse.cookies.set(name, value, options)
-          }
+          applySessionWrites(supabaseResponse, sessionWrites)
         },
       },
     },
@@ -110,6 +136,11 @@ export async function updateSession(request: NextRequest, csp?: CspContext) {
     url.pathname = '/login'
     url.searchParams.set('next', request.nextUrl.pathname)
     const redirectResponse = NextResponse.redirect(url)
+    // La redireccion es una respuesta NUEVA y no hereda nada de
+    // `supabaseResponse` (I-174). Sin esto se perdia el borrado de una sesion
+    // invalida —el navegador la volvia a enviar y `/login` repetia la
+    // renovacion fallida— o la sesion recien renovada.
+    applySessionWrites(redirectResponse, sessionWrites)
     if (csp) redirectResponse.headers.set('Content-Security-Policy', csp.policy)
     return redirectResponse
   }

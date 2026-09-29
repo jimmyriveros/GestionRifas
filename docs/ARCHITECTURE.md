@@ -121,7 +121,7 @@ No se usarán versiones `beta`, `rc`, `canary` ni `next` de ningún paquete.
 |---------|---------|----------|-------|-----|
 | Browser | `src/lib/supabase/client.ts` | Componentes cliente | Publishable | Lecturas reactivas puntuales |
 | Server | `src/lib/supabase/server.ts` | RSC y Server Actions | Publishable + cookies de sesión | Uso principal, sujeto a RLS |
-| Proxy | `src/lib/supabase/proxy.ts` | `src/proxy.ts` | Publishable | Refresco de sesión y guardas de ruta — ver D-027 |
+| Proxy | `src/lib/supabase/proxy.ts` | `src/proxy.ts` | Publishable | Refresco de sesión y guardas de ruta — ver D-027. Lo que Supabase escribe en `setAll` —cookies y cabeceras de caché— va en la respuesta que deja pasar la petición **y en la redirección a `/login`** (D-236) |
 | Admin | `src/lib/supabase/admin.ts` | **Solo servidor**, invitaciones y seed | `SERVICE_ROLE` | Marcado `import 'server-only'` |
 
 **Nota (D-027):** Next.js 16 renombró `middleware.ts`/`export function middleware()` a `proxy.ts`/

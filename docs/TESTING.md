@@ -1,6 +1,8 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.34 · **Actualizado:** 2026-09-19, más tarde (la prueba de oscuro de D-210 exige `.dark` y el token
+- **Versión:** 2.35 · **Actualizado:** 2026-09-28 en Bogotá (**§5**, D-236: `session-proxy.test.ts`, lo que Supabase
+  escribe en la respuesta del proxy y en su redirección a `/login`; también en la fila 25 de la matriz). Antes,
+  2026-09-19, más tarde (la prueba de oscuro de D-210 exige `.dark` y el token
   `#0a0a0a`; un `addInitScript` al nacer la página no enciende el tema). Antes, ese mismo día (**alineación de campos**, D-210: `formularios-alineacion.spec.ts`
   y `formularios-alineacion-movil.spec.ts` miden el `top` de controles hermanos, no la presencia de una clase). Antes,
   ese mismo día (**§4.10**, I-140: la prueba de la bitácora del personal trae su
@@ -213,7 +215,7 @@ para poder ir directo a la prueba en vez de buscarla.
 | 22 | Aprobación de boletas creadas por vendedor | BR-I09 | `e2e/seller-tickets.spec.ts` | 3 |
 | 23 | Restricciones de rifas cerradas | BR-R08, BR-R09 | `db/phase3-admin.test.ts` | 3 |
 | 24 | RLS | SECURITY §4 | `db/catalog.test.ts`, `db/rls-isolation.test.ts`, `db/security-phase7.test.ts` | 2 |
-| 25 | Protección de APIs y Server Actions | SECURITY §5 | `unit/server-actions-guard.test.ts`, `e2e/security.spec.ts` | **7** |
+| 25 | Protección de APIs y Server Actions | SECURITY §5 | `unit/session-proxy.test.ts` (la redirección del proxy y lo que Supabase escribe en ella, D-236), `unit/server-actions-guard.test.ts`, `e2e/security.spec.ts` | **7** |
 
 ### 3.0 Lo que la Fase 7 encontró al auditar esta matriz
 
@@ -1308,6 +1310,7 @@ ensayo de las seis migraciones necesita `db reset --version 0066` y se hace apar
 | `lib/dates.ts` | Un pago del 31 a las 23:00 en Bogotá pertenece al día 31, no al 1 |
 | Detección de duplicados en el formulario masivo | Detecta repetidos entre 1.000 filas sin bloquear la interfaz |
 | `lib/errors.ts` | Cada código de error de PostgreSQL se traduce a un mensaje en español sin filtrar detalles internos |
+| `lib/supabase/proxy.ts` (`session-proxy.test.ts`, D-236) | Con Auth **simulado** y todo ficticio —un dominio `.test`, tokens inventados y `fetch` sustituido—: la redirección a `/login` lleva el borrado de una sesión revocada, fragmento a fragmento, o la sesión recién renovada; la respuesta que deja pasar la petición lleva la sesión nueva y el request actualizado; las dos, `Cache-Control`, `Expires` y `Pragma`. Siguiendo la redirección como un navegador, `/login` no repite la renovación fallida. De control: sesión vigente, cookie que Auth no reconoce, y sin sesión en ruta pública y protegida, con CSP, nonce y `next`. Los atributos de cada `Set-Cookie` se escriben a mano. Corre en el entorno `node` y define `WebSocket` con `ws`, como hace el servidor de Next en Node 20 |
 | `lib/phone.ts` (D-184) | Además de cómo se ve, **cuatro propiedades sobre 32 formatos**: es idempotente, no pierde ni un dígito, lo que `PHONE_REGEX` aceptaba se sigue aceptando —y lo que rechazaba se sigue rechazando— y nada de lo que produce pasa de 20 caracteres. Más el cursor: escribir al final, escribir en medio, pegar, borrar junto a un separador y **vaciar el campo en diez pulsaciones**, que es la regresión de un defecto real |
 | `features/tour/tours.ts` | Ids únicos y estables; cada recorrido termina con el cierre; ningún recorrido del portal administrativo alcanza a un vendedor; los textos cumplen la guía de redacción (títulos de 2 a 7 palabras, glosario, tuteo) |
 | `features/tour/use-tour.ts` + `storage.ts` | Un paso cuyo elemento falta, mide cero o está oculto se descarta sin romper el resto; el cierre sobrevive siempre; la memoria es por perfil y por recorrido, y no se repite si el navegador bloquea el almacenamiento |

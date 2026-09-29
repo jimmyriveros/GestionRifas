@@ -3,7 +3,27 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-28, 18:00 UTC, y cierre el 2026-09-29 a las 00:20 UTC — **I-173 EN PRODUCCIÓN (D-235)**:
+- **Actualizado:** 2026-09-28 en Bogotá (2026-09-29 UTC) — **I-174 resuelta, SOLO EN LOCAL (D-236)**: mantenimiento
+  posterior a la Fase 9, sin fase ni etiqueta nuevas, en la rama `feature/detalle-boleta-admin`, sin empujar.
+  Producción no cambia: sigue sirviendo `cac81e8`. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** el proxy aplica lo que Supabase pide escribir —cookies renovadas o borradas, fragmentos
+  incluidos, y `Cache-Control`, `Expires` y `Pragma`— a la respuesta que deja pasar la petición **y a la redirección a
+  `/login`**, que antes salía sin ello. Sin cambios en `getUser()`, CSP, nonce, rutas, `next`, `signOut()`, tiempos de
+  sesión, políticas, dependencias ni configuración de Supabase.
+  **(2) Pruebas:** reproducido antes, con Auth simulado (8 de 12 pruebas nuevas fallan con el proxy anterior) y en un
+  build de producción con GoTrue local (la 307 sin `Set-Cookie`; errores del servidor 2 + 2, después 2 + 0).
+  `session-proxy.test.ts` 12/12, también en orden aleatorio; `verify` exit 0 (1.793/1.793); `test:db` 1.444 + 1; E2E
+  de `security`, `owner-users` y la navegación, 42/42 con la base recién sembrada —con la de `test:db`, `owner-users:15`
+  y `:43` fallan igual con el proxy anterior (I-151)—; sin la E2E completa (`TEST_RESULTS`, I-174).
+  **(3) Migraciones:** ninguna; siguen `0001`–`0077`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** la **causa** de la agrupación `Invalid Refresh Token` sigue sin confirmar: la
+  corrección evita que la renovación fallida se repita en `/login`, no la primera. **I-175**: las cookies de sesión no
+  son `HttpOnly` ni `Secure` (documentación corregida, comportamiento igual). I-164, I-075, I-090 e I-106, sin encargo.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y D-236. **Pendiente del dueño:** publicar D-236, y decidir si
+  cerrar sesión cierra solo este dispositivo o todos —hoy, todos—.
+
+- Antes — 2026-09-28, 18:00 UTC, y cierre el 2026-09-29 a las 00:20 UTC — **I-173 EN PRODUCCIÓN (D-235)**:
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, con autorización expresa del dueño para publicar
   la versión que revisó en local, `cac81e8`.
   Los seis puntos de `CLAUDE.md` §34.3:

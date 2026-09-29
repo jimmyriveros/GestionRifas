@@ -195,14 +195,14 @@ diferido `memberships_require_active_owner` (`0016`, D-071). Ver `AUDIT_REPORT.m
 | Aspecto | Decisión |
 |---------|----------|
 | Proveedor | Supabase Auth, email + contraseña |
-| Transporte de sesión | Cookies HTTP-only gestionadas por `@supabase/ssr` |
-| Refresco | En `src/proxy.ts` y `src/lib/supabase/proxy.ts` en cada request protegido |
+| Transporte de sesión | Cookies gestionadas por `@supabase/ssr` con sus valores por defecto: `Path=/`, `SameSite=lax`, 400 días, **sin `HttpOnly` ni `Secure`** —el cliente del navegador las lee—. Hasta el 2026-09-28 esta fila decía «HTTP-only», y no era así (I-175) |
+| Refresco | En `src/proxy.ts` y `src/lib/supabase/proxy.ts` en cada request que pasa por el proxy. Lo que Supabase pide escribir —cookies renovadas o borradas, fragmentos incluidos, y `Cache-Control`, `Expires` y `Pragma`— va en la respuesta que deja pasar la petición **y en la redirección a `/login`** (I-174, D-236) |
 | Verificación de identidad en servidor | `supabase.auth.getUser()` (valida contra el servidor de Auth). **Nunca** `getSession()` para decisiones de autorización, porque su contenido proviene de la cookie y no está verificado |
 | Origen del rol | Tabla `memberships` consultada en el servidor. No se confía en `app_metadata` del JWT para autorizar (D-006) |
 | Usuario inactivo | El layout protegido y las políticas RLS verifican `is_active` en cada request; una sesión previa deja de servir de inmediato |
 | Contraseñas | Gestionadas por Supabase Auth; la aplicación nunca las almacena, registra ni transmite a terceros |
 | Alta de usuarios | Invitación por correo mediante `SERVICE_ROLE` solo en servidor; la persona define su contraseña desde el enlace |
-| Cierre de sesión | Invalida la sesión en el servidor y limpia cookies |
+| Cierre de sesión | Invalida la sesión en el servidor y limpia cookies. `signOut()` va sin alcance, que en `auth-js` es **global**: cierra la sesión en **todos** los dispositivos de esa persona, también al rechazar una cuenta inactiva. Si debe cerrar solo este dispositivo es una decisión **pendiente del dueño** (D-236) |
 
 ---
 
