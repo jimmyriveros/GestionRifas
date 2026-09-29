@@ -15954,6 +15954,7 @@ públicas y el `next`, sin cambios.
 | `npm run test:db` | ✅ **1.444** y 1 omitida |
 | `npm run verify` | ✅ exit 0: lint 0 errores y los 2 avisos de siempre, **1.793/1.793** en 89 archivos, build |
 | `npm run db:reset && npm run seed:local`, al terminar | ✅ la base local, sembrada y sin datos encima |
+| Dos «dispositivos», con `dev:local` y un usuario ficticio: A cierra sesión —alcance por defecto, global— y B, con su token de acceso **aún vigente**, pide `/seller/tickets` | ✅ 307 a `/login?next=%2Fseller%2Ftickets` con `sb-127-auth-token=; Path=/; Max-Age=0; SameSite=lax` y las tres cabeceras. Es el camino de la verificación manual del relevo; sin renovación: Auth responde que la sesión ya no existe |
 
 **Qué ejercitó la E2E de este cambio:** «Sesión de usuario desactivado» (`security.spec.ts:399`) deja una cookie cuya
 sesión ya no existe en Auth, y el proxy la borra al redirigir: es el camino de I-174, y pasa.
