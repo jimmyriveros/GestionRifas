@@ -15191,6 +15191,10 @@ administrativo no puede importar nada de ahí (D-198, `tests/unit/admin-privacy.
 
 ## D-235 — Los dos estados de «Estado y resumen de pago» se reparten por el ancho de la tarjeta, como en el detalle administrativo (I-173)
 
+**Estado:** **aprobada por el dueño y EN PRODUCCIÓN** desde el 2026-09-28, 18:01 UTC (`cac81e8`). El caso del defecto
+—una boleta pendiente de aprobación en el teléfono— está **validado solo en local**: en producción no hay ninguna (ver
+«Aprobación del dueño», al final).
+
 **Fecha:** 2026-09-28 · **Encargo del dueño:** corregir I-173 como tarea independiente, **solo en local**, con la
 corrección mínima en `TicketPaymentSummary` y el patrón de «Estado y venta» del detalle administrativo (D-234).
 Mantenimiento posterior a la Fase 9; **no es una Fase 10**. Sin migración, consultas, permisos, acciones, textos,
@@ -15245,3 +15249,13 @@ px a 1.024, 746 desde 1.280).
 y 834, que la insignia **no se cruza con la celda entera de «Estado de pago»** —rótulo y «Sin venta»— y que **no se
 sale de su tarjeta**; y a 1.024 y 1.440, que los dos estados **siguen lado a lado**. Con el componente anterior falla
 con «se pisan 27 px a 320 px»; con la corrección pasa.
+
+### Aprobación del dueño (2026-09-29, 00:13 UTC)
+
+Tres cosas distintas, que no se mezclan:
+
+| | Qué | Evidencia |
+|---|---|---|
+| **Aprobado por el dueño** | El resultado y el cierre de I-173 / D-235: «Apruebo el resultado y el cierre de I-173 / D-235». El coste en tableta estaba escrito arriba antes de su aprobación | Su mensaje |
+| **Revisado por el dueño en producción** | El detalle de boleta del vendedor, con su sesión, en los estados que tenía a mano: «todo lo que pude comprobar se ve bien» | Sus registros, en la hora legible: el detalle de una boleta vendida sin abonos, dos veces, sin errores ni operaciones (`TEST_RESULTS`, publicación de I-173) |
+| **Validado solo en local, aceptado así** | El caso del defecto: «Pendiente de aprobación» a 320–390 px. En producción **no hay ninguna** boleta pendiente —0, leído en solo lectura—, y el dueño lo acepta con las capturas y la prueba de regresión | 56 medidas y 112 capturas por fase, y la prueba que falla con el componente anterior (`TEST_RESULTS`, I-173). **No** se crearon datos reales para probarlo, y **no** consta como probado en producción |

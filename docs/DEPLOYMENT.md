@@ -2,8 +2,9 @@
 
 **Actualizado:** 2026-09-28, 18:00 UTC (§3.2.s: **I-173 EN PRODUCCIÓN** —D-235, `cac81e8`,
 `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, READY a las 18:01:41 UTC, por avance rápido tras el CI 2/2 del PR #7; sin
-migraciones; punto de reversión, `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`); pendiente la revisión del dueño con su
-sesión—). Antes, 2026-09-28, 14:00 UTC (§3.2.r: **el detalle de boleta administrativo EN PRODUCCIÓN** —D-234, `5a53bfc`,
+migraciones; punto de reversión, `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`); **revisado y aprobado por el dueño**
+con su sesión el 2026-09-29, con el caso de una boleta pendiente validado solo en local—). Antes, 2026-09-28, 14:00 UTC
+(§3.2.r: **el detalle de boleta administrativo EN PRODUCCIÓN** —D-234, `5a53bfc`,
 `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, READY a las 14:01:11 UTC, por avance rápido tras el CI 2/2 del PR #6; sin
 migraciones; punto de reversión, `dpl_92arEyyhRL4L8uHLNt1iGjGsn5BA` (`ee3d793`); revisado por el dueño con su sesión
 como Administrador y como Vendedor, con los registros limpios; como Dueño, no confirmado en producción—). Antes, 2026-09-28, madrugada UTC (§3.2.q: **Color v2 y el detalle de boleta del vendedor EN PRODUCCIÓN**
@@ -1085,11 +1086,14 @@ Refresh Token Not Found` del proxy (`/middleware`), de **1** usuario, vista por 
 sin investigar el 2026-09-26; su última aparición, **a las 16:42:22 UTC, en `dpl_28diGF…`**, antes de esta
 publicación. Nada de esta entrega toca la sesión.
 
-> **Pendiente, con la sesión del dueño:** el detalle de boleta del vendedor en producción, en el teléfono, en solo
-> lectura (`HANDOFF` §1.a). El agente no entra con cuentas de nadie; los registros de esa revisión se leen **dentro de
-> la hora** en cuanto avise.
-> **El commit de documentación de esta publicación** se queda en la rama y **no** se empuja: desplegaría otra versión y
-> movería el punto de reversión.
+> **Revisión del dueño con su sesión, hecha, y aprobación de I-173 / D-235** (2026-09-29, 00:13 UTC): «todo lo que pude
+> comprobar se ve bien». **El caso del defecto —una boleta pendiente de aprobación— no se probó en producción**: no hay
+> ninguna (0, en solo lectura); queda **validado solo en local** y el dueño lo acepta así. Sus registros, leídos dentro
+> de la hora: de 00:11:10 a 00:12:06, el detalle de una boleta vendida sin abonos en el portal del vendedor, dos veces,
+> todo 200, ningún 4xx, 5xx ni error y **ninguna operación de negocio**; lo anterior a las 23:15 UTC ya no se puede leer
+> (`TEST_RESULTS`). `get_runtime_errors` desde el despliegue: ninguno.
+> **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
+> versión y moverían el punto de reversión.
 
 ### 3.3 Despliegues futuros
 

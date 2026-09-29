@@ -3,8 +3,9 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-28, 18:00 UTC — **I-173 EN PRODUCCIÓN (D-235)**: mantenimiento posterior a la Fase 9, sin
-  fase ni etiqueta nuevas, con autorización expresa del dueño para publicar la versión que revisó en local, `cac81e8`.
+- **Actualizado:** 2026-09-28, 18:00 UTC, y cierre el 2026-09-29 a las 00:20 UTC — **I-173 EN PRODUCCIÓN (D-235)**:
+  mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, con autorización expresa del dueño para publicar
+  la versión que revisó en local, `cac81e8`.
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en producción desde las 18:01:41 UTC (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`): en el detalle de
   boleta del vendedor, los dos estados se reparten por el ancho de la tarjeta y «Pendiente de aprobación» ya no se monta
@@ -19,8 +20,12 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(5) Problemas que permanecen:** I-164, I-075, I-090 e I-106, anteriores y sin encargo; la agrupación `Invalid
   Refresh Token` del proxy, conocida y sin investigar, vista otra vez a las 16:42 UTC, antes de publicar. Punto de
   reversión: `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`), compatible.
-  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; que el commit de documentación de esta publicación está solo
-  en la rama; y la revisión del dueño con su sesión, **pendiente**, con sus registros leídos dentro de la hora.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a; y que los dos commits de documentación de esta publicación
+  y de su cierre están solo en la rama.
+  **Cierre, 2026-09-29, 00:13 UTC:** el dueño revisó en producción, con su sesión, el detalle del vendedor en los
+  estados que tenía y **aprobó el resultado y el cierre de I-173 / D-235**. El caso de una boleta **pendiente de
+  aprobación** no se probó en producción —no hay ninguna— y queda **validado solo en local**, aceptado así por el
+  dueño. Sus registros, dentro de la hora: sin errores ni operaciones; lo anterior a las 23:15 UTC, ya no legible.
 
 - Antes — 2026-09-28, tarde — **I-173 resuelta, SOLO EN LOCAL (D-235)**: mantenimiento posterior a la Fase 9,
   sin fase ni etiqueta nuevas, en la rama `feature/detalle-boleta-admin`, sin empujar. Producción no cambia: sigue

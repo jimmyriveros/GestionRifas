@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). Pendiente la revisión del dueño con su sesión |
+| **Post-9 vigente (I-173 EN PRODUCCIÓN, D-235: `cac81e8`, 2026-09-28)** | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36461364645`) y de `main` (`36462186190`) sobre `cac81e8` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | Las 31 suites que abren el detalle del vendedor, **326/327**: I-090 con su evidencia causal (sola, pasa) e I-164 reproducida en las versiones publicadas. En vivo: 35/35 rutas, 7/7 cabeceras, `b21a1caa33c5` servido y 0 errores | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`, 18:01:41 UTC). **Aprobado** por el dueño tras revisar en producción; el caso de una boleta pendiente, **validado solo en local** (no hay ninguna en producción) |
 | Post-9 anterior (I-173 resuelta: los estados de «Estado y resumen de pago» por el ancho de la tarjeta, D-235, solo en local, 2026-09-28) | **1.781/1.781** en 88 archivos, igual que antes: el cambio es de maquetación | **1.444 ✅ y 1 omitida**, igual que antes | La prueba nueva **falla con el componente anterior** («se pisan 27 px a 320 px») y pasa con la corrección; `detalle-boleta-composicion` **20/20** sin dejar filas; las 31 suites que abren el detalle del vendedor: **326/327**: el fallo es I-090 (`ventas-por-fecha:163`), que sola pasa —en esa pasada cayó I-164, `:257`—. Capturas: 112 de la tarjeta y 14 de página por fase; después, **0 de 56** medidas con problema | ✅ exit 0 | Solo en local, sin empujar |
 | Post-9 anterior (el detalle de boleta administrativo EN PRODUCCIÓN, D-234: `5a53bfc`, 2026-09-28) | Sin cambio de código desde el cierre local: **1.781/1.781**; CI del PR (`36428917877`) y de `main` (`36432724891`) sobre `5a53bfc` | Sin cambio de esquema: **1.444 + 1**; `verify:remote` **49/49** antes y después | El único fallo de la completa (962/963), **I-164, reproducido en la versión publicada** `ee3d793`: 10/24 frente a 6/24 del candidato, la misma línea y la misma firma. En vivo: 35/35 rutas, 7/7 cabeceras, `9344d62d5e40` servido y los 5 selectores de D-234 | ✅ CI 2/2 en el PR | ✅ **DESPLEGADO** (`dpl_28diGFnRGMkFDbAGBMEFLKiLViv2`, 14:01:11 UTC). Revisado por el dueño **como Administrador y como Vendedor**, con sus registros limpios (16:29–16:32 UTC); **como Dueño, no confirmado** en producción |
 | Post-9 anterior (el detalle de boleta administrativo, recompuesto, D-234, solo en local, 2026-09-27 en Bogotá) | **1.781/1.781** en 88 archivos (+1, la guarda de las piezas compartidas en `admin-privacy`; comprobada con una mutación) | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | ⚠️ **962/963** en 54,1 min: el fallo es **I-164** (`ventas-por-fecha:257`), 18/18 aislado. Nueva `detalle-boleta-admin` **37/37** con seis mutaciones detectadas y **0 filas** también ante fallos; la del vendedor, 18/18. Detalle del vendedor: **84 de 84 capturas idénticas** | ✅ exit 0 | Solo en local: `7e3a4bc`, `87d7371` y la documentación, sin empujar |
@@ -15868,5 +15868,24 @@ detalle del vendedor —las únicas donde se pinta el componente—, **326/327**
 
 | Qué | Quién |
 |---|---|
-| El detalle de boleta del vendedor en producción, en el teléfono: los dos estados uno debajo del otro, y en el computador lado a lado; si hay alguna boleta **pendiente de aprobación**, esa a 320–390 px | **Pendiente del dueño**, con su sesión: el agente no entra con cuentas de nadie |
-| Leer los registros de esa revisión | Del agente, **dentro de la hora**, en cuanto el dueño avise |
+| El detalle de boleta del vendedor en producción | ✅ **Revisado por el dueño con su sesión**: «Ya revisé en producción y todo lo que pude comprobar se ve bien» |
+| El caso del defecto, una boleta **pendiente de aprobación** a 320–390 px | ⚠️ **No probado en producción**: no hay ninguna —**0** en la base, en solo lectura—. **Validado solo en local**, con las capturas y la prueba de regresión (arriba, I-173), y **aceptado así por el dueño**. No se crearon datos reales para probarlo |
+| Leer los registros de esa revisión | ✅ Hecho dentro de la hora, abajo, con su límite |
+
+### La revisión del dueño, en los registros (leídos a las 00:14–00:17 UTC del 2026-09-29)
+
+El dueño avisó a las 00:13 UTC. Legible, **la última hora**: de 23:15 a 00:17. Lo anterior —desde la publicación, a
+las 18:01— ya no se puede leer línea a línea. Los registros no dicen quién entra, con qué rol ni desde qué
+dispositivo: el recorrido se reconoce por su forma y por las boletas que abre.
+
+| Comprobación | Resultado |
+|---|---|
+| La hora legible, entera | Todo en `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`: 162 respuestas 200 y 5 redirecciones 307. **0** 4xx, **0** 5xx y **0** líneas de error, aviso o fatal |
+| El recorrido que coincide con la revisión, de **00:11:10 a 00:12:06 UTC** | Portal del **vendedor**, con una sesión ya abierta: panel, «Mis boletas» y **el detalle de `9defa133…`** —vendida y **sin abonos**, según la base—, con las precargas de su fila de cliente y de «Registrar abono». Después, **cerrar sesión y entrar** dos veces (`POST /owner/tickets`, `POST /login`, `POST /owner/dashboard`, `POST /login`): un paso por el panel del **personal** y vuelta al vendedor, que abre **otra vez el mismo detalle** (00:12:03). Es la misma boleta y la misma cuenta de vendedor de la revisión de D-234 |
+| Operaciones de negocio en esa ventana | **Ninguna**: de 00:11 a 00:13, **0** filas de `audit_logs` y **0** pagos |
+| Otra actividad de la hora | De 23:39:56 a 23:41:49, **otra** cuenta de vendedor —no la de la revisión, comparado en la base— abrió el detalle de `6ed5231b…` y **registró un abono** sobre ella (`POST /seller/payments/new`, una fila `payment.create`, un pago): actividad normal de la operación, **no atribuible a la revisión**. Su detalle respondió 200 las cinco veces, ya con el componente nuevo |
+| Errores de ejecución | `get_runtime_errors` **desde las 18:00**: **ninguno**. Cubre, por grupos, también las horas que ya no se pueden leer: desde la publicación no ha vuelto ni la agrupación `Invalid Refresh Token` |
+
+**Lo que los registros no muestran:** otros estados de boleta en la hora legible —solo una sin abonos— ni el ancho de
+la pantalla. Si la revisión incluyó más, fue antes de las 23:15 UTC, y queda con la confirmación del dueño. **Ningún
+error relacionado con esta entrega** en lo que sí se leyó.
