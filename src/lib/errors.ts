@@ -3,6 +3,8 @@
  * mostrar al usuario, sin exponer detalles internos (docs/SECURITY.md T14).
  */
 
+import { MAINTENANCE_PAUSE_CODE, MAINTENANCE_PAUSE_MESSAGE } from './maintenance-pause'
+
 type PgLikeError = {
   code?: string | null
   message?: string | null
@@ -86,6 +88,9 @@ export function mapPgError(error: unknown): string {
   const pgError = error as PgLikeError
   const code = pgError.code ?? undefined
   const message = pgError.message ?? ''
+
+  // 0. La API en pausa de publicacion (D-239): lo que falle mientras dura.
+  if (code === MAINTENANCE_PAUSE_CODE) return MAINTENANCE_PAUSE_MESSAGE
 
   // 1. Restricciones con significado de negocio conocido.
   const constraintName = extractConstraintName(message)

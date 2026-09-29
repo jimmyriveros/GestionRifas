@@ -7,6 +7,11 @@ import type { AppCapability } from '@/lib/auth/capabilities'
 import { hasCapability } from '@/lib/auth/capability-resolver'
 import type { AppRole } from '@/lib/constants'
 import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
+import {
+  MAINTENANCE_PATH,
+  MAINTENANCE_PAUSE_MESSAGE,
+  MaintenancePauseError,
+} from '@/lib/maintenance-pause'
 
 /** Los tres roles. `authorizeCapability` parte de cualquiera y decide por capacidad. */
 const ALL_ROLES: readonly AppRole[] = ['owner', 'admin', 'seller']
@@ -18,9 +23,24 @@ export function dashboardPathForRole(role: AppRole): '/seller/dashboard' | '/own
 }
 
 /**
+ * La membresia activa para una PANTALLA: con la API en pausa de publicacion lleva
+ * a `/mantenimiento` y conserva la sesion (D-239). Cualquier otro fallo sigue su
+ * camino de siempre.
+ */
+export async function getActiveMembershipOrMaintenance(): Promise<ActiveMembership | null> {
+  try {
+    return await getActiveMembership()
+  } catch (error) {
+    if (error instanceof MaintenancePauseError) redirect(MAINTENANCE_PATH)
+    throw error
+  }
+}
+
+/**
  * Exige sesion + membresia activa. Si hay sesion pero el usuario/membresia/
  * organizacion estan inactivos, cierra la sesion (BR-A04: una sesion previa
  * no puede seguir operando) y redirige al login con un mensaje explicito.
+ * Una pausa de publicacion NO es una cuenta inactiva (D-239).
  */
 export async function requireActiveMembership() {
   const user = await getAuthUser()
@@ -28,7 +48,7 @@ export async function requireActiveMembership() {
     redirect('/login')
   }
 
-  const membership = await getActiveMembership()
+  const membership = await getActiveMembershipOrMaintenance()
   if (!membership) {
     const supabase = await createClient()
     await supabase.auth.signOut()
@@ -68,7 +88,15 @@ export async function authorizeAction(
     return { error: 'Tu sesión expiró. Vuelve a ingresar.' }
   }
 
-  const membership = await getActiveMembership()
+  let membership: ActiveMembership | null
+  try {
+    membership = await getActiveMembership()
+  } catch (error) {
+    // D-239: con la API en pausa, la accion no se hace y lo que la persona
+    // escribio sigue en el formulario; nada de «cuenta inactiva».
+    if (error instanceof MaintenancePauseError) return { error: MAINTENANCE_PAUSE_MESSAGE }
+    throw error
+  }
   if (!membership) {
     return { error: 'Tu cuenta está inactiva. Contacta a tu administrador.' }
   }
