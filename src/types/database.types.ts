@@ -2133,6 +2133,395 @@ export type Database = {
           },
         ]
       }
+      settlement_closings: {
+        Row: {
+          cause: Database["public"]["Enums"]["settlement_close_cause"]
+          cause_id: string | null
+          closed_at: string
+          closed_by: string
+          counterpart_id: string | null
+          figures: Json
+          fingerprint: string
+          id: string
+          organization_id: string
+          raffle_id: string
+          seller_id: string
+          version: number
+        }
+        Insert: {
+          cause: Database["public"]["Enums"]["settlement_close_cause"]
+          cause_id?: string | null
+          closed_at?: string
+          closed_by: string
+          counterpart_id?: string | null
+          figures: Json
+          fingerprint: string
+          id?: string
+          organization_id: string
+          raffle_id: string
+          seller_id: string
+          version: number
+        }
+        Update: {
+          cause?: Database["public"]["Enums"]["settlement_close_cause"]
+          cause_id?: string | null
+          closed_at?: string
+          closed_by?: string
+          counterpart_id?: string | null
+          figures?: Json
+          fingerprint?: string
+          id?: string
+          organization_id?: string
+          raffle_id?: string
+          seller_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_closings_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_closings_counterpart_org_fk"
+            columns: ["counterpart_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_closings_counterpart_org_fk"
+            columns: ["counterpart_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_closings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_closings_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_closings_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_closings_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_closings_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+        ]
+      }
+      settlement_prize_payments: {
+        Row: {
+          amount: number
+          confirmed_at: string
+          confirmed_by: string
+          id: string
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          organization_id: string
+          paid_on: string
+          payer: Database["public"]["Enums"]["settlement_prize_payer"]
+          payer_id: string | null
+          prize_id: string
+          raffle_id: string
+          request_id: string
+          result_id: string
+          ticket_id: string
+          ticket_seller_id: string
+          value_was_pending: boolean
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          confirmed_at?: string
+          confirmed_by: string
+          id?: string
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          organization_id: string
+          paid_on: string
+          payer: Database["public"]["Enums"]["settlement_prize_payer"]
+          payer_id?: string | null
+          prize_id: string
+          raffle_id: string
+          request_id: string
+          result_id: string
+          ticket_id: string
+          ticket_seller_id: string
+          value_was_pending: boolean
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          confirmed_at?: string
+          confirmed_by?: string
+          id?: string
+          match_field?: Database["public"]["Enums"]["lottery_match_field"]
+          match_id?: string
+          organization_id?: string
+          paid_on?: string
+          payer?: Database["public"]["Enums"]["settlement_prize_payer"]
+          payer_id?: string | null
+          prize_id?: string
+          raffle_id?: string
+          request_id?: string
+          result_id?: string
+          ticket_id?: string
+          ticket_seller_id?: string
+          value_was_pending?: boolean
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_prize_payments_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_match_fk"
+            columns: [
+              "match_id",
+              "result_id",
+              "organization_id",
+              "raffle_id",
+              "match_field",
+            ]
+            isOneToOne: false
+            referencedRelation: "lottery_ticket_matches"
+            referencedColumns: [
+              "id",
+              "result_id",
+              "organization_id",
+              "raffle_id",
+              "match_field",
+            ]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_payer_org_fk"
+            columns: ["payer_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_payer_org_fk"
+            columns: ["payer_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_prize_fk"
+            columns: ["prize_id", "raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffle_prizes"
+            referencedColumns: ["id", "raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_ticket_org_fk"
+            columns: ["ticket_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_ticket_org_fk"
+            columns: ["ticket_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_seller_ticket_list"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_ticket_org_fk"
+            columns: ["ticket_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_balances"
+            referencedColumns: ["ticket_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_ticket_seller_org_fk"
+            columns: ["ticket_seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_ticket_seller_org_fk"
+            columns: ["ticket_seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_prize_payments_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settlement_transfers: {
+        Row: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          confirmed_at: string
+          confirmed_by: string
+          counterpart_id: string | null
+          id: string
+          kind: Database["public"]["Enums"]["settlement_transfer_kind"]
+          organization_id: string
+          raffle_id: string
+          received_on: string
+          request_id: string
+          seller_id: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          confirmed_at?: string
+          confirmed_by: string
+          counterpart_id?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["settlement_transfer_kind"]
+          organization_id: string
+          raffle_id: string
+          received_on: string
+          request_id: string
+          seller_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          confirmed_at?: string
+          confirmed_by?: string
+          counterpart_id?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["settlement_transfer_kind"]
+          organization_id?: string
+          raffle_id?: string
+          received_on?: string
+          request_id?: string
+          seller_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_transfers_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_counterpart_org_fk"
+            columns: ["counterpart_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_counterpart_org_fk"
+            columns: ["counterpart_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_raffle_summary"
+            referencedColumns: ["raffle_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_member_list"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "settlement_transfers_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           approved_at: string | null
@@ -4197,6 +4586,116 @@ export type Database = {
           weekly_number: string
         }[]
       }
+      seller_settlement_account: {
+        Args: { p_member_id?: string; p_raffle_id: string }
+        Returns: {
+          awards: number
+          awards_unpaid: number
+          balance: number
+          changed_after_close: boolean
+          closed_at: string
+          closed_by_name: string
+          closing_figures: Json
+          closing_version: number
+          collected: number
+          counterpart_id: string
+          counterpart_name: string
+          delivered: number
+          fingerprint: string
+          holder_earned: number
+          holder_team_earned: number
+          members: number
+          members_earned: number
+          other_movements: number
+          own_tickets_paid: number
+          own_tickets_sold: number
+          owner_share: number
+          partial_paid: number
+          payments_orphaned: number
+          prizes_paid: number
+          refunded: number
+          seller_id: string
+          seller_name: string
+          status: Database["public"]["Enums"]["settlement_account_status"]
+          team_tickets_paid: number
+          tickets_active: number
+          tickets_paid: number
+          tickets_sold: number
+          total_due: number
+        }[]
+      }
+      seller_settlement_prizes: {
+        Args: { p_member_id?: string; p_raffle_id: string }
+        Returns: {
+          amount: number
+          award_missing: boolean
+          can_record: boolean
+          client_name: string
+          confirmed_at: string
+          confirmed_by_name: string
+          daily_number: string
+          draw_number: string
+          known_amount: number
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          numbers_changed: boolean
+          own_ticket: boolean
+          paid_on: string
+          payer: Database["public"]["Enums"]["settlement_prize_payer"]
+          payer_id: string
+          payer_name: string
+          payment_id: string
+          prize_category: Database["public"]["Enums"]["raffle_prize_category"]
+          prize_id: string
+          prize_title: string
+          reference_date: string
+          result_conflict: boolean
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+          reward_options: Json
+          ticket_seller_id: string
+          ticket_seller_name: string
+          value_pending: boolean
+          value_was_pending: boolean
+          weekly_number: string
+        }[]
+      }
+      seller_settlement_team: {
+        Args: { p_raffle_id: string }
+        Returns: {
+          awards_unpaid: number
+          balance: number
+          changed_after_close: boolean
+          delivered: number
+          member_active: boolean
+          member_id: string
+          member_name: string
+          refunded: number
+          status: Database["public"]["Enums"]["settlement_account_status"]
+          tickets_paid: number
+          tickets_sold: number
+          total_due: number
+        }[]
+      }
+      seller_settlement_transfers: {
+        Args: { p_member_id?: string; p_raffle_id: string }
+        Returns: {
+          amount: number
+          can_void: boolean
+          confirmed_at: string
+          confirmed_by_name: string
+          counterpart_id: string
+          counterpart_name: string
+          kind: Database["public"]["Enums"]["settlement_transfer_kind"]
+          received_on: string
+          seller_id: string
+          seller_name: string
+          transfer_id: string
+          void_reason: string
+          voided_at: string
+          voided_by_name: string
+        }[]
+      }
       set_payment_reminder_status: {
         Args: {
           p_id: string
@@ -4253,6 +4752,201 @@ export type Database = {
           clearance_receipt_delivered_at: string | null
         }[]
       }
+      settlement_account_rows: {
+        Args: { p_org: string; p_raffle: string }
+        Returns: {
+          awards: number
+          awards_blocked: number
+          awards_unpaid: number
+          balance: number
+          changed_after_close: boolean
+          closed_at: string
+          closed_by_name: string
+          closing_figures: Json
+          closing_version: number
+          collected: number
+          counterpart_id: string
+          counterpart_name: string
+          delivered: number
+          figures: Json
+          fingerprint: string
+          holder_active: boolean
+          holder_earned: number
+          holder_id: string
+          holder_name: string
+          holder_partial_paid: number
+          holder_role: Database["public"]["Enums"]["app_role"]
+          holder_team_earned: number
+          holder_tickets_sold: number
+          members: number
+          members_earned: number
+          other_movements: number
+          own_tickets_paid: number
+          owner_gain: number
+          owner_share: number
+          payments_orphaned: number
+          prize_cost: number
+          prize_cost_org: number
+          prizes_paid: number
+          refunded: number
+          status: Database["public"]["Enums"]["settlement_account_status"]
+          team_tickets_paid: number
+          tickets_active: number
+          tickets_paid: number
+          tickets_sold: number
+          total_due: number
+        }[]
+      }
+      settlement_award_rows: {
+        Args: { p_org: string; p_raffle: string }
+        Returns: {
+          account_holder_id: string
+          amount: number
+          award_missing: boolean
+          award_origin: string
+          client_id: string
+          confirmed_at: string
+          confirmed_by: string
+          confirmed_by_name: string
+          daily_number: string
+          draw_number: string
+          known_amount: number
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          numbers_changed: boolean
+          paid_on: string
+          payer: Database["public"]["Enums"]["settlement_prize_payer"]
+          payer_holder_id: string
+          payer_id: string
+          payer_name: string
+          payment_id: string
+          prize_category: Database["public"]["Enums"]["raffle_prize_category"]
+          prize_id: string
+          prize_title: string
+          reference_date: string
+          result_conflict: boolean
+          result_id: string
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+          reward_options: Json
+          ticket_id: string
+          ticket_seller_id: string
+          ticket_seller_name: string
+          value_pending: boolean
+          value_was_pending: boolean
+          weekly_number: string
+        }[]
+      }
+      settlement_confirm_close: {
+        Args: {
+          p_fingerprint: string
+          p_raffle_id: string
+          p_seller_id: string
+        }
+        Returns: string
+      }
+      settlement_lock: {
+        Args: { p_holder: string; p_raffle: string }
+        Returns: undefined
+      }
+      settlement_payer_problem: {
+        Args: {
+          p_org: string
+          p_parent: string
+          p_payer: Database["public"]["Enums"]["settlement_prize_payer"]
+          p_payer_id: string
+          p_ticket_seller: string
+        }
+        Returns: string
+      }
+      settlement_record_prize_payment: {
+        Args: {
+          p_amount?: number
+          p_match_id: string
+          p_paid_on: string
+          p_payer: Database["public"]["Enums"]["settlement_prize_payer"]
+          p_payer_id?: string
+          p_prize_id: string
+          p_raffle_id: string
+          p_request_id: string
+        }
+        Returns: {
+          closed: boolean
+          outcome: string
+          payment_id: string
+        }[]
+      }
+      settlement_record_transfer: {
+        Args: {
+          p_amount: number
+          p_expected_balance: number
+          p_kind: Database["public"]["Enums"]["settlement_transfer_kind"]
+          p_raffle_id: string
+          p_received_on: string
+          p_request_id: string
+          p_seller_id: string
+        }
+        Returns: {
+          balance_after: number
+          balance_before: number
+          closed: boolean
+          current_balance: number
+          outcome: string
+          transfer_id: string
+        }[]
+      }
+      settlement_seller_figures: {
+        Args: { p_org: string; p_raffle: string }
+        Returns: {
+          awards: number
+          awards_blocked: number
+          awards_unpaid: number
+          back_heads: number
+          back_org: number
+          back_parent: number
+          collected: number
+          earned: number
+          got_members: number
+          paid_members: number
+          parent_id: string
+          partial_paid: number
+          payments_orphaned: number
+          prize_cost: number
+          prize_cost_org: number
+          prizes_paid: number
+          rate: number
+          seller_active: boolean
+          seller_id: string
+          seller_name: string
+          seller_role: Database["public"]["Enums"]["app_role"]
+          sent_heads: number
+          sent_org: number
+          sent_parent: number
+          team_earned: number
+          tickets_active: number
+          tickets_paid: number
+          tickets_sold: number
+        }[]
+      }
+      settlement_try_close: {
+        Args: {
+          p_cause: Database["public"]["Enums"]["settlement_close_cause"]
+          p_cause_id: string
+          p_counterpart: string
+          p_holder: string
+          p_org: string
+          p_raffle: string
+        }
+        Returns: boolean
+      }
+      settlement_void_prize_payment: {
+        Args: { p_payment_id: string; p_reason: string }
+        Returns: undefined
+      }
+      settlement_void_transfer: {
+        Args: { p_reason: string; p_transfer_id: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       staff_create_seller_membership: {
@@ -4275,6 +4969,140 @@ export type Database = {
         Returns: {
           changed: boolean
           raffles_recalculated: number
+        }[]
+      }
+      staff_settlement_account: {
+        Args: { p_raffle_id: string; p_seller_id: string }
+        Returns: {
+          awards: number
+          awards_blocked: number
+          awards_unpaid: number
+          balance: number
+          changed_after_close: boolean
+          closed_at: string
+          closed_by_name: string
+          closing_figures: Json
+          closing_version: number
+          collected: number
+          delivered: number
+          fingerprint: string
+          holder_earned: number
+          holder_team_earned: number
+          members: number
+          members_earned: number
+          other_movements: number
+          own_tickets_paid: number
+          owner_gain: number
+          owner_share: number
+          payments_orphaned: number
+          prize_cost: number
+          prize_cost_org: number
+          prizes_paid: number
+          refunded: number
+          seller_active: boolean
+          seller_id: string
+          seller_name: string
+          seller_role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["settlement_account_status"]
+          team_tickets_paid: number
+          tickets_active: number
+          tickets_paid: number
+          tickets_sold: number
+          total_due: number
+        }[]
+      }
+      staff_settlement_accounts: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_raffle_id: string
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          balance: number
+          changed_after_close: boolean
+          delivered: number
+          members: number
+          seller_active: boolean
+          seller_id: string
+          seller_name: string
+          seller_role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["settlement_account_status"]
+          tickets_paid: number
+          tickets_sold: number
+          total_count: number
+        }[]
+      }
+      staff_settlement_overview: {
+        Args: { p_raffle_id: string }
+        Returns: {
+          accounts: number
+          changed_accounts: number
+          closed_accounts: number
+          in_favor_accounts: number
+          in_favor_total: number
+          missing_info_accounts: number
+          pending_accounts: number
+          pending_total: number
+          received_total: number
+          refunded_total: number
+        }[]
+      }
+      staff_settlement_prizes: {
+        Args: { p_raffle_id: string; p_seller_id: string }
+        Returns: {
+          amount: number
+          award_missing: boolean
+          can_record: boolean
+          confirmed_at: string
+          confirmed_by_name: string
+          daily_number: string
+          draw_number: string
+          in_account: boolean
+          known_amount: number
+          lottery_code: Database["public"]["Enums"]["lottery_code"]
+          match_field: Database["public"]["Enums"]["lottery_match_field"]
+          match_id: string
+          numbers_changed: boolean
+          paid_on: string
+          parent_id: string
+          parent_name: string
+          payer: Database["public"]["Enums"]["settlement_prize_payer"]
+          payer_id: string
+          payer_in_account: boolean
+          payer_name: string
+          payment_id: string
+          prize_category: Database["public"]["Enums"]["raffle_prize_category"]
+          prize_id: string
+          prize_title: string
+          reference_date: string
+          result_conflict: boolean
+          reward_mode: Database["public"]["Enums"]["raffle_prize_reward_mode"]
+          reward_options: Json
+          ticket_seller_id: string
+          ticket_seller_name: string
+          value_pending: boolean
+          value_was_pending: boolean
+          weekly_number: string
+        }[]
+      }
+      staff_settlement_transfers: {
+        Args: { p_raffle_id: string; p_seller_id: string }
+        Returns: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          confirmed_at: string
+          confirmed_by_name: string
+          kind: Database["public"]["Enums"]["settlement_transfer_kind"]
+          received_on: string
+          seller_id: string
+          seller_name: string
+          transfer_id: string
+          void_reason: string
+          voided_at: string
+          voided_by_name: string
         }[]
       }
       sync_lottery_schedules: {
@@ -4584,6 +5412,17 @@ export type Database = {
       raffle_prize_status: "active" | "archived"
       raffle_status: "draft" | "active" | "closed" | "cancelled"
       reminder_occurrence_status: "pending" | "attended" | "missed"
+      settlement_account_status:
+        | "no_activity"
+        | "missing_info"
+        | "pending"
+        | "partial"
+        | "in_favor"
+        | "to_close"
+        | "closed"
+      settlement_close_cause: "transfer" | "prize_payment" | "manual"
+      settlement_prize_payer: "seller" | "organization"
+      settlement_transfer_kind: "delivery" | "refund"
       ticket_inventory_status:
         | "draft"
         | "pending_approval"
@@ -4780,6 +5619,18 @@ export const Constants = {
       raffle_prize_status: ["active", "archived"],
       raffle_status: ["draft", "active", "closed", "cancelled"],
       reminder_occurrence_status: ["pending", "attended", "missed"],
+      settlement_account_status: [
+        "no_activity",
+        "missing_info",
+        "pending",
+        "partial",
+        "in_favor",
+        "to_close",
+        "closed",
+      ],
+      settlement_close_cause: ["transfer", "prize_payment", "manual"],
+      settlement_prize_payer: ["seller", "organization"],
+      settlement_transfer_kind: ["delivery", "refund"],
       ticket_inventory_status: [
         "draft",
         "pending_approval",

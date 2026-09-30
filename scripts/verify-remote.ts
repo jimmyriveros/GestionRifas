@@ -24,6 +24,7 @@ import { Client } from 'pg'
 
 import { EARNING_0079_CHECKS, EARNING_FUNCTION_CHECKS } from './earning-function-grants'
 import { PRIZE_FUNCTION_CHECKS } from './prize-function-grants'
+import { SETTLEMENT_FUNCTION_CHECKS } from './settlement-function-grants'
 
 config({ path: '.env.local', quiet: true })
 
@@ -185,6 +186,17 @@ const CHECKS: Check[] = [
               'team_set_commission_model', 'team_update_member', 'ticket_bulk_eligibility',
               'ticket_sale_price_limits', 'update_payment_allocation',
               'update_ticket_sale_price',
+              -- 0080 (D-241): el cierre de cuentas. Las del personal autorizan por
+              -- la capacidad settlements.manage; las del vendedor, por ser vendedor
+              -- activo o el vendedor a cargo; las escrituras, por ser quien recibe.
+              -- Lista exacta en scripts/settlement-function-grants.ts
+              'settlement_record_transfer', 'settlement_record_prize_payment',
+              'settlement_void_transfer', 'settlement_void_prize_payment',
+              'settlement_confirm_close', 'staff_settlement_overview',
+              'staff_settlement_accounts', 'staff_settlement_account',
+              'staff_settlement_prizes', 'staff_settlement_transfers',
+              'seller_settlement_account', 'seller_settlement_team',
+              'seller_settlement_prizes', 'seller_settlement_transfers',
               -- Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
               'current_org_ids', 'current_profile_id', 'current_profile_leads_team',
               'current_staff_org_ids', 'current_team_seller_ids', 'has_org_role',
@@ -646,6 +658,11 @@ const CHECKS: Check[] = [
   // 0079 (D-238): reorganizar recalcula al padre nuevo (I-180) y el acuerdo de
   // equipo solo lo cambia su padre (I-181). Fallan hasta que la 0079 se aplique.
   ...EARNING_0079_CHECKS,
+  // 0080 (D-241, I-132): el cierre de cuentas. Lista exacta de quien ejecuta
+  // cada funcion, las tres tablas sin acceso directo y la capacidad. Las mismas
+  // comprobaciones que corre tests/db/settlements.test.ts. Fallan hasta que la
+  // 0080 se aplique.
+  ...SETTLEMENT_FUNCTION_CHECKS,
 ]
 
 async function main(): Promise<void> {

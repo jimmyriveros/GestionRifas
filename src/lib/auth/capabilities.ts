@@ -29,8 +29,16 @@ import type { AppRole } from '@/lib/constants'
  *   * `sellers.earnings.manage` — la lista general de tramos y los acuerdos de
  *     ganancia de los vendedores (D-237). La ganancia de un integrante la sigue
  *     eligiendo su vendedor padre, que no necesita esta capacidad.
+ *   * `settlements.manage`      — el cierre de cuentas con los vendedores
+ *     directos: ver sus cuentas y confirmar el dinero que se recibe de ellos
+ *     (D-241). La cuenta de un integrante la cierra su vendedor a cargo, que no
+ *     necesita esta capacidad.
  */
-export const APP_CAPABILITIES = ['raffles.prizes.manage', 'sellers.earnings.manage'] as const
+export const APP_CAPABILITIES = [
+  'raffles.prizes.manage',
+  'sellers.earnings.manage',
+  'settlements.manage',
+] as const
 
 export type AppCapability = (typeof APP_CAPABILITIES)[number]
 
@@ -38,12 +46,13 @@ export type AppCapability = (typeof APP_CAPABILITIES)[number]
  * La politica inicial:
  *
  *   * el Dueno tiene TODAS las capacidades del catalogo;
- *   * el Administrador recibe las dos por compatibilidad, mientras no exista el
- *     modulo de permisos: ya configuraba premios y ya daba de alta vendedores;
+ *   * el Administrador recibe las tres, mientras no exista el modulo de
+ *     permisos: ya configuraba premios y ya daba de alta vendedores, y el dueño
+ *     pidio que tambien reciba el dinero de los vendedores (D-241);
  *   * el Vendedor no tiene ninguna.
  */
 export const ROLE_DEFAULT_CAPABILITIES: Record<AppRole, readonly AppCapability[]> = {
   owner: APP_CAPABILITIES,
-  admin: ['raffles.prizes.manage', 'sellers.earnings.manage'],
+  admin: ['raffles.prizes.manage', 'sellers.earnings.manage', 'settlements.manage'],
   seller: [],
 }

@@ -305,6 +305,24 @@ describe('funciones privilegiadas', () => {
       'update_payment_reminder',
       'update_seller_payment_account',
       'update_ticket_sale_price',
+      // 0080 (D-241): el cierre de cuentas. Las del personal autorizan por la
+      // CAPACIDAD `settlements.manage`; las del vendedor, por ser vendedor activo
+      // o el vendedor a cargo de la cuenta; las escrituras, por ser quien recibe
+      // el dinero. Ninguna recibe actor: sale de auth.uid().
+      'settlement_confirm_close',
+      'settlement_record_prize_payment',
+      'settlement_record_transfer',
+      'settlement_void_prize_payment',
+      'settlement_void_transfer',
+      'seller_settlement_account',
+      'seller_settlement_prizes',
+      'seller_settlement_team',
+      'seller_settlement_transfers',
+      'staff_settlement_account',
+      'staff_settlement_accounts',
+      'staff_settlement_overview',
+      'staff_settlement_prizes',
+      'staff_settlement_transfers',
       // Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
       'current_org_ids',
       'current_profile_id',
