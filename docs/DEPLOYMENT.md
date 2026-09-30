@@ -1343,7 +1343,8 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > hasta que la base y el código servido son pareja, y el puente de §3.3.c —desplegado antes— es lo que ven mientras
 > tanto. Las dos van en el mismo `db push` con `lock_timeout`, pero **no son atómicas entre sí** (I-186): el estado
 > que quede lo dice `scripts/earning-recovery-check.ts`. **No se revierte con un despliegue anterior**: primero la
-> comprobación previa y, si se puede volver, primero el esquema (`supabase/recovery/0079_a_0077.sql`) y después el
+> comprobación previa y, si se puede volver, primero el esquema —`scripts/earning-recovery.ts`, que ejecuta
+> `supabase/recovery/0079_a_0077.sql` y devuelve los permisos de la foto de antes de migrar (D-240)— y después el
 > código. Todo en `RUNBOOK` §10. **No está autorizada**: nada de la `0078` ni de la `0079` existe en el proyecto real.
 
 #### 3.3.c El puente de la pausa — **EN PRODUCCIÓN desde el 2026-09-30, 01:16 UTC** (D-239, PB; registro en §3.2.t)

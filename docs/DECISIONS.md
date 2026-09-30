@@ -15269,7 +15269,8 @@ dueño. **No** confirma la causa del incidente de producción (ver «Lo que esto
 
 > **2026-09-30, decisión del dueño:** D-236 **se queda dentro del lote** de D-237 a D-239 (el SHA candidato `30e28c5`,
 > PR #9) y se publicará con él en P8 de `RUNBOOK` §10; no se separa. Esto **no** autoriza ninguna publicación: la de P8
-> sigue pendiente de su autorización.
+> sigue pendiente de su autorización. **Confirmado otra vez el mismo día**, al encargar D-240: el candidato pasa a ser
+> el commit de D-240 sobre esa misma rama, y D-236 sigue dentro.
 
 **Fecha:** 2026-09-28 en Bogotá (2026-09-29 UTC) · **Encargo del dueño:** corregir en local el defecto de propagación
 de cookies y cabeceras que encontró la revisión de Codex al investigar la agrupación `Invalid Refresh Token` del proxy,
@@ -15896,3 +15897,98 @@ c)` frente a `(a AND b AND c)`—, la misma condición reescrita al recargarla. 
 | En solo lectura, antes: el diagnóstico previo, la configuración de `authenticator` sin otro gancho, la latencia a la base y el horizonte de recordatorios | Con autorización |
 | Validar en el proyecto alojado que PostgREST recarga el gancho y responde 423 —se ve al instalar— y una restauración allí | Con autorización, en la ventana |
 | I-068 | Del dueño (fuera de este encargo) |
+
+## D-240 — P9 comprueba los efectos de datos de la `0078` y la `0079`, la recuperación devuelve los permisos de antes y la restauración se detiene ante el primer fallo (I-191, I-192)
+
+**Fecha:** 2026-09-30 · **Encargo del dueño:** «corregir I-191 e I-192 antes de abrir la ventana»: correcciones
+locales, sus pruebas, actualizar el PR #9 y repetir las validaciones de P2 y P3 sobre el candidato nuevo. Mantenimiento
+posterior a la Fase 9, **no es una fase**. **Producción, solo lectura** —y en este encargo no se leyó—; P4 y las
+puertas siguientes **siguen sin autorizar**. **Sin migración nueva**: la `0078` y la `0079` no se tocan. Solo cambian
+herramientas de `scripts/`, los dos SQL de `supabase/recovery/` de la restauración y pruebas.
+
+### Quién decidió qué
+
+| Qué | De quién |
+|---|---|
+| Corregir las dos antes de la ventana, y no aceptar un DETENER «conocido» en P9 | **Del dueño** |
+| P9 dice CONTINUAR **solo** con los efectos exactos de las migraciones, derivados del estado anterior y de sus reglas; sin recuentos fijos, sin filtrar mensajes, sin ignorar tablas; por entidad y no por totales | **Del dueño** |
+| La recuperación devuelve los permisos **de la foto de antes de migrar**, validada, y no concede nada de más; se ensaya con los privilegios locales y con los alojados; las guardas se conservan | **Del dueño** |
+| La restauración se detiene ante un fallo del vaciado, del esquema o de la carga; la excepción documentada se trata de forma específica; sin un marco de publicación nuevo | **Del dueño** |
+| Todo lo de las secciones siguientes: cómo se hace cada una | **Del agente**, dentro de ese encargo |
+
+### 1. I-191 — los efectos de datos, comprobados y no perdonados
+
+`gate-compare --operation migrations` exigía que las tablas nuevas nacieran vacías y que nada de lo existente cambiara.
+La `0078` traslada los tramos, fija la lista del integrante por tramos y recuenta las comisiones: P9 decía DETENER con
+todo en orden.
+
+| Decisión | Por qué |
+|---|---|
+| Un registro **por la lista exacta** de migraciones que añade la puerta: hoy solo `0078,0079` (`scripts/gate-data-effects.ts`) | Cualquier otra lista —también `0078` sola, o `0078,0079,0080`— conserva la exigencia de siempre. La excepción no se hereda |
+| Lo esperado se **deriva** de la foto de antes: `hechos.ganancias`, nuevo en `gate-snapshot` | Ningún recuento escrito: ni cuántas organizaciones, ni cuántos tramos. Lo único literal son reglas de la migración —los cuatro tramos de una organización sin tramos, el modo `half_price`— |
+| Los hechos son **por entidad**: tramos por organización; acuerdo por membresía; comisiones por (rifa, vendedor); ledger por (rifa, vendedor, tipo); pagos por vendedor; boletas por (rifa, vendedor, estado, estado de pago) | Dos diferencias que se compensan no cuadran por entidad aunque cuadre el total |
+| El comprobador es **puro** y devuelve qué filas explicó; lo demás sigue por la clasificación de siempre de `gate-compare` | No hay una segunda vía de aprobación: una fila que esto no explique se detiene donde se detenía |
+| `commission_ledger`, `payments`, `payment_allocations`, `tickets` y `clients`: **ninguna** fila tocada | Con la pausa cerrada no hay ventas ni cobros; la migración no las escribe. Una sola fila distinta detiene |
+| De las columnas de antes solo puede cambiar `updated_at`, y **solo** en las filas que la migración escribe: la membresía del integrante por tramos y las comisiones recontadas | Es la excepción de fechas, acotada a los casos que la necesitan. Otra membresía con su `updated_at` movido detiene |
+| La bitácora: **una** fila `membership.update` por integrante fijado, sin actor, de su organización, que solo nombre `team_tier_list_id` de nulo a su versión 1 | Las claves generadas —el `id` de cada lista— se aceptan solo a través de esa relación: la lista tiene que ser la versión 1 **de su organización** |
+| `team_shortfall` distinto de cero **detiene** | Es un par incompatible anterior: lo decide el dueño (BR-G35). El diagnóstico de P1 lo anticipa; si apareciera en P9, no se da por bueno |
+
+**Lo que se exige, en una línea por regla:** una lista `template`, versión 1, sin dueño ni autor por organización, con
+exactamente sus tramos de antes; las mismas membresías con las mismas columnas, todas en `half_price`, y el integrante
+por tramos en la versión 1 de **su** organización; cada comisión con lo cobrado, su tarifa y lo ganado de antes,
+`tier_tickets_paid` igual a propias más equipo, y una fila en cero para el jefe que no la tenía; y el dinero sin una
+fila tocada.
+
+### 2. I-192 — la recuperación, con los permisos de la foto
+
+`supabase/recovery/0079_a_0077.sql` recrea 14 funciones con los privilegios del repositorio; en el proyecto alojado
+7 de ellas tenían además `EXECUTE` para `service_role` (I-132).
+
+| Decisión | Por qué |
+|---|---|
+| Un ejecutable, `scripts/earning-recovery.ts`, que corre el script **tal cual** y después ajusta los permisos | El script no se edita: es el ensayado, y su guardia sigue siendo la única definición de cuándo se puede volver. Además, `psql` no está instalado en el equipo desde el que se opera |
+| La referencia es la **foto de antes de migrar** —la de P6 en producción—, y se valida **antes de conectar**: completa y sin tocar (su huella), del mismo destino y proyecto, y con `0077` como última migración | Una foto de después, de otro proyecto o retocada no puede decidir permisos |
+| Qué funciones se tocan se lee del **propio script**: sus líneas `revoke all on function …` | No hay una segunda lista que pueda divergir del script |
+| Cada función vuelve al ACL **exacto** de la foto: se concede lo que tenía y le falta y se revoca lo que le sobra | «Conceder `service_role` a las que el script recrea» habría dado permiso a tres que en producción no lo tenían |
+| Si una función recreada no está en la foto, cambió de dueño o su cuerpo no es el de la foto, **no se tocan los permisos** | Un permiso no se devuelve a una función que no es la de antes |
+| Al final, **todas** las funciones de `public` contra la foto: firma completa, cuerpo, dueño y ACL | Es la comprobación que P3 hizo a mano |
+| `--solo-privilegios` | Si la orden se corta entre el esquema y los permisos, el esquema ya es el de `0077` y la orden entera se negaría |
+
+### 3. La restauración, en una orden que se detiene
+
+| Decisión | Por qué |
+|---|---|
+| `scripts/restore-backup.ts` ejecuta los cinco pasos de `RUNBOOK` §5.2; cada uno **solo** si el anterior terminó | En P3 eran órdenes sueltas, y tras negarse el vaciado `data.sql` insertó 9 filas sobre una base sin vaciar |
+| Cada paso en su propia conexión, y el vaciado, `schema.sql`, `data.sql` y el paso posterior **enviados enteros** | Como cada `psql -f`, lo que un archivo fija en la sesión no pasa al siguiente. Enviados enteros, o se aplican completos o no dejan nada: medido con un fallo en la última sentencia de cada uno |
+| El respaldo se comprueba **antes de conectar**: los tres archivos, sin órdenes de `psql`, y `data.sql` sin nada del esquema `auth` | Con `public` ya vacío es tarde para descubrir que un archivo no se puede cargar |
+| La excepción es **una sentencia con un código**: `GRANT SET ON PARAMETER "log_min_messages" TO …` con `42501` | Es el error esperado de §5.2. Esa sentencia con otro código, u otra sentencia con ese código, detienen |
+| Las guardas de la pausa de `restauracion_vaciar_public.sql` y `restauracion_despues.sql`, en dos `if` | Sin la pausa **instalada** fallaban con `relation "pausa.estado" does not exist` —PL/pgSQL planifica la condición entera—: se negaban igual, sin decir por qué |
+| Solo se imprime el código y el mensaje de un error, nunca su detalle | El detalle de un error de datos puede llevar el contenido de una fila |
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Aceptar en P9 un DETENER cuyos motivos coincidan con una lista escrita | Es filtrar mensajes: no comprueba que los 8 tramos sean los mismos, ni de quién es cada lista |
+| Quitar `memberships`, `seller_commissions` o las listas de las tablas que no pueden cambiar | Ignora tablas enteras: una tarifa alterada pasaría |
+| Un delta de filas esperado, guardado del ensayo, como el de estructura | Fija los recuentos del ensayo, que pueden cambiar antes de P6 |
+| Que el script de recuperación conceda `service_role` a lo que recrea | Indiscriminado: tres de esas funciones no lo tenían. Y con los privilegios de la pila local sería un ensanche |
+| Editar la `0078` o la `0079` | Inmutables; no hace falta |
+| Un orquestador de la publicación entera | El dueño pidió reforzar lo existente. Cada puerta sigue siendo una orden que alguien lanza y lee |
+
+### Límites, dichos tal cual
+
+| Qué | Estado |
+|---|---|
+| La recuperación y la restauración **en el proyecto alojado** | Sin ensayar allí (I-183): solo en local, con sus privilegios |
+| Que `schema.sql` y `data.sql` enviados enteros se comporten igual por el *session pooler* | Medido en local contra Postgres directo; en producción, 0,7 MB y 5,8 MB en una petición cada uno, sin medir |
+| `hechos.ganancias` guarda importes por vendedor y por rifa | Las fotos ya vivían en `build/gate/`, fuera de Git; siguen sin datos de cliente |
+| `retirar` sin la pausa instalada falla con un mensaje confuso y no cambia nada (I-193) | Visto en este ensayo; fuera del encargo, sin corregir |
+
+### Pendiente
+
+| Qué | De quién |
+|---|---|
+| Autorizar P4 y las siguientes, y elegir la ventana | Del dueño |
+| I-190, la demora de la ficha | Abierta, sin causa demostrada |
+| I-193 | Sin decidir |

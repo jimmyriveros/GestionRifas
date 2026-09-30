@@ -3,7 +3,25 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-30, 01:16 UTC — **PB: el puente de la pausa EN PRODUCCIÓN (D-239, sin migración)**:
+- **Actualizado:** 2026-09-30, 13:40 UTC — **D-240: las herramientas de la publicación, corregidas, SOLO EN LOCAL
+  (sin migración)**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. **El estado del producto no
+  cambia**: producción sigue sirviendo `9a64986` sobre `0077`, sin pausa, y no se tocó ni se leyó. Los seis puntos de
+  `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna de la aplicación; `src/` no cambia. De las herramientas: la comparación de P9
+  comprueba los efectos de datos de la `0078` y la `0079` (I-191), la recuperación devuelve los permisos de la foto de
+  antes de migrar (I-192) y la restauración es una orden que se detiene ante el primer fallo.
+  **(2) Pruebas:** `verify` ✅ con **1.948/1.948** unitarias en 96 archivos; `test:db` ✅ con **1.515 + 1 omitida** en 62;
+  y el ensayo de P3 repetido sobre la misma copia, con P9 en CONTINUAR y la recuperación idéntica a antes de migrar.
+  Errores encontrados y corregidos: las guardas de la pausa de los dos SQL de restauración. Detalle en `TEST_RESULTS`,
+  D-240.
+  **(3) Migraciones:** ninguna nueva. Producción: `0001`–`0077`. Local: `0001`–`0079`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-190**, abierta; **I-193**, nueva e informativa (`retirar` sin la pausa
+  instalada); la recuperación y la restauración siguen sin ensayarse en el proyecto alojado (I-183).
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, `DECISIONS` D-240 y `RUNBOOK` §5.2 y §10. **Pendiente del
+  dueño:** elegir la ventana y autorizar P4.
+
+- Antes, 2026-09-30, 01:16 UTC — **PB: el puente de la pausa EN PRODUCCIÓN (D-239, sin migración)**:
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Producción sirve **`9a64986`**
   (`dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`), publicado por avance rápido desde `cac81e8` con la autorización del dueño solo
   para PB, y sigue en **`0077`**, sin la `0078`, sin la `0079` y **sin la pausa instalada**. Antes, el 2026-09-29, el
