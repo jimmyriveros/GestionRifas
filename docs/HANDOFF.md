@@ -183,7 +183,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — La configuración de ganancias EN PRODUCCIÓN: P4–P10 (2026-09-30, 17:45–18:03 UTC)
+## 1.a Último relevo significativo — Propuesta Figma de Cierre de cuentas (2026-09-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Propuesta visual terminada**, no módulo implementado. Siete vistas y estados en [Figma](https://www.figma.com/design/7KIwO0iiGpksLSNjMeSa4X/Rifas-Design-System?node-id=324-2). El dueño pidió el prompt de implementación para Claude y una comprobación final de integración al design system |
+| Archivos | Este relevo y `docs/design-system/RIFAS_DESIGN_SYSTEM_HANDOFF.md` §10.63, que contiene enlaces, IDs, alcance y verificaciones. Herramientas del diseño en `build/cierre-propuesta/`, fuera de Git. Sin cambios en `src/`, migraciones ni dependencias |
+| Reutilización | Componentes oficiales de Figma, estilos Geist y variables existentes. Tres composiciones locales de la propuesta; ningún componente o token del núcleo modificado |
+| Decisiones | Regla confirmada: **integrante entrega al responsable; responsable entrega al dueño**. Cuenta del dueño consolidada, sin duplicar integrantes. Figma es base visual; sus datos son sintéticos. Las propuestas de estados deben concretarse en reglas, permisos y pruebas durante la implementación |
+| Verificación | Siete vistas revisadas visualmente; fuentes y capas editables verificadas, sin imágenes de UI. Aritmética de los ejemplos comprobada. Prototipo del recorrido del dueño con cinco conexiones. No se ejecutaron suites de aplicación: no hubo código de producto ni cambios de base |
+| Advertencias | Los controles restantes son referencias visuales; no se ha probado funcionalidad, responsive real, modo oscuro ni rendimiento. El estado de producción continúa siendo el **último informado** en el relevo anterior, sin nueva lectura. Su autorización P4–P10 no se extiende a publicar este módulo |
+| Pendiente | Claude: inspeccionar Figma y código vigente, implementar Cierre de cuentas con datos persistentes, verificar cálculo/permisos/concurrencia, y cerrar con pruebas funcionales y auditoría de integración al design system. Publicación requiere autorización específica |
+| Git | Base observada `a33c7b6`, rama `feature/detalle-boleta-admin`, tres commits por delante antes de este registro. Solo se añade documentación local. `DesignFix.txt`, `PublicarProduccion.txt` y `prueba-abono.csv` intactos, fuera del commit; sin push |
+
+## 1.a.0 Relevo anterior — La configuración de ganancias EN PRODUCCIÓN: P4–P10 (2026-09-30, 17:45–18:03 UTC)
 
 | Campo | Estado |
 |---|---|

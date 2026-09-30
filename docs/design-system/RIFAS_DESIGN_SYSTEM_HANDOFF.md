@@ -6993,6 +6993,51 @@ there (1,024 px and up, unchanged). Measured: no overlap in 7 states × 8 widths
 on phones; on tablet the pairing stretch moves to «Información de venta» on sold tickets (44–94 px of air).
 
 ---
+### 10.63 CIERRE DE CUENTAS — PROPUESTA EN FIGMA (2026-09-30; sin implementación)
+
+El dueño pidió una propuesta basada en Figma y el design system, y después un prompt para que
+Claude implemente el módulo y verifique su integración. **El diseño es una base visual, no una
+especificación de persistencia ni una nueva autorización para publicar.**
+
+- [Página de la propuesta](https://www.figma.com/design/7KIwO0iiGpksLSNjMeSa4X/Rifas-Design-System?node-id=324-2): `06 — Cierre de cuentas — Propuesta`.
+- Listado del dueño: `324:3`; detalle consolidado: `324:4`; recibido y cerrado: `324:5`.
+- Responsable con equipo, móvil: `324:6`; integrante, móvil: `324:7`.
+- Confirmación de recibido: `324:8`; revisión, saldo a favor y pago de premios: `324:9`.
+- Piezas locales de la propuesta: `324:10`. Balance Row `325:5`, Account Row `325:8`,
+  Receipt Dialog `329:771`. **No son componentes nuevos aprobados del núcleo.**
+
+Se reutilizaron las instancias de Button, Badge, Metric, Input, Select, Cell, List Record, Notice,
+Page Header, Sidebar y Navigation Bottom. Receipt Dialog extiende una copia local del Dialog.
+Los estilos son Geist y roles existentes; colores y dimensiones usan variables del archivo.
+No se modificaron los componentes, estilos ni variables oficiales. No hay capturas completas
+incrustadas: las siete vistas contienen texto, instancias y vectores editables.
+
+**Regla confirmada por el dueño:** integrante → responsable → dueño. El dueño cierra la cuenta
+consolidada con el responsable; una entrega interna no aumenta el recibido del dueño. Se conserva
+la regla de ganancias vigente: la ganancia del responsable por una venta del integrante es su
+tarifa menos la del integrante. Los tramos del responsable cuentan propias y equipo.
+
+**Ejemplo sintético, no datos de producción:** Carlos tiene 20 boletas propias pagadas; Ana, 15;
+Luis, 10. Precio $120.000; tarifas $30.000 / $20.000 / $15.000. Ventas pagadas $5.400.000;
+Carlos gana $900.000 y sus integrantes $450.000. Parte inicial del dueño $4.050.000.
+Premios: Ana adelantó $150.000, Carlos $100.000 y el dueño pagó directamente $200.000.
+Entrega consolidada $3.800.000; recibido previo $1.500.000; falta $2.300.000. Ganancia final
+del dueño $3.600.000. Ana ya entregó $850.000: faltan $500.000 para Carlos. Se verificó la
+aritmética y la actualización del contador del dueño: $3.480.000 → $5.780.000.
+
+**Verificación de diseño:** inspección visual de las siete vistas, sin recortes observados en las
+composiciones finales; fuentes Geist verificadas por API, sin textos de relleno visibles en las
+vistas y sin imágenes de UI. Se corrigieron el alto de texto al envolver, el CTA heredado de
+clientes, el estado activo ajeno de la navegación móvil y el largo del detalle de escritorio.
+Cinco conexiones de prototipo cubren listado → detalle → confirmación → listado actualizado,
+con volver y cancelar. Los otros controles son referencias visuales, no recorridos funcionales.
+
+**Pendiente para implementación:** probar los recorridos completos, consultas reales, autorización,
+cálculos, concurrencia, accesibilidad, rendimiento, modo oscuro y anchos 320/390/768/1440.
+Las composiciones de Figma están en Light, a 1440 y 390; no certifican responsive ni accesibilidad
+de la aplicación. No se ejecutaron suites de la aplicación, no se alteró la base local ni se leyó
+o escribió producción. Herramientas y estado del diseño: `build/cierre-propuesta/`, fuera de Git.
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |
