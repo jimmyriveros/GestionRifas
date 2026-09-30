@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (PB: el puente de la pausa EN PRODUCCIÓN, D-239, `9a64986`, 2026-09-30)** | Sin cambio de código en la rama de la publicación: la fusión del puente, 0 archivos. CI sobre `9a64986`: ✅ 2/2 en el PR #8 (`36653356272`) y en `main` (`36654232751`) | Producción sigue en `0077`, sin pausa ni gancho; la base no se tocó | No aplica: el puente no cambia ninguna pantalla con la API normal. En vivo, **36/36** rutas con `/mantenimiento` en 200 | `verify:remote` **49/49** antes y después | ✅ **Publicado** por avance rápido `cac81e8..9a64986`: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, READY a las 01:16:22 UTC, `41ee2474757c` servido. Reversión: `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`) |
+| **Post-9 vigente (I-190: la demora de la ficha del vendedor, diagnosticada, 2026-09-30)** | Sin cambio de código | Sin cambio de esquema; en producción, solo lecturas | Medida local A/B de la ficha con builds de producción: `cac81e8` y `9a64986` **iguales** (primera apertura 178 frente a 184 ms; mismas 10 llamadas a Supabase) | — | ⚠️ **I-190 abierta, sin causa demostrada**: los registros de este plan no guardan la duración. **No es regresión del puente.** La navegación del dueño funcionó |
+| Post-9 anterior (PB: el puente de la pausa EN PRODUCCIÓN, D-239, `9a64986`, 2026-09-30) | Sin cambio de código en la rama de la publicación: la fusión del puente, 0 archivos. CI sobre `9a64986`: ✅ 2/2 en el PR #8 (`36653356272`) y en `main` (`36654232751`) | Producción sigue en `0077`, sin pausa ni gancho; la base no se tocó | No aplica: el puente no cambia ninguna pantalla con la API normal. En vivo, **36/36** rutas con `/mantenimiento` en 200 | `verify:remote` **49/49** antes y después | ✅ **Publicado** por avance rápido `cac81e8..9a64986`: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, READY a las 01:16:22 UTC, `41ee2474757c` servido. Reversión: `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`) |
 | Post-9 anterior (diagnóstico previo de D-237 a D-239 EN PRODUCCIÓN, solo lectura, 2026-09-29, 23:39–23:46 UTC) | Sin cambio de código ni batería local repetida: siguen **1.887/1.887** | Sin cambio de esquema local: **1.510 + 1**. Producción: `0001`–`0077`, sin `0078` ni `0079`; diagnóstico previo **limpio** | No aplica: ninguna pantalla cambió | `verify:remote` **49 OK + los 5 en rojo esperados**, identificados uno por uno | ✅ **P0 y P1 conformes, nada escrito.** Servido `cac81e8` (`b21a1caa33c5`); sin pausa ni gancho. Pendiente: la autorización del puente (PB) |
 | Post-9 anterior (la publicación de D-237 y D-238 preparada, D-239, sin migración, solo en local, 2026-09-29) | **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa de la recuperación, +1 de `mapPgError`) | **1.510 ✅ y 1 omitida** en 61 archivos (+8 de la pausa contra la PostgREST local; +3 de `earning-agreements`: I-184 y el guardia) | Dirigida **103/103** (la pausa y los recorridos de las guardas); la de la pausa también en el puente, 4/4 sobre `0077` y 3/3 sobre `0079`. La completa, no repetida | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayados**: la migración a medias (I-186) y sus dos salidas, los tres escenarios de recuperación, la restauración completa y conciliada (I-183, con I-187 e I-188 corregidas), y el puente (`verify` 1.812, `test:db` 1.452 + 1) |
 | Post-9 anterior (revisión de D-237 antes de publicarla, D-238, `0079`, solo en local, 2026-09-29) | **1.839/1.839** en 91 archivos (+16, `earning-precheck.test.ts`: el diagnóstico previo solo lee y no toca tablas nuevas) | **1.499 ✅ y 1 omitida** en 60 archivos (+16: reorganizar, I-180, y quién cambia el acuerdo de equipo, I-181; **12 de ellas fallan con la `0078`**). Segunda pasada sobre la misma base: 1 fallo de `list-order`, **anterior y reproducido en `aa11ad4`** (I-185) | Dirigida **65/65** (`ganancias`, `ganancias-movil`, `equipo`, `equipo-movil`, `owner-users`, `telefono-mascara`) desde la base recién sembrada. La completa, **no** repetida: la de D-237, 966/973, es histórica | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayo de publicación y recuperación**: diagnóstico, `0078` detenida donde dijo, ventana medida, interbloqueo con tráfico (I-182), recuperación con estructura idéntica y restauración conciliada |
@@ -16508,3 +16509,86 @@ I-173 con `/mantenimiento` añadido.
 | `gh run list --branch main` no listaba ningún run posterior al 19/09 | Por commit sí aparecen: el del empuje de `9a64986` (`36654232751`) y, de referencia, los de `cac81e8`. El filtro por rama de `gh`, no el CI |
 | El flujo en vivo de la construcción agotó el tiempo del conector | Una lectura del despliegue, ya READY |
 | El filtro `rollbackCandidate` del conector de Vercel da 403 | El campo `isRollbackCandidate` se leyó en la lista sin filtro |
+
+### i. La revisión del dueño con su sesión (2026-09-30)
+
+**La navegación funcionó con normalidad**, según el dueño, que la hizo como Vendedor y como Administrador con el
+puente servido. **Una observación:** abrir la ficha de un vendedor como Administrador **tardó más de lo habitual** →
+**I-190**, diagnosticada en la entrada siguiente. No se da por resuelta.
+
+---
+
+## I-190 — La ficha del vendedor tardó más de lo habitual: diagnóstico (2026-09-30, 02:05–02:30 UTC)
+
+Autorización del dueño: lecturas de producción para el diagnóstico y comparaciones locales; **ningún cambio ni
+despliegue en producción, ninguna sesión de prueba allí**. Evidencia en `build/demora-ficha/`, fuera de Git.
+
+### a. Los registros de la visita (leídos a las 02:05, dentro de la hora)
+
+| Qué | Resultado |
+|---|---|
+| Lo servido | `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8` (`9a64986`): 160 líneas en la hora; 2 más de `dpl_BtpaT5…` |
+| La sesión del Administrador | De **02:01:08** (tres rutas de vendedor en 307 hacia `/login`, `/login`) a **02:02:32**: `POST /login` a las 02:01:12, panel a las 02:01:14, precargas del menú y de tres fichas entre 02:01:18 y 02:01:26, Boletas a las 02:01:31, Vendedores a las 02:01:46 |
+| Las aperturas de fichas | `009dd2f5…` a las **02:02:08.100 y 02:02:08.108** (dos peticiones) y a las **02:02:20**; `15643a0e…` a las **02:02:32**. Todas **200** |
+| Errores | **Ninguno**: ni de nivel error o aviso, ni 4xx salvo los 307 previos al inicio de sesión, ni 5xx |
+| Duración | **No existe en ninguna fuente**: `get_runtime_logs` y `vercel logs --json` (CLI 61.1.0: `id`, hora, ruta, estado, fuente, caché) no la traen, y la observabilidad responde **404** («Observability Data not found») |
+| Renovación de sesión | No tocaba: la sesión se inició 56 s antes de la primera apertura |
+| La visita exacta | No se puede decir cuál de las tres aperturas fue la lenta. Las peticiones de las 02:02:11–12 (un detalle de boleta y una rifa) **no** salen de la ficha, que no enlaza a ninguno de los dos |
+| Guardado | `registros-vercel-0159-0206.txt`, `vercel-logs-0120-0206.jsonl` (1.000 líneas que son **50 entradas repetidas** por la paginación de la CLI) y `vercel-logs-unicos.json` |
+
+### b. La base (solo lectura)
+
+| Qué | Resultado |
+|---|---|
+| `pg_stat_statements` (`build/demora-ficha/pgss.ts`, `readOnly`) | Acumulado **desde el 2026-08-02**: no aísla la visita. Las consultas de la ficha ejecutan de media en 2–28 ms: `admin_ticket_inventory` 22,7 ms (máx. 103,7, 66 llamadas), la de `admin_prize_award_totals` 28,1 ms (máx. 67), las de `memberships` y `raffles` 2–6 ms (máx. 280 la del catálogo). Lo más lento de la API es de otras pantallas o de la recarga del esquema de PostgREST (hasta 3,6 s en algún momento, sin fecha) |
+| Registros de la API de Supabase | **No leídos**: exigen acceso de gestión (`supabase login`), que no existe en este equipo |
+
+### c. El código
+
+| Qué | Resultado |
+|---|---|
+| `git diff cac81e8 9a64986` en `src/app/(protected)/owner`, `src/features` y `src/components` | Solo `features/auth/actions.ts` (el inicio de sesión). La ficha, sus consultas y sus piezas, **idénticas** |
+| Lo que el puente sí toca en cada pantalla | `getActiveMembership` lee también `status` de la misma respuesta y las guardas añaden un `try/catch`: **ninguna llamada nueva** |
+| La ficha | La guarda (sesión y membresía), `getSellerWithInventory` (miembros e inventario en paralelo) y cuatro lecturas en paralelo: tres esperas encadenadas |
+
+### d. Medido en local: `cac81e8` frente a `9a64986`
+
+Dos árboles de trabajo nuevos, `npm ci` con el mismo `package-lock.json`, `next build` y `next start` (builds de
+producción) con las variables de Supabase **local** en el entorno —comprobado: ninguna construcción contiene la
+referencia de producción—; la base local en **`0077`** sembrada desde `cac81e8`; el Administrador del sembrado local;
+el recorrido guiado dado por visto, igual en las dos. **Tres rondas** alternando el orden (A-B, B-A, A-B), cada una con el
+servidor recién arrancado (`build/demora-ficha/orquestar.mjs`, resultados en `resultados.json`).
+
+| Medida (mediana, y rango) | `cac81e8` | `9a64986` |
+|---|---|---|
+| Primera apertura de la ficha en ese servidor, del clic al `<h1>` (n = 3) | 178 ms (177–200) | 184 ms (179–196) |
+| Aperturas posteriores (n = 12) | 156,5 ms (148–171) | 167 ms (150–186) |
+| Carga completa hasta el `<h1>` (n = 15) | 280 ms | 286 ms |
+| TTFB del documento (n = 15) | 172,9 ms | 183,2 ms |
+| Documento sin navegador (n = 3) | 121 ms | 132 ms |
+| Llamadas a Supabase por carga, en Kong | **10**: 2 `/auth/v1/user`, 6 de tablas, 2 RPC | **10**, las mismas rutas |
+
+**Conclusión de la medida:** no hay regresión atribuible al puente. Las diferencias de 6 a 11 ms entre medianas tienen
+los rangos solapados y ninguna llamada adicional que las explique: son ruido de la medida. **Límite:** en local no hay
+latencia de red entre la aplicación y Supabase, el volumen es menor (33 boletas frente a 1.321) y no hay instancias
+de función que arranquen; eso es justo lo que la medida **no** puede reproducir de producción.
+
+### e. Conclusión
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Qué petición fue la visita, y cuánto tardó? | Una de las tres aperturas de fichas de 02:02:08–02:02:32 UTC; **cuál y cuánto, no se puede saber** con los registros de este plan |
+| ¿Regresión del puente? | **No**: código de la ficha idéntico, mismas llamadas y mismos tiempos en local |
+| ¿Otra causa demostrada? | **Ninguna**. Hipótesis sin demostrar: instancia o ruta en frío tras el despliegue, la latencia de las tres esperas encadenadas hacia Supabase, el dispositivo o la red |
+| Estado | **I-190 abierta**. No se da por resuelta por no haber errores |
+
+### f. Entorno al terminar y errores propios
+
+La base local, devuelta a `0079` y sembrada desde la rama de trabajo (`npm run db:reset && npm run seed:local`), sin
+pausa; servidores detenidos; los dos árboles de medición, eliminados; los de otras sesiones, sin tocar.
+
+| Error | Corrección |
+|---|---|
+| `pg_stat_statements_info` no está en `public` sino en `extensions` | El esquema se lee de `pg_extension` |
+| Un `npm ci` en segundo plano no recibió la variable del directorio (asignación dentro del primer `&`) | Repetido por separado |
+| La capa del recorrido guiado tapaba la lista y el clic agotaba el tiempo | Recorrido dado por visto, como `silenceTours` de las E2E |
