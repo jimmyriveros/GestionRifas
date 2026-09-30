@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-240: I-191 e I-192 corregidas, y el ensayo de P3 repetido, solo en local, 2026-09-30)** | **1.948/1.948** en 96 archivos (+61: `gate-data-effects` 28, `earning-recovery` 18, `restore-backup` 14 y 1 en `gate-tools`) | **1.515 ✅ y 1 omitida** en 62 archivos (+5: `restore-backup` 3 y `gate-provenance` 2). Sobre la copia de P3: restaurada con `restore-backup.ts` (**12.360 filas iguales**), `0078`+`0079` en 9,3 s, **P9 en CONTINUAR** y **DETENER** en 8 alteraciones; recuperada con la estructura **idéntica** y el dinero con la misma huella, con privilegios alojados (7 concesiones) y locales (0) | No aplica: sin cambios en `src/` | `npm run verify` ✅ sobre `86e13fc` | ✅ **Corregidas en local, sin publicar.** Candidato `5f84e13`, PR #9 en borrador, CI ✅ **2/2** (`36723630637`). P4 y siguientes, **sin autorizar**; I-190, abierta |
+| **Post-9 vigente (P4: comprobaciones previas en producción, solo lectura; la pausa NO se instaló, 2026-09-30, 14:08–14:11 UTC)** | Sin cambio de código: el candidato `5f84e13` | Producción: `0077`, sin pausa ni gancho; diagnóstico previo **limpio**; `verify:remote` 49 + las 5 en rojo a propósito | No aplica | — | ⏸️ **P4 no ejecutada**: a las 09:10 de Bogotá quedaban 50 min antes de la hora del programador y la ventana necesita ~90 (estimado). Nada instalado; la plataforma sigue abierta. Dos franjas propuestas |
+| Post-9 anterior (D-240: I-191 e I-192 corregidas, y el ensayo de P3 repetido, solo en local, 2026-09-30) | **1.948/1.948** en 96 archivos (+61: `gate-data-effects` 28, `earning-recovery` 18, `restore-backup` 14 y 1 en `gate-tools`) | **1.515 ✅ y 1 omitida** en 62 archivos (+5: `restore-backup` 3 y `gate-provenance` 2). Sobre la copia de P3: restaurada con `restore-backup.ts` (**12.360 filas iguales**), `0078`+`0079` en 9,3 s, **P9 en CONTINUAR** y **DETENER** en 8 alteraciones; recuperada con la estructura **idéntica** y el dinero con la misma huella, con privilegios alojados (7 concesiones) y locales (0) | No aplica: sin cambios en `src/` | `npm run verify` ✅ sobre `86e13fc` | ✅ **Corregidas en local, sin publicar.** Candidato `5f84e13`, PR #9 en borrador, CI ✅ **2/2** (`36723630637`). P4 y siguientes, **sin autorizar**; I-190, abierta |
 | Post-9 anterior (P3: ensayo sobre una copia de producción restaurada en local, 2026-09-30) | Sin cambio de código: el candidato `30e28c5` | Copia fiel (**12.360 filas iguales**, 0 ajustes de privilegios); `0078`+`0079` en 8,8 s con el **dinero idéntico** y las cinco revocaciones efectivas; recuperación en 0,43 s con el dinero idéntico | No aplica | `verify-remote` contra la copia: 53 + 1 (el cron desactivado en local) migrada; 48 + 1 recuperada, con el del puente | ✅ **P3 pasada en lo que comprueba**, con dos hallazgos para el dueño: la comparación por fila de P9 dirá DETENER por diseño (**I-191**) y la recuperación deja 7 funciones sin `service_role` (**I-192**, más restrictivo) |
 | Post-9 anterior (P2: la rama de la publicación, PR #9 y su CI, 2026-09-30) | CI del PR #9 sobre `30e28c5`: ✅ **2/2** (`36660506172`) | Idem, «Migraciones desde cero + pruebas de base de datos» en verde. Producción, sin tocar: `0077`, sin pausa | No aplica | — | ✅ **P2 hecha**: `cac81e8..30e28c5` empujado sin `force`, PR #9 en borrador; la vista previa, en rojo por D-066 exactamente. **D-236 va en ese SHA**, pendiente del dueño. I-190, abierta |
 | Post-9 anterior (I-190: la demora de la ficha del vendedor, diagnosticada, 2026-09-30) | Sin cambio de código | Sin cambio de esquema; en producción, solo lecturas | Medida local A/B de la ficha con builds de producción: `cac81e8` y `9a64986` **iguales** (primera apertura 178 frente a 184 ms; mismas 10 llamadas a Supabase) | — | ⚠️ **I-190 abierta, sin causa demostrada**: los registros de este plan no guardan la duración. **No se encontró una regresión atribuible al puente en las comparaciones realizadas.** La navegación del dueño funcionó |
@@ -16911,3 +16912,71 @@ Registro **local**, posterior al candidato: no forma parte de él.
 | CI sobre `5f84e13`, run `36723630637` | ✅ **2/2**. «Typecheck, lint, unitarias, build»: 13:42:45–13:45:02 UTC. «Migraciones desde cero + pruebas de base de datos»: 13:42:44–13:49:25 UTC. Se esperó a que terminara con una sola espera, sin sondeo |
 | Vista previa de Vercel (`dpl_xgmPJdwiN1AR5rna386SGKV7NUrq`, sin destino de producción) | ❌, y es **exactamente** D-066, leído en su registro de construcción: `prebuild` → `check:env` → «Faltan variables de entorno obligatorias: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY», y «Command "npm run build" exited with 1». Ningún otro error. No es un despliegue de producción: el servido sigue siendo `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8` |
 | Entorno local, después | `db:reset` y `seed:local`: `0079`, 33 boletas, 6 perfiles, sin pausa, 3 tareas activas, Vault vacío, `authenticator` sin `pgrst.*` |
+
+## P4 — Comprobaciones previas; la pausa NO se instaló: la franja no era adecuada (2026-09-30, 14:08–14:11 UTC)
+
+Autorización expresa del dueño **solo para P4**, condicionada a tres comprobaciones previas y a que la franja sirviera;
+si no servía, no instalar nada y proponer dos franjas. **En producción, solo lecturas. No se instaló, cerró ni escribió
+nada.** Candidato: `5f84e13b93ad58ad7b0f8f8676d959169bd010a2`; las herramientas, las de ese commit (`HEAD` es `1b22b64`,
+solo documentación encima). Evidencia fuera de Git, en `build/p4/` y `build/gate/`.
+
+### a. P0, repetida (solo lectura)
+
+| Qué | Resultado |
+|---|---|
+| Proyecto | `zqwu…`: la CSP servida nombra **un** proyecto y es el de la referencia guardada; las herramientas no conectan si `SUPABASE_DB_URL` nombra otro |
+| Lo servido (14:08 UTC) | **`9a64986`** —identificador `41ee2474757c` presente, el de `cac81e8` ausente—, `/mantenimiento` en 200 con sus textos, 7/7 cabeceras, CSP por nonce, 0 secretos en 951 KB de JavaScript. Todo en verde |
+| Base | **`0077`**, 77 migraciones, ninguna posterior; en el repositorio, solo `0078` y `0079` de más. `earning-recovery-check`: `0077`, «NADA QUE REVERTIR» |
+| Pausa | **Sin** esquema `pausa`, sin tabla, sin función y **sin** `pgrst.db_pre_request` en `authenticator`. `maintenance-pause estado`: «Instalada: no · gancho configurado: no · PostgREST la usa: no»; sonda `service_role` 200 sin cabecera |
+| `verify:remote` del candidato | **49 OK + 5 en rojo a propósito** sobre `0077` (D-238) |
+| Git | `main` = `9a64986c92dc60c4351ff58a1cb7db0ff7eb9259`; la rama del PR #9 = `5f84e13…`; el PR, abierto y **en borrador** |
+| Ida y vuelta a la base | 30 × `select 1`: mediana **99,9 ms** (99–102) |
+
+### b. Diagnóstico previo de ganancias (solo lectura)
+
+`earning-precheck.ts --production`: **limpio** —«nada que impida aplicar la 0078 ni nada que decidir antes»—: 0 en las
+siete comprobaciones que bloquean y 0 en las tres que decide el dueño. Ninguna diferencia entre comisiones y ledger.
+Volumen: el de P3 **más una boleta cobrada y un movimiento del ledger** (320 y 339, frente a 319 y 338): actividad
+normal desde el respaldo de P3, que por eso **ya no es el estado de producción**; el de la ventana se toma en P6.
+
+### c. La hora, los recordatorios y las tareas programadas (leídos hoy, no de P3)
+
+| Qué | Resultado |
+|---|---|
+| Hora | 14:10 UTC = **09:10 en Bogotá**, miércoles 30 de septiembre de 2026 |
+| Programador de loterías (`vercel.json` de lo servido; el del candidato es igual) | Horas UTC 3, 4, 5, 6, 12, 13, 15 y 16 = **Bogotá 22, 23, 0, 1, 7, 8, 10 y 11**. La siguiente empieza a las **10:00**, a 50 minutos. Último turno, 13:33 UTC; candado libre |
+| Recordatorios de pago | 2 activos, ninguno vencido sin procesar, ninguno en los próximos 60 min. Los siguientes: **viernes 2/10, 4:15 p. m.** y **sábado 3/10, 6:50 p. m.** (Bogotá) |
+| `pg_cron` | Las 3 tareas activas, 0 ejecuciones incorrectas en 24 h; la limpieza diaria, a las 03:17 de Bogotá |
+| Actividad de la API | 0 peticiones en curso al leer |
+| Actividad por hora, últimos 14 días (acciones con sesión, pagos y ventas; recuentos) | Máxima de 12 a 13 h y de 9 a 11 h; baja de 16 a 17 h y de 19 a 21 h; nula de 1 a 4 h |
+
+### d. Por qué no se instaló
+
+La ventana —de P5 a P10, con la pausa cerrada— necesita del orden de **90 minutos libres**, contando una eventual
+recuperación. **Es una estimación, no una medida**:
+
+| Parte | De dónde sale |
+|---|---|
+| Cerrar y drenar; respaldo, foto y diagnóstico (P5–P6) | El respaldo, **medido** contra producción en P3: 1 min 46 s. El resto, segundos |
+| Migrar y comprobar el estado (P7) | Estimado: 10–30 s más la CLI. Sin medir con la red real |
+| Código y despliegue (P8) | El del puente, **medido** en PB: ~1 min hasta READY |
+| Comprobar sin abrir y la revisión del dueño (P9) | Estimado: 10–20 min |
+| Abrir y retirar (P10) | Estimado: 1–2 min |
+| Seis puertas con su autorización y su informe | Estimado: varios minutos por puerta |
+| Una recuperación, si hiciera falta | Estimado: ~15 min. Una restauración, más, y sin ensayar en el proyecto alojado |
+
+A las 09:10 quedaban **50 minutos** antes de la hora del programador, en una de las horas de más uso. **No era una
+franja adecuada: no se instaló nada.** No se esperó ni se programó ninguna ejecución.
+
+### e. Estado final y franjas propuestas
+
+Producción, **igual que antes**: sirve `9a64986`, base en `0077`, **sin pausa** y abierta con normalidad. Ninguna
+escritura.
+
+| Franja propuesta (Bogotá) | Por qué |
+|---|---|
+| **Miércoles 30/09, de 4:00 a 6:00 p. m.** | Las dos horas de menos uso de la tarde; 4 h de margen hasta el programador (10:00 p. m.); sin recordatorios |
+| **Miércoles 30/09, de 7:00 a 9:00 p. m.** | Uso bajo; 1 h de margen hasta el programador: P5 no debería empezar después de las 8:15 p. m. |
+
+El jueves 1/10 valen las mismas dos. El viernes 2/10, no la de la tarde: el recordatorio de las 4:15 p. m. hace que
+`cerrar` se niegue desde las 3:15 p. m.
