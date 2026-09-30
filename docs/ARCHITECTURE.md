@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.48 · **Estado:** implementado · **Actualizado:** 2026-09-29, al final (**§8.31 nueva**: la pausa de
+- **Versión:** 1.49 · **Estado:** implementado · **Actualizado:** 2026-09-30 (**EN PRODUCCIÓN desde las 18:00 UTC**,
+  con `5f84e13`: lo que las entradas de 2026-09-28 y 2026-09-29 marcan «solo en local» —D-236 a D-239— está publicado,
+  `DEPLOYMENT` §3.2.u). Antes, 2026-09-29, al final (**§8.31 nueva**: la pausa de
   publicación vista desde la aplicación —D-239, **solo en local**—: la lectura de la membresía lanza, las pantallas van a
   `/mantenimiento` conservando la sesión y las acciones devuelven su texto). Antes, ese mismo día (**§8.30 nueva**: la configuración de
   ganancias —D-237, **solo en local**—: un solo editor de tramos, los dos acuerdos leídos en una petición, el campo

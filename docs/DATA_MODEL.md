@@ -1,6 +1,8 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.32 · **Estado:** implementado · **Actualizado:** 2026-09-29, al final (**§4.25 nueva**: el esquema
+- **Versión:** 2.33 · **Estado:** implementado · **Actualizado:** 2026-09-30 (**`0078` y `0079` APLICADAS EN
+  PRODUCCIÓN** a las 17:52 UTC: lo que las entradas de 2026-09-29 marcan «solo en local» está publicado; el esquema
+  `pausa` se instaló y se retiró en la ventana, `DEPLOYMENT` §3.2.u). Antes, 2026-09-29, al final (**§4.25 nueva**: el esquema
   `pausa` de D-239, temporal y fuera de las migraciones; el modelo no cambia). Antes, ese mismo día, más tarde (§4.3 y §4.24: la
   **`0079`** —D-238, **solo en local**—: reorganizar recalcula también al padre nuevo (I-180), el acuerdo de equipo solo
   lo cambia su vendedor padre (I-181) y §4.3 dice «mientras tenga vendedor padre», no «mientras pertenezca a un

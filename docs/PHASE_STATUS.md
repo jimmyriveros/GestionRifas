@@ -3,7 +3,28 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-30, 13:40 UTC — **D-240: las herramientas de la publicación, corregidas, SOLO EN LOCAL
+- **Actualizado:** 2026-09-30, 18:03 UTC — **La configuración de ganancias EN PRODUCCIÓN (D-236 a D-240; `0078` y
+  `0079`)**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Producción sirve **`5f84e13`**
+  (`dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`) sobre **`0079`**, publicada con la autorización conjunta del dueño para P4–P10.
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en producción, la lista general de tramos versionada en «Configuración» → «Ganancias de
+  vendedores», los dos acuerdos por vendedor, el tramo del jefe con su equipo y la compatibilidad padre–hijo validada en
+  la base (D-237); reorganizar recalcula al padre nuevo y el acuerdo de equipo solo lo cambia el padre (D-238); la
+  pausa de publicación (D-239); y la redirección a `/login` con lo que pide Supabase (D-236). Todo acuerdo
+  administrativo sigue en la mitad, y el integrante por tramos quedó en la versión 1 de su organización.
+  **(2) Pruebas:** CI 2/2 en el PR y en `main`; `verify:remote` **54/54** antes de abrir y después; la comparación de
+  P9 contra la foto de la ventana, **CONTINUAR**; la revisión del dueño, conforme; registros sin errores. Detalle en
+  `TEST_RESULTS`, P4–P10.
+  **(3) Migraciones:** `0078` (listas de tramos versionadas y acuerdos) y `0079` (reorganizar recalcula al padre nuevo;
+  el acuerdo de equipo, del padre), **aplicadas en producción**. Producción y local: `0001`–`0079`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-190** e **I-193**, abiertas; la restauración en el proyecto alojado, sin
+  ensayar (I-183). **Punto de reversión del código:** el puente `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, **solo después** de
+  recuperar el esquema con la foto de P6 (`RUNBOOK` §10.5).
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y `DEPLOYMENT` §3.2.u. Siguiente trabajo del dueño: «Cierre
+  de cuentas».
+
+- Antes, 2026-09-30, 13:40 UTC — **D-240: las herramientas de la publicación, corregidas, SOLO EN LOCAL
   (sin migración)**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. **El estado del producto no
   cambia**: producción sigue sirviendo `9a64986` sobre `0077`, sin pausa, y no se tocó ni se leyó. Los seis puntos de
   `CLAUDE.md` §34.3:

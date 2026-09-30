@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.31 · **Estado:** implementado · **Actualizado:** 2026-09-29, al final (**§4.26 nueva**: la pausa de
+- **Versión:** 2.32 · **Estado:** implementado · **Actualizado:** 2026-09-30 (**EN PRODUCCIÓN desde las 18:00 UTC**:
+  lo que las entradas de 2026-09-28 y 2026-09-29 marcan «solo en local» —D-236 a D-239— está publicado; la matriz de
+  permisos de la `0078` y la `0079`, comprobada en producción con `verify:remote` 54/54; la pausa, retirada,
+  `DEPLOYMENT` §3.2.u). Antes, 2026-09-29, al final (**§4.26 nueva**: la pausa de
   publicación —D-239, **solo en local**, temporal y fuera de las migraciones—: un gancho de PostgREST que, cerrado, rechaza
   toda petición de la API salvo la de un perfil permitido, sin privilegios sobre su estado para ningún rol de la API).
   Antes, ese mismo día, más tarde (**§4.25**: la `0079` —D-238,

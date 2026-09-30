@@ -15992,3 +15992,8 @@ fila tocada.
 | Autorizar P4 y las siguientes, y elegir la ventana | Del dueño |
 | I-190, la demora de la ficha | Abierta, sin causa demostrada |
 | I-193 | Sin decidir |
+
+> **Publicada el 2026-09-30** (`DEPLOYMENT` §3.2.u): con la autorización conjunta del dueño para P4–P10, `0078`,
+> `0079` y `5f84e13` —D-236 a D-240— están en producción desde las 18:00 UTC. Las herramientas de esta decisión se
+> usaron tal como se ensayaron: la foto de P6 guardó `hechos.ganancias` y la comparación de P9 dio **CONTINUAR** con los
+> efectos de datos comprobados por entidad. La recuperación y la restauración no hicieron falta.

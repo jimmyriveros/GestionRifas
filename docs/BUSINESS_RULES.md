@@ -1,6 +1,9 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.40 · **Estado:** normativo · **Actualizado:** 2026-09-29, al final (§3.b: **BR-E08**, I-184 decidida por
+- **Versión:** 1.41 · **Estado:** normativo · **Actualizado:** 2026-09-30 (**EN PRODUCCIÓN desde las 18:00 UTC**: las
+  reglas nuevas BR-G27..BR-G35 y las precisiones de BR-G25 y BR-G33, que las entradas de 2026-09-29 marcan «solo en
+  local», rigen en producción, `DEPLOYMENT`
+  §3.2.u). Antes, 2026-09-29, al final (§3.b: **BR-E08**, I-184 decidida por
   el dueño —D-239—: un traslado cuyo acuerdo de equipo no cabe en el padre nuevo **se sigue rechazando**, como limitación
   aceptada). Antes, ese mismo día, más tarde (§3.b y §3.c: la **revisión de
   D-237 antes de publicarla** —D-238, migración `0079`, **solo en local**—: **BR-G25 y BR-G33 precisadas** —reorganizar

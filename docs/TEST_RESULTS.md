@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (P4: comprobaciones previas en producción, solo lectura; la pausa NO se instaló, 2026-09-30, 14:08–14:11 UTC)** | Sin cambio de código: el candidato `5f84e13` | Producción: `0077`, sin pausa ni gancho; diagnóstico previo **limpio**; `verify:remote` 49 + las 5 en rojo a propósito | No aplica | — | ⏸️ **P4 no ejecutada**: a las 09:10 de Bogotá quedaban 50 min antes de la hora del programador y la ventana necesita ~90 (estimado). Nada instalado; la plataforma sigue abierta. Dos franjas propuestas |
+| **Post-9 vigente (P4–P10: la configuración de ganancias EN PRODUCCIÓN, `0078`, `0079` y `5f84e13`, 2026-09-30, 17:45–18:03 UTC)** | CI del PR (`36723630637`) y de `main` (`36754548208`) sobre `5f84e13`: ✅ 2/2 | Producción en `0079`; `verify:remote` **54/54** antes de abrir y después; la comparación de P9 contra la foto de P6, **CONTINUAR** con 4 filas explicadas y ninguna de dinero | Sin E2E: la revisión del dueño con su sesión, conforme | — | ✅ **Publicada.** Interrupción de 12 min 5 s; la pausa, retirada; registros sin errores |
+| Post-9 anterior (P4: comprobaciones previas en producción, solo lectura; la pausa NO se instaló, 2026-09-30, 14:08–14:11 UTC) | Sin cambio de código: el candidato `5f84e13` | Producción: `0077`, sin pausa ni gancho; diagnóstico previo **limpio**; `verify:remote` 49 + las 5 en rojo a propósito | No aplica | — | ⏸️ **P4 no ejecutada**: a las 09:10 de Bogotá quedaban 50 min antes de la hora del programador y la ventana necesita ~90 (estimado). Nada instalado; la plataforma sigue abierta. Dos franjas propuestas |
 | Post-9 anterior (D-240: I-191 e I-192 corregidas, y el ensayo de P3 repetido, solo en local, 2026-09-30) | **1.948/1.948** en 96 archivos (+61: `gate-data-effects` 28, `earning-recovery` 18, `restore-backup` 14 y 1 en `gate-tools`) | **1.515 ✅ y 1 omitida** en 62 archivos (+5: `restore-backup` 3 y `gate-provenance` 2). Sobre la copia de P3: restaurada con `restore-backup.ts` (**12.360 filas iguales**), `0078`+`0079` en 9,3 s, **P9 en CONTINUAR** y **DETENER** en 8 alteraciones; recuperada con la estructura **idéntica** y el dinero con la misma huella, con privilegios alojados (7 concesiones) y locales (0) | No aplica: sin cambios en `src/` | `npm run verify` ✅ sobre `86e13fc` | ✅ **Corregidas en local, sin publicar.** Candidato `5f84e13`, PR #9 en borrador, CI ✅ **2/2** (`36723630637`). P4 y siguientes, **sin autorizar**; I-190, abierta |
 | Post-9 anterior (P3: ensayo sobre una copia de producción restaurada en local, 2026-09-30) | Sin cambio de código: el candidato `30e28c5` | Copia fiel (**12.360 filas iguales**, 0 ajustes de privilegios); `0078`+`0079` en 8,8 s con el **dinero idéntico** y las cinco revocaciones efectivas; recuperación en 0,43 s con el dinero idéntico | No aplica | `verify-remote` contra la copia: 53 + 1 (el cron desactivado en local) migrada; 48 + 1 recuperada, con el del puente | ✅ **P3 pasada en lo que comprueba**, con dos hallazgos para el dueño: la comparación por fila de P9 dirá DETENER por diseño (**I-191**) y la recuperación deja 7 funciones sin `service_role` (**I-192**, más restrictivo) |
 | Post-9 anterior (P2: la rama de la publicación, PR #9 y su CI, 2026-09-30) | CI del PR #9 sobre `30e28c5`: ✅ **2/2** (`36660506172`) | Idem, «Migraciones desde cero + pruebas de base de datos» en verde. Producción, sin tocar: `0077`, sin pausa | No aplica | — | ✅ **P2 hecha**: `cac81e8..30e28c5` empujado sin `force`, PR #9 en borrador; la vista previa, en rojo por D-066 exactamente. **D-236 va en ese SHA**, pendiente del dueño. I-190, abierta |
@@ -16980,3 +16981,65 @@ escritura.
 
 El jueves 1/10 valen las mismas dos. El viernes 2/10, no la de la tarde: el recordatorio de las 4:15 p. m. hace que
 `cerrar` se niegue desde las 3:15 p. m.
+
+## P4–P10 — La configuración de ganancias EN PRODUCCIÓN: `0078`, `0079` y `5f84e13` (2026-09-30, 17:45–18:03 UTC)
+
+Autorización expresa y conjunta del dueño para P4–P10, confirmada por él en la sesión, con su revisión manual en P9.
+Publica D-237, D-238, D-239 y D-240, y D-236 dentro del lote. **Interrupción: 12 min 5 s** (cerrada a las 17:48:45,
+abierta a las 18:00:50 UTC; de 12:48 a 1:00 p. m. en Bogotá). Evidencia fuera de Git, en `build/p4-10/` y
+`build/gate/`; el respaldo, en `Rifas-backups/2026-09-30-p6-ventana-0078-0079/`. Ningún dato de cliente ni importe
+aquí.
+
+### a. Antes de cerrar (solo lectura, 17:45–17:47 UTC; 12:45 p. m. en Bogotá)
+
+| Qué | Resultado |
+|---|---|
+| Proyecto | La CSP servida nombra un solo proyecto y es el esperado; las herramientas comprueban el suyo |
+| Lo servido | El puente `9a64986` (`41ee2474757c`), todo en verde en vivo. Un primer intento cortó por la red de este equipo (`ConnectTimeoutError`); repetido, bien |
+| Base, pausa | `0077`, 77 migraciones; sin esquema `pausa` ni gancho |
+| Git y CI | `main` = `9a64986`; la rama del PR #9 = `5f84e13`, en borrador; CI del SHA exacto: las 2 comprobaciones y los comentarios de la vista previa, en verde. `9a64986` es antepasado de `5f84e13` |
+| Diagnóstico previo | **Limpio** (10/10). Volumen: 323 boletas cobradas y 342 movimientos (actividad normal desde P3) |
+| Hora y tareas | 12:46 p. m. en Bogotá. Programador: la siguiente hora, a las 10:00 p. m. Recordatorios: ninguno en 60 min; el siguiente, viernes 2/10 4:15 p. m. `pg_cron`: 3 activas, 0 fallos en 24 h. Candado libre |
+| Reversión, antes de desplegar | El despliegue servido, `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8` (el puente), con `isRollbackCandidate`: al publicar pasaría a ser el anterior |
+
+### b. La ventana
+
+| Puerta | Hora UTC | Resultado |
+|---|---|---|
+| **P4** instalar | 17:47:05–17:47:08 | Instalada **abierta**; PostgREST la usó a los **209 ms** (cabecera «abierta»). `estado`: instalada, gancho configurado, usada. En vivo, igual; registros desde las 17:40: 0 errores, 0 avisos y 0 5xx, con vendedores trabajando |
+| **P5** cerrar | 17:48:42–17:48:47 | **CERRADA a las 17:48:45.669**; drenada en **419 ms**; 423 `RIFAS_PAUSA` para `anon` y `service_role` |
+| **P6** foto y respaldo | 17:48:55–17:51:34 | Foto **`p6-antes`** (`foto-p6-antes-produccion-2026-09-30T17-48-58-227Z.json`): 77 migraciones, 244 funciones. Volcados: `roles.sql` 8,3 s, `schema.sql` 52,0 s, `data.sql` 38,9 s (455 B, 680 KB y 5,8 MB); **0** nombres `"auth".`, **0** credenciales, 31 `INSERT`; `restore-backup.ts` lo aceptaría. `roles.sql` trae ahora el gancho de la pausa: se tomó con ella instalada. **Una segunda foto, comparada con la primera: CONTINUAR, 0 filas** —el respaldo es el estado de la foto—. Diagnóstico otra vez: limpio, el mismo volumen |
+| **P7** migrar | 17:51:52–17:52:29 | `--dry-run`: **exactamente** `0078` y `0079`, sin semillas ni roles. `db push … ?lock_timeout=900ms --yes`: salida 0 en **36,0 s** de reloj. `earning-recovery-check`: **`0079`**, historial y esquema de acuerdo, «SE PUEDE VOLVER» |
+| **P8** código | 17:52:42–17:54:08 | `git push origin 5f84e13…:refs/heads/main`: `9a64986..5f84e13`, avance rápido, sin `force`. **`dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`**: creado 17:52:47, **READY 17:54:01**, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`334960b56704`** desde las 17:54:08. Un solo despliegue de producción |
+| **P9** comprobar | 17:54–18:00 | `commission_agreement_problems()`: **0**. `verify:remote`: **54/54**. Foto `p9-despues --base <P6>` y **`gate-compare --operation migrations --migrations 0078,0079 --expected-delta`: CONTINUAR**, en 3,2 s: 0 diferencias de estructura ni de permisos con lo ensayado; efectos de datos comprobados —2 organizaciones, 2 listas en versión 1, 8 tramos, 7 membresías, 1 integrante por tramos fijado, 2 comisiones conservadas, y ledger (2 entidades), pagos (2) y boletas (10) sin cambio—; filas tocadas: 1 de bitácora, 1 membresía y 2 comisiones, **las 4 explicadas**; ninguna en las tablas de dinero. `permitir` al perfil del Administrador que eligió el dueño. **Revisión del dueño, conforme:** la lista general en «Versión 1», «Cómo se le paga» con la mitad en las fichas, panel y boletas; **sin demora significativa** al abrir un vendedor |
+| **P10** abrir y retirar | 18:00:42–18:01:09 | `abrir --migracion 0079 --commit 5f84e13…`: comprobó la base en `0079` y el sitio con `334960b56704`; **ABIERTA a las 18:00:50.499**. `estado` antes de retirar: instalada (I-193). `retirar`: PostgREST dejó de usarla a los **210 ms** y el esquema se borró. `estado`: «Instalada: no», sonda 200 sin cabecera |
+
+### c. Después de abrir (18:01–18:03 UTC)
+
+| Qué | Resultado |
+|---|---|
+| En vivo | **Todo en verde** (25 comprobaciones): `334960b56704` servido y `41ee2474757c` ausente, `/mantenimiento` en 200, 7/7 cabeceras, 0 secretos, D-234 y Color v2 servidos |
+| `verify:remote` | **54/54** |
+| Base | `0079`, 79 migraciones; sin esquema `pausa` ni `pgrst.*` en `authenticator`; `pg_cron`, 3 activas y 0 fallos; 2 recordatorios activos, ninguno vencido |
+| Registros de Vercel desde las 17:48 | **0** errores, avisos o fatal y **0** 5xx; las rutas, las de la revisión y las comprobaciones |
+| CI de `main` (`push`, run `36754548208`) sobre `5f84e13` | ✅ **2/2** (17:52:49–17:59:29 UTC) |
+| PR #9 | GitHub lo marca **fusionado** (17:52:44), sin commit de fusión: es lo que hace cuando `main` llega a la cabeza del PR. Nadie pulsó «Merge» |
+
+### d. Tiempos reales en producción
+
+| Paso | Medido |
+|---|---|
+| Recarga del gancho al instalar / al retirar | 209 ms / 210 ms |
+| Drenaje al cerrar | 419 ms |
+| Foto de la ventana | ~14 s de reloj |
+| Respaldo (los tres volcados) | 99,2 s |
+| `db push` de las dos | 36,0 s de reloj |
+| Del empuje a `main` al despliegue | READY 1 min 17 s después del empuje; el build servido, comprobado a los 1 min 25 s (se miraba cada 15 s) |
+| Comparación de P9 | 3,2 s |
+| **Interrupción total**, con la revisión del dueño | **12 min 5 s** |
+
+### e. Lo que queda
+
+Nada pendiente de esta publicación. Siguen abiertas **I-190** —esta vez el dueño no notó demora— e **I-193**. La
+restauración en el proyecto alojado sigue sin ensayarse (I-183); no hizo falta. El siguiente trabajo, según el dueño,
+es «Cierre de cuentas».

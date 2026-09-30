@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-29, al final (§3.3.b: la ventana de la `0078` y la `0079` la controla la **pausa de la API**
+**Actualizado:** 2026-09-30, 18:03 UTC (**§3.2.u nueva: la configuración de ganancias EN PRODUCCIÓN** —`0078`, `0079` y
+`5f84e13`, con D-236 y D-240 dentro—, con la pausa cerrada 12 min 5 s; el punto de reversión del código es el puente,
+**solo después** de recuperar el esquema, `RUNBOOK` §10.5). Antes, 2026-09-29, al final (§3.3.b: la ventana de la `0078` y la `0079` la controla la **pausa de la API**
 —D-239, solo en local—; **§3.3.c nueva**: el puente de la pausa, `cac81e8` con solo el manejo de la pausa, **preparado y
 ensayado, sin publicar**; §4.1: tras la publicación, la reversión del código vuelve al puente). Antes, ese mismo día
 (§3.3.b: la excepción de la `0078` pasa a ser **de la `0078` y la `0079`** —D-238, solo
@@ -1143,6 +1145,29 @@ no inicia sesión en producción—.
 > publicación **no** se empujan: desplegarían otra versión y moverían el punto de reversión. **Desde aquí, la reversión
 > del código de la publicación de ganancias vuelve a este puente** (§4.1).
 
+### 3.2.u Release de la configuración de ganancias (D-236 a D-240; `0078` y `0079`) — 2026-09-30
+
+**Con migraciones y con pausa.** Autorización expresa y conjunta del dueño para P4–P10 de `RUNBOOK` §10, confirmada en
+la sesión, con su revisión manual en P9. Publica D-237, D-238, D-239 y D-240 y, dentro del lote, D-236.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`5f84e13b93ad58ad7b0f8f8676d959169bd010a2`**, la cabeza del PR #9 con el CI en verde: `86e13fc` —el código ensayado en D-240— más su documentación |
+| Commit anterior en producción | `9a64986c92dc60c4351ff58a1cb7db0ff7eb9259`, el puente (§3.2.t) |
+| Integración | **Avance rápido** `9a64986..5f84e13`, sin `force` y sin fusión: `git push origin 5f84e13…:refs/heads/main` a las **17:52:42 UTC**, con la pausa cerrada y la base ya en `0079`. GitHub marca el PR #9 fusionado sin commit de fusión |
+| Despliegue Vercel | **`dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`**: creado a las 17:52:47, **READY a las 17:54:01 UTC**, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`334960b56704`** desde las 17:54:08. El único de producción que disparó el empuje |
+| Despliegue anterior | **`dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`** (el puente), candidato a *Instant Rollback*. **No es compatible con la base de ahora**: se vuelve a él solo **después** de recuperar el esquema con `earning-recovery.ts` y la foto de P6 (`RUNBOOK` §10.5) |
+| **Migraciones** | **`0078` y `0079`**, aplicadas de 17:51:52 a 17:52:28 UTC (36,0 s), con `lock_timeout=900ms`. Ahora **79**, `0001`–`0079` |
+| Pausa | Instalada 17:47:08; **cerrada 17:48:45**; abierta 18:00:50; retirada 18:01:05 UTC. **Interrupción: 12 min 5 s** |
+| Respaldo de la ventana | `Rifas-backups/2026-09-30-p6-ventana-0078-0079/`, fuera del repositorio; consistente con la foto de P6 (0 filas distintas) |
+| CI | En el PR, run **`36723630637`**: ✅ 2/2. En `main`, run **`36754548208`** (`push`) sobre `5f84e13`: ✅ **2/2** (17:52:49–17:59:29 UTC) |
+| Dependencias y configuración | Sin cambios de `package.json`, `package-lock.json`, `next.config.ts` ni `vercel.json` respecto del puente |
+
+**Verificado:** `verify:remote` **54/54** antes de abrir y después; la comparación de P9 contra la foto de P6 en
+**CONTINUAR**, con los efectos de datos comprobados por entidad y ninguna fila de dinero tocada; en vivo, todo en verde con
+`334960b56704` servido y el del puente ausente; registros desde las 17:48, **0** errores, avisos o 5xx. La revisión del
+dueño, con la sesión del Administrador y la pausa cerrada: conforme. Detalle en `TEST_RESULTS`, P4–P10.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1335,6 +1360,8 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > código anterior mientras llega el nuevo. Ahí el código se sube en el mismo comando, solo si la
 > migración terminó bien, y se mide la ventana: con `0057` fueron unos 62 s (§3.2.j).
 
+> **Publicada el 2026-09-30 (§3.2.u).** Lo que sigue es cómo se preparó.
+>
 > **Excepción, pendiente: la `0078` y la `0079` (D-237, D-238, D-239).** Tampoco son aditivas: **retiran**
 > `commission_tiers`, `team_max_fixed_commission` y la firma anterior de `commission_summary`, que el código
 > publicado lee en el panel del vendedor y en «Mi equipo»; y el código nuevo necesita lo que crean. No hay orden
