@@ -1100,6 +1100,42 @@ publicación. Nada de esta entrega toca la sesión.
 > **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
 > versión y moverían el punto de reversión.
 
+### 3.2.t Release de PB: el puente de la pausa (D-239) — 2026-09-30
+
+**Sin migración.** El puente de §3.3.c: `cac81e8` **más solo** el manejo de la pausa de publicación —la pantalla
+`/mantenimiento`, la guarda que la reconoce sin cerrar la sesión (I-115) y el mensaje de las acciones—. Autorización
+expresa del dueño **solo para PB** (`RUNBOOK` §10.2). **No** instala ni cierra la pausa, **no** aplica la `0078` ni la
+`0079`, y la configuración de ganancias sigue sin publicar.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`9a64986c92dc60c4351ff58a1cb7db0ff7eb9259`**, el revisado: un solo commit sobre `cac81e8`, el mismo SHA del PR #8 con el CI en verde |
+| Commit anterior en producción | `cac81e8260e9ff606ab97ea64509b80fe65e08bf`, I-173 (§3.2.s) |
+| Integración | **Avance rápido** `cac81e8..9a64986`, **sin fusión, sin `force` y sin la rama local `main`**: `git ls-remote` confirmó `cac81e8` justo antes y `git push origin 9a64986…:refs/heads/main` a las **01:15:19 UTC**, fuera de las horas del programador. GitHub marca el PR #8 fusionado a las 01:15:21, sin commit de fusión |
+| Despliegue Vercel | **`dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`**, `gestion-rifas-bgs2haqcn-jimmyriveros-projects.vercel.app`: creado a las 01:15:22, **READY a las 01:16:22 UTC**, con el alias `gestion-rifas.vercel.app` y sin error de alias; el único de producción que disparó el empuje. Construcción: caché de `BtpaT5…`, dependencias «up to date», Next.js 16.3.6 (Turbopack), `check:env` «verificadas correctamente», 39 s, Vercel CLI 60.1.3, `iad1`. Solo los avisos de siempre: `engines` e `install-scripts` |
+| Despliegue anterior (**punto de reversión**) | **`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`** (`cac81e8`), el inmediatamente anterior, con `isRollbackCandidate` antes y después de publicar; `dpl_28di…` dejó de serlo, como corresponde en Hobby. **Compatible**: el puente no cambia la base. *Instant Rollback*, **sin tocar la base**; lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1). **Mientras la pausa no esté instalada**, volver ahí no cambia nada visible; con la pausa cerrada, `cac81e8` volvería a cerrar sesiones (I-115) |
+| **Migraciones** | **NINGUNA.** Siguen **77**, `0001`–`0077`, sin esquema `pausa` ni gancho en `authenticator`, leído antes y después |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `next.config.ts`, ni `vercel.json`, ni `.github/` |
+| CI | En el PR, run **`36653356272`** sobre `9a64986`: ✅ **2/2** (01:04:31–01:10:43 UTC). En `main`, run **`36654232751`** (`push`) sobre `9a64986`: ✅ **2/2** (01:15:25–01:22:56 UTC) |
+| Vista previa del PR | `dpl_B7wbFgRRuSnjLCwm7xaV5z5bxJgT` en ERROR **a propósito**: se detiene en `check:env` por las tres variables de Supabase, que Preview no tiene (D-066, I-022), leído en sus registros |
+
+**Antes de publicar (en solo lectura, 01:02–01:04 UTC):** servido `b21a1caa33c5` (`cac81e8`); 36/36 rutas —las 35 de
+I-173 y `/mantenimiento`, que aún llevaba a `/login`—, ningún 5xx, 7/7 cabeceras, 0 secretos; `verify:remote` **49/49**
+con el script del puente, idéntico al de `cac81e8`; la base en `0077`. Las pruebas son las del cierre local del puente
+(D-239: `verify` 1.812/1.812, `test:db` 1.452 + 1, E2E de la pausa 4/4 sobre `0077`) y el CI del PR.
+
+**Verificación en vivo (01:17–01:19 UTC):** servido **`41ee2474757c`** (1 de 15 fragmentos) y el de `cac81e8`,
+**desaparecido**. **36/36 rutas**, con **`/mantenimiento` en 200 sin sesión**, su texto, «Reintentar» y `noindex`; ningún
+5xx; 7/7 cabeceras, CSP por *nonce* con un solo proyecto; **0 secretos** en 951 KB; Next 16.3.6; D-234 y Color v2,
+servidos. `verify:remote` **49/49**; la base, igual. Registros desde las 01:15: solo las peticiones de la comprobación,
+**0** errores, avisos o fatal y **0** 5xx; `get_runtime_errors`, ninguno. **Uso con sesión: no comprobado** —un agente
+no inicia sesión en producción—.
+
+> **Después, solo en local:** el puente se fusionó en `feature/detalle-boleta-admin` (`0e268df`), con **0 archivos
+> cambiados** —comprobado antes en seco con `git merge-tree`—. Esa rama y los commits de documentación de esta
+> publicación **no** se empujan: desplegarían otra versión y moverían el punto de reversión. **Desde aquí, la reversión
+> del código de la publicación de ganancias vuelve a este puente** (§4.1).
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1303,16 +1339,16 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > comprobación previa y, si se puede volver, primero el esquema (`supabase/recovery/0079_a_0077.sql`) y después el
 > código. Todo en `RUNBOOK` §10. **No está autorizada**: nada de la `0078` ni de la `0079` existe en el proyecto real.
 
-#### 3.3.c El puente de la pausa — **preparado y ensayado en local, SIN PUBLICAR** (D-239)
+#### 3.3.c El puente de la pausa — **EN PRODUCCIÓN desde el 2026-09-30, 01:16 UTC** (D-239, PB; registro en §3.2.t)
 
 | | |
 |---|---|
 | Qué es | `cac81e8` —lo que sirve producción— **más solo** el manejo de la pausa: `src/lib/maintenance-pause.ts`, la pantalla `/mantenimiento`, las guardas, `mapPgError`, las dos rutas de API, el proxy, y las herramientas y pruebas de la pausa. Ningún cambio de pantallas ni de base |
 | Por qué hace falta | Con la API cerrada, el código publicado cierra la sesión **global** de quien navega y dice «Tu cuenta está inactiva» (I-115). El puente lleva a `/mantenimiento` conservando la sesión |
-| Dónde está | Rama local `fix/puente-pausa-publicacion`: **`9a64986`**, un commit sobre `cac81e8`, **sin empujar** |
+| Dónde está | **`9a64986`**, un commit sobre `cac81e8`: en `main` y en `fix/puente-pausa-publicacion` del remoto (PR #8), servido por **`dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`** |
 | Verificado en local | `verify` exit 0 (1.812/1.812; I-171 reproducida primero en su árbol de trabajo nuevo y apartada reescribiendo el archivo en LF); `test:db` 1.452 + 1 sobre `0077`; E2E de la pausa 4/4 sobre `0077` y 3/3 sobre `0079`; `abrir` rechaza las tres parejas equivocadas y abre la correcta (`b21a1caa33c5` servido) |
-| Cómo se publicaría (puerta PB de `RUNBOOK` §10.2) | `git ls-remote origin refs/heads/main` tiene que ser `cac81e8`; `git push origin fix/puente-pausa-publicacion:refs/heads/main` por avance rápido, sin `force`; CI 2/2; READY; identificador servido (§6.1); `/mantenimiento` en 200 y la aplicación igual que antes. Su punto de reversión es `cac81e8` (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`) |
-| Después | Fusionarlo en `feature/detalle-boleta-admin` antes de su PR: los archivos de la pausa son idénticos en las dos ramas, así que la fusión no cambia ninguno, como la del puente de D-228. Desde que la publicación esté servida, la reversión del código vuelve **al puente**, que maneja la pausa |
+| Cómo se publicó (puerta PB de `RUNBOOK` §10.2, **hecha**; §3.2.t) | `git ls-remote origin refs/heads/main` tiene que ser `cac81e8`; `git push origin fix/puente-pausa-publicacion:refs/heads/main` por avance rápido, sin `force`; CI 2/2; READY; identificador servido (§6.1); `/mantenimiento` en 200 y la aplicación igual que antes. Su punto de reversión es `cac81e8` (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`) |
+| Después | **Hecho, en local:** fusionado en `feature/detalle-boleta-admin` (`0e268df`) con 0 archivos cambiados, como la del puente de D-228; esa rama sigue sin empujar. Desde que la publicación esté servida, la reversión del código vuelve **al puente**, que maneja la pausa |
 
 ---
 

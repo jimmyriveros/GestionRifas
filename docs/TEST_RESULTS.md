@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (diagnóstico previo de D-237 a D-239 EN PRODUCCIÓN, solo lectura, 2026-09-29, 23:39–23:46 UTC)** | Sin cambio de código ni batería local repetida: siguen **1.887/1.887** | Sin cambio de esquema local: **1.510 + 1**. Producción: `0001`–`0077`, sin `0078` ni `0079`; diagnóstico previo **limpio** | No aplica: ninguna pantalla cambió | `verify:remote` **49 OK + los 5 en rojo esperados**, identificados uno por uno | ✅ **P0 y P1 conformes, nada escrito.** Servido `cac81e8` (`b21a1caa33c5`); sin pausa ni gancho. Pendiente: la autorización del puente (PB) |
+| **Post-9 vigente (PB: el puente de la pausa EN PRODUCCIÓN, D-239, `9a64986`, 2026-09-30)** | Sin cambio de código en la rama de la publicación: la fusión del puente, 0 archivos. CI sobre `9a64986`: ✅ 2/2 en el PR #8 (`36653356272`) y en `main` (`36654232751`) | Producción sigue en `0077`, sin pausa ni gancho; la base no se tocó | No aplica: el puente no cambia ninguna pantalla con la API normal. En vivo, **36/36** rutas con `/mantenimiento` en 200 | `verify:remote` **49/49** antes y después | ✅ **Publicado** por avance rápido `cac81e8..9a64986`: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, READY a las 01:16:22 UTC, `41ee2474757c` servido. Reversión: `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`) |
+| Post-9 anterior (diagnóstico previo de D-237 a D-239 EN PRODUCCIÓN, solo lectura, 2026-09-29, 23:39–23:46 UTC) | Sin cambio de código ni batería local repetida: siguen **1.887/1.887** | Sin cambio de esquema local: **1.510 + 1**. Producción: `0001`–`0077`, sin `0078` ni `0079`; diagnóstico previo **limpio** | No aplica: ninguna pantalla cambió | `verify:remote` **49 OK + los 5 en rojo esperados**, identificados uno por uno | ✅ **P0 y P1 conformes, nada escrito.** Servido `cac81e8` (`b21a1caa33c5`); sin pausa ni gancho. Pendiente: la autorización del puente (PB) |
 | Post-9 anterior (la publicación de D-237 y D-238 preparada, D-239, sin migración, solo en local, 2026-09-29) | **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa de la recuperación, +1 de `mapPgError`) | **1.510 ✅ y 1 omitida** en 61 archivos (+8 de la pausa contra la PostgREST local; +3 de `earning-agreements`: I-184 y el guardia) | Dirigida **103/103** (la pausa y los recorridos de las guardas); la de la pausa también en el puente, 4/4 sobre `0077` y 3/3 sobre `0079`. La completa, no repetida | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayados**: la migración a medias (I-186) y sus dos salidas, los tres escenarios de recuperación, la restauración completa y conciliada (I-183, con I-187 e I-188 corregidas), y el puente (`verify` 1.812, `test:db` 1.452 + 1) |
 | Post-9 anterior (revisión de D-237 antes de publicarla, D-238, `0079`, solo en local, 2026-09-29) | **1.839/1.839** en 91 archivos (+16, `earning-precheck.test.ts`: el diagnóstico previo solo lee y no toca tablas nuevas) | **1.499 ✅ y 1 omitida** en 60 archivos (+16: reorganizar, I-180, y quién cambia el acuerdo de equipo, I-181; **12 de ellas fallan con la `0078`**). Segunda pasada sobre la misma base: 1 fallo de `list-order`, **anterior y reproducido en `aa11ad4`** (I-185) | Dirigida **65/65** (`ganancias`, `ganancias-movil`, `equipo`, `equipo-movil`, `owner-users`, `telefono-mascara`) desde la base recién sembrada. La completa, **no** repetida: la de D-237, 966/973, es histórica | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayo de publicación y recuperación**: diagnóstico, `0078` detenida donde dijo, ventana medida, interbloqueo con tráfico (I-182), recuperación con estructura idéntica y restauración conciliada |
 | Post-9 anterior (configuración de ganancias, D-237, `0078`, solo en local, 2026-09-29) | **1.823/1.823** en 90 archivos (+30, `commission-tiers.test.ts`, que lee la `0078` para comparar frases; `schemas.test.ts` da un acuerdo al alta de un vendedor) | **1.483 ✅ y 1 omitida** en 60 archivos (+39, `earning-agreements.test.ts`: un modelo independiente contra todas las filas, conservación y la mutación del cerrojo), dos veces | Completa **966/973** en 53,8 min: 2 provocados por este trabajo y corregidos (**18/18** al repetirlos sobre la base que dejó la completa), 3 anteriores (I-090, la hermana de I-164, I-106) y 2 intermitencias ajenas (I-178; I-179, reproducida en `b793016`). Nuevas: `ganancias` (6) y `ganancias-movil` (3) | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
@@ -16420,3 +16421,90 @@ puente— son **de los ensayos de D-238 y D-239** (sus entradas, más arriba) y 
 
 **Siguiente paso:** la autorización expresa del dueño para **PB**, el puente (`DEPLOYMENT` §3.3.c). Nada de P2 a P10
 está autorizado.
+
+---
+
+## PB — El puente de la pausa EN PRODUCCIÓN (D-239, `9a64986`, 2026-09-30)
+
+Autorización expresa del dueño **solo para PB** (`RUNBOOK` §10.2, `DEPLOYMENT` §3.3.c): empujar la rama del puente,
+su PR y su CI, publicarlo por avance rápido sin `force`, verificarlo y fusionarlo en local en la rama de la
+publicación. **No** cubría instalar, cerrar ni tocar la pausa, aplicar la `0078` o la `0079` ni empujar
+`feature/detalle-boleta-admin`. Evidencia en `build/puente-pausa/`, fuera de Git; el guion en vivo es copia del de
+I-173 con `/mantenimiento` añadido.
+
+### a. El puente, revisado antes de empujar
+
+| Qué | Resultado |
+|---|---|
+| Commit | `9a64986c92dc60c4351ff58a1cb7db0ff7eb9259`, un solo commit cuyo padre es `cac81e8`. Su árbol de trabajo, limpio |
+| Diferencia con `cac81e8` | 19 archivos, +1.852 / −20. **Código de aplicación:** `lib/maintenance-pause.ts` y `app/mantenimiento/page.tsx` (nuevos); `getActiveMembership` lanza `MaintenancePauseError` **solo** ante `RIFAS_PAUSA` o un 423; las guardas, `/`, `/login`, el inicio de sesión y las dos rutas de API con sesión lo recogen; `mapPgError` traduce `RIFAS_PAUSA`; el proxy añade `/mantenimiento` a las rutas públicas. **Resto:** la herramienta, `supabase/maintenance/` —no son migraciones— y las pruebas |
+| Lo que NO toca | `supabase/migrations/`, `package.json`, `package-lock.json`, `next.config.ts`, `vercel.json`, `.github/`, `scripts/verify-remote.ts`: sin una línea de diferencia |
+| Con la API normal | El mismo comportamiento: las ramas nuevas solo se activan ante la pausa |
+
+### b. Producción antes de publicar (solo lectura, 01:02–01:04 UTC)
+
+| Comprobación | Resultado |
+|---|---|
+| `git ls-remote origin` | `main` = `cac81e8`; la rama del puente no existía en el remoto |
+| `node build/puente-pausa/en-vivo.mjs antes cac81e8 9a64986` | ✅ **36/36** rutas (las 35 de I-173 y `/mantenimiento`, que aún lleva a `/login`), 0 5xx, 7/7 cabeceras, CSP por *nonce* con un solo proyecto (`zqwu…`), `b21a1caa33c5` servido en 1/15 fragmentos y el del puente (`41ee2474757c`) en 0, 0 secretos en 951 KB, Next 16.3.6, D-234 y Color v2 servidos |
+| La base (`build/diagnostico-p0/p0.ts`, `readOnly`) | `transaction_read_only = on`; **77** migraciones hasta `0077`, ninguna posterior; sin esquema `pausa` ni gancho; 2 recordatorios, el primero el 2026-10-02 21:15 UTC; candado libre; ninguna transacción de la API en curso |
+| `verify:remote` **del puente** (idéntico al de `cac81e8`) | ✅ **49/49** |
+| Vercel | Producción `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`) con `isRollbackCandidate`; el proyecto, sin reversión en curso |
+| La ventana | 01:01 UTC: fuera de las horas del programador (el siguiente turno, 03:20 UTC) y sin recordatorios hasta el 2/10 |
+| Registros de la última hora | Solo las peticiones de esta comprobación; **0** errores, avisos o fatal |
+| La fusión local, en seco (`git merge-tree --write-tree`) | Sin conflictos y con el árbol **idéntico** al de `HEAD` (`947a6d2…`): 0 archivos cambiados |
+
+### c. Rama, PR y CI
+
+| Qué | Resultado |
+|---|---|
+| Empuje | Solo `9a64986` a `refs/heads/fix/puente-pausa-publicacion`. `main` y `feature/detalle-boleta-admin` del remoto, sin tocar |
+| PR | **#8**, abierto hacia `main` |
+| Check «Vercel» del PR | ❌ **a propósito**: la vista previa `dpl_B7wbFgRRuSnjLCwm7xaV5z5bxJgT` se detiene en `check:env` por las tres variables de Supabase, que Preview no tiene (D-066, I-022) —leído en sus registros de construcción—. Igual que en los PR #4 a #7; la de `cac81e8`, el código que hoy sirve producción, también está en ERROR |
+| CI del PR | Run **`36653356272`** (`pull_request`, `headSha` = `9a64986c92dc60c4351ff58a1cb7db0ff7eb9259`): ✅ **2/2** —verificación de 01:04:31 a 01:06:59; base de datos de 01:04:31 a 01:10:43—. Leído una vez al terminar, sin sondeo |
+
+### d. La publicación
+
+| Qué | Resultado |
+|---|---|
+| Justo antes | `git ls-remote`: `main` = `cac81e8`; `cac81e8` es ancestro de `9a64986`; el único rojo del PR, la misma vista previa de §c |
+| Empuje | `git push origin 9a64986…:refs/heads/main` a las **01:15:19 UTC**, sin `force`: `cac81e8..9a64986`, **avance rápido**, sin fusión y sin la rama local `main`. GitHub marca el PR #8 fusionado a las 01:15:21, **sin commit de fusión** |
+| Despliegue | **`dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`** (`gestion-rifas-bgs2haqcn-jimmyriveros-projects.vercel.app`): creado a las 01:15:22, construyendo desde las 01:15:24, **READY a las 01:16:22 UTC**, con el alias `gestion-rifas.vercel.app` y sin error de alias. El único de producción que disparó el empuje |
+| Construcción | Caché de `BtpaT5…`, dependencias «up to date», «Detected Next.js version: 16.3.6», «▲ Next.js 16.3.6 (Turbopack)», `check:env` «Variables de entorno verificadas correctamente», 37 páginas estáticas, 39 s, Vercel CLI 60.1.3, `iad1`. Solo los avisos de siempre: `engines` e `install-scripts` |
+| Espera | El flujo en vivo de los registros de construcción (`follow`) agotó el tiempo del conector; se leyó el despliegue una vez, ya READY |
+| CI del empuje a `main` | Run **`36654232751`** (`push`, `9a64986`): ✅ **2/2** —verificación de 01:15:26 a 01:18:06; base de datos de 01:15:25 a 01:22:56— |
+
+### e. En vivo, después (01:17–01:19 UTC)
+
+| Comprobación | Resultado |
+|---|---|
+| `node build/puente-pausa/en-vivo.mjs despues 9a64986 cac81e8` | ✅ **36/36** rutas, 0 5xx; los dos detalles de boleta a `/login` sin sesión; los cuatro CSV cerrados; 7/7 cabeceras y CSP por *nonce* con un solo proyecto; **`41ee2474757c` (`9a64986`) servido** en 1/15 fragmentos y **`b21a1caa33c5` (`cac81e8`) desaparecido**; 0 secretos en 951 KB; Next 16.3.6; D-234 y Color v2, servidos |
+| `/mantenimiento` | ✅ **200 sin sesión**, con «Estamos actualizando Rifas», «Vuelve a entrar en unos minutos. Lo que ya registraste sigue guardado.», «Reintentar» hacia `/` y `noindex, nofollow`; no dice «inactiva» |
+| `verify:remote` del código publicado | ✅ **49/49** |
+| La base (`p0.ts`, `readOnly`) | Igual que antes: **`0077`**, ninguna migración posterior, sin esquema `pausa` ni gancho, candado libre, ninguna transacción de la API en curso. La base no se tocó |
+| Punto de reversión | `list_deployments`: **`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`)** con `isRollbackCandidate`, ahora el inmediatamente anterior; `dpl_28di…` dejó de serlo, como corresponde en Hobby. El filtro `rollbackCandidate` del conector responde **403**; el campo se leyó en la lista sin filtro |
+
+### f. Registros
+
+| Qué | Resultado |
+|---|---|
+| `get_runtime_logs` de `dpl_EWVD…` desde las 01:15, por ruta | Solo las 35 rutas de la comprobación en vivo, y ninguna otra petición |
+| Por estado | 307, 200, 401 y 404, los de la comprobación; **0** 5xx (consulta aparte con `5xx`) |
+| Errores, avisos o fatal desde las 01:15 | **0** |
+| `get_runtime_errors` desde las 01:15 | Ninguno |
+| Uso con sesión | **No comprobado**: un agente no inicia sesión en producción. Con la API normal el puente no cambia ninguna pantalla (§a) |
+
+### g. La fusión en la rama de la publicación (solo en local)
+
+| Qué | Resultado |
+|---|---|
+| En seco, justo antes | `git merge-tree --write-tree`: árbol idéntico al de `HEAD` (`947a6d2…`), sin conflictos |
+| `git merge --no-ff fix/puente-pausa-publicacion` en `feature/detalle-boleta-admin` | **`0e268df`**, con `9ac2206` y `9a64986` como padres. `git diff 9ac2206 0e268df`: **0 archivos**. El borrador de esta entrada y los tres archivos del usuario, intactos. **Sin empujar** |
+
+### h. Incidencias del camino
+
+| Incidencia | Qué se hizo |
+|---|---|
+| `gh run list --branch main` no listaba ningún run posterior al 19/09 | Por commit sí aparecen: el del empuje de `9a64986` (`36654232751`) y, de referencia, los de `cac81e8`. El filtro por rama de `gh`, no el CI |
+| El flujo en vivo de la construcción agotó el tiempo del conector | Una lectura del despliegue, ya READY |
+| El filtro `rollbackCandidate` del conector de Vercel da 403 | El campo `isRollbackCandidate` se leyó en la lista sin filtro |

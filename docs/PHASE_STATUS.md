@@ -3,7 +3,26 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-29, al final — **La publicación de D-237 y D-238, preparada y ensayada, SOLO EN LOCAL (D-239,
+- **Actualizado:** 2026-09-30, 01:16 UTC — **PB: el puente de la pausa EN PRODUCCIÓN (D-239, sin migración)**:
+  mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Producción sirve **`9a64986`**
+  (`dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`), publicado por avance rápido desde `cac81e8` con la autorización del dueño solo
+  para PB, y sigue en **`0077`**, sin la `0078`, sin la `0079` y **sin la pausa instalada**. Antes, el 2026-09-29, el
+  diagnóstico previo en solo lectura (P0 y P1) salió conforme y limpio. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** con la API de datos en pausa de publicación, producción ya **no** cierra la sesión de nadie ni
+  dice «Tu cuenta está inactiva»: lleva a `/mantenimiento` —«Estamos actualizando Rifas»— conservando la sesión, y una
+  acción responde su mensaje. Con la API normal, nada cambia. La configuración de ganancias sigue sin publicar.
+  **(2) Pruebas:** CI del PR #8 sobre `9a64986`, 2/2; en vivo, antes y después, 36/36 rutas, 7/7 cabeceras, 0 secretos y
+  `verify:remote` 49/49; después, `/mantenimiento` en 200 y el identificador del puente servido; registros sin errores.
+  El uso con sesión no se comprobó (un agente no inicia sesión). Detalle en `TEST_RESULTS`, entrada de PB.
+  **(3) Migraciones:** ninguna. Producción: `0001`–`0077`. Local: `0001`–`0079`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** los de la entrada anterior; **I-115**, ya solo fuera de la pausa. **Punto de
+  reversión del código:** `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`), compatible mientras la pausa no esté
+  instalada.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, `DEPLOYMENT` §3.2.t y §3.3.c, `RUNBOOK` §10. **Pendiente del
+  dueño:** autorizar P2 y las siguientes puertas, una por una.
+
+- Antes, el 2026-09-29, al final — **La publicación de D-237 y D-238, preparada y ensayada, SOLO EN LOCAL (D-239,
   sin migración nueva)**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, en la rama
   `feature/detalle-boleta-admin`, sin empujar, y un puente en la rama local `fix/puente-pausa-publicacion`, sin empujar.
   Producción no cambia: sigue sirviendo `cac81e8` y **no tiene ni la `0078` ni la `0079`**. Los seis puntos de
