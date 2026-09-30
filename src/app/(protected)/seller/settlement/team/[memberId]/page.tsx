@@ -138,7 +138,7 @@ export default async function TeamMemberSettlementPage({
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26.5rem)]">
         {/* El saldo va primero en el telefono; desde `lg`, a la derecha. */}
         <div className="lg:col-start-2 lg:row-start-1">
-          <ReceiverHero raffleId={raffle.id} account={account} />
+          <ReceiverHero raffleId={raffle.id} account={account} audience="head" />
         </div>
         <div className="space-y-6 lg:col-start-1 lg:row-start-1">
           <SettlementTicketsCard

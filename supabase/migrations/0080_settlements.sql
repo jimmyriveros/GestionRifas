@@ -90,30 +90,27 @@ comment on type settlement_account_status is
 -- quien recibe en una devolucion. `counterpart_id` es el otro extremo: NULL es el
 -- dueño (la organizacion) y un perfil es un vendedor a cargo. `balance_before` y
 -- `balance_after` son el saldo de ESA cuenta al confirmar, para la auditoria.
+--
+-- Sus llaves hacia las tablas que ya existian se añaden AL FINAL del archivo
+-- (seccion 10), no aqui: ver el motivo alli.
 -- -----------------------------------------------------------------------------
 create table settlement_transfers (
   id              uuid primary key default gen_random_uuid(),
-  organization_id uuid not null references organizations(id) on delete restrict,
+  organization_id uuid not null,
   raffle_id       uuid not null,
   kind            settlement_transfer_kind not null,
   seller_id       uuid not null,
   counterpart_id  uuid,
   amount          bigint not null,
   received_on     date not null,
-  confirmed_by    uuid not null references profiles(id) on delete restrict,
+  confirmed_by    uuid not null,
   confirmed_at    timestamptz not null default now(),
   request_id      uuid not null,
   balance_before  bigint not null,
   balance_after   bigint not null,
   voided_at       timestamptz,
-  voided_by       uuid references profiles(id) on delete restrict,
+  voided_by       uuid,
   void_reason     text,
-  constraint settlement_transfers_raffle_org_fk
-    foreign key (raffle_id, organization_id) references raffles(id, organization_id) on delete restrict,
-  constraint settlement_transfers_seller_org_fk
-    foreign key (seller_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
-  constraint settlement_transfers_counterpart_org_fk
-    foreign key (counterpart_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
   constraint settlement_transfers_request_key unique (organization_id, request_id),
   constraint settlement_transfers_amount_check check (amount between 1 and 100000000000),
   constraint settlement_transfers_counterpart_check check (counterpart_id is null or counterpart_id <> seller_id),
@@ -139,13 +136,13 @@ comment on table settlement_transfers is
 -- 2.2 Premios pagados
 --
 -- Un premio se identifica como en el historial (D-208): la coincidencia y el
--- premio. La FK compuesta a la coincidencia amarra organizacion, rifa, resultado
--- y campo; la boleta y su vendedor se copian para no depender de lo que cambie
--- despues.
+-- premio. La FK compuesta a la coincidencia (seccion 10) amarra organizacion,
+-- rifa, resultado y campo; la boleta y su vendedor se copian para no depender de
+-- lo que cambie despues.
 -- -----------------------------------------------------------------------------
 create table settlement_prize_payments (
   id                uuid primary key default gen_random_uuid(),
-  organization_id   uuid not null references organizations(id) on delete restrict,
+  organization_id   uuid not null,
   raffle_id         uuid not null,
   result_id         uuid not null,
   match_id          uuid not null,
@@ -158,23 +155,12 @@ create table settlement_prize_payments (
   amount            bigint not null,
   value_was_pending boolean not null,
   paid_on           date not null,
-  confirmed_by      uuid not null references profiles(id) on delete restrict,
+  confirmed_by      uuid not null,
   confirmed_at      timestamptz not null default now(),
   request_id        uuid not null,
   voided_at         timestamptz,
-  voided_by         uuid references profiles(id) on delete restrict,
+  voided_by         uuid,
   void_reason       text,
-  constraint settlement_prize_payments_match_fk
-    foreign key (match_id, result_id, organization_id, raffle_id, match_field)
-    references lottery_ticket_matches(id, result_id, organization_id, raffle_id, match_field) on delete restrict,
-  constraint settlement_prize_payments_prize_fk
-    foreign key (prize_id, raffle_id, organization_id) references raffle_prizes(id, raffle_id, organization_id) on delete restrict,
-  constraint settlement_prize_payments_ticket_org_fk
-    foreign key (ticket_id, organization_id) references tickets(id, organization_id) on delete restrict,
-  constraint settlement_prize_payments_ticket_seller_org_fk
-    foreign key (ticket_seller_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
-  constraint settlement_prize_payments_payer_org_fk
-    foreign key (payer_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
   constraint settlement_prize_payments_request_key unique (organization_id, request_id),
   constraint settlement_prize_payments_payer_check check ((payer = 'organization') = (payer_id is null)),
   constraint settlement_prize_payments_amount_check check (amount between 1 and 10000000000),
@@ -204,23 +190,17 @@ comment on table settlement_prize_payments is
 -- -----------------------------------------------------------------------------
 create table settlement_closings (
   id              uuid primary key default gen_random_uuid(),
-  organization_id uuid not null references organizations(id) on delete restrict,
+  organization_id uuid not null,
   raffle_id       uuid not null,
   seller_id       uuid not null,
   counterpart_id  uuid,
   version         integer not null,
   fingerprint     text not null,
   figures         jsonb not null,
-  closed_by       uuid not null references profiles(id) on delete restrict,
+  closed_by       uuid not null,
   closed_at       timestamptz not null default now(),
   cause           settlement_close_cause not null,
   cause_id        uuid,
-  constraint settlement_closings_raffle_org_fk
-    foreign key (raffle_id, organization_id) references raffles(id, organization_id) on delete restrict,
-  constraint settlement_closings_seller_org_fk
-    foreign key (seller_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
-  constraint settlement_closings_counterpart_org_fk
-    foreign key (counterpart_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
   constraint settlement_closings_version_key
     unique nulls not distinct (organization_id, raffle_id, seller_id, counterpart_id, version),
   constraint settlement_closings_version_check check (version >= 1),
@@ -2446,6 +2426,69 @@ begin
   end if;
 end
 $$;
+
+-- =============================================================================
+-- 10. Las llaves hacia las tablas que ya existian, AL FINAL
+--
+-- Una llave foranea toma SHARE ROW EXCLUSIVE sobre la tabla a la que apunta y
+-- lo retiene hasta confirmar: mientras tanto se puede LEER, pero nadie ESCRIBE
+-- en boletas, membresias, perfiles, organizaciones, rifas, premios ni
+-- coincidencias. La CLI envia la migracion sentencia a sentencia dentro de una
+-- transaccion: con las llaves en cada `create table`, ese cerrojo duraba casi
+-- todo el archivo. MEDIDO en local con `supabase db push`: una escritura de
+-- boletas espero 5,9 s, y `authenticated` tiene `statement_timeout = 8s`; en
+-- produccion, con la red de por medio, una venta o un abono podian fallar.
+-- Aqui van las ultimas: el cerrojo dura lo que tardan estas tres sentencias en
+-- confirmarse. Con las tablas nuevas vacias, validarlas es instantaneo.
+--
+-- Los nombres son los que tenian dentro de `create table`, para que el esquema
+-- que queda sea el mismo.
+-- =============================================================================
+
+alter table settlement_transfers
+  add constraint settlement_transfers_organization_id_fkey
+    foreign key (organization_id) references organizations(id) on delete restrict,
+  add constraint settlement_transfers_confirmed_by_fkey
+    foreign key (confirmed_by) references profiles(id) on delete restrict,
+  add constraint settlement_transfers_voided_by_fkey
+    foreign key (voided_by) references profiles(id) on delete restrict,
+  add constraint settlement_transfers_raffle_org_fk
+    foreign key (raffle_id, organization_id) references raffles(id, organization_id) on delete restrict,
+  add constraint settlement_transfers_seller_org_fk
+    foreign key (seller_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
+  add constraint settlement_transfers_counterpart_org_fk
+    foreign key (counterpart_id, organization_id) references memberships(profile_id, organization_id) on delete restrict;
+
+alter table settlement_prize_payments
+  add constraint settlement_prize_payments_organization_id_fkey
+    foreign key (organization_id) references organizations(id) on delete restrict,
+  add constraint settlement_prize_payments_confirmed_by_fkey
+    foreign key (confirmed_by) references profiles(id) on delete restrict,
+  add constraint settlement_prize_payments_voided_by_fkey
+    foreign key (voided_by) references profiles(id) on delete restrict,
+  add constraint settlement_prize_payments_match_fk
+    foreign key (match_id, result_id, organization_id, raffle_id, match_field)
+    references lottery_ticket_matches(id, result_id, organization_id, raffle_id, match_field) on delete restrict,
+  add constraint settlement_prize_payments_prize_fk
+    foreign key (prize_id, raffle_id, organization_id) references raffle_prizes(id, raffle_id, organization_id) on delete restrict,
+  add constraint settlement_prize_payments_ticket_org_fk
+    foreign key (ticket_id, organization_id) references tickets(id, organization_id) on delete restrict,
+  add constraint settlement_prize_payments_ticket_seller_org_fk
+    foreign key (ticket_seller_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
+  add constraint settlement_prize_payments_payer_org_fk
+    foreign key (payer_id, organization_id) references memberships(profile_id, organization_id) on delete restrict;
+
+alter table settlement_closings
+  add constraint settlement_closings_organization_id_fkey
+    foreign key (organization_id) references organizations(id) on delete restrict,
+  add constraint settlement_closings_closed_by_fkey
+    foreign key (closed_by) references profiles(id) on delete restrict,
+  add constraint settlement_closings_raffle_org_fk
+    foreign key (raffle_id, organization_id) references raffles(id, organization_id) on delete restrict,
+  add constraint settlement_closings_seller_org_fk
+    foreign key (seller_id, organization_id) references memberships(profile_id, organization_id) on delete restrict,
+  add constraint settlement_closings_counterpart_org_fk
+    foreign key (counterpart_id, organization_id) references memberships(profile_id, organization_id) on delete restrict;
 
 -- =============================================================================
 -- Nota de reversion (manual, no ejecutable)

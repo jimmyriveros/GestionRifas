@@ -154,7 +154,7 @@ export default async function OwnerSettlementDetailPage({
         {/* El saldo va primero: en el telefono se lee y se toca antes que el
             calculo que lo explica. Desde `lg` se coloca a su derecha. */}
         <div className="lg:col-start-2 lg:row-start-1">
-          <ReceiverHero raffleId={raffle.id} account={account} />
+          <ReceiverHero raffleId={raffle.id} account={account} audience="staff" />
         </div>
         <div className="lg:col-start-1 lg:row-start-1">
           <Calculation account={account} first={first} team={team} />

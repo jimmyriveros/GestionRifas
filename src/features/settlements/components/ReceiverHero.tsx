@@ -23,28 +23,38 @@ type ReceiverAccount = {
  * dueño, o un vendedor a cargo mirando la de un integrante (BR-Z05, BR-Z06).
  *
  *   saldo > 0   «Falta recibir de Carlos» y el boton para confirmar lo recibido;
- *   saldo < 0   «Debes devolver a Marta»: la devolucion la confirma ella;
+ *   saldo < 0   «Falta devolver a Marta»: la devolucion la confirma ella;
  *   saldo = 0   cerrada, por cerrar (con su boton) o con un premio por registrar.
+ *
+ * `audience` decide el POSESIVO, nada mas (D-182): el vendedor a cargo lee «Ya
+ * recibiste» y «Debes devolver», porque ese dinero es suyo; el personal lee
+ * «Recibido» y «Falta devolver», porque es de la organizacion y quien mira puede
+ * no ser quien lo recibio.
  */
 export function ReceiverHero({
   raffleId,
   account,
+  audience,
 }: {
   raffleId: string
   account: ReceiverAccount
+  audience: 'staff' | 'head'
 }) {
   const hero = SETTLEMENT_COPY.hero
+  const staff = audience === 'staff'
   const first = firstName(account.sellerName)
   const rows: Array<{ label: string; amount: number }> = [
-    { label: hero.received, amount: account.delivered },
+    { label: staff ? hero.staffReceived : hero.received, amount: account.delivered },
   ]
-  if (account.refunded > 0) rows.push({ label: hero.refunded, amount: account.refunded })
+  if (account.refunded > 0) {
+    rows.push({ label: staff ? hero.staffRefunded : hero.refunded, amount: account.refunded })
+  }
 
   if (account.balance < 0) {
     return (
       <SettlementHeroCard
         status={account.status}
-        label={hero.owedTo(first)}
+        label={staff ? hero.staffOwedTo(first) : hero.owedTo(first)}
         amount={-account.balance}
         rows={rows}
         notes={[hero.refundByReceiver(first)]}

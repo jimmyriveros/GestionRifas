@@ -75,8 +75,8 @@ export const SETTLEMENT_COPY = {
             : `Faltan ${missing} por cerrar`,
       inFavor: (amount: number, accounts: number) =>
         accounts === 1
-          ? `Hay ${formatCOP(amount)} a favor de 1 vendedor: se le devuelven cuando lo confirme.`
-          : `Hay ${formatCOP(amount)} a favor de ${accounts} vendedores: se les devuelven cuando lo confirmen.`,
+          ? `Hay ${formatCOP(amount)} a favor de 1 vendedor. La devolución cuenta cuando la confirme.`
+          : `Hay ${formatCOP(amount)} a favor de ${accounts} vendedores. Cada devolución cuenta cuando la confirma quien la recibe.`,
     },
     tableTitle: 'Cuentas de los vendedores',
     searchLabel: 'Buscar vendedor',
@@ -198,9 +198,15 @@ export const SETTLEMENT_COPY = {
   hero: {
     // Personal, o vendedor a cargo mirando a su integrante
     pendingFrom: (name: string) => `Falta recibir de ${name}`,
+    // El vendedor a cargo, sobre SU dinero: le habla de tu.
     owedTo: (name: string) => `Debes devolver a ${name}`,
     received: 'Ya recibiste',
     refunded: 'Ya devolviste',
+    // El personal, sobre el dinero de la organizacion: sin tuteo (D-182). Quien
+    // lo lee puede no ser quien lo recibio.
+    staffOwedTo: (name: string) => `Falta devolver a ${name}`,
+    staffReceived: 'Recibido',
+    staffRefunded: 'Devuelto',
     register: 'Registrar recibido',
     registerAria: (name: string) => `Registrar lo que recibiste de ${name}`,
     onlyWhatYouHave: 'Confirma únicamente el dinero que ya tienes.',
@@ -267,7 +273,7 @@ export const SETTLEMENT_COPY = {
       `Boleta ${daily ?? '—'} / ${weekly ?? '—'}`,
     draw: (date: string) => `Sorteo: ${date}`,
     paidBy: (name: string, date: string) => `${name} pagó el ${date}`,
-    paidByOwner: (date: string) => `Dueño pagó el ${date}`,
+    paidByOwner: (date: string) => `El dueño pagó el ${date}`,
     paidByYouOn: (date: string) => `Pagaste el ${date}`,
     seller: (name: string) => `Vendida por ${name}`,
     client: (name: string) => `Cliente: ${name}`,
