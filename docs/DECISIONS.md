@@ -16070,7 +16070,7 @@ sola boleta pagada deja deducir su precio: es inherente a que el dueño sepa qu�
 |---|---|
 | La CLI aplica la migración **sentencia a sentencia** dentro de una transacción (visto en `pg_stat_activity`). Con las 19 llaves foráneas dentro de cada `create table`, su `SHARE ROW EXCLUSIVE` sobre boletas, membresías, perfiles, organizaciones, rifas, premios y coincidencias duraba casi todo el archivo: **una escritura de boletas esperó 5,9 s** en local, y `authenticated` tiene `statement_timeout = 8s` | Las llaves pasan al **final** de la `0080` (sección 10): **288 ms**. El esquema que queda es el mismo —el delta de estructura es idéntico byte a byte— y la `0080` sigue sin estar publicada, así que cambiarla no es editar una migración aplicada |
 | El código servido (`5f84e13`) no nombra nada de la `0080` en tiempo de ejecución | Se publica **sin la pausa** de D-239: la base primero y el código después (RUNBOOK §11) |
-| El cierre no conoce las entregas ni los pagos de premios anteriores | El primer día se verá «Recibido $0» y cuentas en «Falta información»: la puesta en marcha la decide el dueño (RUNBOOK §11.2) |
+| El cierre no conoce las entregas ni los pagos de premios anteriores | El primer día se verá «Recibido $0» y cuentas en «Falta información». *Corregido en D-242: no hay «empezar desde hoy» —la cuenta suma todas las boletas pagadas—; la historia real se registra con sus fechas (BR-Z19)* |
 
 ### Adaptaciones de la propuesta de Figma (§35.2.4 de CLAUDE.md)
 
@@ -16101,8 +16101,9 @@ sola boleta pagada deja deducir su precio: es inherente a que el dueño sepa qu�
 - Cada lectura recalcula la rifa entera: 24 ms en la base y 22–31 ms por PostgREST con 100 vendedores y 5.000 boletas
   (unas tres veces la lista de vendedores, que no hace cuentas); 85–88 ms dentro de la batería completa, con la base
   recién cargada por otras suites. Si crece mucho, se mide antes de cachear (I-195).
-- Con el vendedor a cargo desactivado nadie confirma lo que le entrega su equipo: el personal lo reorganiza primero
-  (BR-E08) y lo ya entregado se queda con el anterior (I-196, comprobado en local).
+- Con el vendedor a cargo desactivado nadie confirma lo que le entrega su equipo (I-196, comprobado en local).
+  *Corregido en D-242: reorganizar NO basta si hay hechos sin registrar —se atribuyen al vendedor a cargo nuevo—;
+  se registran antes, reactivándolo un momento si ya se desactivó (BR-Z21).*
 - Ni avisos de la campana ni CSV para esta sección: el encargo no los pidió.
 
 ### Qué decide el dueño
@@ -16110,7 +16111,119 @@ sola boleta pagada deja deducir su precio: es inherente a que el dueño sepa qu�
 | Decisión | Estado |
 |---|---|
 | Publicar la `0080` y el código (RUNBOOK §11) | **Sin autorizar** |
-| Mantener «Entrega parcial» como estado aparte | Propuesto aquí; el Figma decía «Pendiente» |
-| Mantener que los integrantes no registren sus propios premios | Propuesto aquí (regla de quien recibe) |
-| La puesta en marcha: registrar con su fecha las entregas y los premios ya pagados, o empezar a contar desde el día de la publicación | Sin decidir (RUNBOOK §11.2) |
-| Con el vendedor a cargo desactivado, ¿basta reorganizar su equipo para cerrar sus cuentas? | Sin decidir (I-196) |
+| Mantener «Entrega parcial» como estado aparte | **Confirmado** por el dueño el 2026-09-30 (D-242) |
+| Mantener que los integrantes no registren sus propios premios | **Confirmado** por el dueño el 2026-09-30 (D-242) |
+| La puesta en marcha: registrar con su fecha las entregas y los premios ya pagados, o empezar a contar desde el día de la publicación | **Resuelto en D-242**: se registra la historia real; «empezar desde hoy» se retiró porque dejaba pendiente lo ya entregado |
+| Con el vendedor a cargo desactivado, ¿basta reorganizar su equipo para cerrar sus cuentas? | **No basta** (D-242): registrar antes, reactivándolo si hace falta |
+
+---
+
+## D-242 — Puesta en marcha del cierre de cuentas: la historia real se registra como ocurrió; lo que falta confirmar antes de cerrar cuentas
+
+**Fecha:** 2026-09-30 · **Encargo del dueño:** revisar y preparar la puesta en marcha antes de publicar. Revisión y
+correcciones en local; **producción, solo en lectura**; sin push, sin migración y sin despliegue. **No cambia el
+producto**: ni código de la aplicación ni la `0080`; añade pruebas, lecturas de producción y documentación.
+
+### Lo que el dueño confirmó
+
+| Decisión | Estado |
+|---|---|
+| «Entrega parcial» como estado de una cuenta (BR-Z04) | **Confirmada** el 2026-09-30 |
+| El vendedor a cargo registra y confirma los premios que pagaron sus integrantes (BR-Z07) | **Confirmada** el 2026-09-30 |
+| La cadena integrante → vendedor a cargo → dueño (BR-Z06) | **Confirmada** el 2026-09-30 |
+| La puesta en marcha registra los movimientos anteriores **reales**, con sus fechas y confirmados por quien corresponda, sin inventar entregas ni poner saldos en cero | **Su preferencia, adoptada como regla** (BR-Z19) |
+
+### 1. «Empezar a contar desde hoy» era incorrecto, y se retira
+
+D-241 y `RUNBOOK` §11.2 ofrecían al dueño dos salidas para el primer día: registrar lo anterior o «empezar a contar
+desde ese día». **La segunda no existe**: la cuenta suma **todas** las boletas pagadas de la rifa, así que empezar hoy
+dejaría como pendiente cada peso ya entregado y cada premio ya pagado. Demostrado en Z10-01 con cifras a mano: una
+cuenta con 1.000.000 entregados y 50.000 pagados en premios pediría **1.620.000** en vez de los **570.000** que de verdad
+faltan. Queda **una** puesta en marcha (BR-Z19):
+
+| Hecho anterior | Lo registra | Con qué fecha |
+|---|---|---|
+| Lo que un integrante entregó a su vendedor a cargo | Ese vendedor a cargo, con su sesión | La real (desde el inicio de la rifa) |
+| Lo que un vendedor directo o un vendedor a cargo entregó al dueño | El Dueño o un Administrador | La real |
+| Quién pagó cada premio | Quien recibe las entregas de quien lo pagó (BR-Z07) | La real (desde la fecha del sorteo) |
+| Una equivocación al registrarlo | Se **anula** con motivo y se registra bien | — |
+
+Demostrado en Z10-02 y Z10-03: con entregas del integrante al vendedor a cargo y de este al dueño, premios pagados por
+el integrante, por el vendedor a cargo, por el dueño y por un vendedor directo, una equivocación anulada y ventas,
+entregas y un premio **posteriores**, cada saldo es exactamente lo que falta, el orden no cambia el resultado y al final
+lo recibido por el dueño es lo cobrado menos las ganancias y los premios que pagaron los vendedores.
+
+### 2. Lo que el modelo NO puede registrar tal como pasó (I-197, nueva)
+
+Una entrega **no puede superar el saldo** de la cuenta (BR-Z12). Dos situaciones corrientes lo superan:
+
+| Situación | Qué pasa | Probado |
+|---|---|---|
+| El vendedor entregó **abonos** de boletas que todavía no están pagadas | La cuenta solo suma boletas pagadas (BR-Z02): la entrega real no cabe hasta que esas boletas se terminan de pagar; entonces sí, con su fecha, y el saldo queda exacto | Z11-01 |
+| El vendedor entregó el dinero **bruto** y el dueño le devolvió después su ganancia | Ni la entrega bruta ni la devolución caben: solo se podría registrar el neto, que no es lo que pasó | Z11-02 |
+
+En producción hay **222 boletas vendidas con abonos y sin terminar de pagar**, de los dos vendedores directos: si
+alguno entregó ese dinero, su historia no se puede registrar exacta hoy. **No se cambió la regla**: depende de cómo se
+movió el dinero, y eso solo lo sabe el dueño.
+
+### 3. Premios fuera del historial (I-194): lo que se comprobó y lo que falta
+
+Lectura de producción, **solo lectura** (2026-09-30, 23:15 UTC; recuentos, ningún cliente ni importe):
+
+| Se comprobó | Resultado |
+|---|---|
+| Inicio de la rifa activa y del historial | 27 de julio y 9 de agosto |
+| Sorteos jugados **sin resultado guardado** dentro de la rifa | **25**: 12 del 27/07 al 08/08 y 13 del 10/08 al 24/08 |
+| Si hubo ventas reales en ese tramo | **Sí**, de los dos vendedores directos: abonos fechados entonces. Uno de ellos asignó sus boletas a clientes en la aplicación desde el 27/08, con abonos fechados antes: las vendió antes de asignarlas, así que las fechas de la aplicación no dicen qué boletas jugaban en esos sorteos |
+| Sorteos con resultado confirmado (25/08 a 29/09) | 31. Sus 4 coincidencias de cuatro cifras con boletas vendidas son **los 4 premios** del historial (2 del motor y 2 reconocidos) |
+| ¿Alguna boleta asignada a un cliente **después** de un sorteo coincide con él? | De cuatro cifras, **ninguna**. De tres, 5, en días sin premio de tres cifras (el único aplica el 21 de diciembre) |
+
+**Lo que no se puede comprobar con datos:** si en esos 25 sorteos hubo premios pagados. La ausencia de registros no
+prueba que no los hubo. **Cuentas que podrían verse afectadas:** las dos cuentas con el dueño de la rifa activa —la del
+vendedor directo con equipo, cuyo integrante no tiene ventas, y la del vendedor directo sin equipo—. Hasta que el dueño
+confirme esos 25 sorteos, **ninguna de las dos se trata como definitiva** (BR-Z20): la puesta en marcha no las cierra. La
+aplicación no lo impide sola —una cuenta que llega a $0 se cierra (Z13-01)—, así que es una condición del procedimiento
+(`RUNBOOK` §11.2), no una promesa del programa.
+
+**El reconocimiento que ya existe no basta**, aunque D-241 (I-194) lo citaba como salida. Un premio «Reconocido por la
+organización» (D-208, `declared_prize_awards`) exige el resultado guardado del sorteo y la coincidencia que crea el
+motor, y el motor no cuenta como vendida una boleta creada o asignada **después** del sorteo (`created_at` y
+`assigned_at` frente a `official_scheduled_at`, `0064`): con uno de los dos vendedores asignando sus ventas desde el
+27/08, ni cargar los resultados atrasados bastaría. Y el historial no enseña nada anterior al 9 de agosto
+(`prize_award_history_start()`).
+
+**Solución mínima propuesta, NO construida:** si el dueño confirma premios pagados en esos sorteos, un registro acotado
+de «premio pagado de un sorteo sin resultado en el sistema» —rifa, boleta, fecha y lotería del sorteo, importe, quién lo
+pagó y su respaldo—, con la misma regla de quién lo registra (BR-Z07) y el mismo efecto en la cuenta que un premio del
+historial. Si confirma que no hubo ninguno, no hace falta construir nada. Un sistema general de ajustes queda fuera.
+Y, si el dueño la quiere, **una guardia**: que las cuentas de una rifa con sorteos sin información no pasen a «Cerrada»
+hasta registrar su confirmación. Tampoco está construida: hoy BR-Z20 es un procedimiento.
+
+### 4. Vendedor a cargo desactivado (I-196): reorganizar no basta
+
+Demostrado en Z12 con los hechos **sin registrar** al desactivarlo —lo que recibió y lo que pagó—:
+
+| Qué | Resultado |
+|---|---|
+| Él, desactivado | No registra nada: «No encontramos esa cuenta» |
+| El personal, por él | **No puede**: lo que entrega o paga el integrante lo confirma su vendedor a cargo. **No se amplió ningún permiso** |
+| Lo que él entregó al dueño y el premio que pagó él | Sí: los registra el personal (BR-Z05, BR-Z07) |
+| La cuenta con el dueño | Queda en «Falta información» por el premio sin registrar: no se da por buena sola |
+| **Reorganizar sin registrar antes** | La entrega del integrante solo se puede confirmar como recibida por el vendedor a cargo **nuevo**, que no la recibió; el anterior aparece **a su favor** aunque tiene ese dinero, y el nuevo debe dinero que nunca tuvo. **No conserva quién recibió** |
+| **Reactivarlo un momento** para que registre él lo que recibió, y reorganizar **después** | Exacto, y reorganizar conserva quién recibió (como en Z8) |
+| Lo que **pagó** él de un premio de su integrante (Z12-03) | Lo registra el personal —quien recibe sus entregas—, también con él desactivado: es la regla de BR-Z07, no un permiso nuevo. Registrado **antes** de reorganizar, se queda con él y en su cuenta. **Sin registrar, después ya no se le puede atribuir**: la base solo admite como pagador al integrante, a su vendedor a cargo **nuevo** o al dueño, y el premio queda en la cuenta del nuevo como «Falta información» |
+
+**En producción hoy no pasa**: el único vendedor a cargo está activo y su integrante no tiene ventas. **Propuesto, sin
+construir**: que la pantalla de desactivar a un vendedor con equipo avise de las cuentas de su equipo que tienen dinero
+por recibir, antes de confirmar. La otra salida —que el personal registre en nombre de un vendedor a cargo desactivado—
+**amplía un permiso** y solo se construiría con la decisión expresa del dueño.
+
+### Qué decide el dueño
+
+| Decisión | Estado |
+|---|---|
+| Si hubo premios pagados en los 25 sorteos sin resultado (27/07–24/08), y cuáles | **Pendiente** (I-194) |
+| Si los vendedores entregaron abonos de boletas sin terminar o dinero bruto con la ganancia devuelta después | **Pendiente** (I-197) |
+| Si hubo premios: el registro acotado de I-194; y, aparte, la guardia que no cierre esas cuentas hasta su confirmación | Propuestos, sin construir |
+| El aviso al desactivar a un vendedor con equipo | Propuesto |
+| Publicar la `0080` y el código (`RUNBOOK` §11) | **Sin autorizar** |

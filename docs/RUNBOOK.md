@@ -1,7 +1,10 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-30, más tarde (**§11 nueva**: publicar el cierre de cuentas —D-241, `0080`—, **preparada y
-ensayada en local con los privilegios de producción, sin autorizar**. Aditiva y sin pausa: la base primero, en una franja
+**Actualizado:** 2026-09-30, al final (**§11.2 rehecha**, D-242: la puesta en marcha registra la historia real —se
+retira «empezar a contar desde ese día», que dejaba pendiente lo ya entregado—, con lo que el dueño tiene que confirmar
+antes: los 25 sorteos sin resultado, cómo se entregó el dinero, las entregas y los premios reales, los acuerdos y los
+vendedores a cargo desactivados). Antes, ese mismo día, más tarde (**§11 nueva**: publicar el cierre de cuentas
+—D-241, `0080`—, **preparada y ensayada en local con los privilegios de producción, sin autorizar**. Aditiva y sin pausa: la base primero, en una franja
 fuera del programador y con `lock_timeout`; sus llaves foráneas van al final del archivo porque, dentro de cada tabla,
 bloqueaban las escrituras de boletas **5,9 s** por la CLI, y al final **288 ms**. §11.2 dice lo que el dueño verá el primer
 día y decide). Antes, ese mismo día (**D-240**: §5.2 y §10 dejan de usar `psql`, que no está instalado en el equipo desde el
@@ -1298,7 +1301,7 @@ las de §10.1 salvo la pausa y la recuperación, que aquí no se usan.
 | # | Puerta | Qué se hace | Se sigue solo si |
 |---|---|---|---|
 | C0 | Solo lectura | `npx supabase migration list --db-url "<SUPABASE_DB_URL>"`: la última aplicada es `0079` y no hay ninguna posterior. El despliegue servido es `5f84e13` y **el anterior de producción existe** (la reversión de Hobby solo va al anterior, `DEPLOYMENT` §4.1). `npm run verify:remote` **con el código de `<SHA>`**: **55 OK + 3 en rojo a propósito** —las tres del cierre: la matriz de funciones (21 «no existe»), las tablas (3) y la capacidad (2); la cuarta, «sin clasificar», en verde— | Exactamente eso. Otra roja, o una migración posterior a `0079`, detiene |
-| C1 | Rama y CI | Empujar la rama, PR en borrador y CI **2/2** sobre `<SHA>`: su trabajo de base de datos aplica todas las migraciones desde cero y corre las 48 pruebas del cierre | 2/2. **Requiere autorización de push** |
+| C1 | Rama y CI | Empujar la rama, PR en borrador y CI **2/2** sobre `<SHA>`: su trabajo de base de datos aplica todas las migraciones desde cero y corre las 57 pruebas del cierre | 2/2. **Requiere autorización de push** |
 | C2 | Franja | Una hora tranquila, **fuera** de las del programador (UTC 3, 4, 5, 6, 12, 13, 15 y 16 = Bogotá 22, 23, 0, 1, 7, 8, 10 y 11): su turno escribe en `lottery_ticket_matches`, que la migración bloquea al final. `pg_cron` no escribe en ninguna de las siete tablas. No se desactiva ni se suspende nada (D-208) | Franja acordada con el dueño |
 | C3 | Respaldo y foto | Los tres volcados de §5.1 y `npx tsx scripts/gate-snapshot.ts antes-0080 --production --project-ref <REF>`; se anota la ruta de la foto | Respaldo sin `"auth".` y «Guardada en build\gate\foto-antes-0080-produccion-….json» |
 | C4 | Migrar | `npx supabase db push --dry-run --db-url "<SUPABASE_DB_URL>"` lista **solo** `0080`; después `npx supabase db push --db-url "<SUPABASE_DB_URL>&lock_timeout=900ms"` | «Finished supabase db push.». Un `55P03` es un cerrojo que no se consiguió: **no se aplicó nada**; se espera un minuto y se repite desde el `--dry-run`. Cualquier otro error detiene y se reporta |
@@ -1306,15 +1309,43 @@ las de §10.1 salvo la pausa y la recuperación, que aquí no se usan.
 | C6 | Código | `git ls-remote origin refs/heads/main`; `git push origin <SHA>:refs/heads/main` por avance rápido; **un** despliegue | READY sobre `<SHA>` y su identificador servido (`DEPLOYMENT` §6.1). **Requiere autorización de push y de despliegue** |
 | C7 | Revisión | El dueño, con su sesión: «Cierre de cuentas» en el menú, el listado de la rifa y la cuenta de un vendedor; un vendedor, «Mi cierre de cuentas». **Solo mirar**. Los registros de Vercel de esa hora, sin errores | Todo como en local. **No se confirma una entrega ni se registra un premio de prueba**: son hechos de dinero real, y solo se anulan, no se borran |
 
-### 11.2 Después: la puesta en marcha, que decide el dueño
+### 11.2 La puesta en marcha: la historia real, antes de cerrar ninguna cuenta (D-242, BR-Z19..BR-Z21)
 
-El cierre **no conoce el pasado**, a propósito (BR-Z07): nada se marca como entregado ni como pagado solo.
+> **Corregido el 2026-09-30 (D-242).** Esta sección ofrecía «empezar a contar desde ese día». **No existe esa salida**:
+> la cuenta suma **todas** las boletas pagadas de la rifa, y empezar hoy dejaría como pendiente cada peso ya entregado
+> y cada premio ya pagado (Z10-01). Lo anterior se registra **como ocurrió**.
 
-| Lo que verá el dueño el primer día | Por qué | Qué se hace |
+El cierre **no conoce el pasado** y nada se marca solo (BR-Z07): el primer día se verá «Recibido $0» y cuentas en
+«Falta información». Eso se corrige registrando los hechos reales, no poniendo saldos en cero.
+
+**Lo que el dueño tiene que confirmar antes de empezar** —comprobado en producción, solo lectura, el 2026-09-30—:
+
+| # | Información | Por qué | Si falta |
+|---|---|---|---|
+| 1 | Si se pagó algún premio en los **25 sorteos sin resultado guardado** de la rifa activa (12 del 27/07 al 08/08 y 13 del 10/08 al 24/08), y cuáles | Hubo ventas reales en ese tramo y el sistema no puede saberlo (I-194) | Las dos cuentas con el dueño **no se tratan como definitivas** (BR-Z20). Si hubo premios, antes hace falta la solución mínima de I-194, que no está construida |
+| 2 | Cómo se entregó el dinero hasta hoy: ¿solo de boletas **pagadas por completo** y ya **descontada** la ganancia? | Una entrega mayor que el saldo no se puede registrar: abonos de boletas sin terminar o dinero bruto (I-197). Hay 222 boletas a medias | Esa historia no se registra hasta decidirlo; no se recorta para que quepa |
+| 3 | Por cada vendedor: las entregas reales —fecha, importe, de quién a quién— y quién pagó cada premio ya ganado —los 4 del historial y los que confirme el punto 1— | Es lo que se va a registrar | La cuenta sigue pidiendo lo ya entregado |
+| 4 | Que el acuerdo de ganancia de hoy es el que corresponde a **toda** la rifa | La cuenta calcula las ganancias con el acuerdo vigente (BR-G31) | «Total que debe entregar» no coincidirá con lo que el vendedor se quedó |
+| 5 | Ningún vendedor a cargo desactivado con cosas sin registrar | Nadie confirma por él (I-196). Hoy no hay ninguno | Se reactiva un momento para que registre él lo que recibió, y el personal registra lo que él pagó, **antes** de reorganizar su equipo (BR-Z21) |
+
+**Cómo se registra** —con la aplicación y la sesión de quien corresponde; nunca por detrás ni con un script—:
+
+| Paso | Qué | Quién |
 |---|---|---|
-| **«Recibido $0»** y cada vendedor debiendo todo lo cobrado de sus boletas pagadas, menos sus ganancias | Las entregas anteriores al cierre de cuentas no se registraron en ninguna parte | El dueño decide: registrarlas con «Registrar recibido» y **su fecha real** —se admite desde el inicio de la rifa—, o empezar a contar desde ese día. No se cargan por detrás ni con un script |
-| Cuentas en **«Falta información»** | Cada premio ganado desde el 9 de agosto espera que alguien diga quién lo pagó. La foto de producción de P9 (2026-09-30, 17:54 UTC) tenía **4** filas de premios —2 del motor y 2 reconocidas por el negocio—; la cifra de ese día es la que diga «Premios ganados» | Quien recibe las entregas del pagador registra cada uno (BR-Z07). Un premio que nadie pagó todavía se deja así: la cuenta no se cierra, y es verdad |
-| Nada de antes del 9 de agosto | El historial de premios empieza ahí (I-194) | Si hubo premios anteriores pagados con dinero de la rifa, lo decide el dueño: hoy no hay un ajuste en el cierre |
+| 1 | Cada premio ya pagado, con **su fecha real** («Registrar premio pagado») | Quien recibe las entregas de quien lo pagó (BR-Z07): lo del integrante, su vendedor a cargo; lo del vendedor directo, del vendedor a cargo o del dueño, el personal |
+| 2 | Cada entrega de un integrante a su vendedor a cargo, con su fecha real («Registrar recibido») | Ese vendedor a cargo |
+| 3 | Cada entrega de un vendedor directo o de un vendedor a cargo al dueño, con su fecha real | El Dueño o un Administrador |
+| 4 | Comparar el saldo de cada cuenta con lo que el vendedor dice que todavía tiene | Los dos. **Si no coincide, se para** y se busca la diferencia; no se ajusta |
+| 5 | Una equivocación se **anula** con su motivo y se registra bien (BR-Z14) | Quien la registró |
+
+El orden no cambia el resultado (Z10-02). Una cuenta que llegue a $0 durante el registro se cierra sola, y un hecho
+registrado después —por ejemplo, un premio del punto 1, cuando exista cómo registrarlo— la deja en «Cambió después del
+cierre», sin borrar nada. Por eso las dos cuentas del punto 1 no se dan por cerradas antes de su confirmación.
+
+**Lo que la historia real demuestra en local** (Z10): con entregas del integrante al vendedor a cargo y de este al
+dueño, premios pagados por el integrante, por el vendedor a cargo, por el dueño y por un vendedor directo, una
+equivocación anulada y actividad posterior, cada saldo es exactamente lo que falta, y al final lo recibido por el dueño
+es lo cobrado menos las ganancias y los premios que pagaron los vendedores.
 
 ### 11.3 El ensayo (hecho el 2026-09-30, en local, con los privilegios de producción)
 
@@ -1363,3 +1394,5 @@ ensayo con una foto de producción tomada en C0: la de P9 es de antes de cualqui
 * **No** se confirma una entrega ni se registra un premio de prueba en producción.
 * **No** se cargan entregas ni pagos de premios históricos por detrás: los registra quien recibe, con su sesión.
 * **No** se borra ninguna fila del cierre para corregir algo: se **anula**, con su motivo (BR-Z14).
+* **No** se «empieza desde hoy» ni se pone un saldo en cero: lo anterior se registra como ocurrió (BR-Z19).
+* **No** se reorganiza el equipo de un vendedor a cargo con hechos sin registrar —lo que recibió ni lo que pagó— (BR-Z21).

@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-241: el cierre de cuentas, `0080`, solo en local, 2026-09-30)** | **1.966/1.966** en 97 archivos (+18, `settlements.test.ts`) | **1.563 ✅ y 1 omitida** en 64 archivos (+48: `settlements` 44 y `settlements-volume` 4). La `0080` ensayada por la CLI con los privilegios de producción: **CONTINUAR** | ⚠️ **986/989** en 54,3 min: 1 fallo por un commit durante la corrida (repetida, 4/4) y 2 conocidos, I-148 e I-090. Las 10 del cierre, en verde, y otra vez tras la última corrección de textos | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Implementado y probado **solo en local**; la publicación, `RUNBOOK` §11, **sin autorizar** |
+| **Post-9 vigente (D-242: la puesta en marcha del cierre de cuentas, revisada; producción en solo lectura, 2026-09-30)** | **1.966/1.966** en 97 archivos, sin cambio | **1.572 ✅ y 1 omitida** en 64 archivos (+9: `Z10`..`Z13` en `settlements`). Producción leída en `repeatable read read only` a las 23:15–23:18 UTC: solo recuentos | No se ejecutó: sin cambio de código de la aplicación. La última **completa** sigue siendo la de D-241, **986/989**; sus repeticiones aisladas, aparte | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Revisada, **nada publicado**. Falta la información del dueño (`RUNBOOK` §11.2) |
+| Post-9 anterior (D-241: el cierre de cuentas, `0080`, solo en local, 2026-09-30) | **1.966/1.966** en 97 archivos (+18, `settlements.test.ts`) | **1.563 ✅ y 1 omitida** en 64 archivos (+48: `settlements` 44 y `settlements-volume` 4). La `0080` ensayada por la CLI con los privilegios de producción: **CONTINUAR** | ⚠️ **986/989** en 54,3 min: 1 fallo por un commit durante la corrida (repetida, 4/4) y 2 conocidos, I-148 e I-090. Las 10 del cierre, en verde, y otra vez tras la última corrección de textos | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Implementado y probado **solo en local**; la publicación, `RUNBOOK` §11, **sin autorizar** |
 | Post-9 anterior (P4–P10: la configuración de ganancias EN PRODUCCIÓN, `0078`, `0079` y `5f84e13`, 2026-09-30, 17:45–18:03 UTC) | CI del PR (`36723630637`) y de `main` (`36754548208`) sobre `5f84e13`: ✅ 2/2 | Producción en `0079`; `verify:remote` **54/54** antes de abrir y después; la comparación de P9 contra la foto de P6, **CONTINUAR** con 4 filas explicadas y ninguna de dinero | Sin E2E: la revisión del dueño con su sesión, conforme | — | ✅ **Publicada.** Interrupción de 12 min 5 s; la pausa, retirada; registros sin errores |
 | Post-9 anterior (P4: comprobaciones previas en producción, solo lectura; la pausa NO se instaló, 2026-09-30, 14:08–14:11 UTC) | Sin cambio de código: el candidato `5f84e13` | Producción: `0077`, sin pausa ni gancho; diagnóstico previo **limpio**; `verify:remote` 49 + las 5 en rojo a propósito | No aplica | — | ⏸️ **P4 no ejecutada**: a las 09:10 de Bogotá quedaban 50 min antes de la hora del programador y la ventana necesita ~90 (estimado). Nada instalado; la plataforma sigue abierta. Dos franjas propuestas |
 | Post-9 anterior (D-240: I-191 e I-192 corregidas, y el ensayo de P3 repetido, solo en local, 2026-09-30) | **1.948/1.948** en 96 archivos (+61: `gate-data-effects` 28, `earning-recovery` 18, `restore-backup` 14 y 1 en `gate-tools`) | **1.515 ✅ y 1 omitida** en 62 archivos (+5: `restore-backup` 3 y `gate-provenance` 2). Sobre la copia de P3: restaurada con `restore-backup.ts` (**12.360 filas iguales**), `0078`+`0079` en 9,3 s, **P9 en CONTINUAR** y **DETENER** en 8 alteraciones; recuperada con la estructura **idéntica** y el dinero con la misma huella, con privilegios alojados (7 concesiones) y locales (0) | No aplica: sin cambios en `src/` | `npm run verify` ✅ sobre `86e13fc` | ✅ **Corregidas en local, sin publicar.** Candidato `5f84e13`, PR #9 en borrador, CI ✅ **2/2** (`36723630637`). P4 y siguientes, **sin autorizar**; I-190, abierta |
@@ -17151,3 +17152,76 @@ La matriz está en §10.64 del relevo del sistema de diseño. Las capturas se **
 ### h. Entorno al terminar
 
 Base local reiniciada y sembrada, en `0080`, sin el escenario del cierre, con las tres tablas vacías y sin pausa (`maintenance-pause.ts estado --local`). Sin servidor de desarrollo. Producción, sin tocar ni leer: el último estado documentado sigue siendo `5f84e13` sobre `0079`.
+
+## D-242 — La puesta en marcha del cierre de cuentas, revisada (2026-09-30, solo en local; producción en solo lectura)
+
+Encargo del dueño: revisar y preparar la puesta en marcha antes de publicar. Confirmó mantener «Entrega parcial», que el
+vendedor a cargo registre y confirme los premios que pagan sus integrantes, y la cadena integrante → vendedor a cargo →
+dueño. **Sin push, sin migración y sin despliegue**; producción, **solo en lectura**. No cambia código de la aplicación:
+pruebas de base y documentación. Evidencia fuera de Git en `build/puesta-en-marcha/`. Aquí, solo recuentos y fechas de
+producción: ningún dato de cliente ni importe.
+
+### a. Producción, en solo lectura (2026-09-30, 23:15–23:18 UTC)
+
+Cuatro guiones con `readOnly` de `scripts/gate-db.ts` —transacción `repeatable read read only` contra la referencia
+esperada—; el primero se probó antes contra la base local (`--local`). No pueden escribir: la transacción no lo admite.
+
+| Qué | Resultado |
+|---|---|
+| Migración aplicada | `0079`: la `0080` no está |
+| Rifas activas | 2, en dos organizaciones: la de la operación —desde el 27/07, con premios configurables desde el 17/09— y otra con un vendedor y **0 ventas** |
+| Vendedores de la rifa de la operación | 3: dos directos —uno con equipo— y **un integrante sin ventas**. Ninguno desactivado |
+| Boletas vendidas | 1.046: **328 pagadas**, **222 con abonos sin terminar de pagar** (191 de un directo y 31 del otro) y 496 sin pagar |
+| Sorteos jugados de la rifa | 56: **31 con resultado** (25/08 a 29/09) y **25 sin resultado guardado** —12 del 27/07 al 08/08, antes del historial, y 13 del 10/08 al 24/08— |
+| Actividad en el tramo sin resultado | Un directo: 58 boletas asignadas hasta el 24/08 y 32 abonos con fecha hasta entonces, 6 antes del 9/08. El otro: 4 abonos con fecha hasta el 24/08, 1 antes del 9/08, y sus boletas asignadas a clientes desde el 27/08, **después** de venderlas. La primera fecha de venta guardada es el 9/08; el primer abono, el 1/08 |
+| Coincidencias de cuatro cifras con boletas vendidas, en los 31 sorteos con resultado | 4, del mismo vendedor, del 03/09 al 25/09: **son los 4 premios del historial** (2 del motor y 2 reconocidos por el negocio, 0 en conflicto) |
+| Boletas asignadas a un cliente después de un sorteo que coinciden con él | En cuatro cifras, **0**; en las tres últimas, 5, en días sin premio de tres cifras —el único de tres cifras juega el 21/12— |
+| Personal de la organización | Un Dueño y un Administrador, activos |
+
+**Lo que los datos no pueden decir:** si en los 25 sorteos sin resultado hubo coincidencias y se pagaron premios —el
+sistema no guardó esos resultados, y que no haya registros no prueba nada—, y cómo se entregó el dinero hasta hoy, que
+el sistema no registraba. Las dos cosas las tiene que confirmar el dueño (`RUNBOOK` §11.2).
+
+### b. Pruebas nuevas
+
+`tests/db/settlements.test.ts`, **+9** (`Z10`..`Z13`), con las cifras escritas a mano desde la regla:
+
+| Prueba | Qué demuestra | Cifras |
+|---|---|---|
+| Z10-01 | Sin la historia, cada cuenta pide lo ya entregado | Integrante con su vendedor a cargo, $800.000; el vendedor a cargo con el dueño, $1.620.000 de $2.160.000 cobrados; el directo, $570.000; las tres en «Falta información» |
+| Z10-02 | Premios y entregas con su fecha real, cada uno por quien corresponde, y una equivocación anulada con su motivo | $280.000, $570.000 y $190.000; «Recibido» $1.300.000 —la entrega interna no suma— y «Falta recibir» $760.000; cada entrega con su fecha, quién la recibió y quién la confirmó |
+| Z10-03 | La actividad posterior se suma, y las cuentas se cierran cuando no falta nada | $480.000 y $840.000; el dueño recibe **$2.330.000 = $3.240.000 cobrados − $780.000 de ganancias − $130.000 de premios que pagaron los vendedores** |
+| Z11-01 | Abonos entregados de boletas sin terminar (I-197) | $400.000 no caben en $285.000 y no se guarda nada; al terminar de pagarse las boletas, caben con su fecha y quedan $75.000 |
+| Z11-02 | Dinero bruto con la ganancia devuelta después (I-197) | Ni la entrega de $480.000 ni la devolución de $100.000 caben; solo cabría el neto, que no es lo que pasó |
+| Z12-01 | Vendedor a cargo desactivado con hechos sin registrar (I-196) | Él no registra nada; el personal tampoco por él, con dos frases de la base que nombran a quién le toca; lo del dueño sí; reorganizar sin registrar deja al anterior en −$270.000 «a su favor» y al nuevo debiendo $450.000 |
+| Z12-02 | Reactivarlo para que registre, desactivarlo y reorganizar después (BR-Z21) | $170.000 y $120.000 exactos; al reorganizar, $0 y $120.000: el dinero se conserva |
+| Z12-03 | Lo que **pagó** el vendedor a cargo de premios de su integrante, sin registrar al desactivarlo (I-196, BR-Z21) | El personal registra uno, con él desactivado —la regla de BR-Z07—: $430.000 en «Falta información». Al reorganizar, ese pago conserva su pagador y sigue en su cuenta ($70.000); el nuevo responde por el equipo ($360.000) con el otro premio en «Falta información», y ese otro ya no se puede atribuir a quien lo pagó: la base solo admite al integrante, al vendedor a cargo nuevo o al dueño |
+| Z13-01 | Un premio de un sorteo anterior al 9 de agosto (I-194) | No aparece, no se puede registrar como pagado y la cuenta se cierra después de pedir los $50.000 que ya salieron en el premio |
+
+Las nueve pasaron a la primera. Las ocho primeras dieron **52/52** en 18,7 s; Z12-03 se añadió después, al revisar que I-196
+pedía demostrar también **quién pagó** cada importe, y el archivo quedó en **53/53** en 15,5 s.
+
+### c. Verificaciones
+
+| Orden | Resultado |
+|---|---|
+| `npx vitest run --config vitest.db.config.mts tests/db/settlements.test.ts` | ✅ **52/52** en 18,7 s y, con Z12-03, **53/53** en 15,5 s. `eslint` y `tsc` del proyecto, limpios |
+| `npm run db:reset` + `npm run seed:local` y `npm run test:db` | ✅ Salida 0 en 3 min 44 s: **1.571 ✅ y 1 omitida** (+8). **Repetida con Z12-03**: salida 0 en 3 min 42 s, **1.572 ✅ y 1 omitida** en **64** archivos (+9, `settlements.test.ts`) |
+| `npm run verify` (tipos, lint, unitarias, build) | ✅ Salida 0 en 1 min 27 s: lint con 0 errores y los 2 avisos de siempre; **1.966/1.966** unitarias en 97 archivos, sin cambio; build ✅. **Repetido con el árbol final** (Z12-03 incluida): salida 0 en 1 min 17 s, las mismas cifras |
+| E2E | **No se ejecutó**: D-242 no cambia código de la aplicación ni de sus pantallas. La última E2E **completa** sigue siendo la de D-241 (§b de D-241): **986/989** en 54,3 min. Sus **repeticiones aisladas** no la sustituyen y se leen aparte: `pausa-publicacion:185` sola, **4/4**; `premios-ganados:443` y `ventas-por-fecha:163` con la base recién sembrada, en verde, con `ventas-por-fecha:257` en rojo (I-164) en esa misma repetición, **35/36** |
+
+### d. Errores y hallazgos
+
+| Dónde | Qué | Qué se hizo |
+|---|---|---|
+| `RUNBOOK` §11.2 y `OPERATIONS` §4.e, **error mío de D-241** | Ofrecían «empezar a contar desde ese día» como forma de arrancar: la cuenta suma todas las boletas pagadas de la rifa, y lo ya entregado seguiría apareciendo como pendiente (Z10-01) | Retirado. La puesta en marcha registra la historia real (BR-Z19, `RUNBOOK` §11.2) |
+| D-241 y `OPERATIONS` §4.e, **error mío de D-241** | Presentaban reorganizar el equipo como la salida de I-196 | Z12-01 demuestra que no conserva quién recibió, y Z12-03, que tampoco quién pagó; la regla es registrar antes (BR-Z21), y así lo dice D-242 |
+| El modelo | Una entrega mayor que el saldo no se puede registrar: abonos de boletas sin terminar, o dinero bruto (I-197) | Sin corregir: lo decide el dueño |
+| Pruebas, **mío** | Z12-03 nació con las claves de persona `ta` y `tm`, que ya usa Z8: pasaba sola con `-t` y habría chocado con Z8 al correr el archivo entero | Renombradas (`xa`, `xn` y `xm`) antes de la primera pasada completa |
+| D-241, en I-194, **error mío** | Citaba el reconocimiento de premios de D-208 como salida para un premio que el cierre no conoce | No basta: exige el resultado guardado y la coincidencia del motor, que no cuenta una boleta asignada después del sorteo. Corregido en I-194 y D-242 |
+| I-194 | Deja de ser un límite teórico: la rifa activa tiene 25 sorteos sin resultado guardado con ventas reales | Sin corregir: BR-Z20 como procedimiento y la solución mínima propuesta, sin construir |
+
+### e. Entorno al terminar
+
+Base local reiniciada y sembrada, en `0080`, con las tres tablas del cierre vacías y sin pausa. Sin servidor de
+desarrollo. Producción, **solo leída**: `0079`, sin la `0080`; nada escrito.

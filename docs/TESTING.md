@@ -1,6 +1,8 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.39 · **Actualizado:** 2026-09-30 (**§4.14 nueva**, D-241, **solo en local**: el cierre de cuentas con
+- **Versión:** 2.40 · **Actualizado:** 2026-09-30, al final (§4.14, D-242: **9** pruebas de base más, `Z10`..`Z13` —la
+  puesta en marcha con la historia real, las entregas mayores que el saldo, el vendedor a cargo desactivado y el premio
+  anterior al historial—; 53 en total). Antes, ese mismo día (**§4.14 nueva**, D-241, **solo en local**: el cierre de cuentas con
   **44** pruebas de base —el ejemplo de Figma y la tabla de casos escritos a mano—, **4** de volumen con un cálculo
   aparte, **18** unitarias y **10** E2E sobre un escenario propio; y lo que se ensaya fuera de `test:db`). Antes,
   2026-09-29, al final (**§4.13.b nueva**, D-239, **solo en local**: 3 pruebas de base
@@ -1431,9 +1433,9 @@ un fallo en cada archivo; P9 en CONTINUAR sobre datos reales y en DETENER con oc
 los privilegios alojados y con los locales. Necesitan una base en `0077` o vaciar `public`, y romperían al resto de la
 suite. Los guiones vivieron en `build/d240/`, ignorado por Git.
 
-### 4.14 Cierre de cuentas (BR-Z01..BR-Z18; D-241)
+### 4.14 Cierre de cuentas (BR-Z01..BR-Z21; D-241, D-242)
 
-`tests/db/settlements.test.ts` — **44** pruebas (`Z1`..`Z9`), migración `0080`, **solo en local**. Los hechos van por los
+`tests/db/settlements.test.ts` — **53** pruebas (`Z1`..`Z13`; `Z10`..`Z13`, D-242), migración `0080`, **solo en local**. Los hechos van por los
 caminos reales —altas por las RPC del personal y del vendedor a cargo, ventas y cobros con la sesión de cada vendedor,
 entregas y premios por las RPC del cierre con quien los confirma—; lo único escrito a mano es el premio ganado, porque
 el motor solo premia sorteos futuros.
@@ -1452,6 +1454,10 @@ se copia de la función que la calcula.
 | Cierres | Z7-01..05 | Un cobro posterior cambia la cuenta sin tocar el cierre; anular devuelve el saldo y solo lo hace quien recibió; un cambio de acuerdo que deja la cuenta en cero pide cerrarla con la huella a la vista; anular el pago de un cliente deja saldo a favor; nada se modifica ni se borra |
 | Cambio de equipo | Z8-01 | El vendedor a cargo nuevo no hereda lo que el integrante ya entregó al anterior |
 | Privacidad | Z9-01..05 | Ninguna lectura del personal trae un campo de cliente o de abonos; el vendedor a cargo ve cifras de su integrante sin clientes; un vendedor no obtiene nada del personal; otra organización, nada; un vendedor sin equipo, solo lo suyo |
+| Puesta en marcha | Z10-01..03 | Sin la historia, la cuenta del integrante con su vendedor a cargo y la de este con el dueño piden todo lo ya entregado; registrar los premios y las entregas reales —con sus fechas, por quien corresponde y con una equivocación anulada— deja cada saldo en lo que de verdad falta; la actividad posterior se suma, y al final lo recibido por el dueño es lo cobrado menos las ganancias y los premios que pagaron los vendedores (BR-Z19) |
+| Entregas de más | Z11-01, Z11-02 | Una entrega mayor que el saldo se rechaza sin guardar nada: la de abonos de boletas sin terminar cabe cuando se terminan de pagar; la del dinero bruto con la ganancia devuelta después no cabe, ni su devolución (I-197) |
+| Vendedor a cargo desactivado | Z12-01..03 | Él no registra nada y el personal tampoco por él —ningún permiso ampliado—; reorganizar sin registrar atribuye la entrega al vendedor a cargo nuevo y deja al anterior a su favor; reactivarlo para que registre, desactivarlo y reorganizar después conserva quién recibió; lo que **pagó** él de un premio de su integrante lo registra el personal también con él desactivado y, registrado antes, se queda con él; sin registrar, después de reorganizar ya no se le puede atribuir (I-196, BR-Z21) |
+| Premio anterior al historial | Z13-01 | Un premio de un sorteo anterior al 9 de agosto no aparece, no se puede registrar como pagado y la cuenta se cierra sin saberlo (I-194, BR-Z20) |
 
 `tests/db/settlements-volume.test.ts` — **4** (`V1`, `V2`): 100 vendedores, 5.000 boletas y 200 premios en una
 organización propia, que se borra al terminar. **V1** compara las 100 cuentas, cifra por cifra, con un cálculo hecho

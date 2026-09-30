@@ -4,10 +4,11 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.16
+- **Versión del documento:** 1.17
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-30 (**§9.9 nueva**: el **cierre de cuentas** —D-241, `0080`, **solo en local**—; §9.1,
-  §9.2 y §9.8 lo nombran). Antes, 2026-09-19, más tarde (§9.5: **Bre-B** y **Otros**, en producción). Antes, ese mismo día
+- **Última actualización:** 2026-09-30, al final (§9.9: **la puesta en marcha** del cierre de cuentas registra la
+  historia real, D-242). Antes, ese mismo día (**§9.9 nueva**: el **cierre de cuentas** —D-241, `0080`, **solo en
+  local**—; §9.1, §9.2 y §9.8 lo nombran). Antes, 2026-09-19, más tarde (§9.5: **Bre-B** y **Otros**, en producción). Antes, ese mismo día
   (§9.5: las cuentas para recibir pagos admiten **Bre-B** y **Otros** —D-209,
   `0073` y `0074`, **solo en local**—). Antes, el 2026-09-18 (§9.8: la **Etapa 3** del historial —auditoría en local, D-208—: el aviso
   habla de sorteos «sin confirmar o por verificar» y el personal elige también a quien ya no vende; antes, el
@@ -544,7 +545,7 @@ auditó en local —aislamiento, volumen, rendimiento e interfaz— y dejó escr
 Nada de esto está en producción: promover `0067`–`0072`, reconocer los dos premios y desplegar son puertas
 aparte.
 
-### 9.9 Cierre de cuentas — **SOLO EN LOCAL** (D-241, BR-Z01..BR-Z18)
+### 9.9 Cierre de cuentas — **SOLO EN LOCAL** (D-241, D-242, BR-Z01..BR-Z21)
 
 El dinero de cada rifa sigue la cadena **integrante → vendedor a cargo → dueño**. El **Dueño y el Administrador** ven en
 «Cierre de cuentas» (`/owner/settlements`) lo recibido, lo que falta recibir y las cuentas cerradas de la rifa, y una
@@ -558,6 +559,12 @@ cargo o el dueño— y cuánto, y eso ajusta la entrega sin tocar ninguna gananc
 borra, se anula con motivo; una cuenta en $0 guarda la foto de sus cifras, y un cambio posterior se enseña como
 diferencia. Cerrar una cuenta no cierra la rifa. Las cifras del personal son **agregadas**: ningún cliente ni abono de
 una boleta sin pagar (excepción acotada a BR-Q01, BR-Q08 y BR-E05). Publicarlo es `RUNBOOK` §11, sin autorizar.
+
+**La puesta en marcha** (D-242, BR-Z19..BR-Z21): lo anterior al estreno se registra **como ocurrió** —cada entrega y
+cada premio ya pagado, con su fecha real y por quien corresponde—; no se empieza desde cero ni se pone un saldo en
+cero, porque la cuenta suma todas las boletas pagadas de la rifa. Una cuenta con sorteos de los que el sistema no sabe
+nada no se trata como definitiva hasta que el dueño confirme si hubo premios, y lo de un vendedor a cargo se registra
+antes de desactivarlo.
 
 ---
 

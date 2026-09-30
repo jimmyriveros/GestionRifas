@@ -1,6 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.33 · **Estado:** implementado · **Actualizado:** 2026-09-30, más tarde (**§4.27 nueva**: el cierre de
+- **Versión:** 2.34 · **Estado:** implementado · **Actualizado:** 2026-09-30, al final (§4.27, D-242: nadie opera en
+  nombre de un vendedor a cargo desactivado —el personal tampoco, sin ampliar ningún permiso— y el pasado no se carga
+  por detrás). Antes, ese mismo día, más tarde (**§4.27 nueva**: el cierre de
   cuentas —D-241, `0080`, **solo en local**—: acceso solo por 14 RPC, quién confirma cada hecho, la excepción acotada
   de cifras agregadas (nota nueva al final de §4.19), cinco acciones nuevas en §6 y **T20** y **T21** en §8). Antes, ese
   mismo día (**EN PRODUCCIÓN desde las 18:00 UTC**:
@@ -1516,7 +1518,7 @@ exige abrirla antes y `estado` la enseña. Una pausa instalada que PostgREST **n
 no la da por buena sin la cabecera «abierta» y `cerrar` exige el 423 en `anon` y en `service_role` antes de dejar
 seguir. Y `abrir` solo abre si la base, el commit y lo servido son pareja.
 
-### 4.27 El cierre de cuentas (`0080`; BR-Z01..BR-Z18; D-241)
+### 4.27 El cierre de cuentas (`0080`; BR-Z01..BR-Z21; D-241, D-242)
 
 > 🧪 **Solo en local.** Nada de esto existe todavía en el proyecto real.
 
@@ -1552,6 +1554,8 @@ El pagador de un premio solo puede ser **el vendedor de la boleta, su vendedor a
 | El vendedor a cargo ve la cartera de su integrante | Lo mismo: del integrante, sus agregados. `partial_paid` y el nombre del cliente de un premio solo salen en la vista **propia** (Z9-02) |
 | Un identificador manipulado | Las lecturas devuelven cero filas a quien no tiene la capacidad o la relación de hoy; las escrituras responden lo mismo a una cuenta ajena que a una inexistente |
 | Una persona desactivada sigue operando | `has_org_capability`, `current_org_ids`, `current_seller_org_ids` y `current_profile_leads_team` exigen membresía, perfil y organización activos. Consecuencia conocida: I-196 |
+| Alguien opera en nombre de un vendedor a cargo desactivado | **Nadie**: el personal tampoco confirma lo que le entregó su equipo ni los premios que pagaron sus integrantes, y la base le dice a quién le toca (Z12-01). Lo que **pagó él** sí lo registra el personal, porque es quien recibe sus entregas: la regla de siempre, no una excepción (Z12-03). No se amplió ningún permiso para resolver I-196: lo de un vendedor a cargo se registra **antes** de desactivarlo, o reactivándolo un momento (BR-Z21, Z12-02). Que el personal registre por él es ampliar un permiso, y exige la decisión expresa del dueño (D-242) |
+| El pasado se carga por detrás | Ninguna sesión escribe las tablas y `service_role` solo lee; solo la conexión de administración de la base podría, y **no se usa para esto** (`RUNBOOK` §11.5). La historia anterior se registra con las mismas RPC y la sesión de quien recibe, con su fecha real (BR-Z19, `RUNBOOK` §11.2) |
 | Borrar o reescribir la evidencia | `settlement_rows_guard`: ningún `DELETE`; de una entrega o de un pago solo la anulación, una vez y con motivo; un cierre no se toca (BR-Z18) |
 | Una función nace ejecutable por quien no debe | Matriz exacta en `scripts/settlement-function-grants.ts` —14 RPC de sesión solo para `authenticated`, **7 internas que no ejecuta nadie**—, escrita en la migración, que **se comprueba a sí misma** al aplicarse; la repiten `verify:remote` y la suite Z1. Es el patrón de §4.23 (I-132) |
 | La capacidad cae en otro rol | `app_role_default_capabilities` la da al Dueño y al Administrador; la autocomprobación de la `0080` falla si la tuviera un vendedor. Z1-03 fija los tres roles y `tests/db/raffle-prizes.test.ts` compara la base con el espejo `src/lib/auth/capabilities.ts` |

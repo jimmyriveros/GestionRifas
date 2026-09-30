@@ -3,7 +3,32 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-30, más tarde — **El cierre de cuentas, SOLO EN LOCAL (D-241, `0080`)**: mantenimiento
+- **Actualizado:** 2026-09-30, al final — **La puesta en marcha del cierre de cuentas, revisada (D-242), SOLO EN
+  LOCAL; producción leída en solo lectura**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas y sin
+  cambiar el producto. **El estado de producción no cambia**: `0079`, sin la `0080`, leída a las 23:15–23:18 UTC. Los
+  seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna nueva. El dueño confirmó «Entrega parcial», que el vendedor a cargo registre y
+  confirme los premios de sus integrantes, y la cadena integrante → vendedor a cargo → dueño. **Se retira «empezar a
+  contar desde hoy»**: la cuenta suma todas las boletas pagadas y lo ya entregado seguiría pendiente; la puesta en marcha
+  registra la historia real, con sus fechas y por quien corresponde (BR-Z19, `RUNBOOK` §11.2). Reglas nuevas: BR-Z20
+  (una cuenta con sorteos sin información no se trata como definitiva hasta que el dueño confirme) y BR-Z21 (lo de un
+  vendedor a cargo se registra antes de desactivarlo o de reorganizar su equipo).
+  **(2) Pruebas:** `settlements.test.ts` +9 (`Z10`..`Z13`: la historia real con entregas del integrante al vendedor a
+  cargo y de este al dueño, premios de cada actor, una anulación y actividad posterior; las entregas mayores que el
+  saldo; el vendedor a cargo desactivado, con lo que recibió y lo que pagó; el premio anterior al historial), a la primera. `test:db` ✅ **1.572 + 1
+  omitida** en 64; `verify` ✅ **1.966/1.966**. E2E, no se ejecutó: sin cambio de código; la última completa sigue
+  siendo la de D-241 (986/989), aparte de sus repeticiones aisladas. Detalle en `TEST_RESULTS`, D-242.
+  **(3) Migraciones:** ninguna nueva. Producción: `0001`–`0079`. Local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-194**, ya no teórico: la rifa activa tiene 25 sorteos sin resultado guardado
+  con ventas reales, y sus dos cuentas con el dueño no se tratan como definitivas hasta que el dueño confirme si hubo
+  premios; **I-197, nueva**: una entrega mayor que el saldo —abonos de boletas sin terminar o dinero bruto— no se puede
+  registrar, con 222 boletas a medias en producción; **I-196**, demostrada, sin casos hoy en producción. Siguen I-195,
+  I-190 e I-193.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, D-242 y `RUNBOOK` §11.2. Antes de registrar ninguna historia
+  en producción hacen falta las cinco confirmaciones del dueño de §11.2; publicar sigue siendo C0–C7, **sin autorizar**.
+
+- Antes, 2026-09-30, más tarde — **El cierre de cuentas, SOLO EN LOCAL (D-241, `0080`)**: mantenimiento
   posterior a la Fase 9, sin fase ni etiqueta nuevas. **El estado de producción no cambia** y no se volvió a leer: el
   último documentado es `5f84e13` sobre `0079`. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** «Cierre de cuentas» para el Dueño y el Administrador —lo recibido, lo que falta y las cuentas

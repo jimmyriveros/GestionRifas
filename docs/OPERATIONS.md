@@ -1,6 +1,8 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-09-30 (D-241: **§4.e nueva**, el cierre de cuentas, **solo en local**). Antes, 2026-09-14
+**Actualizado:** 2026-09-30, al final (D-242: §4.e — el primer día se registra la historia real, sin empezar desde
+cero, y lo de un vendedor a cargo se registra antes de desactivarlo). Antes, ese mismo día (D-241: **§4.e nueva**, el
+cierre de cuentas, **solo en local**). Antes, 2026-09-14
 (D-198: §4, §4.b y §4.c). Para quien **opera el negocio** (Owner/Admin), no para quien
 programa. Para desplegar la aplicación ver [`DEPLOYMENT.md`](DEPLOYMENT.md); para problemas
 frecuentes, [`RUNBOOK.md`](RUNBOOK.md).
@@ -224,13 +226,21 @@ solo deja confirmar a quien recibe.
 **Si al confirmar sale «La cuenta cambió»**, alguien registró otro movimiento mientras se revisaba: **no se guardó
 nada**. Se revisa el saldo nuevo y se vuelve a confirmar.
 
-**Si un vendedor a cargo se desactiva**, nadie puede confirmar lo que le entrega su equipo (I-196): primero se
-reorganiza el equipo (§2) y cada integrante pasa a entregar a su vendedor a cargo nuevo o al dueño. Lo que ya le había
-entregado al anterior se queda en la cuenta de ese anterior.
+**Antes de desactivar a un vendedor a cargo**, él registra lo que le entregó su equipo y los premios que pagaron sus
+integrantes (BR-Z21). Con la cuenta desactivada nadie puede hacerlo por él, tampoco el personal (I-196), y reorganizar
+el equipo (§2) con esas entregas sin registrar **no sirve**: solo se podrían confirmar como recibidas por el vendedor a
+cargo nuevo, que no las recibió, y el anterior quedaría con saldo a su favor teniendo ese dinero. Lo que él entregó al
+dueño y los premios que pagó él —también los de boletas de su equipo— los registra el personal, como siempre, y
+**también antes de reorganizar**: después, un premio de su equipo que pagó él ya no se le puede atribuir. Si ya se
+desactivó con cosas sin registrar, se reactiva un momento para que registre lo que recibió, se vuelve a desactivar y
+**después** se reorganiza el equipo: lo que ya le habían entregado y lo que pagó se quedan en su cuenta.
 
 **El primer día** el cierre no conoce las entregas ni los pagos de premios anteriores: se verá «Recibido $0» y
-cuentas en «Falta información». Cómo arrancar —registrarlos con su fecha real o empezar a contar desde ese día— lo
-decide el dueño (`RUNBOOK` §11.2).
+cuentas en «Falta información». **No se empieza a contar desde ese día ni se pone ninguna cuenta en cero**: la cuenta
+suma todas las boletas pagadas de la rifa, y lo ya entregado seguiría apareciendo como pendiente. Cada entrega y cada
+premio ya pagado se registran **con su fecha real**, por quien corresponde, después de que el dueño confirme lo que el
+sistema no sabe —si hubo premios en los sorteos sin resultado guardado, y cómo se entregó el dinero— (`RUNBOOK` §11.2,
+BR-Z19, BR-Z20).
 
 **Diagnóstico en solo lectura** (quien opera, con la *service role*; ninguna sesión puede leer estas tablas):
 

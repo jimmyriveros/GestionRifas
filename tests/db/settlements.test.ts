@@ -259,12 +259,13 @@ async function cobrar(clave: string, ids: string[], monto?: number) {
 /**
  * Un premio ganado sobre la boleta, como lo deja el motor (D-208): un sorteo ya
  * jugado con su resultado, la fotografia de la boleta y el enlace al premio.
- * Busca un par lotería–fecha libre entre el inicio del historial y ayer.
+ * Busca un par lotería–fecha libre entre el inicio del historial y ayer, o en
+ * la fecha pedida (`fecha`), que puede ser ANTERIOR al historial (I-194).
  */
 async function premiar(
   ticketId: string,
   clavePremio: string,
-  opciones: { conflicto?: boolean } = {},
+  opciones: { conflicto?: boolean; fecha?: string } = {},
 ) {
   const premioFila = premios.get(clavePremio)!
   secuencia += 1
@@ -275,12 +276,14 @@ async function premiar(
       `with c as (
          select l.code as code, d::date as fecha
          from unnest(enum_range(null::lottery_code)) as l(code)
-         cross join generate_series(date '2026-08-10', today_bogota() - 1, interval '1 day') as d
+         cross join generate_series(coalesce($1::date, date '2026-08-10'),
+                                    coalesce($1::date, today_bogota() - 1), interval '1 day') as d
        )
        select c.code::text as code, c.fecha::text as fecha from c
         where not exists (select 1 from lottery_draw_schedules s
                            where s.lottery_code = c.code and s.reference_date = c.fecha)
         order by c.fecha, c.code limit 1`,
+      [opciones.fecha ?? null],
     )
     const { code, fecha } = libre[0] as { code: string; fecha: string }
     const { rows: prog } = await db.query(
@@ -1688,4 +1691,509 @@ describe('Z9 — privacidad y aislamiento', () => {
     expect(propia).toHaveLength(1)
     expect(Number(propia[0]!.balance)).toBe(720_000)
   })
+})
+
+// =============================================================================
+// PUESTA EN MARCHA (revision previa a publicar, 2026-09-30). La cuenta suma
+// TODAS las boletas pagadas de la rifa, asi que lo ocurrido antes de estrenar
+// el cierre se registra como ocurrio: con su fecha y confirmado por quien
+// recibio. Nada se inventa ni se pone en cero.
+// =============================================================================
+
+/** Una rifa propia por bloque, con cuatro premios en meses distintos (BR-J08). */
+async function rifaConPremios(nombre: string, prefijo: string) {
+  const rifa = await nuevaRifa(nombre)
+  const importes: Array<[string, number, string]> = [
+    ['20', 20_000, '03'],
+    ['30', 30_000, '04'],
+    ['50', 50_000, '05'],
+    ['80', 80_000, '06'],
+  ]
+  for (const [clave, monto, mes] of importes) {
+    await premio(
+      rifa,
+      `${prefijo}${clave}`,
+      `Premio ${clave} ${prefijo}`,
+      {
+        opciones: [{ description: null, amount: monto }],
+      },
+      mes,
+    )
+  }
+  await activar(rifa)
+  return rifa
+}
+
+async function transferencias(raffleId: string, titular: string) {
+  const { rows } = await db.query(
+    `select kind::text as kind, amount::bigint as amount, received_on::text as received_on,
+            counterpart_id, confirmed_by, voided_at
+       from settlement_transfers where raffle_id = $1 and seller_id = $2
+      order by received_on, confirmed_at`,
+    [raffleId, id(titular)],
+  )
+  return rows.map((r) => ({ ...r, amount: Number(r.amount) }))
+}
+
+async function desactivar(clave: string, activo = false) {
+  const { data, error } = await dueno
+    .from('memberships')
+    .update({ is_active: activo })
+    .eq('organization_id', org)
+    .eq('profile_id', id(clave))
+    .select('id')
+  if (error) throw new Error(error.message)
+  expect(data).toHaveLength(1)
+}
+
+async function cambiarDeEquipo(clave: string, padre: string | null) {
+  const { error } = await dueno
+    .from('memberships')
+    .update({ parent_seller_id: padre === null ? null : id(padre) })
+    .eq('organization_id', org)
+    .eq('profile_id', id(clave))
+  if (error) throw new Error(error.message)
+}
+
+describe('Z10 — puesta en marcha: lo anterior se registra como ocurrió, y el saldo es lo que de verdad falta', () => {
+  let RM: string
+  let hh: string[]
+  let hm: string[]
+  let hd: string[]
+  const A: Record<string, { matchId: string; prizeId: string; fecha: string }> = {}
+
+  beforeAll(async () => {
+    RM = await rifaConPremios('Rifa puesta en marcha', 'pm')
+    await altaDirecta('hh', 'Jefe Histórico', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaIntegrante('hm', 'Integrante Histórico', 'hh', {
+      model: 'fixed_per_ticket',
+      amount: 20_000,
+    })
+    await altaDirecta('hd', 'Directo Histórico', { mode: 'fixed_per_ticket', fixed: 25_000 })
+    hh = await vender('hh', RM, 10)
+    hm = await vender('hm', RM, 8)
+    hd = await vender('hd', RM, 6)
+    await cobrar('hh', hh)
+    await cobrar('hm', hm)
+    await cobrar('hd', hd)
+    // Premios ganados antes de estrenar el cierre, y quién los pagó de verdad:
+    A.integrantePagoIntegrante = await premiar(hm[0]!, 'pm20') // lo pagó el integrante
+    A.integrantePagoJefe = await premiar(hm[1]!, 'pm30') // lo pagó el vendedor a cargo
+    A.jefePagoDueno = await premiar(hh[0]!, 'pm50') // lo pagó el dueño
+    A.directoPagoDirecto = await premiar(hd[0]!, 'pm80') // lo pagó el vendedor directo
+  }, 180_000)
+
+  it('Z10-01: «empezar desde hoy» pediría otra vez lo ya entregado —la cuenta suma todas las boletas pagadas—', async () => {
+    // Integrante: 8 × 120.000 − 8 × 20.000 = 800.000, con dos premios sin registrar.
+    expect(await cuenta(RM, 'hm', 'hh')).toMatchObject({ balance: 800_000, status: 'missing_info' })
+    // Jefe con su equipo: 18 × 120.000 = 2.160.000 − (300.000 + 80.000 + 160.000) = 1.620.000.
+    expect(await cuenta(RM, 'hh', null)).toMatchObject({
+      collected: 2_160_000,
+      total_due: 1_620_000,
+      balance: 1_620_000,
+      status: 'missing_info',
+    })
+    // Directo: 6 × 120.000 − 6 × 25.000 = 570.000.
+    expect(await cuenta(RM, 'hd', null)).toMatchObject({ balance: 570_000, status: 'missing_info' })
+    // Si ya se entregaron 1.000.000 y se pagaron 50.000 en premios, lo que de
+    // verdad falta es 570.000: sin registrar lo anterior, la pantalla pediría
+    // 1.050.000 que ya no están en manos del vendedor.
+  })
+
+  it('Z10-02: cada hecho anterior se registra con su fecha real y por quien lo recibió o lo puede confirmar', async () => {
+    const jefe = await sesion('hh')
+    // Los premios, cada uno por quien recibe las entregas de quien lo pagó (BR-Z07).
+    exito(await pagarPremio(dueno, RM, A.jefePagoDueno!, null, { fecha: A.jefePagoDueno!.fecha }))
+    exito(
+      await pagarPremio(jefe, RM, A.integrantePagoIntegrante!, 'hm', {
+        fecha: A.integrantePagoIntegrante!.fecha,
+      }),
+    )
+    exito(
+      await pagarPremio(dueno, RM, A.integrantePagoJefe!, 'hh', {
+        fecha: A.integrantePagoJefe!.fecha,
+      }),
+    )
+    // Las entregas: la del integrante la confirma su vendedor a cargo; la del
+    // vendedor a cargo, el personal. Fechas del mes pasado, no la de hoy.
+    exito(await entregar(jefe, RM, 'hm', 500_000, { fecha: '2026-08-20' }))
+    exito(await entregar(dueno, RM, 'hh', 1_000_000, { fecha: '2026-08-28' }))
+
+    // El directo, al revés: primero la entrega y después el premio. El orden no
+    // cambia el resultado. Y una equivocación al registrar se anula con motivo.
+    const errada = exito(await entregar(dueno, RM, 'hd', 30_000, { fecha: '2026-08-20' }))
+    exito(
+      await dueno.rpc('settlement_void_transfer', {
+        p_transfer_id: errada[0]!.transfer_id,
+        p_reason: 'Eran 300.000, no 30.000',
+      }),
+    )
+    exito(await entregar(dueno, RM, 'hd', 300_000, { fecha: '2026-08-20' }))
+    exito(
+      await pagarPremio(dueno, RM, A.directoPagoDirecto!, 'hd', {
+        fecha: A.directoPagoDirecto!.fecha,
+      }),
+    )
+
+    // Lo que de verdad falta, a mano:
+    //   integrante: 960.000 − 160.000 − 20.000 (su premio) − 500.000 entregados = 280.000
+    expect(await cuenta(RM, 'hm', 'hh')).toMatchObject({
+      delivered: 500_000,
+      prizes_paid: 20_000,
+      balance: 280_000,
+      status: 'partial',
+    })
+    //   jefe y equipo: 1.620.000 − 50.000 (premios que pagaron) − 1.000.000 = 570.000
+    expect(await cuenta(RM, 'hh', null)).toMatchObject({
+      prizes_paid: 50_000,
+      delivered: 1_000_000,
+      balance: 570_000,
+      status: 'partial',
+      prize_cost: 100_000,
+      prize_cost_org: 50_000,
+      // Ganancia del dueño: 1.620.000 − los tres premios de sus boletas (100.000).
+      owner_gain: 1_520_000,
+    })
+    //   directo: 570.000 − 300.000 − 80.000 = 190.000
+    expect(await cuenta(RM, 'hd', null)).toMatchObject({
+      delivered: 300_000,
+      prizes_paid: 80_000,
+      balance: 190_000,
+      status: 'partial',
+    })
+    // «Recibido» es solo lo que llegó al dueño: la entrega interna no suma.
+    expect(await resumen(RM)).toMatchObject({
+      received: 1_300_000,
+      pending: 760_000,
+      pendingAccounts: 2,
+      closed: 0,
+    })
+    // Cada entrega conserva su fecha real, quién la recibió y quién la confirmó.
+    expect(await transferencias(RM, 'hm')).toEqual([
+      expect.objectContaining({
+        amount: 500_000,
+        received_on: '2026-08-20',
+        counterpart_id: id('hh'),
+        confirmed_by: id('hh'),
+        voided_at: null,
+      }),
+    ])
+    const delDirecto = await transferencias(RM, 'hd')
+    expect(delDirecto.map((t) => [t.amount, t.received_on, t.voided_at === null])).toEqual([
+      [30_000, '2026-08-20', false],
+      [300_000, '2026-08-20', true],
+    ])
+  }, 120_000)
+
+  it('Z10-03: lo posterior se suma encima, y la cuenta se cierra cuando de verdad no falta nada', async () => {
+    const jefe = await sesion('hh')
+    // Ventas nuevas: 2 del integrante y 1 del jefe.
+    await cobrar('hm', await vender('hm', RM, 2))
+    await cobrar('hh', await vender('hh', RM, 1))
+    //   integrante: 280.000 + 2 × (120.000 − 20.000) = 480.000
+    expect((await cuenta(RM, 'hm', 'hh')).balance).toBe(480_000)
+    //   jefe y equipo: 570.000 + 2 × 90.000 (120.000 − 20.000 − 10.000) + 90.000 = 840.000
+    expect((await cuenta(RM, 'hh', null)).balance).toBe(840_000)
+
+    // El integrante entrega lo que le falta: su cuenta se cierra sola; la del
+    // jefe con el dueño no cambia, porque ese dinero ya estaba dentro.
+    exito(await entregar(jefe, RM, 'hm', 480_000))
+    expect(await cuenta(RM, 'hm', 'hh')).toMatchObject({ balance: 0, status: 'closed' })
+    expect((await cuenta(RM, 'hh', null)).balance).toBe(840_000)
+
+    // Un premio nuevo que paga el dueño: baja su ganancia, no la entrega.
+    const nuevo = await premiar(hh[1]!, 'pm20')
+    exito(await pagarPremio(dueno, RM, nuevo, null, { fecha: nuevo.fecha }))
+    expect(await cuenta(RM, 'hh', null)).toMatchObject({
+      balance: 840_000,
+      // (11 × 120.000 + 10 × 120.000) − (330.000 + 100.000 + 200.000) − 120.000 en premios
+      owner_gain: 1_770_000,
+    })
+
+    exito(await entregar(dueno, RM, 'hh', 840_000))
+    exito(await entregar(dueno, RM, 'hd', 190_000))
+    expect((await cuenta(RM, 'hh', null)).status).toBe('closed')
+    expect((await cuenta(RM, 'hd', null)).status).toBe('closed')
+
+    // Todo cuadra con el dinero de verdad: lo cobrado (27 boletas pagadas × 120.000
+    // = 3.240.000) menos las ganancias (780.000) y los premios que pagaron los
+    // vendedores (130.000) es exactamente lo que recibió el dueño.
+    expect(await resumen(RM)).toMatchObject({
+      received: 2_330_000,
+      pending: 0,
+      closed: 2,
+    })
+    expect(3_240_000 - 780_000 - 130_000).toBe(2_330_000)
+  }, 120_000)
+})
+
+describe('Z11 — una entrega mayor que el saldo no se puede registrar (abonos o dinero bruto)', () => {
+  let RA: string
+
+  beforeAll(async () => {
+    RA = await rifaConPremios('Rifa entregas de más', 'pa')
+  }, 60_000)
+
+  it('Z11-01: entregó abonos de boletas que aún no están pagadas: hoy no cabe, y cabe cuando se pagan', async () => {
+    await altaDirecta('ab', 'Vendedora Con Abonos', { mode: 'fixed_per_ticket', fixed: 25_000 })
+    const [p1, p2, p3, m1, m2] = await vender('ab', RA, 5)
+    await cobrar('ab', [p1!, p2!, p3!])
+    await cobrar('ab', [m1!, m2!], 60_000)
+    // Solo cuentan las 3 pagadas: 360.000 − 75.000 = 285.000. Los 120.000 de
+    // abonos son cartera de la vendedora (BR-Z02, BR-Z03).
+    expect(await cuenta(RA, 'ab', null)).toMatchObject({ balance: 285_000, status: 'pending' })
+
+    // En la realidad entregó 400.000: incluía 115.000 de esos abonos.
+    const deMas = await entregar(dueno, RA, 'ab', 400_000, { fecha: '2026-08-25' })
+    expect(deMas.error?.message).toBe(
+      'No puedes confirmar más de $285.000: es lo que falta por recibir.',
+    )
+    expect(await transferencias(RA, 'ab')).toEqual([])
+
+    // Cuando las dos boletas se terminan de pagar, lo entregado ya cabe con su fecha
+    // real y el saldo es exacto: 600.000 − 125.000 − 400.000 = 75.000.
+    await cobrar('ab', [m1!, m2!], 60_000)
+    exito(await entregar(dueno, RA, 'ab', 400_000, { fecha: '2026-08-25' }))
+    expect(await cuenta(RA, 'ab', null)).toMatchObject({ balance: 75_000, status: 'partial' })
+  }, 120_000)
+
+  it('Z11-02: entregó el dinero bruto y el dueño le devolvió su ganancia: no se puede registrar como pasó', async () => {
+    await altaDirecta('br', 'Vendedor Bruto', { mode: 'fixed_per_ticket', fixed: 25_000 })
+    await cobrar('br', await vender('br', RA, 4))
+    // 480.000 − 100.000 = 380.000 por entregar.
+    expect((await cuenta(RA, 'br', null)).balance).toBe(380_000)
+    // Entregó los 480.000 y el dueño le devolvió 100.000 de ganancia.
+    const bruto = await entregar(dueno, RA, 'br', 480_000, { fecha: '2026-08-25' })
+    expect(bruto.error?.message).toBe(
+      'No puedes confirmar más de $380.000: es lo que falta por recibir.',
+    )
+    const devolucion = await entregar(await sesion('br'), RA, 'br', 100_000, {
+      kind: 'refund',
+      fecha: '2026-08-26',
+    })
+    expect(devolucion.error?.message).toBe('Esta cuenta no tiene saldo a favor del vendedor.')
+    // Solo cabe el neto, que no es lo que pasó: dos movimientos se volverían uno.
+    expect(await transferencias(RA, 'br')).toEqual([])
+  }, 120_000)
+})
+
+describe('Z12 — vendedor a cargo desactivado (I-196): reorganizar no conserva quién recibió', () => {
+  let RZ: string
+
+  beforeAll(async () => {
+    RZ = await rifaConPremios('Rifa vendedor a cargo desactivado', 'pz')
+  }, 60_000)
+
+  it('Z12-01: desactivado, nadie confirma lo que le entregó su equipo; lo del dueño sí se registra', async () => {
+    await altaDirecta('ra', 'Jefe Que Se Va', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaDirecta('rn', 'Jefe Que Llega', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaIntegrante('rm', 'Integrante Del Que Se Va', 'ra', {
+      model: 'fixed_per_ticket',
+      amount: 20_000,
+    })
+    const delIntegrante = await vender('rm', RZ, 5)
+    const delJefe = await vender('ra', RZ, 2)
+    await cobrar('rm', delIntegrante)
+    await cobrar('ra', delJefe)
+    const premioIntegrante = await premiar(delIntegrante[0]!, 'pz20') // lo pagó el integrante
+    const premioJefe = await premiar(delJefe[0]!, 'pz50') // lo pagó el jefe
+    // Lo que pasó de verdad y NADIE registró antes de desactivarlo: el integrante
+    // le entregó 300.000 y pagó su premio; el jefe entregó 400.000 al dueño y
+    // pagó el suyo.
+    await desactivar('ra')
+
+    // Él ya no puede registrar nada.
+    const elJefe = await sesion('ra')
+    expect(
+      (await entregar(elJefe, RZ, 'rm', 300_000, { fecha: '2026-08-20' })).error?.message,
+    ).toBe('No encontramos esa cuenta. Vuelve a abrir el cierre de cuentas.')
+    expect(
+      (await pagarPremio(elJefe, RZ, premioIntegrante, 'rm', { fecha: premioIntegrante.fecha }))
+        .error?.message,
+    ).toBe('No encontramos ese premio en esta rifa.')
+    // Y el personal NO puede hacerlo por él: no se amplía ningún permiso.
+    expect((await entregar(dueno, RZ, 'rm', 300_000, { fecha: '2026-08-20' })).error?.message).toBe(
+      'Lo que entrega Integrante Del Que Se Va lo confirma su vendedor a cargo, Jefe Que Se Va.',
+    )
+    expect(
+      (await pagarPremio(dueno, RZ, premioIntegrante, 'rm', { fecha: premioIntegrante.fecha }))
+        .error?.message,
+    ).toBe('Lo que pagó Integrante Del Que Se Va lo registra su vendedor a cargo, Jefe Que Se Va.')
+    // Lo que recibió el dueño y el premio que pagó el propio jefe sí se registran.
+    exito(await entregar(dueno, RZ, 'ra', 400_000, { fecha: '2026-08-28' }))
+    exito(await pagarPremio(dueno, RZ, premioJefe, 'ra', { fecha: premioJefe.fecha }))
+
+    // La cuenta con el dueño no se da por buena: el premio sin registrar la deja
+    // en «Falta información». 840.000 − 210.000 − 50.000 − 400.000 = 180.000
+    // (la verdad son 160.000: el integrante pagó 20.000 de premio).
+    expect(await cuenta(RZ, 'ra', null)).toMatchObject({
+      balance: 180_000,
+      status: 'missing_info',
+    })
+    // Y la del integrante sigue pidiéndole los 300.000 que ya entregó.
+    expect((await cuenta(RZ, 'rm', 'ra')).balance).toBe(500_000)
+
+    // REORGANIZAR SIN REGISTRAR ANTES: el integrante pasa al jefe nuevo.
+    await cambiarDeEquipo('rm', 'rn')
+    // Ahora su entrega solo se puede confirmar como recibida por el jefe NUEVO,
+    // que nunca la recibió.
+    const falsa = exito(
+      await entregar(await sesion('rn'), RZ, 'rm', 300_000, { fecha: '2026-08-20' }),
+    )
+    const [registrada] = await transferencias(RZ, 'rm')
+    expect(registrada).toMatchObject({ counterpart_id: id('rn'), confirmed_by: id('rn') })
+    // Y las cuentas mienten: el que se fue aparece con dinero A SU FAVOR, aunque
+    // tiene los 300.000 del integrante; el nuevo debe dinero que nunca tuvo.
+    const seFue = await cuenta(RZ, 'ra', null)
+    const llega = await cuenta(RZ, 'rn', null)
+    expect(seFue).toMatchObject({ balance: -270_000, status: 'in_favor' })
+    expect(llega.balance).toBe(450_000)
+    // Se deshace la prueba de la atribución falsa, con su motivo.
+    exito(
+      await (
+        await sesion('rn')
+      ).rpc('settlement_void_transfer', {
+        p_transfer_id: falsa[0]!.transfer_id,
+        p_reason: 'La recibió el jefe anterior, no yo',
+      }),
+    )
+  }, 180_000)
+
+  it('Z12-02: lo correcto es registrar antes —reactivándolo un momento— y reorganizar después', async () => {
+    await altaDirecta('sa', 'Jefe Reactivado', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaDirecta('sn', 'Jefe Siguiente', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaIntegrante('sm', 'Integrante Del Reactivado', 'sa', {
+      model: 'fixed_per_ticket',
+      amount: 20_000,
+    })
+    const delIntegrante = await vender('sm', RZ, 5)
+    const delJefe = await vender('sa', RZ, 2)
+    await cobrar('sm', delIntegrante)
+    await cobrar('sa', delJefe)
+    const premioIntegrante = await premiar(delIntegrante[0]!, 'pz30')
+    const premioJefe = await premiar(delJefe[0]!, 'pz80')
+    await desactivar('sa')
+
+    // El personal lo reactiva para que ÉL registre lo que recibió; después lo desactiva.
+    await desactivar('sa', true)
+    const elJefe = await sesion('sa')
+    exito(await pagarPremio(elJefe, RZ, premioIntegrante, 'sm', { fecha: premioIntegrante.fecha }))
+    exito(await entregar(elJefe, RZ, 'sm', 300_000, { fecha: '2026-08-20' }))
+    await desactivar('sa')
+    exito(await entregar(dueno, RZ, 'sa', 400_000, { fecha: '2026-08-28' }))
+    exito(await pagarPremio(dueno, RZ, premioJefe, 'sa', { fecha: premioJefe.fecha }))
+
+    // Exacto: integrante 600.000 − 100.000 − 30.000 − 300.000 = 170.000;
+    // jefe y equipo 840.000 − 210.000 − 110.000 − 400.000 = 120.000.
+    expect((await cuenta(RZ, 'sm', 'sa')).balance).toBe(170_000)
+    expect(await cuenta(RZ, 'sa', null)).toMatchObject({ balance: 120_000, status: 'partial' })
+    expect(await transferencias(RZ, 'sm')).toEqual([
+      expect.objectContaining({ counterpart_id: id('sa'), confirmed_by: id('sa') }),
+    ])
+
+    // Reorganizar DESPUÉS conserva quién recibió (Z8): el anterior se queda con
+    // lo que recibió del integrante; el nuevo responde por lo que falta.
+    await cambiarDeEquipo('sm', 'sn')
+    const anterior = await cuenta(RZ, 'sa', null)
+    const nuevo = await cuenta(RZ, 'sn', null)
+    // El anterior: 240.000 − 60.000 − 80.000 − 400.000 + 300.000 recibidos = 0.
+    expect(anterior.balance).toBe(0)
+    // El nuevo: su equipo le debe 170.000 y gana 50.000 por esas ventas: 120.000.
+    expect(nuevo.balance).toBe(120_000)
+    expect((await cuenta(RZ, 'sm', 'sn')).balance).toBe(170_000)
+    // El dinero se conserva: 0 + 120.000 = los 120.000 de antes de reorganizar.
+    expect(anterior.balance + nuevo.balance).toBe(120_000)
+  }, 180_000)
+
+  it('Z12-03: lo que PAGÓ el vendedor a cargo —registrado antes de reorganizar, se queda con él; sin registrar, ya no se le puede atribuir—', async () => {
+    await altaDirecta('xa', 'Jefe Que Pagó', { mode: 'fixed_per_ticket', fixed: 30_000 })
+    await altaDirecta('xn', 'Jefe Que Recibe El Equipo', {
+      mode: 'fixed_per_ticket',
+      fixed: 30_000,
+    })
+    await altaIntegrante('xm', 'Integrante Con Premios', 'xa', {
+      model: 'fixed_per_ticket',
+      amount: 20_000,
+    })
+    const delIntegrante = await vender('xm', RZ, 4)
+    const delJefe = await vender('xa', RZ, 1)
+    await cobrar('xm', delIntegrante)
+    await cobrar('xa', delJefe)
+    // Dos premios de boletas del integrante que el vendedor a cargo pagó de su
+    // bolsillo; ninguno registrado cuando se le desactiva.
+    const registrado = await premiar(delIntegrante[0]!, 'pz20')
+    const sinRegistrar = await premiar(delIntegrante[1]!, 'pz30')
+    await desactivar('xa')
+
+    // Lo que pagó el vendedor a cargo lo registra el personal —quien recibe sus
+    // entregas—, también con él desactivado: la regla de siempre (BR-Z07), no un
+    // permiso nuevo.
+    exito(await pagarPremio(dueno, RZ, registrado, 'xa', { fecha: registrado.fecha }))
+    // 600.000 − (30.000 + 40.000 + 80.000) − 20.000 = 430.000, y «Falta
+    // información» por el otro premio.
+    expect(await cuenta(RZ, 'xa', null)).toMatchObject({
+      balance: 430_000,
+      prizes_paid: 20_000,
+      status: 'missing_info',
+    })
+
+    // Se reorganiza sin registrar el segundo.
+    await cambiarDeEquipo('xm', 'xn')
+    // El registrado conserva a quien lo pagó y sigue en su cuenta: 120.000 −
+    // 30.000 − 20.000 = 70.000.
+    const { rows: pagos } = await db.query(
+      `select payer_id from settlement_prize_payments where match_id = $1 and voided_at is null`,
+      [registrado.matchId],
+    )
+    expect(pagos).toEqual([{ payer_id: id('xa') }])
+    expect(await cuenta(RZ, 'xa', null)).toMatchObject({ balance: 70_000, prizes_paid: 20_000 })
+    // El nuevo responde por el equipo —480.000 − 80.000 − 40.000 = 360.000— y el
+    // premio sin registrar le queda a él como «Falta información», aunque no lo pagó.
+    expect(await cuenta(RZ, 'xn', null)).toMatchObject({ balance: 360_000, status: 'missing_info' })
+    // Y ya no se puede atribuir a quien de verdad lo pagó: solo a otro.
+    expect(
+      (await pagarPremio(dueno, RZ, sinRegistrar, 'xa', { fecha: sinRegistrar.fecha })).error
+        ?.message,
+    ).toBe(
+      'Este premio lo pudo pagar Integrante Con Premios, su vendedor a cargo Jefe Que Recibe El Equipo o el dueño.',
+    )
+  }, 180_000)
+})
+
+describe('Z13 — un premio de un sorteo anterior al historial no existe para la cuenta (I-194)', () => {
+  let RH: string
+
+  beforeAll(async () => {
+    RH = await rifaConPremios('Rifa premio anterior', 'ph')
+  }, 60_000)
+
+  it('Z13-01: no aparece, no se puede registrar y la cuenta se cierra sin saberlo', async () => {
+    await altaDirecta('pp', 'Vendedor Del Premio Viejo', {
+      mode: 'fixed_per_ticket',
+      fixed: 25_000,
+    })
+    const vendidas = await vender('pp', RH, 3)
+    await cobrar('pp', vendidas)
+    // Un premio de un sorteo del 3 de agosto: antes del 9, inicio del historial.
+    const viejo = await premiar(vendidas[0]!, 'ph50', { fecha: '2026-08-03' })
+    expect(viejo.fecha).toBe('2026-08-03')
+
+    // 360.000 − 75.000 = 285.000, y ningún premio: la cuenta no sabe de él.
+    expect(await cuenta(RH, 'pp', null)).toMatchObject({
+      balance: 285_000,
+      awards: 0,
+      status: 'pending',
+    })
+    expect((await pagarPremio(dueno, RH, viejo, 'pp', { fecha: viejo.fecha })).error?.message).toBe(
+      'No encontramos ese premio en esta rifa.',
+    )
+
+    // Si el vendedor lo pagó de lo cobrado y entregó el resto (235.000), la cuenta
+    // le pide los 50.000 que ya salieron en el premio...
+    exito(await entregar(dueno, RH, 'pp', 235_000, { fecha: '2026-08-25' }))
+    expect((await cuenta(RH, 'pp', null)).balance).toBe(50_000)
+    // ...y si los vuelve a poner, la cuenta queda «Cerrada» como definitiva.
+    exito(await entregar(dueno, RH, 'pp', 50_000))
+    expect((await cuenta(RH, 'pp', null)).status).toBe('closed')
+  }, 120_000)
 })
