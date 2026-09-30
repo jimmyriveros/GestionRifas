@@ -124,10 +124,14 @@ test('la cuenta de Carlos explica la entrega línea a línea, sin un solo client
   await expect(saldo).toContainText('Falta recibir de Carlos')
   await expect(saldo).toContainText(ESPERADO.carlos.falta)
   await expect(saldo).toContainText(ESPERADO.carlos.recibido)
+  // D-182: al personal no se le habla de «tú» sobre el dinero de la organización.
+  await expect(saldo).toContainText('Recibido')
+  await expect(saldo).not.toContainText('Ya recibiste')
 
   const premios = page.locator('[data-slot="card"]').filter({ hasText: 'Premios de esta cuenta' })
-  await expect(premios).toContainText('3 premios · $450.000')
+  await expect(premios).toContainText('3 premios · $450.000 pagados')
   await expect(premios).toContainText('Ana pagó el')
+  await expect(premios).toContainText('El dueño pagó el')
   await expect(premios).toContainText('Ya lo pagó el dueño')
   await expect(premios).toContainText(
     'Los $200.000 que pagó el dueño reducen su ganancia, pero no se descuentan otra vez de la entrega.',

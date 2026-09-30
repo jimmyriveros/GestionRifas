@@ -267,8 +267,13 @@ export const SETTLEMENT_COPY = {
     staffTitle: 'Premios de esta cuenta',
     sellerTitle: 'Premios de tu cuenta',
     memberTitle: (name: string) => `Premios de ${name}`,
-    summary: (count: number, amount: number) =>
-      `${count} ${count === 1 ? 'premio' : 'premios'} · ${formatCOP(amount)}`,
+    /**
+     * La cifra es lo PAGADO, y lo dice: la lista de debajo tambien enseña el
+     * valor de un premio sin pago registrado, y un total que no suma su desglose
+     * tiene que decir que suma (D-172).
+     */
+    summary: (count: number, paid: number) =>
+      `${count} ${count === 1 ? 'premio' : 'premios'} · ${formatCOP(paid)} pagados`,
     ticket: (daily: string | null, weekly: string | null) =>
       `Boleta ${daily ?? '—'} / ${weekly ?? '—'}`,
     draw: (date: string) => `Sorteo: ${date}`,

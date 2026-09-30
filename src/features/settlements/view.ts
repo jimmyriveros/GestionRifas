@@ -86,7 +86,7 @@ export function prizeAmount(prize: SettlementPrizeBase): number | null {
   return null
 }
 
-/** «3 premios · $450.000»: lo PAGADO de esos premios, nunca un valor por confirmar. */
+/** «3 premios · $450.000 pagados»: lo PAGADO de esos premios, nunca un valor por confirmar. */
 export function prizesSummary(prizes: SettlementPrizeBase[]): { count: number; paid: number } {
   return {
     count: prizes.length,

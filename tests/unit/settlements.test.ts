@@ -132,8 +132,10 @@ describe('Z-U2 — los premios en pantalla', () => {
       premio(),
     ]
     expect(prizesSummary(lista)).toEqual({ count: 3, paid: 250_000 })
-    expect(SETTLEMENT_COPY.prizes.summary(3, 450_000)).toBe('3 premios · $450.000')
-    expect(SETTLEMENT_COPY.prizes.summary(1, 150_000)).toBe('1 premio · $150.000')
+    // La cifra dice que es lo PAGADO: la lista enseña también el valor de un
+    // premio sin pago, y un total que no suma su desglose lo tiene que decir (D-172).
+    expect(SETTLEMENT_COPY.prizes.summary(3, 450_000)).toBe('3 premios · $450.000 pagados')
+    expect(SETTLEMENT_COPY.prizes.summary(1, 150_000)).toBe('1 premio · $150.000 pagados')
   })
 
   it('el personal registra lo del vendedor directo, lo del vendedor a cargo y lo del dueño; nunca lo del integrante', () => {
