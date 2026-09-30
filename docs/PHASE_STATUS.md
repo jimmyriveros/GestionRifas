@@ -18,8 +18,9 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** los de la entrada anterior; **I-115**, ya solo fuera de la pausa; e **I-190**,
   abierta: en la revisión del dueño —la navegación funcionó— la ficha de un vendedor abierta como Administrador tardó más
-  de lo habitual. Sin causa demostrada, porque los registros de este plan no guardan la duración, y **sin regresión del
-  puente**: en local las dos versiones miden igual y hacen las mismas llamadas. **Punto de
+  de lo habitual. Sin causa demostrada, porque los registros de este plan no guardan la duración; **no se encontró una
+  regresión atribuible al puente en las comparaciones realizadas**: en local las dos versiones miden igual y hacen las
+  mismas llamadas. **Punto de
   reversión del código:** `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`), compatible mientras la pausa no esté
   instalada.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, `DEPLOYMENT` §3.2.t y §3.3.c, `RUNBOOK` §10. **Pendiente del

@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-190: la demora de la ficha del vendedor, diagnosticada, 2026-09-30)** | Sin cambio de código | Sin cambio de esquema; en producción, solo lecturas | Medida local A/B de la ficha con builds de producción: `cac81e8` y `9a64986` **iguales** (primera apertura 178 frente a 184 ms; mismas 10 llamadas a Supabase) | — | ⚠️ **I-190 abierta, sin causa demostrada**: los registros de este plan no guardan la duración. **No es regresión del puente.** La navegación del dueño funcionó |
+| **Post-9 vigente (I-190: la demora de la ficha del vendedor, diagnosticada, 2026-09-30)** | Sin cambio de código | Sin cambio de esquema; en producción, solo lecturas | Medida local A/B de la ficha con builds de producción: `cac81e8` y `9a64986` **iguales** (primera apertura 178 frente a 184 ms; mismas 10 llamadas a Supabase) | — | ⚠️ **I-190 abierta, sin causa demostrada**: los registros de este plan no guardan la duración. **No se encontró una regresión atribuible al puente en las comparaciones realizadas.** La navegación del dueño funcionó |
 | Post-9 anterior (PB: el puente de la pausa EN PRODUCCIÓN, D-239, `9a64986`, 2026-09-30) | Sin cambio de código en la rama de la publicación: la fusión del puente, 0 archivos. CI sobre `9a64986`: ✅ 2/2 en el PR #8 (`36653356272`) y en `main` (`36654232751`) | Producción sigue en `0077`, sin pausa ni gancho; la base no se tocó | No aplica: el puente no cambia ninguna pantalla con la API normal. En vivo, **36/36** rutas con `/mantenimiento` en 200 | `verify:remote` **49/49** antes y después | ✅ **Publicado** por avance rápido `cac81e8..9a64986`: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, READY a las 01:16:22 UTC, `41ee2474757c` servido. Reversión: `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`) |
 | Post-9 anterior (diagnóstico previo de D-237 a D-239 EN PRODUCCIÓN, solo lectura, 2026-09-29, 23:39–23:46 UTC) | Sin cambio de código ni batería local repetida: siguen **1.887/1.887** | Sin cambio de esquema local: **1.510 + 1**. Producción: `0001`–`0077`, sin `0078` ni `0079`; diagnóstico previo **limpio** | No aplica: ninguna pantalla cambió | `verify:remote` **49 OK + los 5 en rojo esperados**, identificados uno por uno | ✅ **P0 y P1 conformes, nada escrito.** Servido `cac81e8` (`b21a1caa33c5`); sin pausa ni gancho. Pendiente: la autorización del puente (PB) |
 | Post-9 anterior (la publicación de D-237 y D-238 preparada, D-239, sin migración, solo en local, 2026-09-29) | **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa de la recuperación, +1 de `mapPgError`) | **1.510 ✅ y 1 omitida** en 61 archivos (+8 de la pausa contra la PostgREST local; +3 de `earning-agreements`: I-184 y el guardia) | Dirigida **103/103** (la pausa y los recorridos de las guardas); la de la pausa también en el puente, 4/4 sobre `0077` y 3/3 sobre `0079`. La completa, no repetida | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayados**: la migración a medias (I-186) y sus dos salidas, los tres escenarios de recuperación, la restauración completa y conciliada (I-183, con I-187 e I-188 corregidas), y el puente (`verify` 1.812, `test:db` 1.452 + 1) |
@@ -16568,7 +16568,8 @@ servidor recién arrancado (`build/demora-ficha/orquestar.mjs`, resultados en `r
 | Documento sin navegador (n = 3) | 121 ms | 132 ms |
 | Llamadas a Supabase por carga, en Kong | **10**: 2 `/auth/v1/user`, 6 de tablas, 2 RPC | **10**, las mismas rutas |
 
-**Conclusión de la medida:** no hay regresión atribuible al puente. Las diferencias de 6 a 11 ms entre medianas tienen
+**Conclusión de la medida:** no se encontró una regresión atribuible al puente en las comparaciones realizadas. Las
+diferencias de 6 a 11 ms entre medianas tienen
 los rangos solapados y ninguna llamada adicional que las explique: son ruido de la medida. **Límite:** en local no hay
 latencia de red entre la aplicación y Supabase, el volumen es menor (33 boletas frente a 1.321) y no hay instancias
 de función que arranquen; eso es justo lo que la medida **no** puede reproducir de producción.
@@ -16578,7 +16579,7 @@ de función que arranquen; eso es justo lo que la medida **no** puede reproducir
 | Pregunta | Respuesta |
 |---|---|
 | ¿Qué petición fue la visita, y cuánto tardó? | Una de las tres aperturas de fichas de 02:02:08–02:02:32 UTC; **cuál y cuánto, no se puede saber** con los registros de este plan |
-| ¿Regresión del puente? | **No**: código de la ficha idéntico, mismas llamadas y mismos tiempos en local |
+| ¿Regresión del puente? | **No se encontró en las comparaciones realizadas**: código de la ficha idéntico, mismas llamadas y mismos tiempos en local. No queda descartada por completo: la comparación no reproduce la red ni las instancias de Vercel |
 | ¿Otra causa demostrada? | **Ninguna**. Hipótesis sin demostrar: instancia o ruta en frío tras el despliegue, la latencia de las tres esperas encadenadas hacia Supabase, el dispositivo o la red |
 | Estado | **I-190 abierta**. No se da por resuelta por no haber errores |
 

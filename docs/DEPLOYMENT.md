@@ -1134,8 +1134,9 @@ no inicia sesión en producción—.
 > **Revisión del dueño con su sesión, hecha** (2026-09-30, como Vendedor y como Administrador): **la navegación
 > funcionó con normalidad.** Una observación, **abierta**: abrir la ficha de un vendedor como Administrador tardó más de
 > lo habitual (**I-190**). Sus registros, leídos dentro de la hora: la sesión del Administrador de 02:01:08 a 02:02:32
-> UTC, todo 200, sin errores; la duración no la guarda Vercel en este plan. **No es una regresión del puente**: medido en
-> local, `cac81e8` y `9a64986` tardan lo mismo y hacen las mismas llamadas (`TEST_RESULTS`, I-190).
+> UTC, todo 200, sin errores; la duración no la guarda Vercel en este plan. **No se encontró una regresión atribuible al
+> puente en las comparaciones realizadas**: en local, `cac81e8` y `9a64986` tardan lo mismo y hacen las mismas llamadas
+> (`TEST_RESULTS`, I-190). Eso no la descarta por completo: la medida local no reproduce la red ni las instancias de Vercel.
 >
 > **Después, solo en local:** el puente se fusionó en `feature/detalle-boleta-admin` (`0e268df`), con **0 archivos
 > cambiados** —comprobado antes en seco con `git merge-tree`—. Esa rama y los commits de documentación de esta
