@@ -4601,8 +4601,10 @@ export type Database = {
           counterpart_id: string
           counterpart_name: string
           delivered: number
+          figures: Json
           fingerprint: string
           holder_earned: number
+          holder_rate: number
           holder_team_earned: number
           members: number
           members_earned: number
@@ -4775,6 +4777,7 @@ export type Database = {
           holder_id: string
           holder_name: string
           holder_partial_paid: number
+          holder_rate: number
           holder_role: Database["public"]["Enums"]["app_role"]
           holder_team_earned: number
           holder_tickets_sold: number
@@ -4985,6 +4988,7 @@ export type Database = {
           closing_version: number
           collected: number
           delivered: number
+          figures: Json
           fingerprint: string
           holder_earned: number
           holder_team_earned: number

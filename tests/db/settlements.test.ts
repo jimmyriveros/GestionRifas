@@ -68,7 +68,11 @@ const id = (clave: string) => personas.get(clave)!.id
 /** Cuenta de Auth idempotente: la bitacora las conserva como actores (BR-D02). */
 async function persona(clave: string, nombre: string) {
   const email = `cierre-${clave}@pruebas.test`.toLowerCase()
-  const { data: existente } = await ctx.svc.from('profiles').select('id').eq('email', email).maybeSingle()
+  const { data: existente } = await ctx.svc
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
   let perfil = existente?.id ?? null
   if (perfil === null) {
     const { data, error } = await ctx.svc.auth.admin.createUser({
@@ -164,7 +168,10 @@ async function premio(
   raffleId: string,
   clave: string,
   titulo: string,
-  recompensa: { modo?: 'fixed' | 'winner_choice'; opciones: Array<{ description: string | null; amount: number | null }> },
+  recompensa: {
+    modo?: 'fixed' | 'winner_choice'
+    opciones: Array<{ description: string | null; amount: number | null }>
+  },
   mes: string,
 ) {
   const { data, error } = await dueno.rpc('create_raffle_prize', {
@@ -211,11 +218,18 @@ async function boletas(raffleId: string, sellerId: string, n: number): Promise<s
 }
 
 /** Crea `n` boletas del vendedor y vende las `vendidas` primeras. */
-async function vender(clave: string, raffleId: string, vendidas: number, opciones: { total?: number; precio?: number } = {}) {
+async function vender(
+  clave: string,
+  raffleId: string,
+  vendidas: number,
+  opciones: { total?: number; precio?: number } = {},
+) {
   const ids = await boletas(raffleId, id(clave), opciones.total ?? vendidas)
   const venta = ids.slice(0, vendidas)
   if (venta.length > 0) {
-    const { error } = await (await sesion(clave)).rpc('bulk_assign_tickets', {
+    const { error } = await (
+      await sesion(clave)
+    ).rpc('bulk_assign_tickets', {
       p_ticket_ids: venta,
       p_client_id: clientes.get(id(clave))!,
       p_sale_price: opciones.precio,
@@ -231,7 +245,9 @@ async function cobrar(clave: string, ids: string[], monto?: number) {
     ticket_id: r.id as string,
     amount: monto ?? Number(r.sale_price),
   }))
-  const { data, error } = await (await sesion(clave)).rpc('create_payment', {
+  const { data, error } = await (
+    await sesion(clave)
+  ).rpc('create_payment', {
     p_client_id: clientes.get(id(clave))!,
     p_total_amount: asignaciones.reduce((s, a) => s + a.amount, 0),
     p_allocations: asignaciones,
@@ -245,7 +261,11 @@ async function cobrar(clave: string, ids: string[], monto?: number) {
  * jugado con su resultado, la fotografia de la boleta y el enlace al premio.
  * Busca un par lotería–fecha libre entre el inicio del historial y ayer.
  */
-async function premiar(ticketId: string, clavePremio: string, opciones: { conflicto?: boolean } = {}) {
+async function premiar(
+  ticketId: string,
+  clavePremio: string,
+  opciones: { conflicto?: boolean } = {},
+) {
   const premioFila = premios.get(clavePremio)!
   secuencia += 1
   await db.query('begin')
@@ -271,7 +291,9 @@ async function premiar(ticketId: string, clavePremio: string, opciones: { confli
        returning id`,
       [code, `${PREFIJO_SORTEO}-${secuencia}`, fecha],
     )
-    const { rows: numero } = await db.query(`select daily_number from tickets where id = $1`, [ticketId])
+    const { rows: numero } = await db.query(`select daily_number from tickets where id = $1`, [
+      ticketId,
+    ])
     const { rows: res } = await db.query(
       `insert into lottery_results (schedule_id, winning_number, validation_status, source_kind,
                                     confirmed_at, conflicting_winning_number)
@@ -297,7 +319,14 @@ async function premiar(ticketId: string, clavePremio: string, opciones: { confli
       `insert into lottery_ticket_match_prizes (organization_id, raffle_id, result_id, match_id,
                                                 match_field, prize_id, prize_version_id)
        values ($1, $2, $3, $4, 'daily_number', $5, $6)`,
-      [foto[0].organization_id, foto[0].raffle_id, res[0].id, foto[0].id, premioFila.prizeId, premioFila.versionId],
+      [
+        foto[0].organization_id,
+        foto[0].raffle_id,
+        res[0].id,
+        foto[0].id,
+        premioFila.prizeId,
+        premioFila.versionId,
+      ],
     )
     await db.query('commit')
     return { matchId: foto[0].id as string, prizeId: premioFila.prizeId, fecha }
@@ -357,7 +386,11 @@ const NUMERICAS = [
 ] as const
 
 /** Una cuenta, leida directamente de la definicion interna. `null` = con el dueño. */
-async function cuenta(raffleId: string, titular: string, contraparte: string | null): Promise<Cuenta> {
+async function cuenta(
+  raffleId: string,
+  titular: string,
+  contraparte: string | null,
+): Promise<Cuenta> {
   const { rows } = await db.query(
     `select * from settlement_account_rows($1, $2)
       where holder_id = $3 and counterpart_id is not distinct from $4`,
@@ -387,8 +420,13 @@ async function entregar(
 ) {
   const esperado =
     opciones.esperado ??
-    (await cuenta(raffleId, titular, opciones.contraparte === undefined ? await padreDe(titular) : opciones.contraparte))
-      .balance
+    (
+      await cuenta(
+        raffleId,
+        titular,
+        opciones.contraparte === undefined ? await padreDe(titular) : opciones.contraparte,
+      )
+    ).balance
   return actor.rpc('settlement_record_transfer', {
     p_raffle_id: raffleId,
     p_seller_id: id(titular),
@@ -481,48 +519,85 @@ beforeAll(async () => {
   ])
   org = rows[0].id
   const duenoId = await persona('dueno', 'Dueña Cierre')
-  await db.query(`insert into memberships (organization_id, profile_id, role) values ($1, $2, 'owner')`, [
-    org,
-    duenoId,
-  ])
+  await db.query(
+    `insert into memberships (organization_id, profile_id, role) values ($1, $2, 'owner')`,
+    [org, duenoId],
+  )
   dueno = await sesion('dueno')
   const adminId = await persona('admin', 'Administrador Cierre')
-  await db.query(`insert into memberships (organization_id, profile_id, role) values ($1, $2, 'admin')`, [
-    org,
-    adminId,
-  ])
+  await db.query(
+    `insert into memberships (organization_id, profile_id, role) values ($1, $2, 'admin')`,
+    [org, adminId],
+  )
   admin = await sesion('admin')
 
   // Otra organizacion, para el aislamiento.
-  const { rows: otra } = await db.query(`insert into organizations (name) values ($1) returning id`, [
-    `Cierre ajena ${STAMP}`,
-  ])
+  const { rows: otra } = await db.query(
+    `insert into organizations (name) values ($1) returning id`,
+    [`Cierre ajena ${STAMP}`],
+  )
   org2 = otra[0].id
   const dueno2 = await persona('dueno2', 'Dueño Ajeno')
-  await db.query(`insert into memberships (organization_id, profile_id, role) values ($1, $2, 'owner')`, [
-    org2,
-    dueno2,
-  ])
+  await db.query(
+    `insert into memberships (organization_id, profile_id, role) values ($1, $2, 'owner')`,
+    [org2, dueno2],
+  )
   const vendedor2 = await persona('ajeno', 'Vendedor Ajeno')
-  await db.query(`insert into memberships (organization_id, profile_id, role) values ($1, $2, 'seller')`, [
-    org2,
-    vendedor2,
-  ])
+  await db.query(
+    `insert into memberships (organization_id, profile_id, role) values ($1, $2, 'seller')`,
+    [org2, vendedor2],
+  )
 
   // La rifa de los casos: un premio de $15.000, uno en especie y uno con alternativas.
   RP = await nuevaRifa('Rifa casos')
   // Cada premio juega en otro mes de 2087: dos premios no pueden jugar el mismo
   // dia con el mismo numero, las mismas cifras y la misma loteria (BR-J08).
-  await premio(RP, 'quince', 'Premio quince', { opciones: [{ description: null, amount: 15_000 }] }, '03')
-  await premio(RP, 'especie', 'Premio televisor', { opciones: [{ description: 'Televisor', amount: null }] }, '04')
-  await premio(RP, 'grande', 'Premio grande', { opciones: [{ description: null, amount: 200_000 }] }, '05')
+  await premio(
+    RP,
+    'quince',
+    'Premio quince',
+    { opciones: [{ description: null, amount: 15_000 }] },
+    '03',
+  )
+  await premio(
+    RP,
+    'especie',
+    'Premio televisor',
+    { opciones: [{ description: 'Televisor', amount: null }] },
+    '04',
+  )
+  await premio(
+    RP,
+    'grande',
+    'Premio grande',
+    { opciones: [{ description: null, amount: 200_000 }] },
+    '05',
+  )
   await activar(RP)
 
   // La rifa del Figma: tres premios de $150.000, $100.000 y $200.000.
   RF = await nuevaRifa('Rifa de septiembre')
-  await premio(RF, 'diario150', 'Premio diario', { opciones: [{ description: null, amount: 150_000 }] }, '03')
-  await premio(RF, 'semanal100', 'Premio semanal', { opciones: [{ description: null, amount: 100_000 }] }, '04')
-  await premio(RF, 'diario200', 'Premio diario mayor', { opciones: [{ description: null, amount: 200_000 }] }, '05')
+  await premio(
+    RF,
+    'diario150',
+    'Premio diario',
+    { opciones: [{ description: null, amount: 150_000 }] },
+    '03',
+  )
+  await premio(
+    RF,
+    'semanal100',
+    'Premio semanal',
+    { opciones: [{ description: null, amount: 100_000 }] },
+    '04',
+  )
+  await premio(
+    RF,
+    'diario200',
+    'Premio diario mayor',
+    { opciones: [{ description: null, amount: 200_000 }] },
+    '05',
+  )
   await activar(RF)
 }, 180_000)
 
@@ -561,13 +636,17 @@ afterAll(async () => {
          (select id from commission_tier_lists where organization_id = any($1))`,
       [[org, org2]],
     )
-    await db.query(`delete from commission_tier_lists where organization_id = any($1)`, [[org, org2]])
+    await db.query(`delete from commission_tier_lists where organization_id = any($1)`, [
+      [org, org2],
+    ])
     await db.query(
       `delete from lottery_results where schedule_id in
          (select id from lottery_draw_schedules where draw_number like $1)`,
       [`${PREFIJO_SORTEO}-%`],
     )
-    await db.query(`delete from lottery_draw_schedules where draw_number like $1`, [`${PREFIJO_SORTEO}-%`])
+    await db.query(`delete from lottery_draw_schedules where draw_number like $1`, [
+      `${PREFIJO_SORTEO}-%`,
+    ])
     await db.query(`delete from raffles where organization_id = any($1)`, [[org, org2]])
     await db.query(`delete from organizations where id = any($1)`, [[org, org2]])
     await db.query('commit')
@@ -589,7 +668,11 @@ describe('Z1 — la migracion: acceso, inmutabilidad y capacidad', () => {
 
   it('Z1-02: ninguna sesion lee ni escribe las tablas directamente', async () => {
     const vendedor = await sesion('dueno')
-    for (const tabla of ['settlement_transfers', 'settlement_prize_payments', 'settlement_closings'] as const) {
+    for (const tabla of [
+      'settlement_transfers',
+      'settlement_prize_payments',
+      'settlement_closings',
+    ] as const) {
       const lectura = await vendedor.from(tabla).select('id').limit(1)
       expect(lectura.error, tabla).not.toBeNull()
     }
@@ -644,7 +727,11 @@ describe('Z2 — la tabla de casos: boleta de $120.000, jefe $30.000, integrante
     // Integrante: 120.000 − 20.000 = 100.000. Jefe: 100.000 − (30.000 − 20.000) = 90.000.
     expect((await cuenta(RP, 'm1', 'h1')).balance).toBe(100_000)
     const jefe = await cuenta(RP, 'h1', null)
-    expect(jefe).toMatchObject({ collected: 120_000, members_earned: 20_000, holder_team_earned: 10_000 })
+    expect(jefe).toMatchObject({
+      collected: 120_000,
+      members_earned: 20_000,
+      holder_team_earned: 10_000,
+    })
     expect(jefe.balance).toBe(90_000)
     expect(jefe.owner_gain).toBe(90_000)
     expect(await comision('m1', RP)).toMatchObject({ earned: 20_000 })
@@ -703,7 +790,10 @@ describe('Z3 — el ejemplo completo del Figma', () => {
     // 30.000 desde 31); su tramo cuenta lo suyo y lo de su equipo (BR-G27).
     await altaDirecta('carlos', 'Carlos Ruiz', { mode: 'tiered' })
     await altaIntegrante('ana', 'Ana Gómez', 'carlos', { model: 'tiered' })
-    await altaIntegrante('luis', 'Luis Pérez', 'carlos', { model: 'fixed_per_ticket', amount: 15_000 })
+    await altaIntegrante('luis', 'Luis Pérez', 'carlos', {
+      model: 'fixed_per_ticket',
+      amount: 15_000,
+    })
     for (const clave of ['marta', 'jorge', 'diana']) {
       await altaDirecta(clave, clave[0]!.toUpperCase() + clave.slice(1) + ' Cierre', {
         mode: 'fixed_per_ticket',
@@ -741,7 +831,12 @@ describe('Z3 — el ejemplo completo del Figma', () => {
   }, 180_000)
 
   it('Z3-01: el motor puso a Carlos en $30.000 con 45 boletas y a Ana en $20.000 con 15', async () => {
-    expect(await comision('carlos', RF)).toMatchObject({ n: 20, tierN: 45, rate: 30_000, earned: 600_000 })
+    expect(await comision('carlos', RF)).toMatchObject({
+      n: 20,
+      tierN: 45,
+      rate: 30_000,
+      earned: 600_000,
+    })
     // 15 × (30.000 − 20.000) + 10 × (30.000 − 15.000) = 150.000 + 150.000
     expect((await comision('carlos', RF)).teamEarned).toBe(300_000)
     expect(await comision('ana', RF)).toMatchObject({ rate: 20_000, earned: 300_000 })
@@ -791,7 +886,12 @@ describe('Z3 — el ejemplo completo del Figma', () => {
     })
     // La de Luis quedó saldada y se cerró sola al confirmar la entrega.
     const l = await cuenta(RF, 'luis', 'carlos')
-    expect(l).toMatchObject({ total_due: 1_050_000, delivered: 1_050_000, balance: 0, status: 'closed' })
+    expect(l).toMatchObject({
+      total_due: 1_050_000,
+      delivered: 1_050_000,
+      balance: 0,
+      status: 'closed',
+    })
     expect(l.closing_version).toBe(1)
     // El premio que pagó el dueño sobre una boleta de Luis no toca su cuenta.
     expect(l.prizes_paid).toBe(0)
@@ -815,7 +915,12 @@ describe('Z3 — el ejemplo completo del Figma', () => {
     expect(Number(r[0]!.balance_after)).toBe(0)
 
     const c = await cuenta(RF, 'carlos', null)
-    expect(c).toMatchObject({ balance: 0, status: 'closed', closing_version: 1, changed_after_close: false })
+    expect(c).toMatchObject({
+      balance: 0,
+      status: 'closed',
+      closing_version: 1,
+      changed_after_close: false,
+    })
     expect(await resumen(RF)).toMatchObject({
       closed: 3,
       pendingAccounts: 1,
@@ -889,12 +994,16 @@ describe('Z3 — el ejemplo completo del Figma', () => {
     expect(suyos[0]!.client_name).not.toBeNull()
 
     const entregas = exito(await ana.rpc('seller_settlement_transfers', { p_raffle_id: RF }))
-    expect(entregas.map((e) => [Number(e.amount), e.counterpart_name])).toEqual([[850_000, 'Carlos Ruiz']])
+    expect(entregas.map((e) => [Number(e.amount), e.counterpart_name])).toEqual([
+      [850_000, 'Carlos Ruiz'],
+    ])
 
     // Un integrante no ve la cuenta de su vendedor a cargo ni la de nadie.
     expect(exito(await ana.rpc('seller_settlement_team', { p_raffle_id: RF }))).toEqual([])
     expect(
-      exito(await ana.rpc('seller_settlement_account', { p_raffle_id: RF, p_member_id: id('luis') })),
+      exito(
+        await ana.rpc('seller_settlement_account', { p_raffle_id: RF, p_member_id: id('luis') }),
+      ),
     ).toEqual([])
   })
 })
@@ -918,7 +1027,12 @@ describe('Z4 — el motor de ganancias dentro de la cuenta', () => {
     await cobrar('abono', [pagada!])
     await cobrar('abono', [abonada!], 40_000)
     const c = await cuenta(RP, 'abono', null)
-    expect(c).toMatchObject({ tickets_sold: 2, tickets_paid: 1, collected: 120_000, total_due: 90_000 })
+    expect(c).toMatchObject({
+      tickets_sold: 2,
+      tickets_paid: 1,
+      collected: 120_000,
+      total_due: 90_000,
+    })
 
     const propia = exito(
       await (await sesion('abono')).rpc('seller_settlement_account', { p_raffle_id: RP }),
@@ -941,7 +1055,10 @@ describe('Z5 — premios: ganado no es pagado, valor, duplicados y quién confir
 
   beforeAll(async () => {
     await altaDirecta('pj', 'Jefe Premios', { mode: 'fixed_per_ticket', fixed: 30_000 })
-    await altaIntegrante('pi', 'Integrante Premios', 'pj', { model: 'fixed_per_ticket', amount: 20_000 })
+    await altaIntegrante('pi', 'Integrante Premios', 'pj', {
+      model: 'fixed_per_ticket',
+      amount: 20_000,
+    })
     await altaDirecta('pk', 'Jefe Otro Equipo', { mode: 'fixed_per_ticket', fixed: 30_000 })
     const jefe = await vender('pj', RP, 3)
     await cobrar('pj', jefe)
@@ -1014,7 +1131,12 @@ describe('Z5 — premios: ganado no es pagado, valor, duplicados y quién confir
     expect(fallos[0]!.error!.message).toBe('Este premio ya tiene un pago registrado.')
     // Se anula para las pruebas de autoridad de abajo, con motivo.
     const pago = exito(exitos[0]!)[0]!.payment_id!
-    exito(await dueno.rpc('settlement_void_prize_payment', { p_payment_id: pago, p_reason: 'Registro de prueba' }))
+    exito(
+      await dueno.rpc('settlement_void_prize_payment', {
+        p_payment_id: pago,
+        p_reason: 'Registro de prueba',
+      }),
+    )
   })
 
   it('Z5-06: un resultado por verificar no se paga, y la cuenta sigue por revisar', async () => {
@@ -1031,16 +1153,22 @@ describe('Z5 — premios: ganado no es pagado, valor, duplicados y quién confir
   it('Z5-07: elegir un nombre no autoriza — cada pago lo registra quien recibe al pagador', async () => {
     // El integrante no registra su propio pago.
     const propio = await pagarPremio(await sesion('pi'), RP, quinceIntegrante, 'pi')
-    expect(propio.error?.message).toBe('Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.')
+    expect(propio.error?.message).toBe(
+      'Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.',
+    )
     // El personal tampoco: lo del integrante lo confirma su vendedor a cargo.
     const personal = await pagarPremio(dueno, RP, quinceIntegrante, 'pi')
-    expect(personal.error?.message).toBe('Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.')
+    expect(personal.error?.message).toBe(
+      'Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.',
+    )
     // El vendedor a cargo no registra lo que pagó él mismo.
     const jefe = await pagarPremio(await sesion('pj'), RP, quinceIntegrante, 'pj')
     expect(jefe.error?.message).toBe('Lo que pagaste tú lo registra quien recibe tus entregas.')
     // Otro vendedor a cargo no registra nada de este equipo.
     const otro = await pagarPremio(await sesion('pk'), RP, quinceIntegrante, 'pi')
-    expect(otro.error?.message).toBe('Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.')
+    expect(otro.error?.message).toBe(
+      'Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.',
+    )
     // Nadie de fuera de la cadena puede figurar como pagador.
     const ajeno = await pagarPremio(dueno, RP, quinceIntegrante, 'pk')
     expect(ajeno.error?.message).toBe(
@@ -1048,13 +1176,21 @@ describe('Z5 — premios: ganado no es pagado, valor, duplicados y quién confir
     )
     // Un vendedor no registra lo que pagó el dueño.
     const vendedor = await pagarPremio(await sesion('pj'), RP, quinceIntegrante, null)
-    expect(vendedor.error?.message).toBe('Un premio que pagó el dueño lo registra el dueño o un administrador.')
+    expect(vendedor.error?.message).toBe(
+      'Un premio que pagó el dueño lo registra el dueño o un administrador.',
+    )
   })
 
   it('Z5-08: las fechas — ni antes del sorteo ni después de hoy', async () => {
-    const antes = await pagarPremio(await sesion('pj'), RP, quinceIntegrante, 'pi', { fecha: '2026-01-02' })
-    expect(antes.error?.message).toMatch(/^La fecha de pago no puede ser anterior al sorteo del \d{2}\/\d{2}\/2026\.$/)
-    const despues = await pagarPremio(await sesion('pj'), RP, quinceIntegrante, 'pi', { fecha: '2099-01-01' })
+    const antes = await pagarPremio(await sesion('pj'), RP, quinceIntegrante, 'pi', {
+      fecha: '2026-01-02',
+    })
+    expect(antes.error?.message).toMatch(
+      /^La fecha de pago no puede ser anterior al sorteo del \d{2}\/\d{2}\/2026\.$/,
+    )
+    const despues = await pagarPremio(await sesion('pj'), RP, quinceIntegrante, 'pi', {
+      fecha: '2099-01-01',
+    })
     expect(despues.error?.message).toBe('La fecha de pago no puede ser posterior a hoy.')
     // Y con todo en regla, el vendedor a cargo lo registra.
     const r = exito(await pagarPremio(await sesion('pj'), RP, quinceIntegrante, 'pi'))
@@ -1068,11 +1204,25 @@ describe('Z5 — premios: ganado no es pagado, valor, duplicados y quién confir
       [quinceIntegrante.matchId],
     )
     const pago = rows[0].id as string
-    const ajeno = await dueno.rpc('settlement_void_prize_payment', { p_payment_id: pago, p_reason: 'No corresponde' })
-    expect(ajeno.error?.message).toBe('Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.')
-    const corto = await (await sesion('pj')).rpc('settlement_void_prize_payment', { p_payment_id: pago, p_reason: 'no' })
+    const ajeno = await dueno.rpc('settlement_void_prize_payment', {
+      p_payment_id: pago,
+      p_reason: 'No corresponde',
+    })
+    expect(ajeno.error?.message).toBe(
+      'Lo que pagó Integrante Premios lo registra su vendedor a cargo, Jefe Premios.',
+    )
+    const corto = await (
+      await sesion('pj')
+    ).rpc('settlement_void_prize_payment', { p_payment_id: pago, p_reason: 'no' })
     expect(corto.error?.message).toBe('Escribe el motivo de la anulación, de 5 a 500 caracteres.')
-    exito(await (await sesion('pj')).rpc('settlement_void_prize_payment', { p_payment_id: pago, p_reason: 'Lo pagó otra persona' }))
+    exito(
+      await (
+        await sesion('pj')
+      ).rpc('settlement_void_prize_payment', {
+        p_payment_id: pago,
+        p_reason: 'Lo pagó otra persona',
+      }),
+    )
     const c = await cuenta(RP, 'pi', 'pj')
     expect(c.balance).toBe(100_000)
     expect(c.status).toBe('missing_info')
@@ -1083,7 +1233,10 @@ describe('Z5 — premios: ganado no es pagado, valor, duplicados y quién confir
 describe('Z6 — entregas: parciales, quién confirma, reintentos, concurrencia y saldo a favor', () => {
   beforeAll(async () => {
     await altaDirecta('ej', 'Jefe Entregas', { mode: 'fixed_per_ticket', fixed: 30_000 })
-    await altaIntegrante('ei', 'Integrante Entregas', 'ej', { model: 'fixed_per_ticket', amount: 20_000 })
+    await altaIntegrante('ei', 'Integrante Entregas', 'ej', {
+      model: 'fixed_per_ticket',
+      amount: 20_000,
+    })
     await altaDirecta('ec', 'Vendedor Concurrente', { mode: 'fixed_per_ticket', fixed: 30_000 })
     await altaDirecta('favor', 'Vendedora Favor', { mode: 'fixed_per_ticket', fixed: 30_000 })
     await cobrar('ej', await vender('ej', RP, 10))
@@ -1106,19 +1259,29 @@ describe('Z6 — entregas: parciales, quién confirma, reintentos, concurrencia 
     const antes = (await resumen(RP)).received
     // El integrante entrega a su vendedor a cargo: el personal no puede confirmarlo.
     const personal = await entregar(dueno, RP, 'ei', 100_000)
-    expect(personal.error?.message).toBe('Lo que entrega Integrante Entregas lo confirma su vendedor a cargo, Jefe Entregas.')
+    expect(personal.error?.message).toBe(
+      'Lo que entrega Integrante Entregas lo confirma su vendedor a cargo, Jefe Entregas.',
+    )
     // Ni el propio integrante.
     const propio = await entregar(await sesion('ei'), RP, 'ei', 100_000)
-    expect(propio.error?.message).toBe('Una entrega la confirma quien recibe el dinero, no quien lo entrega.')
+    expect(propio.error?.message).toBe(
+      'Una entrega la confirma quien recibe el dinero, no quien lo entrega.',
+    )
     // Ni el vendedor a cargo lo que él entrega al dueño.
     const jefe = await entregar(await sesion('ej'), RP, 'ej', 100_000)
-    expect(jefe.error?.message).toBe('Una entrega la confirma quien recibe el dinero, no quien lo entrega.')
+    expect(jefe.error?.message).toBe(
+      'Una entrega la confirma quien recibe el dinero, no quien lo entrega.',
+    )
     // Ni otro vendedor a cargo.
     const otro = await entregar(await sesion('pk'), RP, 'ei', 100_000)
-    expect(otro.error?.message).toBe('Lo que entrega Integrante Entregas lo confirma su vendedor a cargo, Jefe Entregas.')
+    expect(otro.error?.message).toBe(
+      'Lo que entrega Integrante Entregas lo confirma su vendedor a cargo, Jefe Entregas.',
+    )
     // Un vendedor no confirma lo que recibe el dueño.
     const vendedor = await entregar(await sesion('ec'), RP, 'ej', 100_000)
-    expect(vendedor.error?.message).toBe('Solo el dueño o un administrador confirma el dinero que recibe de un vendedor.')
+    expect(vendedor.error?.message).toBe(
+      'Solo el dueño o un administrador confirma el dinero que recibe de un vendedor.',
+    )
 
     exito(await entregar(await sesion('ej'), RP, 'ei', 100_000))
     // El integrante entrega 5 × (120.000 − 20.000); el jefe se queda sus 10.000 por boleta.
@@ -1130,13 +1293,17 @@ describe('Z6 — entregas: parciales, quién confirma, reintentos, concurrencia 
 
   it('Z6-03: los importes y las fechas se validan en la base', async () => {
     const demasiado = await entregar(dueno, RP, 'ej', 1_000_001)
-    expect(demasiado.error?.message).toBe('No puedes confirmar más de $1.000.000: es lo que falta por recibir.')
+    expect(demasiado.error?.message).toBe(
+      'No puedes confirmar más de $1.000.000: es lo que falta por recibir.',
+    )
     const cero = await entregar(dueno, RP, 'ej', 0)
     expect(cero.error?.message).toBe('Escribe cuánto dinero recibiste.')
     const futura = await entregar(dueno, RP, 'ej', 1_000, { fecha: '2099-01-01' })
     expect(futura.error?.message).toBe('La fecha no puede ser posterior a hoy.')
     const vieja = await entregar(dueno, RP, 'ej', 1_000, { fecha: '2025-12-31' })
-    expect(vieja.error?.message).toBe('La fecha no puede ser anterior al inicio de la rifa (01/01/2026).')
+    expect(vieja.error?.message).toBe(
+      'La fecha no puede ser anterior al inicio de la rifa (01/01/2026).',
+    )
     const devolucion = await entregar(await sesion('ej'), RP, 'ej', 1_000, { kind: 'refund' })
     expect(devolucion.error?.message).toBe('Esta cuenta no tiene saldo a favor del vendedor.')
   })
@@ -1148,12 +1315,20 @@ describe('Z6 — entregas: parciales, quién confirma, reintentos, concurrencia 
     // El segundo llega con el saldo VIEJO, como un doble clic: no es un cambio, es el mismo.
     const segundo = exito(await entregar(dueno, RP, 'ej', 200_000, { request, esperado }))
     expect(primero[0]!.outcome).toBe('recorded')
-    expect(segundo[0]).toMatchObject({ outcome: 'already_recorded', transfer_id: primero[0]!.transfer_id })
-    const { rows } = await db.query(`select count(*)::int as n from settlement_transfers where request_id = $1`, [request])
+    expect(segundo[0]).toMatchObject({
+      outcome: 'already_recorded',
+      transfer_id: primero[0]!.transfer_id,
+    })
+    const { rows } = await db.query(
+      `select count(*)::int as n from settlement_transfers where request_id = $1`,
+      [request],
+    )
     expect(rows[0].n).toBe(1)
     // La misma solicitud con otros datos se rechaza.
     const otra = await entregar(dueno, RP, 'ej', 1_000, { request })
-    expect(otra.error?.message).toBe('Esta confirmación ya se había enviado con otros datos. Vuelve a abrir la cuenta.')
+    expect(otra.error?.message).toBe(
+      'Esta confirmación ya se había enviado con otros datos. Vuelve a abrir la cuenta.',
+    )
   })
 
   it('Z6-05: si el saldo cambió mientras se revisaba, no se guarda nada', async () => {
@@ -1199,7 +1374,11 @@ describe('Z6 — entregas: parciales, quién confirma, reintentos, concurrencia 
     const despues = await resumen(RP)
     expect(despues.received).toBe(antes.received)
     expect(despues.refunded).toBe(antes.refunded + 200_000)
-    expect((await cuenta(RP, 'favor', null))).toMatchObject({ balance: 0, status: 'closed', closing_version: 2 })
+    expect(await cuenta(RP, 'favor', null)).toMatchObject({
+      balance: 0,
+      status: 'closed',
+      closing_version: 2,
+    })
   })
 })
 
@@ -1214,19 +1393,34 @@ describe('Z7 — cierres: la foto no cambia y lo posterior se enseña como difer
 
   it('Z7-01: una venta cobrada después del cierre cambia la cuenta sin tocar el cierre', async () => {
     exito(await entregar(dueno, RP, 'cz', 180_000))
-    const { rows: antes } = await db.query(`select * from settlement_closings where seller_id = $1`, [id('cz')])
+    const { rows: antes } = await db.query(
+      `select * from settlement_closings where seller_id = $1`,
+      [id('cz')],
+    )
     expect(antes).toHaveLength(1)
 
     await cobrar('cz', await vender('cz', RP, 1))
     const c = await cuenta(RP, 'cz', null)
     // Ya había entregado algo: la cuenta queda en «Entrega parcial», no en «Pendiente».
-    expect(c).toMatchObject({ balance: 90_000, status: 'partial', changed_after_close: true, closing_version: 1 })
+    expect(c).toMatchObject({
+      balance: 90_000,
+      status: 'partial',
+      changed_after_close: true,
+      closing_version: 1,
+    })
 
-    const { rows: despues } = await db.query(`select * from settlement_closings where seller_id = $1`, [id('cz')])
+    const { rows: despues } = await db.query(
+      `select * from settlement_closings where seller_id = $1`,
+      [id('cz')],
+    )
     expect(despues).toEqual(antes)
 
     exito(await entregar(dueno, RP, 'cz', 90_000))
-    expect(await cuenta(RP, 'cz', null)).toMatchObject({ status: 'closed', closing_version: 2, changed_after_close: false })
+    expect(await cuenta(RP, 'cz', null)).toMatchObject({
+      status: 'closed',
+      closing_version: 2,
+      changed_after_close: false,
+    })
   })
 
   it('Z7-02: anular una entrega devuelve el saldo; solo la anula quien la recibió', async () => {
@@ -1235,12 +1429,24 @@ describe('Z7 — cierres: la foto no cambia y lo posterior se enseña como difer
       [id('cz')],
     )
     const entrega = rows[0].id as string
-    const vendedor = await (await sesion('cz')).rpc('settlement_void_transfer', { p_transfer_id: entrega, p_reason: 'Me equivoqué' })
-    expect(vendedor.error?.message).toBe('Solo el dueño o un administrador anula lo que confirmó como recibido.')
-    exito(await admin.rpc('settlement_void_transfer', { p_transfer_id: entrega, p_reason: 'Billete falso devuelto' }))
+    const vendedor = await (
+      await sesion('cz')
+    ).rpc('settlement_void_transfer', { p_transfer_id: entrega, p_reason: 'Me equivoqué' })
+    expect(vendedor.error?.message).toBe(
+      'Solo el dueño o un administrador anula lo que confirmó como recibido.',
+    )
+    exito(
+      await admin.rpc('settlement_void_transfer', {
+        p_transfer_id: entrega,
+        p_reason: 'Billete falso devuelto',
+      }),
+    )
     const c = await cuenta(RP, 'cz', null)
     expect(c).toMatchObject({ balance: 90_000, status: 'partial', changed_after_close: true })
-    const otraVez = await admin.rpc('settlement_void_transfer', { p_transfer_id: entrega, p_reason: 'Otra vez' })
+    const otraVez = await admin.rpc('settlement_void_transfer', {
+      p_transfer_id: entrega,
+      p_reason: 'Otra vez',
+    })
     expect(otraVez.error?.message).toBe('Esta entrega ya está anulada.')
   })
 
@@ -1258,18 +1464,30 @@ describe('Z7 — cierres: la foto no cambia y lo posterior se enseña como difer
     const c = await cuenta(RP, 'aj', null)
     expect(c).toMatchObject({ holder_earned: 60_000, balance: 0, status: 'to_close' })
 
-    const vendedor = await (await sesion('aj')).rpc('settlement_confirm_close', {
+    const vendedor = await (
+      await sesion('aj')
+    ).rpc('settlement_confirm_close', {
       p_raffle_id: RP,
       p_seller_id: id('aj'),
       p_fingerprint: c.fingerprint,
     })
-    expect(vendedor.error?.message).toBe('Solo el dueño o un administrador cierra la cuenta de un vendedor.')
+    expect(vendedor.error?.message).toBe(
+      'Solo el dueño o un administrador cierra la cuenta de un vendedor.',
+    )
     const vieja = exito(
-      await dueno.rpc('settlement_confirm_close', { p_raffle_id: RP, p_seller_id: id('aj'), p_fingerprint: '0'.repeat(32) }),
+      await dueno.rpc('settlement_confirm_close', {
+        p_raffle_id: RP,
+        p_seller_id: id('aj'),
+        p_fingerprint: '0'.repeat(32),
+      }),
     )
     expect(vieja).toBe('changed')
     const ok = exito(
-      await dueno.rpc('settlement_confirm_close', { p_raffle_id: RP, p_seller_id: id('aj'), p_fingerprint: c.fingerprint }),
+      await dueno.rpc('settlement_confirm_close', {
+        p_raffle_id: RP,
+        p_seller_id: id('aj'),
+        p_fingerprint: c.fingerprint,
+      }),
     )
     expect(ok).toBe('closed')
     expect((await cuenta(RP, 'aj', null)).status).toBe('closed')
@@ -1286,16 +1504,21 @@ describe('Z7 — cierres: la foto no cambia y lo posterior se enseña como difer
     await voidPaymentAs(id('dueno'), rows[0].id, 'Pago rechazado por el banco')
     const c = await cuenta(RP, 'aj', null)
     // Ya no hay boletas pagadas, y ya había entregado $60.000.
-    expect(c).toMatchObject({ tickets_paid: 0, balance: -60_000, status: 'in_favor', changed_after_close: true })
+    expect(c).toMatchObject({
+      tickets_paid: 0,
+      balance: -60_000,
+      status: 'in_favor',
+      changed_after_close: true,
+    })
   })
 
   it('Z7-05: los cierres, las entregas y los pagos de premio no se modifican ni se borran', async () => {
-    await expect(db.query(`update settlement_closings set version = 9 where seller_id = $1`, [id('cz')])).rejects.toThrow(
-      'Un cierre no se modifica',
-    )
-    await expect(db.query(`delete from settlement_transfers where seller_id = $1`, [id('cz')])).rejects.toThrow(
-      'no se borran',
-    )
+    await expect(
+      db.query(`update settlement_closings set version = 9 where seller_id = $1`, [id('cz')]),
+    ).rejects.toThrow('Un cierre no se modifica')
+    await expect(
+      db.query(`delete from settlement_transfers where seller_id = $1`, [id('cz')]),
+    ).rejects.toThrow('no se borran')
     const { rows: vigente } = await db.query(
       `select id from settlement_transfers where organization_id = $1 and voided_at is null limit 1`,
       [org],
@@ -1318,7 +1541,10 @@ describe('Z8 — cambio de equipo: lo cobrado se queda con quien lo recibió', (
   it('Z8-01: el nuevo vendedor a cargo no hereda lo que el integrante ya entregó al anterior', async () => {
     await altaDirecta('ta', 'Jefe Anterior', { mode: 'fixed_per_ticket', fixed: 30_000 })
     await altaDirecta('tb', 'Jefe Nuevo', { mode: 'fixed_per_ticket', fixed: 30_000 })
-    await altaIntegrante('tm', 'Integrante Viajero', 'ta', { model: 'fixed_per_ticket', amount: 20_000 })
+    await altaIntegrante('tm', 'Integrante Viajero', 'ta', {
+      model: 'fixed_per_ticket',
+      amount: 20_000,
+    })
     await cobrar('tm', await vender('tm', RP, 2))
 
     // 2 × (120.000 − 20.000) = 200.000 para su vendedor a cargo; entrega la mitad.
@@ -1341,12 +1567,24 @@ describe('Z8 — cambio de equipo: lo cobrado se queda con quien lo recibió', (
 
     // El anterior TIENE los 100.000 que recibió y ya no gana nada por ellos.
     const anterior = await cuenta(RP, 'ta', null)
-    expect(anterior).toMatchObject({ other_movements: 100_000, total_due: 100_000, balance: 100_000 })
+    expect(anterior).toMatchObject({
+      other_movements: 100_000,
+      total_due: 100_000,
+      balance: 100_000,
+    })
     // El nuevo responde solo por lo que falta: 200.000 − 20.000 − 100.000 entregados a otro.
     const nuevo = await cuenta(RP, 'tb', null)
-    expect(nuevo).toMatchObject({ collected: 240_000, other_movements: -100_000, total_due: 80_000, balance: 80_000 })
+    expect(nuevo).toMatchObject({
+      collected: 240_000,
+      other_movements: -100_000,
+      total_due: 80_000,
+      balance: 80_000,
+    })
     // Y el integrante le debe al nuevo lo que no había entregado.
-    expect(await cuenta(RP, 'tm', 'tb')).toMatchObject({ other_movements: -100_000, balance: 100_000 })
+    expect(await cuenta(RP, 'tm', 'tb')).toMatchObject({
+      other_movements: -100_000,
+      balance: 100_000,
+    })
     // El dinero se conserva: 100.000 + 80.000 = 240.000 − 40.000 − 20.000.
     expect(anterior.balance + nuevo.balance).toBe(240_000 - 40_000 - 20_000)
   })
@@ -1359,9 +1597,18 @@ describe('Z9 — privacidad y aislamiento', () => {
   it('Z9-01: las lecturas del personal no traen ni un campo de cliente ni de abonos', async () => {
     const filas = [
       ...exito(await dueno.rpc('staff_settlement_accounts', { p_raffle_id: RF })),
-      ...exito(await dueno.rpc('staff_settlement_account', { p_raffle_id: RF, p_seller_id: id('carlos') })),
-      ...exito(await dueno.rpc('staff_settlement_prizes', { p_raffle_id: RF, p_seller_id: id('carlos') })),
-      ...exito(await dueno.rpc('staff_settlement_transfers', { p_raffle_id: RF, p_seller_id: id('carlos') })),
+      ...exito(
+        await dueno.rpc('staff_settlement_account', { p_raffle_id: RF, p_seller_id: id('carlos') }),
+      ),
+      ...exito(
+        await dueno.rpc('staff_settlement_prizes', { p_raffle_id: RF, p_seller_id: id('carlos') }),
+      ),
+      ...exito(
+        await dueno.rpc('staff_settlement_transfers', {
+          p_raffle_id: RF,
+          p_seller_id: id('carlos'),
+        }),
+      ),
       ...exito(await dueno.rpc('staff_settlement_overview', { p_raffle_id: RF })),
     ]
     expect(filas.length).toBeGreaterThan(5)
@@ -1377,15 +1624,27 @@ describe('Z9 — privacidad y aislamiento', () => {
     )[0]!
     expect(Number(cuentaAna.balance)).toBe(500_000)
     expect(cuentaAna.partial_paid).toBeNull()
-    const premiosAna = exito(await carlos.rpc('seller_settlement_prizes', { p_raffle_id: RF, p_member_id: id('ana') }))
+    const premiosAna = exito(
+      await carlos.rpc('seller_settlement_prizes', { p_raffle_id: RF, p_member_id: id('ana') }),
+    )
     expect(premiosAna).toHaveLength(1)
     expect(premiosAna[0]!.client_name).toBeNull()
     // No ve al integrante de otro equipo.
     expect(
-      exito(await carlos.rpc('seller_settlement_account', { p_raffle_id: RP, p_member_id: id('ei') })),
+      exito(
+        await carlos.rpc('seller_settlement_account', { p_raffle_id: RP, p_member_id: id('ei') }),
+      ),
     ).toEqual([])
-    expect(exito(await carlos.rpc('seller_settlement_prizes', { p_raffle_id: RP, p_member_id: id('ei') }))).toEqual([])
-    expect(exito(await carlos.rpc('seller_settlement_transfers', { p_raffle_id: RP, p_member_id: id('ei') }))).toEqual([])
+    expect(
+      exito(
+        await carlos.rpc('seller_settlement_prizes', { p_raffle_id: RP, p_member_id: id('ei') }),
+      ),
+    ).toEqual([])
+    expect(
+      exito(
+        await carlos.rpc('seller_settlement_transfers', { p_raffle_id: RP, p_member_id: id('ei') }),
+      ),
+    ).toEqual([])
   })
 
   it('Z9-03: un vendedor no obtiene nada de las lecturas del personal', async () => {
@@ -1393,7 +1652,12 @@ describe('Z9 — privacidad y aislamiento', () => {
     expect(exito(await carlos.rpc('staff_settlement_overview', { p_raffle_id: RF }))).toEqual([])
     expect(exito(await carlos.rpc('staff_settlement_accounts', { p_raffle_id: RF }))).toEqual([])
     expect(
-      exito(await carlos.rpc('staff_settlement_account', { p_raffle_id: RF, p_seller_id: id('carlos') })),
+      exito(
+        await carlos.rpc('staff_settlement_account', {
+          p_raffle_id: RF,
+          p_seller_id: id('carlos'),
+        }),
+      ),
     ).toEqual([])
   })
 
@@ -1405,7 +1669,9 @@ describe('Z9 — privacidad y aislamiento', () => {
       expect(exito(await ajeno.rpc('seller_settlement_account', { p_raffle_id: RF }))).toEqual([])
       expect(exito(await ajeno.rpc('seller_settlement_prizes', { p_raffle_id: RF }))).toEqual([])
       const escritura = await entregar(ajeno, RF, 'marta', 1_000, { esperado: 720_000 })
-      expect(escritura.error?.message).toBe('No encontramos esa cuenta. Vuelve a abrir el cierre de cuentas.')
+      expect(escritura.error?.message).toBe(
+        'No encontramos esa cuenta. Vuelve a abrir el cierre de cuentas.',
+      )
     }
     expect((await cuenta(RF, 'marta', null)).balance).toBe(720_000)
   })
@@ -1414,7 +1680,9 @@ describe('Z9 — privacidad y aislamiento', () => {
     const marta = await sesion('marta')
     expect(exito(await marta.rpc('seller_settlement_team', { p_raffle_id: RF }))).toEqual([])
     expect(
-      exito(await marta.rpc('seller_settlement_account', { p_raffle_id: RF, p_member_id: id('ana') })),
+      exito(
+        await marta.rpc('seller_settlement_account', { p_raffle_id: RF, p_member_id: id('ana') }),
+      ),
     ).toEqual([])
     const propia = exito(await marta.rpc('seller_settlement_account', { p_raffle_id: RF }))
     expect(propia).toHaveLength(1)

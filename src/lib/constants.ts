@@ -8,6 +8,7 @@ export type PaymentMethod = Database['public']['Enums']['payment_method']
 export type PaymentAccountKind = Database['public']['Enums']['payment_account_kind']
 export type BankAccountType = Database['public']['Enums']['bank_account_type']
 export type PaymentReminderStatus = Database['public']['Enums']['payment_reminder_status']
+export type SettlementAccountStatus = Database['public']['Enums']['settlement_account_status']
 
 /**
  * Precio predeterminado de boleta en pesos colombianos (CLAUDE.md 6, BR-P01).
@@ -244,6 +245,24 @@ export const PAYMENT_REMINDER_STATUS_LABELS: Record<PaymentReminderStatus, strin
 }
 
 /**
+ * El estado de una cuenta del cierre de cuentas (D-241, BR-Z04).
+ *
+ * NO LO ELIGE NADIE: lo calcula la base (`settlement_account_rows`) con el saldo,
+ * los premios sin pago registrado y el cierre vigente. «Cerrada» es la de una
+ * CUENTA, no la de una rifa: cerrar una cuenta no cierra la rifa (BR-Z11), y por
+ * eso en pantalla va siempre junto a la palabra cuenta.
+ */
+export const SETTLEMENT_STATUS_LABELS: Record<SettlementAccountStatus, string> = {
+  no_activity: 'Sin boletas pagadas',
+  missing_info: 'Falta información',
+  pending: 'Pendiente',
+  partial: 'Entrega parcial',
+  in_favor: 'A favor del vendedor',
+  to_close: 'Por cerrar',
+  closed: 'Cerrada',
+}
+
+/**
  * Los dias de la semana, en ISO: el 1 es lunes, como `extract(isodow ...)` y
  * como `seller_payment_reminders.weekday` (D-188).
  *
@@ -339,6 +358,23 @@ export const PAYMENT_REMINDER_STATUS_TONES: Record<PaymentReminderStatus, Status
   active: 'success',
   paused: 'info',
   archived: 'neutral',
+}
+
+/**
+ * Los tonos de una cuenta del cierre (D-241). Pendiente, entrega parcial, falta
+ * información y por cerrar son `warning` porque alguien tiene que actuar:
+ * entregar, recibir, registrar un premio o cerrar. «A favor del vendedor» es
+ * `info`, como en la propuesta: no es un error, es dinero que se devuelve. Una
+ * cuenta sin boletas pagadas es `neutral`: todavía no hay nada que hacer.
+ */
+export const SETTLEMENT_STATUS_TONES: Record<SettlementAccountStatus, StatusTone> = {
+  no_activity: 'neutral',
+  missing_info: 'warning',
+  pending: 'warning',
+  partial: 'warning',
+  in_favor: 'info',
+  to_close: 'warning',
+  closed: 'success',
 }
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {

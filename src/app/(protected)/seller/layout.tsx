@@ -1,6 +1,7 @@
 import {
   AwardIcon,
   BarChart3Icon,
+  HandCoinsIcon,
   LayoutDashboardIcon,
   TicketIcon,
   UserRoundIcon,
@@ -52,6 +53,9 @@ const NAV_ITEMS: NavItem[] = [
   // No es `primary`: la barra inferior sigue con sus cuatro (D-106). En el
   // teléfono se llega desde el menú de usuario, como a «Mi equipo» (D-208).
   { href: '/seller/prizes', label: 'Premios ganados', icon: <AwardIcon /> },
+  // Lo que entrega —al dueño o a su vendedor a cargo— y, si tiene equipo, lo que
+  // le entrega cada integrante (D-241). Tampoco es `primary`.
+  { href: '/seller/settlement', label: 'Mi cierre de cuentas', icon: <HandCoinsIcon /> },
   { href: '/seller/reports', label: 'Reportes', icon: <BarChart3Icon /> },
 ]
 

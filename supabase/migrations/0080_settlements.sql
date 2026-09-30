@@ -581,6 +581,7 @@ returns table (
   owner_gain          bigint,
   holder_partial_paid bigint,
   holder_tickets_sold integer,
+  holder_rate         bigint,
   status              settlement_account_status,
   fingerprint         text,
   figures             jsonb,
@@ -623,7 +624,8 @@ as $$
            sum(f.prize_cost)::bigint as prize_cost,
            sum(f.prize_cost_org)::bigint as prize_cost_org,
            coalesce(sum(f.partial_paid) filter (where f.parent_id is null), 0)::bigint as holder_partial_paid,
-           coalesce(sum(f.tickets_sold) filter (where f.parent_id is null), 0)::integer as holder_tickets_sold
+           coalesce(sum(f.tickets_sold) filter (where f.parent_id is null), 0)::integer as holder_tickets_sold,
+           coalesce(max(f.rate) filter (where f.parent_id is null), 0)::bigint as holder_rate
     from f
     group by coalesce(f.parent_id, f.seller_id)
   ),
@@ -652,7 +654,8 @@ as $$
            f.prize_cost,
            f.prize_cost_org,
            f.partial_paid as holder_partial_paid,
-           f.tickets_sold as holder_tickets_sold
+           f.tickets_sold as holder_tickets_sold,
+           f.rate as holder_rate
     from f
     where f.parent_id is not null
   ),
@@ -727,6 +730,7 @@ as $$
          case when fig.counterpart_id is null then fig.owner_share - fig.prize_cost end,
          fig.holder_partial_paid,
          fig.holder_tickets_sold,
+         fig.holder_rate,
          case
            when fig.tickets_paid = 0 and fig.delivered = 0 and fig.refunded = 0 and fig.prizes_paid = 0
                 and fig.other_movements = 0 and fig.awards = 0 and fig.payments_orphaned = 0
@@ -1828,6 +1832,7 @@ returns table (
   owner_gain          bigint,
   status              settlement_account_status,
   fingerprint         text,
+  figures             jsonb,
   closing_version     integer,
   closing_figures     jsonb,
   closed_at           timestamptz,
@@ -1854,7 +1859,7 @@ begin
          a.collected, a.holder_earned, a.holder_team_earned, a.members_earned, a.owner_share,
          a.prizes_paid, a.other_movements, a.total_due, a.delivered, a.refunded, a.balance,
          a.awards, a.awards_unpaid, a.awards_blocked, a.payments_orphaned, a.prize_cost,
-         a.prize_cost_org, a.owner_gain, a.status, a.fingerprint, a.closing_version,
+         a.prize_cost_org, a.owner_gain, a.status, a.fingerprint, a.figures, a.closing_version,
          a.closing_figures, a.closed_at, a.closed_by_name, a.changed_after_close
   from settlement_account_rows(v_org, p_raffle_id) a
   where a.counterpart_id is null and a.holder_id = p_seller_id;
@@ -2020,8 +2025,10 @@ returns table (
   awards_unpaid       integer,
   payments_orphaned   integer,
   partial_paid        bigint,
+  holder_rate         bigint,
   status              settlement_account_status,
   fingerprint         text,
+  figures             jsonb,
   closing_version     integer,
   closing_figures     jsonb,
   closed_at           timestamptz,
@@ -2071,7 +2078,8 @@ begin
          a.payments_orphaned,
          -- Lo abonado a boletas sin pagar es cartera: solo lo ve su vendedor (BR-Z03).
          case when v_own then a.holder_partial_paid end,
-         a.status, a.fingerprint, a.closing_version, a.closing_figures, a.closed_at,
+         a.holder_rate,
+         a.status, a.fingerprint, a.figures, a.closing_version, a.closing_figures, a.closed_at,
          a.closed_by_name, a.changed_after_close
   from settlement_account_rows(v_org, p_raffle_id) a
   where a.holder_id = v_holder and a.counterpart_id is not distinct from v_parent;

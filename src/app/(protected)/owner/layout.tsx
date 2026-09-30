@@ -1,6 +1,7 @@
 import {
   AwardIcon,
   BarChart3Icon,
+  HandCoinsIcon,
   LayoutDashboardIcon,
   ShieldCheckIcon,
   TicketIcon,
@@ -11,6 +12,7 @@ import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/layout/AppShell'
 import type { NavItem } from '@/components/layout/nav-items'
+import { hasCapability } from '@/lib/auth/capability-resolver'
 import { requireRole } from '@/lib/auth/guards'
 
 // Una sola lista para las tres barras del portal (D-106): la lateral de
@@ -37,12 +39,19 @@ const NAV_ITEMS: NavItem[] = [
   // cliente (D-208). No confundir con los premios de una rifa, que se
   // configuran dentro de «Rifas».
   { href: '/owner/prizes', label: 'Premios ganados', icon: <AwardIcon /> },
+  // El dinero que se recibe de cada vendedor directo, con su equipo dentro
+  // (D-241). Solo con la capacidad `settlements.manage`: sin ella la entrada no
+  // se pinta, en vez de llevar a `/denied`.
+  { href: '/owner/settlements', label: 'Cierre de cuentas', icon: <HandCoinsIcon /> },
   { href: '/owner/reports', label: 'Reportes', icon: <BarChart3Icon /> },
   { href: '/owner/users', label: 'Administradores', icon: <ShieldCheckIcon /> },
 ]
 
 export default async function OwnerLayout({ children }: { children: ReactNode }) {
   const membership = await requireRole(['owner', 'admin'])
+  const navItems = (await hasCapability(membership, 'settlements.manage'))
+    ? NAV_ITEMS
+    : NAV_ITEMS.filter((item) => item.href !== '/owner/settlements')
 
   return (
     <AppShell
@@ -51,7 +60,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
       profileId={membership.profileId}
       fullName={membership.fullName}
       email={membership.email}
-      navItems={NAV_ITEMS}
+      navItems={navItems}
     >
       {children}
     </AppShell>

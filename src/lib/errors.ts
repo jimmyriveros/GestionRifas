@@ -55,6 +55,13 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   // tres puertas por donde se llega —agregar, editar y volver a usar— y para
   // dos peticiones simultaneas, porque lo dice el indice y no la RPC.
   seller_payment_accounts_no_duplicates: 'Ya tienes una cuenta igual en tu lista.',
+  // D-241: las RPC del cierre de cuentas lo dicen antes con el cerrojo tomado;
+  // los indices son la red de abajo, y responden con las mismas palabras.
+  settlement_prize_payments_live_key: 'Este premio ya tiene un pago registrado.',
+  settlement_transfers_request_key:
+    'Esta confirmación ya se había enviado con otros datos. Vuelve a abrir la cuenta.',
+  settlement_prize_payments_request_key:
+    'Esta confirmación ya se había enviado con otros datos. Vuelve a abrir la cuenta.',
 }
 
 const GENERIC_MESSAGE = 'Ocurrió un error. Intenta de nuevo.'

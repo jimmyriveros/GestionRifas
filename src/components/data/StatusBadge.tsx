@@ -12,6 +12,9 @@ import {
   CLIENT_STATUS_TONES,
   RAFFLE_STATUS_LABELS,
   RAFFLE_STATUS_TONES,
+  SETTLEMENT_STATUS_LABELS,
+  SETTLEMENT_STATUS_TONES,
+  type SettlementAccountStatus,
   TICKET_INVENTORY_STATUS_LABELS,
   TICKET_INVENTORY_STATUS_TONES,
   TICKET_PAYMENT_STATUS_LABELS,
@@ -108,6 +111,18 @@ export function AdminPaymentStateBadge({ state }: { state: AdminTicketPaymentSta
 export function RaffleStatusBadge({ status }: { status: RaffleStatus }) {
   return (
     <StatusBadge tone={RAFFLE_STATUS_TONES[status]}>{RAFFLE_STATUS_LABELS[status]}</StatusBadge>
+  )
+}
+
+/**
+ * El estado de una cuenta del cierre de cuentas (D-241). Lo calcula la base;
+ * aqui solo se nombra. «Cerrada» es de la cuenta, no de la rifa.
+ */
+export function SettlementStatusBadge({ status }: { status: SettlementAccountStatus }) {
+  return (
+    <StatusBadge tone={SETTLEMENT_STATUS_TONES[status]}>
+      {SETTLEMENT_STATUS_LABELS[status]}
+    </StatusBadge>
   )
 }
 
