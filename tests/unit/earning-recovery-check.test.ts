@@ -162,11 +162,12 @@ describe('R-03: el camino que corresponde', () => {
     expect(desde0078).toContain('SOLO 0079')
   })
 
-  it('la recuperación va con lock_timeout y ON_ERROR_STOP, y el código anterior DESPUÉS', () => {
+  it('la recuperación va con su ejecutable, su foto de referencia y lock_timeout, y el código anterior DESPUÉS', () => {
     const lines = pathFor('0079', 'se_puede_volver')
-    expect(lines[1]).toContain(
-      `-v ON_ERROR_STOP=1 -c "set lock_timeout = '5s'" -f supabase/recovery/0079_a_0077.sql`,
-    )
+    // `psql` no está en el equipo desde el que se opera: la orden es la del repositorio (D-240).
+    expect(lines.join('\n')).not.toContain('psql')
+    expect(lines[1]).toContain('scripts/earning-recovery.ts <foto de antes de migrar>')
+    expect(lines[1]).toContain('--lock-timeout 5s')
     expect(lines.findIndex((l) => l.includes('código anterior'))).toBeGreaterThan(
       lines.findIndex((l) => l.includes('migration repair')),
     )

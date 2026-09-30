@@ -328,3 +328,77 @@ describe('P6 — la comparación de estructura entre entornos, para los ensayos,
     }
   })
 })
+
+describe('P7 — los hechos de ganancias y las migraciones que mueven datos (I-191, D-240)', () => {
+  it('P7-01: la foto guarda los hechos de ganancias por entidad, en la forma del esquema, sin datos de cliente', () => {
+    const g = (leer(a).hechos as Record<string, unknown>).ganancias as Record<string, unknown>
+    expect(g.forma).toBe('0078')
+    expect(g.tramos).toBeNull()
+    const listas = g.listas as Array<Record<string, unknown>>
+    expect(listas.length).toBeGreaterThan(0)
+    // Una lista general por organización, con sus tramos ordenados.
+    const organizaciones = g.organizaciones as string[]
+    for (const org of organizaciones) {
+      const generales = listas.filter((l) => l.organization_id === org && l.kind === 'template')
+      expect(generales.length).toBeGreaterThan(0)
+    }
+    for (const l of listas) {
+      const tramos = l.tramos as Array<{ min_tickets: number; rate: string }>
+      expect(tramos.length).toBeGreaterThan(0)
+      expect(tramos.map((t) => t.min_tickets)).toEqual(
+        [...tramos.map((t) => t.min_tickets)].sort((x, y) => x - y),
+      )
+      for (const t of tramos) expect(t.rate).toMatch(/^\d+$/)
+    }
+    const membresias = g.membresias as Array<Record<string, unknown>>
+    expect(membresias.length).toBeGreaterThan(0)
+    for (const m of membresias) {
+      expect(Object.keys(m).sort()).toEqual([
+        'commission_model',
+        'direct_commission_mode',
+        'direct_fixed_amount',
+        'direct_tier_list_id',
+        'fixed_commission_amount',
+        'id',
+        'organization_id',
+        'parent_seller_id',
+        'profile_id',
+        'role',
+        'team_tier_list_id',
+      ])
+    }
+    for (const c of g.comisiones as Array<Record<string, unknown>>) {
+      expect(c).toHaveProperty('raffle_id')
+      expect(c).toHaveProperty('seller_id')
+      expect(c).toHaveProperty('tier_tickets_paid')
+      expect(c).toHaveProperty('team_shortfall')
+    }
+    for (const campo of ['ledger', 'pagos', 'boletas', 'equipos_con_boletas']) {
+      expect(Array.isArray(g[campo]), campo).toBe(true)
+    }
+    // Por entidad, y nada de un cliente: ni su identificador, ni su nombre, ni su teléfono.
+    expect(JSON.stringify(g)).not.toMatch(/client|phone|name|email/)
+  })
+
+  it('P7-02: nombrar 0078,0079 no abre nada si las fotos no añaden exactamente esas migraciones', () => {
+    // Las dos fotos son de la misma base: no hay ninguna migración nueva entre ellas.
+    const delta = path.join(dir, 'delta-vacio.json')
+    writeFileSync(delta, '{}')
+    const r = comparar(a, b, [
+      '--local',
+      '--operation',
+      'migrations',
+      '--migrations',
+      '0078,0079',
+      '--expected-delta',
+      delta,
+    ])
+    expect(r.code, r.salida).toBe(2)
+    const i = informe(r)
+    expect(i.veredicto).toBe('DETENER')
+    expect(i.efectos_de_datos).toBeNull()
+    expect(i.motivos_para_detener).toEqual([
+      'Migraciones nuevas (ninguna); se esperaban exactamente 0078,0079',
+    ])
+  })
+})

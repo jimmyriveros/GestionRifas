@@ -331,6 +331,43 @@ describe('T4 — qué filas cambiaron', () => {
     })
     expect(rowChanges(foto(), despues).problemas[0]).toMatch(/no es comparable/)
   })
+
+  it('T4-04: solo las tablas que una migración de datos DECLARA pueden nacer con filas o retirarse (I-191)', () => {
+    const conFilas = { pk: ['id'], columnas_nuevas: [], n: 1, filas: { x: ['h', 'h', null] } }
+    const antes = foto({ filas: { ...foto().filas, vieja: conFilas, otra_vieja: conFilas } })
+    const despues = foto({ filas: { ...foto().filas, nueva: conFilas, otra_nueva: conFilas } })
+
+    // Sin declarar nada, la regla de siempre para las cuatro.
+    expect(rowChanges(antes, despues).problemas.sort()).toEqual([
+      'La tabla nueva nueva tiene 1 filas y tenía que nacer vacía',
+      'La tabla nueva otra_nueva tiene 1 filas y tenía que nacer vacía',
+      'La tabla otra_vieja desapareció',
+      'La tabla vieja desapareció',
+    ])
+
+    // Declaradas `nueva` y `vieja`: las otras dos siguen siendo un problema.
+    const r = rowChanges(antes, despues, {
+      tablasConDatos: new Set(['nueva']),
+      tablasRetiradas: new Set(['vieja']),
+    })
+    expect(r.problemas.sort()).toEqual([
+      'La tabla nueva otra_nueva tiene 1 filas y tenía que nacer vacía',
+      'La tabla otra_vieja desapareció',
+    ])
+    expect(r.tablasNuevas).toEqual({ nueva: 1, otra_nueva: 1 })
+    expect(r.tablasRetiradas.sort()).toEqual(['otra_vieja', 'vieja'])
+
+    // Y declarar algo que no ocurrió tampoco pasa en silencio.
+    expect(
+      rowChanges(foto(), foto(), {
+        tablasConDatos: new Set(['nueva']),
+        tablasRetiradas: new Set(['vieja']),
+      }).problemas,
+    ).toEqual([
+      'La tabla vieja tenía que retirarse y sigue existiendo',
+      'La tabla nueva tenía que crearse con esta migración y no es nueva',
+    ])
+  })
 })
 
 describe('T5 — horas del sincronizador y ACL', () => {

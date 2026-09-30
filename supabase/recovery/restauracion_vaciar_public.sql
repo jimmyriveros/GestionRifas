@@ -32,8 +32,13 @@ do $vaciar$
 declare
   r record;
 begin
-  if to_regclass('pausa.estado') is null
-     or not exists (select 1 from pausa.estado where id = 1 and cerrada) then
+  -- Dos `if`, no uno con `or`: PL/pgSQL planifica la condición entera, y sin la pausa
+  -- instalada la consulta a `pausa.estado` fallaba con «relation does not exist» en vez
+  -- de decir esto (visto en el ensayo de D-240). Se negaba igual, sin decir por qué.
+  if to_regclass('pausa.estado') is null then
+    raise exception 'La pausa de publicación no está cerrada: no se vacía public. No se cambió nada.';
+  end if;
+  if not exists (select 1 from pausa.estado where id = 1 and cerrada) then
     raise exception 'La pausa de publicación no está cerrada: no se vacía public. No se cambió nada.';
   end if;
 

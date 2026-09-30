@@ -122,10 +122,12 @@ export type Verdict = 'nada_que_revertir' | 'se_puede_volver' | 'no_se_puede_vol
 
 /** Lo que corresponde hacer en cada caso, con las órdenes exactas. */
 export function pathFor(estado: ReleaseState, verdict: Verdict): string[] {
+  // `earning-recovery.ts` ejecuta `supabase/recovery/0079_a_0077.sql` en su transacción,
+  // con `lock_timeout`, y devuelve los permisos de la foto de antes de migrar (I-192).
   const recover = [
-    'psql "<SUPABASE_DB_URL>" -v ON_ERROR_STOP=1 -c "set lock_timeout = \'5s\'" -f supabase/recovery/0079_a_0077.sql',
+    'npx tsx scripts/earning-recovery.ts <foto de antes de migrar> (--local | --production --project-ref <REF>) --lock-timeout 5s',
     `npx supabase migration repair --status reverted ${estado === '0079' ? '0079 0078' : '0078'} --db-url "<SUPABASE_DB_URL>"`,
-    'Otra vez esta comprobación: tiene que decir 0077. Después el código anterior (RUNBOOK §10.6).',
+    'Otra vez esta comprobación: tiene que decir 0077; y la estructura contra esa misma foto (`gate-compare --structure-only`). Después el código anterior (RUNBOOK §10.6).',
   ]
   switch (verdict) {
     case 'incoherente':

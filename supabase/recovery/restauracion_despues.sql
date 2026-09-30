@@ -24,8 +24,11 @@ begin
      or to_regprocedure('public.sync_profile_email()') is null then
     raise exception 'public no está restaurado: faltan las funciones de los disparadores de auth.users. No se cambió nada.';
   end if;
-  if to_regclass('pausa.estado') is null
-     or not exists (select 1 from pausa.estado where id = 1 and cerrada) then
+  -- Dos `if`, por lo mismo que en `restauracion_vaciar_public.sql` (D-240).
+  if to_regclass('pausa.estado') is null then
+    raise exception 'La pausa de publicación no está cerrada. No se cambió nada.';
+  end if;
+  if not exists (select 1 from pausa.estado where id = 1 and cerrada) then
     raise exception 'La pausa de publicación no está cerrada. No se cambió nada.';
   end if;
 end

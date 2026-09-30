@@ -419,20 +419,35 @@ export type TableChanges = {
 }
 
 /**
+ * Lo que una migración de DATOS declara de sus tablas (`gate-data-effects.ts`, I-191):
+ * cuáles nacen con filas y cuáles retira. Aquí solo deja de ser un problema que existan
+ * o falten; su CONTENIDO lo comprueba quien las declara, y si no lo hace, detiene.
+ */
+export type ExpectedTables = {
+  tablasConDatos?: ReadonlySet<string>
+  tablasRetiradas?: ReadonlySet<string>
+}
+
+/**
  * Qué filas se añadieron, se quitaron o cambiaron, tabla por tabla, comparando sus
  * huellas. Una tabla con columnas nuevas solo es comparable si la foto de después se
  * tomó con `--base` de la de antes.
+ *
+ * Sin `esperado`, la regla de siempre: una tabla nueva nace vacía y ninguna desaparece.
  */
 export function rowChanges(
   before: Snapshot,
   after: Snapshot,
+  esperado: ExpectedTables = {},
 ): {
   cambios: Record<string, TableChanges>
   tablasNuevas: Record<string, number>
+  tablasRetiradas: string[]
   problemas: string[]
 } {
   const cambios: Record<string, TableChanges> = {}
   const tablasNuevas: Record<string, number> = {}
+  const tablasRetiradas: string[] = []
   const problemas: string[] = []
   const usesBase = after.base !== null && after.base.ahora === before.meta.ahora
   const columns = (s: Snapshot, table: string) =>
@@ -446,7 +461,7 @@ export function rowChanges(
     const a = before.filas[table]
     if (!a) {
       tablasNuevas[table] = d.n
-      if (d.n > 0)
+      if (d.n > 0 && !esperado.tablasConDatos?.has(table))
         problemas.push(`La tabla nueva ${table} tiene ${d.n} filas y tenía que nacer vacía`)
       continue
     }
@@ -477,12 +492,22 @@ export function rowChanges(
     if (c.agregadas.length || c.quitadas.length || c.modificadas.length) cambios[table] = c
   }
   for (const table of Object.keys(before.filas)) {
-    if (!after.filas[table]) problemas.push(`La tabla ${table} desapareció`)
+    if (after.filas[table]) continue
+    tablasRetiradas.push(table)
+    if (!esperado.tablasRetiradas?.has(table)) problemas.push(`La tabla ${table} desapareció`)
+  }
+  for (const table of esperado.tablasRetiradas ?? []) {
+    if (!tablasRetiradas.includes(table))
+      problemas.push(`La tabla ${table} tenía que retirarse y sigue existiendo`)
+  }
+  for (const table of esperado.tablasConDatos ?? []) {
+    if (!(table in tablasNuevas))
+      problemas.push(`La tabla ${table} tenía que crearse con esta migración y no es nueva`)
   }
   for (const [table, c] of Object.entries(cambios)) {
     if (c.quitadas.length > 0) problemas.push(`${c.quitadas.length} fila(s) borradas en ${table}`)
   }
-  return { cambios, tablasNuevas, problemas }
+  return { cambios, tablasNuevas, tablasRetiradas, problemas }
 }
 
 /** Las horas UTC en que `vercel.json` programa el sincronizador. */

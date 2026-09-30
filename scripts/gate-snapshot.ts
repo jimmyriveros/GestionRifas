@@ -27,7 +27,12 @@
  *               través de una migración que añade columnas. La clave de un CLIENTE se
  *               guarda como md5: la foto no contiene ningún identificador de cliente
  *   hechos      rifas (estado, fechas y prize_mode), tablas de premios, avisos por
- *               tipo, cifras de control, sincronizador, cron y recordatorios próximos
+ *               tipo, cifras de control, sincronizador, cron y recordatorios próximos;
+ *               y `ganancias` (D-240): los tramos, los acuerdos de cada membresía y el
+ *               dinero POR ENTIDAD —comisiones, movimientos, pagos y boletas—, leídos en
+ *               la forma que tenga el esquema. Con ellos `gate-compare` comprueba lo que
+ *               una migración de datos debía hacer (`gate-data-effects.ts`). Importes,
+ *               recuentos e identificadores internos; ningún dato de cliente
  *
  * No imprime datos personales, identificadores de clientes ni la cadena de conexión.
  * La comparan `scripts/gate-compare.ts` y `scripts/gate-mirror-privileges.ts`.
@@ -49,6 +54,7 @@ import {
   type Query,
   type Snapshot,
 } from './gate-db'
+import { readEarningFacts } from './gate-data-effects'
 import { foreignTarget, SNAPSHOT_FORMAT, snapshotDigest, snapshotProblems } from './gate-diff'
 
 const USAGE =
@@ -289,6 +295,10 @@ async function facts(query: Query): Promise<Snapshot['hechos']> {
         count(*) filter (where status = 'active' and next_run_at <= now() + interval '24 hours')::int as en_24_horas
       from seller_payment_reminders`)
   ).map((r) => ({ ...r, proximo: iso(r.proximo) }))
+  // Las ganancias, por entidad (I-191): lo que hace falta para derivar, de la foto de
+  // ANTES, lo que una migración de datos tiene que dejar después. Identificadores, modos
+  // y cifras; ningún dato de cliente.
+  h.ganancias = await readEarningFacts(query)
   return h
 }
 

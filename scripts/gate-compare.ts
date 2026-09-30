@@ -15,7 +15,12 @@
  *   LA OPERACIÓN AUTORIZADA (`--operation`):
  *     · migrations: las migraciones nuevas son EXACTAMENTE las de `--migrations`, el
  *       delta de estructura es EXACTAMENTE el ensayado en local con los privilegios de
- *       producción (`--expected-delta`) y las tablas nuevas nacen vacías;
+ *       producción (`--expected-delta`) y las tablas nuevas nacen vacías. Una migración
+ *       que MUEVE DATOS no cabe en esa regla, y no se le hace un hueco: solo la lista
+ *       exacta registrada en `gate-data-effects.ts` —hoy `0078,0079`— tiene sus efectos
+ *       comprobados uno por uno contra lo que se deriva de la foto de antes y de las
+ *       reglas de la migración (D-240, I-191). Lo que coincide queda explicado; cualquier
+ *       otra fila sigue deteniendo, igual que para el resto de migraciones;
  *     · awards: las filas nuevas de `declared_prize_awards` son las entradas confirmadas
  *       (`CONFIRMED_PRIZE_AWARDS`), con su importe, su respaldo y sin actor, y la
  *       bitácora tiene UNA fila `prize_award.record` de esa carga; ni un cambio de
@@ -80,6 +85,7 @@ import {
   type Operation,
   type TableChanges,
 } from './gate-diff'
+import { dataMigrationFor, type AuditFact, type DataMigration } from './gate-data-effects'
 import {
   AUDIT_IGNORED_COLUMNS,
   GateArgsError,
@@ -109,15 +115,19 @@ type Context = {
   before: Snapshot
   after: Snapshot
   cambios: Record<string, TableChanges>
+  tablasNuevas: Record<string, number>
   operation: Operation
   organization: string | null
   hours: Set<number>
+  /** Los efectos de datos de esta puerta, si sus migraciones los tienen (I-191). */
+  efectos: DataMigration | null
 }
 
 type Outcome = {
   detener: string[]
   explicadas: Map<string, string>
   operaciones: Row[]
+  efectos: Record<string, number> | null
 }
 
 const iso = (t: unknown) => (t instanceof Date ? t.toISOString() : (t as string | null))
@@ -174,6 +184,35 @@ async function classify(q: Query, ctx: Context): Promise<Outcome> {
         b.entity_id === id &&
         (!actions || actions.includes(String(b.action))),
     )
+
+  // ---- los efectos de DATOS de la migración (I-191). Lo esperado se deriva de los
+  // hechos de la foto de antes y de las reglas de las migraciones; lo que esto explique
+  // queda explicado, y TODO lo demás sigue por las reglas de siempre, más abajo.
+  let efectos: Record<string, number> | null = null
+  if (ctx.efectos) {
+    const r = ctx.efectos.comprobar({
+      before: (ctx.before.hechos as Row).ganancias,
+      after: (ctx.after.hechos as Row).ganancias,
+      cambios: ctx.cambios,
+      tablasNuevas: ctx.tablasNuevas,
+      filasAntes: Object.fromEntries(Object.entries(ctx.before.filas).map(([t, f]) => [t, f.n])),
+      claveComisiones: ctx.after.filas.seller_commissions?.pk ?? [],
+      bitacoraNueva: newAudit.map((b): AuditFact => ({
+        id: String(b.id),
+        org: (b.org as string | null) ?? null,
+        action: String(b.action),
+        entity_type: String(b.entity_type),
+        entity_id: (b.entity_id as string | null) ?? null,
+        actor: (b.actor as string | null) ?? null,
+        old_values: (b.old_values as Record<string, unknown> | null) ?? null,
+        new_values: (b.new_values as Record<string, unknown> | null) ?? null,
+      })),
+    })
+    r.detener.forEach(alto)
+    for (const e of r.explicadas) explain(e.tabla, e.clave, e.motivo)
+    for (const id of r.bitacoraUsada) used.add(id)
+    efectos = r.resumen
+  }
 
   // ---- pagos y sus asignaciones
   const touchedPayments = [...keys('payments', 'agregadas'), ...modified('payments')]
@@ -401,6 +440,8 @@ async function classify(q: Query, ctx: Context): Promise<Outcome> {
     alto(`Movimiento de comisión existente modificado ${m}`)
   const commissionPk = ctx.after.filas.seller_commissions?.pk ?? []
   for (const k of [...keys('seller_commissions', 'agregadas'), ...modified('seller_commissions')]) {
+    // Ya explicada por los efectos de datos de la migración: recontada sin mover cifras.
+    if (explicadas.has(`seller_commissions:${k}`)) continue
     const parts = Object.fromEntries(k.split('|').map((v, i) => [commissionPk[i]!, v]))
     const ledger = await q(
       `select id::text from commission_ledger where raffle_id = $1 and seller_id = $2 and id = any ($3::uuid[])`,
@@ -603,11 +644,21 @@ async function classify(q: Query, ctx: Context): Promise<Outcome> {
   }
 
   // ---- lo que no puede cambiar
+  // Una fila solo se libra si los efectos de datos de la migración la explicaron una a
+  // una; sin ellos —toda otra puerta—, cuenta cada fila tocada, como siempre.
+  const sinExplicar = (table: string, ks: string[]) =>
+    ks.filter((k) => !explicadas.has(`${table}:${k}`))
   for (const table of FROZEN_TABLES) {
     const c = ctx.cambios[table]
-    if (c && (c.agregadas.length || c.modificadas.length)) {
+    if (!c) continue
+    const nuevas = sinExplicar(table, c.agregadas)
+    const modificadas = sinExplicar(
+      table,
+      c.modificadas.map((m) => m.k),
+    )
+    if (nuevas.length || modificadas.length) {
       alto(
-        `${table}: ${c.agregadas.length} nueva(s) y ${c.modificadas.length} modificada(s): no puede cambiar en esta puerta`,
+        `${table}: ${nuevas.length} nueva(s) y ${modificadas.length} modificada(s): no puede cambiar en esta puerta`,
       )
     }
   }
@@ -626,7 +677,7 @@ async function classify(q: Query, ctx: Context): Promise<Outcome> {
         alto(`${table} ${k}: sin causa normal demostrable`)
     }
   }
-  return { detener, explicadas, operaciones }
+  return { detener, explicadas, operaciones, efectos }
 }
 
 // -----------------------------------------------------------------------------
@@ -786,22 +837,39 @@ async function main(): Promise<void> {
     }
   }
 
+  // Las migraciones que MIGRAN DATOS (I-191): solo si las nuevas son exactamente las
+  // de una entrada de `DATA_MIGRATIONS` y son las que se pidieron. Entonces sus tablas
+  // pueden nacer con filas o retirarse, y su contenido se comprueba fila a fila; para
+  // cualquier otra lista, la exigencia de siempre.
+  const efectos =
+    operation === 'migrations' && added.join(',') === expectedMigrations.join(',')
+      ? dataMigrationFor(added)
+      : null
+
   // Filas. Por la conexión comprobada del destino pedido SIEMPRE, también sin ninguna
   // fila que explicar: sin ella no hay veredicto (I-145).
-  const rows = rowChanges(before, after)
+  const rows = rowChanges(
+    before,
+    after,
+    efectos
+      ? { tablasConDatos: efectos.tablasConDatos, tablasRetiradas: efectos.tablasRetiradas }
+      : {},
+  )
   rows.problemas.forEach(alto)
   const hasChanges = Object.keys(rows.cambios).length > 0
   const outcome = await readOnly(target, async (q) =>
-    hasChanges
+    hasChanges || efectos
       ? classify(q, {
           before,
           after,
           cambios: rows.cambios,
+          tablasNuevas: rows.tablasNuevas,
           operation,
           organization,
           hours: cronHours(readFileSync('vercel.json', 'utf8')),
+          efectos,
         })
-      : { detener: [], explicadas: new Map<string, string>(), operaciones: [] },
+      : { detener: [], explicadas: new Map<string, string>(), operaciones: [], efectos: null },
   )
   detener.push(...outcome.detener)
 
@@ -819,7 +887,10 @@ async function main(): Promise<void> {
     migraciones_nuevas: added,
     estructura: deltaSummary(delta),
     diferencias_con_lo_ensayado: differences.length,
+    // Solo con migraciones que migran datos: qué se comprobó, derivado de la foto de antes.
+    efectos_de_datos: efectos ? { migracion: efectos.nombre, comprobado: outcome.efectos } : null,
     tablas_nuevas: rows.tablasNuevas,
+    tablas_retiradas: rows.tablasRetiradas,
     filas_tocadas: Object.fromEntries(
       Object.entries(rows.cambios).map(([t, c]) => [
         t,
