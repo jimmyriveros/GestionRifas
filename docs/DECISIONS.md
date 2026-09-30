@@ -15267,6 +15267,10 @@ Tres cosas distintas, que no se mezclan:
 **Estado:** **implementada y verificada SOLO EN LOCAL**, sin publicar. Publicarla necesita la autorización expresa del
 dueño. **No** confirma la causa del incidente de producción (ver «Lo que esto no demuestra»).
 
+> **2026-09-30, decisión del dueño:** D-236 **se queda dentro del lote** de D-237 a D-239 (el SHA candidato `30e28c5`,
+> PR #9) y se publicará con él en P8 de `RUNBOOK` §10; no se separa. Esto **no** autoriza ninguna publicación: la de P8
+> sigue pendiente de su autorización.
+
 **Fecha:** 2026-09-28 en Bogotá (2026-09-29 UTC) · **Encargo del dueño:** corregir en local el defecto de propagación
 de cookies y cabeceras que encontró la revisión de Codex al investigar la agrupación `Invalid Refresh Token` del proxy,
 con la corrección mínima, sin cambiar el alcance de `signOut()`, los tiempos de sesión, las políticas, las dependencias

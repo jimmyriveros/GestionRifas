@@ -190,6 +190,14 @@ gancho en `authenticator`—: `drop schema pausa cascade` al terminar.
 **Si la restauración se corta** después del paso 2, se repite desde el paso 2: es repetible, y el paso 6 dice qué
 falta.
 
+**Validar un respaldo en local (P3, 2026-09-30).** El paso 0 también hace falta en local: sin la pausa **cerrada**, el
+vaciado se niega, y cada paso siguiente tiene que **detenerse ante el primer error** —si no, `data.sql` inserta sobre la
+base sin vaciar—. Antes de cargar datos reales en local: el Vault local sin los secretos del despachador y
+`payment-reminders-due` y `push-dispatch-wake` desactivadas, para que la copia no procese recordatorios reales. Al
+terminar, `abrir` exige un sitio sirviendo la versión; sin él, en **local** se abre con
+`update pausa.estado set cerrada = false … where id = 1` y se retira con `maintenance-pause.ts retirar --local` **antes**
+de `db:reset`: la configuración de `authenticator` vive en el rol y sobrevive al restablecimiento.
+
 **Las identidades.** Restaurando en el **mismo** proyecto, Auth no se toca: cada cuenta sigue entrando con su
 contraseña, y las creadas **después** del respaldo quedan sin perfil ni membresía (§10.7 las lista). En un proyecto
 **nuevo** nadie puede entrar hasta volver a invitarlo, porque el respaldo no guarda `auth.users` (§5.1).
@@ -1045,12 +1053,14 @@ produjo ninguna coincidencia) y el tramo del **10/08 al 24/08**, que sigue pendi
 
 ---
 
-## 10. Publicar la configuración de ganancias (`0078` y `0079`, D-237, D-238 y D-239) — **P0, P1, PB y P2 HECHAS; desde P3, PENDIENTE Y NO AUTORIZADA**
+## 10. Publicar la configuración de ganancias (`0078` y `0079`, D-237, D-238 y D-239) — **P0, P1, PB, P2 y P3 HECHAS; desde P4, PENDIENTE Y NO AUTORIZADA**
 
 > **Hecho en producción:** P0 y P1 en solo lectura (2026-09-29, conformes y sin nada que decidir) y **PB**: el puente
 > de la pausa, `9a64986`, **servido desde el 2026-09-30 a las 01:16 UTC** (`DEPLOYMENT` §3.2.t). La pausa **no** está
 > instalada. **P2**, el 2026-09-30: la rama `feature/detalle-boleta-admin` —con el puente fusionado— está en el remoto
-> en `30e28c5`, con el **PR #9 en borrador** y su CI. Nada más se ha ejecutado: la `0078`, la `0079` y su código **no
+> en `30e28c5`, con el **PR #9 en borrador** y su CI. **P3**, el mismo día: el ensayo sobre una copia de producción
+> restaurada en local (respaldo en `Rifas-backups/2026-09-30-antes-0078-0079/`), con dos hallazgos para el dueño (I-191,
+> I-192). Nada más se ha ejecutado: la `0078`, la `0079` y su código **no
 > están en producción**. Publicar
 > exige la **autorización expresa del dueño**, puerta por puerta; cada paso que escribe lo hace el dueño con su sesión o
 > con autorización para ese paso, y quien prepara la puerta se detiene, le da los pasos y verifica en solo lectura.
@@ -1096,13 +1106,13 @@ de él—; `<PUENTE>`, el del puente: **`9a64986c92dc60c4351ff58a1cb7db0ff7eb925
 | P1 | Diagnóstico previo | `earning-precheck.ts` | «limpio», o cada «decide» decidido por el dueño por escrito. «bloquea» detiene |
 | PB | **El puente** (antes de la ventana; puede ser otro día) | `DEPLOYMENT` §3.3.c: `fix/puente-pausa-publicacion` a `main` por avance rápido desde `cac81e8`, CI 2/2, READY, identificador servido y `/mantenimiento` en 200; después se fusiona en la rama de la publicación (0 archivos cambiados) | El puente servido, el sitio igual que antes y el punto de reversión es `cac81e8`. **Hecha el 2026-09-30**: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, 36/36 rutas y `verify:remote` 49/49; fusión local `0e268df`, 0 archivos (`DEPLOYMENT` §3.2.t). *Recomendación del agente, sin aprobar:* repetir la lectura de P0 al preparar P2, porque la de 2026-09-29 es anterior; P6 ya repite el diagnóstico |
 | P2 | Rama y CI de la publicación | Empujar la rama —ya con el puente fusionado—, PR y CI **2/2** sobre `<SHA>` | 2/2. **Hecha el 2026-09-30**: `cac81e8..30e28c5` sin `force`, **PR #9 en borrador** —no se fusiona desde GitHub—, CI ✅ **2/2** (run `36660506172`: verificación 02:35:00–02:37:24, base de datos 02:35:00–02:41:25 UTC) sobre `30e28c5`; la vista previa en rojo por D-066. **`30e28c5` incluye D-236**, cuya publicación decide el dueño (`TEST_RESULTS`, P2) |
-| P3 | Ensayo sobre una copia | Un respaldo de §5.1 restaurado **en local** (§5.2) con `gate-mirror-privileges.ts`: diagnóstico `--local`, `db push`, `earning-recovery-check.ts --local`, la recuperación y el tiempo de cada paso | La copia migra y vuelve igual que en el ensayo, en un tiempo que cabe en la ventana |
+| P3 | Ensayo sobre una copia | Un respaldo de §5.1 restaurado **en local** (§5.2) con `gate-mirror-privileges.ts`: diagnóstico `--local`, `db push`, `earning-recovery-check.ts --local`, la recuperación y el tiempo de cada paso | La copia migra y vuelve igual que en el ensayo, en un tiempo que cabe en la ventana. **Hecha el 2026-09-30** sobre `30e28c5`: copia fiel (12.360 filas, 0 ajustes de privilegios), migración en 8,8 s y recuperación en 0,43 s con el **dinero idéntico**; delta en `build/gate/delta-esperado-0078-0079.json`. **Dos hallazgos que decide el dueño antes de la ventana**: I-191 (P9) e I-192 (la recuperación) (`TEST_RESULTS`, P3) |
 | P4 | Instalar la pausa (abierta) | Unos minutos antes: `maintenance-pause.ts instalar` —no la da por buena hasta ver la cabecera «abierta»— y `estado`. El dueño avisa de la pausa | «PostgREST la usa»; ningún recordatorio en el horizonte; fuera de las horas del programador (UTC 3, 4, 5, 6, 12, 13, 15 y 16: si cae dentro, pierde ese turno, no escribe nada) |
 | P5 | **Cerrar** | `maintenance-pause.ts cerrar` —se niega si un recordatorio vence en los próximos 60 min—: cierra, **drena** y comprueba 423 con `anon` y `service_role` | «Drenada» y «La API responde 423». Si no drena en 30 s, se repite; no se sigue |
 | P6 | Respaldo y foto de la ventana | Los tres volcados de §5.1 **y** `gate-snapshot antes` —con la pausa cerrada son el mismo estado—, y el diagnóstico previo otra vez | El volcado de datos sin `"auth".` y el diagnóstico igual que en P1 |
 | P7 | Migrar | `db push --dry-run` lista **exactamente** `0078` y `0079`; `db push --db-url "<SUPABASE_DB_URL>&lock_timeout=900ms"`; después `earning-recovery-check.ts` | Estado `0079`. **Cualquier otro: §10.4**, sin reintentar a ciegas |
 | P8 | Código | `git ls-remote origin refs/heads/main`; `git push origin <SHA>:refs/heads/main` por avance rápido; **un** despliegue | READY sobre `<SHA>` |
-| P9 | Comprobar sin abrir | `commission_agreement_problems()` igual a lo anticipado en P1; `verify:remote` **54/54**; `gate-compare antes → después --operation migrations --migrations 0078,0079 --expected-delta <P3>` —con la pausa cerrada solo hay filas de la migración—; identificador servido (`DEPLOYMENT` §6.1). `maintenance-pause.ts permitir <perfil del Dueño>` y el dueño, con su sesión, **solo mira**: «Configuración» → «Ganancias de vendedores» con la versión 1, la ficha de un vendedor con «La mitad del precio…», «Mi equipo» de un jefe | Todo igual a lo ensayado. **No guardar la lista ni cambiar acuerdos**: haría imposible volver (§10.6) |
+| P9 | Comprobar sin abrir | `commission_agreement_problems()` igual a lo anticipado en P1; `verify:remote` **54/54**; `gate-compare antes → después --operation migrations --migrations 0078,0079 --expected-delta <P3>` —con la pausa cerrada solo hay filas de la migración; **ensayado en P3, esa orden dice DETENER por diseño**: cómo se lee lo decide el dueño antes de la ventana (I-191)—; identificador servido (`DEPLOYMENT` §6.1). `maintenance-pause.ts permitir <perfil del Dueño>` y el dueño, con su sesión, **solo mira**: «Configuración» → «Ganancias de vendedores» con la versión 1, la ficha de un vendedor con «La mitad del precio…», «Mi equipo» de un jefe | Todo igual a lo ensayado. **No guardar la lista ni cambiar acuerdos**: haría imposible volver (§10.6) |
 | P10 | Abrir y retirar | `maintenance-pause.ts abrir --migracion 0079 --commit <SHA>` —comprueba que la base es `0079`, que `<SHA>` trae la `0079` y que el sitio sirve su build—; `retirar`; `estado` dice «Instalada: no». Los registros, dentro de la hora | Abierta, retirada y el uso normal del dueño sin errores |
 
 ### 10.3 La pausa: qué impide, cómo espera y qué deja pasar
@@ -1185,9 +1195,10 @@ solo difirió lo que `0077` no puede representar.
 | Paso | Medido en local | En producción |
 |---|---|---|
 | Instalar, cerrar y drenar | ~0,3 s instalar; drenar 3–4 ms sin peticiones | Lo que tarde la última petición en curso, como mucho el `statement_timeout` de los roles de la API (8 s en local) |
-| `db push` de las dos | ~20 s con 4.893 boletas y ~34–37 s con 19.473, más ~3,3 s de la CLI | Crece con las boletas y los movimientos; se mide en P3 |
-| Recuperación | ~0,05–0,1 s de SQL sin red, sin esperas y con el guardia en verde | ≈120 sentencias por la red: del orden de 120 × la ida y vuelta de P0, más cualquier cerrojo |
-| Restauración completa | 10,6 s | `schema.sql` son ~4.070 sentencias: minutos |
+| `db push` de las dos | ~20 s con 4.893 boletas y ~34–37 s con 19.473, más ~3,3 s de la CLI. **En P3, sobre la copia de producción (1.321 boletas): 8,8 s de reloj** | ~150 sentencias: estimado **10–30 s** por la red, según cómo las envíe la CLI. No medido |
+| Recuperación | ~0,05–0,1 s de SQL sin red, sin esperas y con el guardia en verde. **En P3: 0,43 s** | ~107 sentencias: estimado **~10 s** (107 × ~90 ms de P0), más cualquier cerrojo. No medido |
+| Restauración completa | 10,6 s. **En P3, el respaldo de producción: 5,15 s** | ~1.900 sentencias de `schema.sql` y 45 de `data.sql` (5,8 MB): estimado **del orden de 3 min** más la transferencia. No medido |
+| Respaldo (P6) | — | **Medido contra producción en P3: ~1 min 46 s** (8,7 + 56,2 + 41,5 s). Cuenta dentro de la ventana |
 
 Los 258 ms de D-238 eran la recuperación **en local**, con un ejecutor que manda el script de una vez; no son una
 garantía para el proyecto alojado.
@@ -1209,9 +1220,9 @@ garantía para el proyecto alojado.
 
 | Qué | Por qué queda pendiente |
 |---|---|
-| Lo que el diagnóstico encuentre en los datos reales | Leer producción no estaba autorizado |
+| ~~Lo que el diagnóstico encuentre en los datos reales~~ | **Hecho** en P1 (limpio) y repetido sobre la copia en P3 (limpio) |
 | Que la PostgREST alojada recargue el gancho con `NOTIFY` | Supabase lo documenta; `instalar` no la da por buena sin la cabecera, y `cerrar`, sin el 423 |
-| Cuánto tardan las migraciones, la recuperación y una restauración con la red real | P0 mide la ida y vuelta; P3, la copia |
-| Los privilegios del proyecto alojado sobre lo que recrea la recuperación (I-132) | Tras recuperar, la estructura se compara con la foto de P6 |
+| Cuánto tardan las migraciones, la recuperación y una restauración con la red real | P0 midió la ida y vuelta (~90 ms) y P3 la copia **sin red**; la duración con la red sigue sin medirse (§10.8) |
+| ~~Los privilegios del proyecto alojado sobre lo que recrea la recuperación (I-132)~~ | **Medido en P3** con los privilegios de producción: la recuperación deja 7 funciones **sin** `service_role` (I-192). Tras recuperar, la estructura se sigue comparando con la foto de P6 |
 | Una restauración en el proyecto alojado | Solo se ensayó en local (I-183) |
 | Cuánto tarda el despliegue en Vercel | Se mide en P8; con la pausa cerrada, nadie lo sufre |

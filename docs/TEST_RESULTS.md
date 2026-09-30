@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (P2: la rama de la publicación, PR #9 y su CI, 2026-09-30)** | CI del PR #9 sobre `30e28c5`: ✅ **2/2** (`36660506172`) | Idem, «Migraciones desde cero + pruebas de base de datos» en verde. Producción, sin tocar: `0077`, sin pausa | No aplica | — | ✅ **P2 hecha**: `cac81e8..30e28c5` empujado sin `force`, PR #9 en borrador; la vista previa, en rojo por D-066 exactamente. **D-236 va en ese SHA**, pendiente del dueño. I-190, abierta |
+| **Post-9 vigente (P3: ensayo sobre una copia de producción restaurada en local, 2026-09-30)** | Sin cambio de código: el candidato `30e28c5` | Copia fiel (**12.360 filas iguales**, 0 ajustes de privilegios); `0078`+`0079` en 8,8 s con el **dinero idéntico** y las cinco revocaciones efectivas; recuperación en 0,43 s con el dinero idéntico | No aplica | `verify-remote` contra la copia: 53 + 1 (el cron desactivado en local) migrada; 48 + 1 recuperada, con el del puente | ✅ **P3 pasada en lo que comprueba**, con dos hallazgos para el dueño: la comparación por fila de P9 dirá DETENER por diseño (**I-191**) y la recuperación deja 7 funciones sin `service_role` (**I-192**, más restrictivo) |
+| Post-9 anterior (P2: la rama de la publicación, PR #9 y su CI, 2026-09-30) | CI del PR #9 sobre `30e28c5`: ✅ **2/2** (`36660506172`) | Idem, «Migraciones desde cero + pruebas de base de datos» en verde. Producción, sin tocar: `0077`, sin pausa | No aplica | — | ✅ **P2 hecha**: `cac81e8..30e28c5` empujado sin `force`, PR #9 en borrador; la vista previa, en rojo por D-066 exactamente. **D-236 va en ese SHA**, pendiente del dueño. I-190, abierta |
 | Post-9 anterior (I-190: la demora de la ficha del vendedor, diagnosticada, 2026-09-30) | Sin cambio de código | Sin cambio de esquema; en producción, solo lecturas | Medida local A/B de la ficha con builds de producción: `cac81e8` y `9a64986` **iguales** (primera apertura 178 frente a 184 ms; mismas 10 llamadas a Supabase) | — | ⚠️ **I-190 abierta, sin causa demostrada**: los registros de este plan no guardan la duración. **No se encontró una regresión atribuible al puente en las comparaciones realizadas.** La navegación del dueño funcionó |
 | Post-9 anterior (PB: el puente de la pausa EN PRODUCCIÓN, D-239, `9a64986`, 2026-09-30) | Sin cambio de código en la rama de la publicación: la fusión del puente, 0 archivos. CI sobre `9a64986`: ✅ 2/2 en el PR #8 (`36653356272`) y en `main` (`36654232751`) | Producción sigue en `0077`, sin pausa ni gancho; la base no se tocó | No aplica: el puente no cambia ninguna pantalla con la API normal. En vivo, **36/36** rutas con `/mantenimiento` en 200 | `verify:remote` **49/49** antes y después | ✅ **Publicado** por avance rápido `cac81e8..9a64986`: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, READY a las 01:16:22 UTC, `41ee2474757c` servido. Reversión: `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`) |
 | Post-9 anterior (diagnóstico previo de D-237 a D-239 EN PRODUCCIÓN, solo lectura, 2026-09-29, 23:39–23:46 UTC) | Sin cambio de código ni batería local repetida: siguen **1.887/1.887** | Sin cambio de esquema local: **1.510 + 1**. Producción: `0001`–`0077`, sin `0078` ni `0079`; diagnóstico previo **limpio** | No aplica: ninguna pantalla cambió | `verify:remote` **49 OK + los 5 en rojo esperados**, identificados uno por uno | ✅ **P0 y P1 conformes, nada escrito.** Servido `cac81e8` (`b21a1caa33c5`); sin pausa ni gancho. Pendiente: la autorización del puente (PB) |
@@ -16623,3 +16624,123 @@ Autorización expresa del dueño **solo para P2** (`RUNBOOK` §10.2): empujar la
 | Check «Vercel» | ❌ **esperado, D-066**: la vista previa `dpl_7JwDufuyv2kBo76KT51Jgx36ybP2` se detiene en `check:env` porque faltan **exactamente** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SERVICE_ROLE_KEY`, leído en sus registros de construcción; ningún otro error |
 | CI | Run **`36660506172`** (`pull_request`, `headSha` = `30e28c5…`): ✅ **2/2** —«Typecheck, lint, unitarias, build» de 02:35:00 a 02:37:24; «Migraciones desde cero + pruebas de base de datos» de 02:35:00 a 02:41:25 UTC—. La espera, sin sondeo: lecturas sueltas mientras se documentaba y una sola diferida en segundo plano. La cabeza del PR, comprobada después: `30e28c5`, en borrador, `main` en `9a64986` |
 | Error propio | Al rellenar el resultado en los documentos, un `node -e` entre comillas dobles ejecutó el identificador del run entre comillas invertidas y lo borró del texto. Visto al revisar y corregido a mano |
+
+---
+
+## P3 — Ensayo sobre una copia de producción restaurada en local (2026-09-30, 02:54–03:08 UTC)
+
+Autorización expresa del dueño **solo para P3** (`RUNBOOK` §10.2). **En producción, solo lecturas**: el respaldo, dos
+fotos, la comparación entre ellas y el estado; ninguna pausa, migración ni restauración allí. El dueño confirma en el
+mismo mensaje que **D-236 sigue dentro del lote**. Evidencia fuera de Git: el respaldo en
+`Rifas-backups/2026-09-30-antes-0078-0079/`; fotos, delta e informes en `build/gate/`; registros y guiones en `build/p3/`.
+Ningún dato de cliente ni importe de producción en este documento: recuentos y huellas.
+
+### a. La versión ensayada
+
+| Qué | Resultado |
+|---|---|
+| Candidato | **`30e28c56922940ab38611c64c16a7cceabf86b97`** (PR #9, CI 2/2). `HEAD` era `843bc5d`, solo documentación encima: `git diff 30e28c5 HEAD -- . ':(exclude)docs'` **vacío** y sin cambios sin guardar en `scripts/`, `supabase/`, `src/` ni `package*.json`. Las migraciones, `supabase/recovery/`, `supabase/maintenance/` y las herramientas usadas son las del candidato |
+| Producción antes (02:53–02:54, solo lectura) | Sirve `9a64986` (36/36 rutas, `/mantenimiento` en 200, `cac81e8` ausente); **`0077`**, ninguna posterior, sin esquema `pausa` ni gancho; 2 recordatorios, el primero el 2026-10-02; candado libre; ninguna transacción de la API en curso |
+
+### b. Respaldo y referencia consistente (producción, solo lectura)
+
+| Paso | Resultado |
+|---|---|
+| Foto A, `p3-prod-antes` | 02:54:44 UTC |
+| `roles.sql`, `schema.sql`, `data.sql` (`RUNBOOK` §5.1) | 02:55:03–02:56:49: **8,7 s**, **56,2 s** y **41,5 s**; 370 B, 677.008 B y 5.784.000 B. `data.sql` con `--schema public` |
+| Limpieza del respaldo | **0** nombres `"auth".` cualificados, **0** `INSERT INTO "auth"`, **0** credenciales (`encrypted_password`, `*_token`), **0** contraseñas en `roles.sql`; 31 tablas con datos; `SET session_replication_role = replica`. Solo los avisos conocidos de claves circulares |
+| Foto B, `p3-prod-despues` | 02:57:00 UTC |
+| `gate-compare A → B --production --operation none` | **CONTINUAR, 0 filas**: producción no cambió mientras se volcaba, así que el volcado **es** el estado de A |
+
+### c. La copia, restaurada en local (`RUNBOOK` §5.2)
+
+**Primer intento, error propio, contenido en local:** el vaciado se negó —su guarda exige la pausa **cerrada**— y yo
+encadené los pasos siguientes sin detenerme ante el fallo. `schema.sql` se detuvo en su primer tipo existente (solo
+había aplicado `SET`, extensiones `IF NOT EXISTS` y un `COMMENT`) y `data.sql` insertó **9 filas** del respaldo en la
+base local sembrada antes de detenerse. El vaciado del intento correcto las borró con todo lo demás. Desde ahí, cada
+paso se detiene ante el primer error.
+
+| Paso | Resultado (local) |
+|---|---|
+| Destino | `docker exec supabase_db_Rifas` (puerto 54322), en `0079` sembrada, 33 boletas y 6 cuentas de Auth del sembrado. Ninguna cadena de conexión: nada podía apuntar a otro sitio |
+| Aislamiento | Vault local **vacío** (sin la URL ni el secreto del despachador) y cola de `pg_net` a 0. Además, `payment-reminders-due` y `push-dispatch-wake` **desactivadas en local** mientras duró el ensayo, para que la copia no procesara recordatorios reales ni cambiara sola. Sin servidor de la aplicación. Ninguna identidad ni token de Auth en el respaldo; ninguna sesión |
+| Paso 0: pausa **local** instalada y cerrada | Usada por PostgREST en 33 ms; drenada en 3 ms; 423 para `anon` y `service_role` |
+| Pasos 2–4 | Vaciado **548 ms**; `roles.sql` 377 ms (solo el error esperado de `log_min_messages`); `schema.sql` **2.454 ms**; `data.sql` **972 ms**; `restauracion_despues.sql` 379 ms. **Total 5,15 s** |
+| Paso 5: historial | `migration repair --status reverted 0078 0079`: 3,3 s. 77 migraciones, hasta `0077`, como producción |
+| Filas: A frente a la copia, huella a huella (`build/p3/comparar-filas.mjs`) | **31 tablas y 12.360 filas iguales**, ninguna diferencia |
+| Estructura: A frente a la copia | Solo lo del entorno: el CHECK de `raffle_prize_transitions` con otros paréntesis (conocido, §5.2), las 2 tareas desactivadas en local, el Vault local sin sus 2 secretos y 3 privilegios por defecto de `supabase_functions` de la pila local. **Ninguna** diferencia en funciones, tablas, sus ACL, disparadores, políticas ni vistas |
+| `gate-mirror-privileges.ts <foto A>` | **0 sentencias**: la copia ya tenía los privilegios de producción, también los por defecto de `postgres` en `public` (`service_role=X/postgres`). Nada que ocultar |
+
+### d. La migración en la copia
+
+| Qué | Resultado |
+|---|---|
+| `earning-precheck.ts --local` | **Limpio**, con el mismo volumen que producción (2 organizaciones, 4 vendedores, 1 jefe, 1 integrante por tramos; 1.321 boletas, 319 cobradas; 2 filas de comisión y 338 del ledger) |
+| `db push --dry-run` | **Exactamente** `0078_seller_earning_agreements.sql` y `0079_earning_reorganization_and_team_agreement_owner.sql`; sin semillas ni roles |
+| `db push --yes` con `lock_timeout=900ms` | Salida 0, **8.781 ms** de reloj, incluidos ~3,3 s de arranque de la CLI |
+| `earning-recovery-check.ts --local` | Estado **`0079`** (historial `0077, 0078, 0079`); «SE PUEDE VOLVER». 79 migraciones, `0001`–`0079` |
+| Dinero (`build/p3/dinero.ts`: comisiones, ledger por signo, pagos, asignaciones, boletas por estado) | **Idéntico** antes y después: huella `43705d6ed6649708…` en las dos |
+| `commission_agreement_problems()` | **0** filas, lo que anticipó P1 |
+| `verify-remote` del candidato **contra la copia** (`SUPABASE_DB_URL` local en el entorno; comprobado el destino antes) | **53 OK + 1**: «Los 3 cron de avisos … activos» da 1 porque desactivé 2 en local. En verde todo lo de ganancias: la matriz exacta de la `0078`, sin sobrecargas sin clasificar, la tabla de tramos retirada, **las dos de la `0079`** y la de I-078 |
+| Las cinco revocaciones, con los privilegios alojados | `team_set_commission_model` y `commission_summary`: solo `postgres` y `authenticated`; `commission_rate_for_seller`, `commission_floor_rate` y `memberships_sync_commission`: solo `postgres`. **Ninguna con `service_role`**, aunque el privilegio por defecto de `postgres` sigue concediéndolo. La matriz, **0 filas** |
+| **Delta esperado para P9** | `build/gate/delta-esperado-0078-0079.json`: tablas +2 −1, columnas +16 −6, restricciones +19 −5, índices +4 −2, disparadores +7 −3 ~1, políticas +2 −1, funciones +32 −5 ~9, tipos +2, migraciones +2 —**el mismo resumen** que el de D-238, al que sustituye con el mismo nombre; este se calculó con los privilegios alojados— |
+
+### e. Hallazgo 1 — la comparación por fila de P9 dirá DETENER
+
+`gate-compare antes-migrar → despues-migrar --local --operation migrations --migrations 0078,0079 --expected-delta
+<delta>`: **0 diferencias con lo ensayado** en estructura, pero **DETENER** por filas. Cada motivo está explicado por la
+propia `0078`, leído columna a columna contra el respaldo (`build/p3/columnas-cambiadas.ts`):
+
+| Motivo del comparador | Qué cambió de verdad |
+|---|---|
+| `commission_tier_list_items` (8) y `commission_tier_lists` (2) «tenían que nacer vacías» | La versión 1 de la lista general de cada organización (`template`, versión 1), con **los mismos 8 tramos** —organización, desde y tarifa— que `commission_tiers` |
+| `commission_tiers` desapareció | La retira la `0078` |
+| 2 «acumulados de comisión cambiaron sin movimientos» | **Solo `updated_at`**, la hora de la migración: el recuento no movió ninguna cifra |
+| 1 membresía modificada | **Solo `updated_at`** en las columnas de antes; en las nuevas, `direct_commission_mode = half_price` y `team_tier_list_id` a la versión 1: es el integrante por tramos |
+| 1 fila de bitácora `membership.update` sin actor | Solo `team_tier_list_id`: esa misma asignación |
+
+El comparador supone migraciones que no tocan datos, y la `0078` los migra. **Con la pausa cerrada, P9 dará DETENER
+con exactamente estos motivos.** Cómo se lee eso en P9 lo decide el dueño (`KNOWN_ISSUES`, I-191). El ensayo de D-238
+solo había comparado la estructura.
+
+### f. La recuperación en la copia
+
+| Qué | Resultado |
+|---|---|
+| Comprobación previa | «SE PUEDE VOLVER» (tras migrar) |
+| `psql -v ON_ERROR_STOP=1 -c "set lock_timeout = '5s'" -f supabase/recovery/0079_a_0077.sql` | Salida 0, **425 ms**: «esquema devuelto y 2 filas de comisión recontadas sin mover dinero» |
+| `migration repair --status reverted 0079 0078` | 2,8 s. Comprobación: **`0077`**, «NADA QUE REVERTIR»; 77 migraciones |
+| Dinero | **Idéntico**: la misma huella `43705d6e…` |
+| Filas frente a antes de migrar | `memberships` y `seller_commissions`: solo `updated_at`; `commission_tiers`: los 8 tramos **iguales en contenido** con claves y `created_at` nuevos (0 claves en común con el respaldo); `audit_logs`: +1, la fila `membership.update` de la migración, que la recuperación conserva |
+| **Hallazgo 2 — estructura** | Frente a antes de migrar **y** frente a producción, **7 funciones** vuelven con otra ACL: `commission_rate_for_seller`, `commission_rate_for`, `commission_summary`, `memberships_sync_commission`, `memberships_validate_commission`, `organizations_seed_commission_tiers` y `team_set_commission_model` quedan **sin `EXECUTE` para `service_role`**, que en producción tienen por el privilegio por defecto alojado (I-132). El resultado es **más restrictivo**. En el ensayo de D-238 la estructura volvía idéntica porque la pila local no concede ese privilegio por defecto |
+| ¿Rompe algo? | En el código del puente —el que se serviría sobre `0077`— **nadie las llama como `service_role`**: `commission_summary` y `team_set_commission_model` van con el cliente de sesión (`features/commissions/queries.ts:133`, `features/team/actions.ts:227`), el cliente de servicio de `team/actions.ts` solo se usa para Auth, y las funciones de disparador no exigen `EXECUTE` a quien dispara. `verify-remote` **del puente** contra la copia recuperada: **48 OK + 1**, la misma del cron local. Queda en `KNOWN_ISSUES` como I-192 |
+
+### g. Tiempos: lo medido en local y lo estimado para producción
+
+| Paso | Medido en local, sobre la copia | Estimación para producción (no medida) |
+|---|---|---|
+| Respaldo (3 volcados) | — (se hizo contra producción) | **Medido allí hoy**: 8,7 + 56,2 + 41,5 s ≈ **1 min 46 s**. En P6 se toma **dentro** de la ventana, con la pausa cerrada: ese tiempo cuenta en ella |
+| Restauración completa | **5,15 s** | ~1.900 sentencias de `schema.sql` y 45 de `data.sql` (5,8 MB) a ~90 ms por sentencia enviada una a una (P0): **del orden de 3 min** más la transferencia |
+| `db push` de las dos | **8,8 s** de reloj, ~5,5 s sin el arranque de la CLI | ~150 sentencias: **10–30 s**, según cómo las envíe la CLI por la red |
+| Recuperación | **0,43 s** | ~107 sentencias: **~10 s** más cualquier cerrojo |
+| `migration repair` | 2,8–3,3 s | Similar, más la ida y vuelta |
+| `earning-recovery-check` | 1,9–2,1 s | Similar |
+
+**Lo que este ensayo no mide:** la red real hacia la base, la duración real del despliegue en Vercel, la recarga del
+gancho por la PostgREST alojada y una restauración en el proyecto alojado (`RUNBOOK` §10.10).
+
+### h. Entorno al terminar
+
+Pausa **local** abierta con una actualización directa de `pausa.estado` —`abrir` exige un sitio sirviendo la versión, y
+no había ninguno— y retirada con la herramienta (PostgREST dejó de usarla en 284 ms; `authenticator` sin configuración
+`pgrst`). Después `npm run db:reset && npm run seed:local`: `0079`, 33 boletas y 6 perfiles del sembrado, **0**
+suscripciones de avisos, sin esquema `pausa`, las 3 tareas activas y la API local normal. **Ningún dato de producción
+queda en la base local**; el respaldo sigue en `Rifas-backups/`, fuera del repositorio, y contiene datos personales.
+
+### i. Errores propios
+
+| Error | Corrección |
+|---|---|
+| Encadenar los pasos de la restauración sin detenerse ante el primer fallo (§c) | Contenido en local; repetido con parada ante el primer error y con la pausa local cerrada |
+| Consultas del guion de columnas con nombres que no existen (`version`, `user_id`, `commission_tier_lists` tras recuperar) | Corregidos contra el esquema real |
+| `gate-compare --operation migrations` sin `--expected-delta` | Primero el delta con `--structure-only` |
