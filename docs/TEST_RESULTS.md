@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-190: la demora de la ficha del vendedor, diagnosticada, 2026-09-30)** | Sin cambio de código | Sin cambio de esquema; en producción, solo lecturas | Medida local A/B de la ficha con builds de producción: `cac81e8` y `9a64986` **iguales** (primera apertura 178 frente a 184 ms; mismas 10 llamadas a Supabase) | — | ⚠️ **I-190 abierta, sin causa demostrada**: los registros de este plan no guardan la duración. **No se encontró una regresión atribuible al puente en las comparaciones realizadas.** La navegación del dueño funcionó |
+| **Post-9 vigente (P2: la rama de la publicación, PR #9 y su CI, 2026-09-30)** | CI del PR #9 sobre `30e28c5`: ✅ **2/2** (`36660506172`) | Idem, «Migraciones desde cero + pruebas de base de datos» en verde. Producción, sin tocar: `0077`, sin pausa | No aplica | — | ✅ **P2 hecha**: `cac81e8..30e28c5` empujado sin `force`, PR #9 en borrador; la vista previa, en rojo por D-066 exactamente. **D-236 va en ese SHA**, pendiente del dueño. I-190, abierta |
+| Post-9 anterior (I-190: la demora de la ficha del vendedor, diagnosticada, 2026-09-30) | Sin cambio de código | Sin cambio de esquema; en producción, solo lecturas | Medida local A/B de la ficha con builds de producción: `cac81e8` y `9a64986` **iguales** (primera apertura 178 frente a 184 ms; mismas 10 llamadas a Supabase) | — | ⚠️ **I-190 abierta, sin causa demostrada**: los registros de este plan no guardan la duración. **No se encontró una regresión atribuible al puente en las comparaciones realizadas.** La navegación del dueño funcionó |
 | Post-9 anterior (PB: el puente de la pausa EN PRODUCCIÓN, D-239, `9a64986`, 2026-09-30) | Sin cambio de código en la rama de la publicación: la fusión del puente, 0 archivos. CI sobre `9a64986`: ✅ 2/2 en el PR #8 (`36653356272`) y en `main` (`36654232751`) | Producción sigue en `0077`, sin pausa ni gancho; la base no se tocó | No aplica: el puente no cambia ninguna pantalla con la API normal. En vivo, **36/36** rutas con `/mantenimiento` en 200 | `verify:remote` **49/49** antes y después | ✅ **Publicado** por avance rápido `cac81e8..9a64986`: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, READY a las 01:16:22 UTC, `41ee2474757c` servido. Reversión: `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`) |
 | Post-9 anterior (diagnóstico previo de D-237 a D-239 EN PRODUCCIÓN, solo lectura, 2026-09-29, 23:39–23:46 UTC) | Sin cambio de código ni batería local repetida: siguen **1.887/1.887** | Sin cambio de esquema local: **1.510 + 1**. Producción: `0001`–`0077`, sin `0078` ni `0079`; diagnóstico previo **limpio** | No aplica: ninguna pantalla cambió | `verify:remote` **49 OK + los 5 en rojo esperados**, identificados uno por uno | ✅ **P0 y P1 conformes, nada escrito.** Servido `cac81e8` (`b21a1caa33c5`); sin pausa ni gancho. Pendiente: la autorización del puente (PB) |
 | Post-9 anterior (la publicación de D-237 y D-238 preparada, D-239, sin migración, solo en local, 2026-09-29) | **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa de la recuperación, +1 de `mapPgError`) | **1.510 ✅ y 1 omitida** en 61 archivos (+8 de la pausa contra la PostgREST local; +3 de `earning-agreements`: I-184 y el guardia) | Dirigida **103/103** (la pausa y los recorridos de las guardas); la de la pausa también en el puente, 4/4 sobre `0077` y 3/3 sobre `0079`. La completa, no repetida | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayados**: la migración a medias (I-186) y sus dos salidas, los tres escenarios de recuperación, la restauración completa y conciliada (I-183, con I-187 e I-188 corregidas), y el puente (`verify` 1.812, `test:db` 1.452 + 1) |
@@ -16593,3 +16594,32 @@ pausa; servidores detenidos; los dos árboles de medición, eliminados; los de o
 | `pg_stat_statements_info` no está en `public` sino en `extensions` | El esquema se lee de `pg_extension` |
 | Un `npm ci` en segundo plano no recibió la variable del directorio (asignación dentro del primer `&`) | Repetido por separado |
 | La capa del recorrido guiado tapaba la lista y el clic agotaba el tiempo | Recorrido dado por visto, como `silenceTours` de las E2E |
+
+---
+
+## P2 — La rama de la publicación, su PR y su CI (2026-09-30, 02:30–02:45 UTC)
+
+Autorización expresa del dueño **solo para P2** (`RUNBOOK` §10.2): empujar la rama, abrir el PR y comprobar el CI.
+**No** cubría fusionar, empujar a `main`, publicar, la pausa ni las migraciones.
+
+### a. Antes de empujar
+
+| Qué | Resultado |
+|---|---|
+| La rama | `feature/detalle-boleta-admin` en `db94ea3`, sin cambios sin guardar salvo los tres archivos del usuario. Contiene el puente `9a64986` y todo lo aprobado; `origin/main` (`9a64986`) es su ancestro: **avance rápido** |
+| Producción, en solo lectura (02:31–02:33 UTC) | En vivo (`build/puente-pausa/en-vivo.mjs despues`): `41ee2474757c` (`9a64986`) servido, el de `cac81e8` ausente, 36/36 rutas con `/mantenimiento` en 200, 0 5xx, 7/7 cabeceras, 0 secretos. Base (`p0.ts`): **`0077`**, ninguna posterior, sin esquema `pausa` ni gancho. Vercel: el último de producción sigue siendo `dpl_EWVD…` |
+| La conclusión de I-190 | Precisada **antes** de empujar, en `30e28c5`: «no se encontró una regresión atribuible al puente en las comparaciones realizadas». El mensaje de `db94ea3` conserva «sin regresion del puente»: la historia no se reescribe |
+| Lo que se empuja | `cac81e8..30e28c5`: **13 commits**, 101 archivos, +16.727/−675. Ni `build/`, ni `.env*`, ni los archivos del usuario, ni binarios |
+| Líneas añadidas, escaneadas (16.726) | Sin la referencia completa del proyecto, sin hosts ni cadenas de la base remota, sin claves (`sb_secret_`, `sb_publishable_`, tokens), sin JWT que no sean de la pila local, sin correos reales. Tres teléfonos de prueba sintéticos (`300 999 0000`, `300 555 2222`, `300 444 5566`), del mismo tipo que los ya publicados |
+| **D-236 va incluida** | `77b8207` y `b793016` (I-174, el proxy en la redirección a `/login`) están en la rama y su publicación **sigue pendiente de la decisión del dueño** (D-236): si este SHA se publica en P8, D-236 se publica con él. Dicho en el PR |
+
+### b. Rama, PR y CI
+
+| Qué | Resultado |
+|---|---|
+| Empuje | `git push origin 30e28c5…:refs/heads/feature/detalle-boleta-admin`, sin `force`: `cac81e8..30e28c5`, avance rápido. `main` sin tocar: `9a64986` |
+| PR | **#9**, hacia `main`, **en borrador** a propósito: fusionarlo desde GitHub publicaría código que necesita la `0078` y la `0079` sobre una base en `0077`. La descripción lo dice arriba, junto con el alcance y el procedimiento coordinado de `RUNBOOK` §10 |
+| **SHA verificado** | **`30e28c56922940ab38611c64c16a7cceabf86b97`**: el `headSha` del run y la cabeza del PR |
+| Check «Vercel» | ❌ **esperado, D-066**: la vista previa `dpl_7JwDufuyv2kBo76KT51Jgx36ybP2` se detiene en `check:env` porque faltan **exactamente** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SERVICE_ROLE_KEY`, leído en sus registros de construcción; ningún otro error |
+| CI | Run **`36660506172`** (`pull_request`, `headSha` = `30e28c5…`): ✅ **2/2** —«Typecheck, lint, unitarias, build» de 02:35:00 a 02:37:24; «Migraciones desde cero + pruebas de base de datos» de 02:35:00 a 02:41:25 UTC—. La espera, sin sondeo: lecturas sueltas mientras se documentaba y una sola diferida en segundo plano. La cabeza del PR, comprobada después: `30e28c5`, en borrador, `main` en `9a64986` |
+| Error propio | Al rellenar el resultado en los documentos, un `node -e` entre comillas dobles ejecutó el identificador del run entre comillas invertidas y lo borró del texto. Visto al revisar y corregido a mano |

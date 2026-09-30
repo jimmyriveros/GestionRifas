@@ -1045,12 +1045,13 @@ produjo ninguna coincidencia) y el tramo del **10/08 al 24/08**, que sigue pendi
 
 ---
 
-## 10. Publicar la configuración de ganancias (`0078` y `0079`, D-237, D-238 y D-239) — **P0, P1 y PB HECHAS; desde P2, PENDIENTE Y NO AUTORIZADA**
+## 10. Publicar la configuración de ganancias (`0078` y `0079`, D-237, D-238 y D-239) — **P0, P1, PB y P2 HECHAS; desde P3, PENDIENTE Y NO AUTORIZADA**
 
 > **Hecho en producción:** P0 y P1 en solo lectura (2026-09-29, conformes y sin nada que decidir) y **PB**: el puente
 > de la pausa, `9a64986`, **servido desde el 2026-09-30 a las 01:16 UTC** (`DEPLOYMENT` §3.2.t). La pausa **no** está
-> instalada. Nada más se ha ejecutado: la `0078`, la `0079` y su código viven **solo en local** (rama
-> `feature/detalle-boleta-admin`, que ya lleva el puente fusionado, sin empujar). Publicar
+> instalada. **P2**, el 2026-09-30: la rama `feature/detalle-boleta-admin` —con el puente fusionado— está en el remoto
+> en `30e28c5`, con el **PR #9 en borrador** y su CI. Nada más se ha ejecutado: la `0078`, la `0079` y su código **no
+> están en producción**. Publicar
 > exige la **autorización expresa del dueño**, puerta por puerta; cada paso que escribe lo hace el dueño con su sesión o
 > con autorización para ese paso, y quien prepara la puerta se detiene, le da los pasos y verifica en solo lectura.
 >
@@ -1084,15 +1085,17 @@ Todas conectan por la conexión **directa** (`SUPABASE_DB_URL`, *session pooler*
 
 ### 10.2 El orden, con sus puertas
 
-`<REF>` es la referencia del proyecto; `<SHA>`, el commit completo que se publica; `<PUENTE>`, el del puente:
-**`9a64986c92dc60c4351ff58a1cb7db0ff7eb9259`**, servido hoy por `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`.
+`<REF>` es la referencia del proyecto; `<SHA>`, el commit completo que se publica: **`30e28c56922940ab38611c64c16a7cceabf86b97`**,
+la cabeza del PR #9 con el CI de P2 —los commits de documentación posteriores se quedan en local y **no** forman parte
+de él—; `<PUENTE>`, el del puente: **`9a64986c92dc60c4351ff58a1cb7db0ff7eb9259`**, servido hoy por
+`dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`.
 
 | # | Puerta | Qué se hace | Se sigue solo si |
 |---|---|---|---|
 | P0 | Solo lectura | Producción en `0077` y ninguna posterior; el despliegue servido y el anterior; `verify:remote` **49 OK + 5 en rojo a propósito** (D-238); `select setconfig from pg_db_role_setting where setrole = 'authenticator'::regrole` **sin** `pgrst.db_pre_request` y sin esquema `pausa`; y `select 1` cronometrado, para estimar §10.8 | Todo como se espera |
 | P1 | Diagnóstico previo | `earning-precheck.ts` | «limpio», o cada «decide» decidido por el dueño por escrito. «bloquea» detiene |
 | PB | **El puente** (antes de la ventana; puede ser otro día) | `DEPLOYMENT` §3.3.c: `fix/puente-pausa-publicacion` a `main` por avance rápido desde `cac81e8`, CI 2/2, READY, identificador servido y `/mantenimiento` en 200; después se fusiona en la rama de la publicación (0 archivos cambiados) | El puente servido, el sitio igual que antes y el punto de reversión es `cac81e8`. **Hecha el 2026-09-30**: `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8`, 36/36 rutas y `verify:remote` 49/49; fusión local `0e268df`, 0 archivos (`DEPLOYMENT` §3.2.t). *Recomendación del agente, sin aprobar:* repetir la lectura de P0 al preparar P2, porque la de 2026-09-29 es anterior; P6 ya repite el diagnóstico |
-| P2 | Rama y CI de la publicación | Empujar la rama —ya con el puente fusionado—, PR y CI **2/2** sobre `<SHA>` | 2/2 |
+| P2 | Rama y CI de la publicación | Empujar la rama —ya con el puente fusionado—, PR y CI **2/2** sobre `<SHA>` | 2/2. **Hecha el 2026-09-30**: `cac81e8..30e28c5` sin `force`, **PR #9 en borrador** —no se fusiona desde GitHub—, CI ✅ **2/2** (run `36660506172`: verificación 02:35:00–02:37:24, base de datos 02:35:00–02:41:25 UTC) sobre `30e28c5`; la vista previa en rojo por D-066. **`30e28c5` incluye D-236**, cuya publicación decide el dueño (`TEST_RESULTS`, P2) |
 | P3 | Ensayo sobre una copia | Un respaldo de §5.1 restaurado **en local** (§5.2) con `gate-mirror-privileges.ts`: diagnóstico `--local`, `db push`, `earning-recovery-check.ts --local`, la recuperación y el tiempo de cada paso | La copia migra y vuelve igual que en el ensayo, en un tiempo que cabe en la ventana |
 | P4 | Instalar la pausa (abierta) | Unos minutos antes: `maintenance-pause.ts instalar` —no la da por buena hasta ver la cabecera «abierta»— y `estado`. El dueño avisa de la pausa | «PostgREST la usa»; ningún recordatorio en el horizonte; fuera de las horas del programador (UTC 3, 4, 5, 6, 12, 13, 15 y 16: si cae dentro, pierde ese turno, no escribe nada) |
 | P5 | **Cerrar** | `maintenance-pause.ts cerrar` —se niega si un recordatorio vence en los próximos 60 min—: cierra, **drena** y comprueba 423 con `anon` y `service_role` | «Drenada» y «La API responde 423». Si no drena en 30 s, se repite; no se sigue |

@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **P2: la rama de la publicación, su PR y su CI (2026-09-30, 02:30–02:45 UTC)** | **Empujada** `feature/detalle-boleta-admin` por avance rápido `cac81e8..30e28c5` (13 commits, sin `force`); **PR #9 en borrador** hacia `main` —fusionarlo desde GitHub publicaría código incompatible con `0077`—; **SHA verificado `30e28c56922940ab38611c64c16a7cceabf86b97`**; CI ✅ **2/2** (run `36660506172`: verificación 02:35:00–02:37:24, base de datos 02:35:00–02:41:25 UTC); la vista previa de Vercel, en rojo por D-066 exactamente. Antes, en solo lectura: producción sirve `9a64986`, base en `0077`, sin pausa. **D-236 va en la rama y su publicación sigue pendiente del dueño.** Nada publicado ni migrado. Relevo en §1.a |
 | **I-190: la ficha del vendedor tardó más de lo habitual — diagnosticada, ABIERTA (2026-09-30)** | En la revisión del dueño con el puente servido **la navegación funcionó**; abrir la ficha de un vendedor como Administrador tardó más de lo habitual. **Registros leídos dentro de la hora:** la sesión de 02:01:08 a 02:02:32 UTC, tres aperturas de fichas, todo 200, sin errores ni renovación de sesión; **ninguna fuente de Vercel guarda la duración** en este plan (logs, CLI y observabilidad), así que ni la visita exacta ni su tiempo se pueden medir. **No se encontró una regresión atribuible al puente en las comparaciones realizadas**, en local con builds de producción: primera apertura 178 frente a 184 ms, posteriores 156,5 frente a 167, **las mismas 10 llamadas** a Supabase. Causa: **sin demostrar**. Relevo en §1.a |
 | **PB: el puente de la pausa EN PRODUCCIÓN (2026-09-30, 01:16 UTC; D-239, sin migración)** | **Publicado** `9a64986` —`cac81e8` con solo el manejo de la pausa— por avance rápido desde `cac81e8` a las 01:15:19 UTC, tras el CI **2/2** del PR #8; `dpl_EWVDMtZTmjZmAo3N3wrmt53Qtpu8` **READY a las 01:16:22 UTC** con el alias `gestion-rifas.vercel.app`. En vivo: `41ee2474757c` servido, 36/36 rutas con **`/mantenimiento` en 200**, 7/7 cabeceras, 0 secretos, `verify:remote` 49/49, registros sin errores. **Base sin tocar:** `0077`, **sin la pausa instalada**. **Punto de reversión:** `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`). Fusionado en local en `feature/detalle-boleta-admin` (`0e268df`, 0 archivos), sin empujar. **Siguiente: autorizar P2.** Relevo en §1.a |
 | **Diagnóstico previo EN PRODUCCIÓN, SOLO LECTURA (2026-09-29, 23:39–23:46 UTC; P0 y P1 de `RUNBOOK` §10.2)** | **Conforme, nada escrito.** Proyecto `zqwu…`, confirmado por la CSP servida; sirve **`cac81e8`** (`b21a1caa33c5`, `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`); base en **`0077`**, sin `0078` ni `0079`, sin esquema `pausa` ni gancho. Diagnóstico previo **limpio**: ninguna diferencia en comisiones ni ledger, nada que decidir. `verify:remote` **49 OK + los 5 en rojo esperados**; la matriz de la `0078` son 32 funciones que aún no existen y 5 con `service_role` que la migración revoca. `PGOPTIONS` no impuso la solo lectura: se revisaron las consultas. **Siguiente: la autorización del puente (PB).** Relevo en §1.a |
@@ -178,7 +179,23 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — I-190: la demora de la ficha del vendedor, diagnosticada y abierta (2026-09-30)
+## 1.a Último relevo significativo — P2: la rama de la publicación, su PR y su CI (2026-09-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **P2 hecha, y solo P2.** Comprobado antes, en solo lectura: la rama contiene el puente y todo lo aprobado; producción sirve `9a64986` (36/36 rutas, `/mantenimiento` en 200, 0 secretos) y la base está en `0077` sin pausa ni gancho. La conclusión de I-190 se precisó **antes** de empujar (`30e28c5`). Revisado lo que se empuja: 13 commits, 101 archivos; sin `build/`, `.env*`, archivos del usuario ni binarios; 16.726 líneas añadidas sin secretos, referencia del proyecto, hosts remotos ni correos reales (solo teléfonos de prueba sintéticos). **Empujado** `cac81e8..30e28c5` sin `force`; **PR #9** hacia `main`, **en borrador**; **SHA `30e28c56922940ab38611c64c16a7cceabf86b97`**; CI ✅ **2/2** (run `36660506172`: verificación 02:35:00–02:37:24, base de datos 02:35:00–02:41:25 UTC); el check «Vercel», la vista previa `dpl_7JwD…` detenida en `check:env` por exactamente las tres variables de D-066. `main` sin tocar |
+| Archivos | **Solo documentación, en local:** `TEST_RESULTS` (entrada de P2), `RUNBOOK` §10 (encabezado, `<SHA>` y P2) y este relevo. Y, **empujados** en `30e28c5`, `DEPLOYMENT`, `HANDOFF`, `KNOWN_ISSUES`, `PHASE_STATUS` y `TEST_RESULTS` con la redacción precisa de I-190 |
+| Reutilización | `build/puente-pausa/en-vivo.mjs` y `build/diagnostico-p0/p0.ts` para producción; el patrón de §3.2.s para el empuje y el registro |
+| Decisiones | Ninguna `D-*`. **Propias:** el PR en **borrador**, para que nadie lo fusione desde GitHub; precisar I-190 antes de empujar, para que la rama lleve el texto correcto; el registro de P2, en un commit **local** que no se empuja |
+| Verificación | `TEST_RESULTS`, entrada de P2 |
+| Advertencias | **1)** **No empujar** el commit local de este registro: cambiaría la cabeza del PR y el SHA verificado, y habría que repetir el CI. **2)** **No fusionar el PR #9** desde GitHub: se publica solo con `RUNBOOK` §10, llevando `30e28c5` a `main` por avance rápido en P8. **3)** **D-236 va dentro** de ese SHA: publicarlo es publicar el cambio del proxy de I-174, que el dueño aún no ha autorizado. **4)** I-190 sigue abierta |
+| Pendiente | **Del dueño:** decidir si D-236 se publica con la configuración de ganancias o se separa antes de P8; autorizar **P3** (ensayo sobre una copia restaurada en local) y las siguientes, una por una. I-190, abierta |
+| Entorno (al entregar) | Producción sin tocar. Local: base en `0079`, sin servidores |
+| Git | `feature/detalle-boleta-admin`: el remoto en **`30e28c5`** (PR #9); en local, además, el commit de este registro, **sin empujar**. `main` = `9a64986`. Los tres archivos del usuario, intactos |
+
+---
+
+## 1.a.0 Relevo anterior — I-190: la demora de la ficha del vendedor, diagnosticada y abierta (2026-09-30)
 
 | Campo | Estado |
 |---|---|
