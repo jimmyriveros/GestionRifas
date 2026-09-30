@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (la publicación de D-237 y D-238 preparada, D-239, sin migración, solo en local, 2026-09-29)** | **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa de la recuperación, +1 de `mapPgError`) | **1.510 ✅ y 1 omitida** en 61 archivos (+8 de la pausa contra la PostgREST local; +3 de `earning-agreements`: I-184 y el guardia) | Dirigida **103/103** (la pausa y los recorridos de las guardas); la de la pausa también en el puente, 4/4 sobre `0077` y 3/3 sobre `0079`. La completa, no repetida | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayados**: la migración a medias (I-186) y sus dos salidas, los tres escenarios de recuperación, la restauración completa y conciliada (I-183, con I-187 e I-188 corregidas), y el puente (`verify` 1.812, `test:db` 1.452 + 1) |
+| **Post-9 vigente (diagnóstico previo de D-237 a D-239 EN PRODUCCIÓN, solo lectura, 2026-09-29, 23:39–23:46 UTC)** | Sin cambio de código ni batería local repetida: siguen **1.887/1.887** | Sin cambio de esquema local: **1.510 + 1**. Producción: `0001`–`0077`, sin `0078` ni `0079`; diagnóstico previo **limpio** | No aplica: ninguna pantalla cambió | `verify:remote` **49 OK + los 5 en rojo esperados**, identificados uno por uno | ✅ **P0 y P1 conformes, nada escrito.** Servido `cac81e8` (`b21a1caa33c5`); sin pausa ni gancho. Pendiente: la autorización del puente (PB) |
+| Post-9 anterior (la publicación de D-237 y D-238 preparada, D-239, sin migración, solo en local, 2026-09-29) | **1.887/1.887** en 93 archivos (+32 de la pausa, +15 de la comprobación previa de la recuperación, +1 de `mapPgError`) | **1.510 ✅ y 1 omitida** en 61 archivos (+8 de la pausa contra la PostgREST local; +3 de `earning-agreements`: I-184 y el guardia) | Dirigida **103/103** (la pausa y los recorridos de las guardas); la de la pausa también en el puente, 4/4 sobre `0077` y 3/3 sobre `0079`. La completa, no repetida | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayados**: la migración a medias (I-186) y sus dos salidas, los tres escenarios de recuperación, la restauración completa y conciliada (I-183, con I-187 e I-188 corregidas), y el puente (`verify` 1.812, `test:db` 1.452 + 1) |
 | Post-9 anterior (revisión de D-237 antes de publicarla, D-238, `0079`, solo en local, 2026-09-29) | **1.839/1.839** en 91 archivos (+16, `earning-precheck.test.ts`: el diagnóstico previo solo lee y no toca tablas nuevas) | **1.499 ✅ y 1 omitida** en 60 archivos (+16: reorganizar, I-180, y quién cambia el acuerdo de equipo, I-181; **12 de ellas fallan con la `0078`**). Segunda pasada sobre la misma base: 1 fallo de `list-order`, **anterior y reproducido en `aa11ad4`** (I-185) | Dirigida **65/65** (`ganancias`, `ganancias-movil`, `equipo`, `equipo-movil`, `owner-users`, `telefono-mascara`) desde la base recién sembrada. La completa, **no** repetida: la de D-237, 966/973, es histórica | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar. **Ensayo de publicación y recuperación**: diagnóstico, `0078` detenida donde dijo, ventana medida, interbloqueo con tráfico (I-182), recuperación con estructura idéntica y restauración conciliada |
 | Post-9 anterior (configuración de ganancias, D-237, `0078`, solo en local, 2026-09-29) | **1.823/1.823** en 90 archivos (+30, `commission-tiers.test.ts`, que lee la `0078` para comparar frases; `schemas.test.ts` da un acuerdo al alta de un vendedor) | **1.483 ✅ y 1 omitida** en 60 archivos (+39, `earning-agreements.test.ts`: un modelo independiente contra todas las filas, conservación y la mutación del cerrojo), dos veces | Completa **966/973** en 53,8 min: 2 provocados por este trabajo y corregidos (**18/18** al repetirlos sobre la base que dejó la completa), 3 anteriores (I-090, la hermana de I-164, I-106) y 2 intermitencias ajenas (I-178; I-179, reproducida en `b793016`). Nuevas: `ganancias` (6) y `ganancias-movil` (3) | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
 | Post-9 anterior (I-174 resuelta: lo que Supabase escribe, también en la redirección a `/login`, D-236, solo en local, 2026-09-28 en Bogotá) | **1.793/1.793** en 89 archivos (+12, `session-proxy.test.ts`): **8 de las 12 fallan con el proxy anterior** y pasan con la corrección, también en 5 pasadas en orden aleatorio | **1.444 ✅ y 1 omitida**, igual que antes: sin cambios de esquema | Subconjunto de 42 (`security`, `owner-users`, `navegacion` y `navegacion-movil`): **42/42** con la base recién sembrada. Con la base como la dejó `test:db`, 40/42: `owner-users:15` y `:43`, **iguales con el proxy anterior** (I-151). Build de producción con GoTrue local: la 307 **ya lleva** el borrado; errores del servidor **2 + 2 → 2 + 0**. Sin la E2E completa | ✅ exit 0 · lint 0 errores y los 2 avisos de siempre | Solo en local, sin empujar |
@@ -16288,3 +16289,134 @@ administrativo, una versión 2 y **un alta nueva**—; el incidente: cerrar, «n
 | Una prueba unitaria contaba un `grant` de un comentario | Se cuentan sin comentarios |
 | El primer script de funcionales deshacía su venta borrando movimientos del ledger | Se reordenó: la venta con dinero va al final, después del cuadre |
 | La nota del resumen de la ronda D leía una clave que el informe no tiene | Se leyó el informe entero |
+
+---
+
+## Diagnóstico previo de D-237 a D-239 en PRODUCCIÓN, solo lectura (2026-09-29, 23:39–23:46 UTC)
+
+**Solo lectura**, con la autorización expresa del dueño para P0 y P1 de `RUNBOOK` §10.2 y ninguna otra puerta: nada
+escrito en producción, ninguna sesión de usuario, ninguna pausa instalada, ningún *push* ni despliegue. Ningún dato de
+cliente, clave ni cadena de conexión salió de estas lecturas. Los informes están en `build/gate/` y los guiones de
+lectura en `build/diagnostico-p0/`, los dos fuera de Git. **No se repitió ninguna batería local** (§i).
+
+### a. Destino y código servido
+
+| Qué | Cómo | Resultado |
+|---|---|---|
+| Git | `git status`, `git ls-remote origin refs/heads/main` | `HEAD` = `464fc11`, sin trabajo posterior; el puente, `9a64986` en `fix/puente-pausa-publicacion`; los tres archivos del usuario, sin tocar. `origin/main` = `cac81e8` |
+| Proyecto | CSP de `GET /login` en `gestion-rifas.vercel.app` | Nombra **un** proyecto, `zqwu…`: el de `SUPABASE_DB_URL`, el de `NEXT_PUBLIC_SUPABASE_URL` y el del JWT de `service_role`. El `--project-ref` de cada herramienta se tomó **de la CSP**, no de `.env.local`, para que su comprobación de destino no fuera circular |
+| Vercel (conector, lectura) | `list_deployments`, `get_deployment` | Producción `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK` (`cac81e8`, READY) con el alias `gestion-rifas.vercel.app`; el anterior, `dpl_28diGFnRGMkFDbAGBMEFLKiLViv2` (`5a53bfc`), candidato a reversión |
+| Código servido | Identificador de `DEPLOYMENT` §6.1 en los 15 fragmentos de `/login` | `b21a1caa33c5` = **`cac81e8`**, en 1 fragmento. `9a64986` (el puente), `464fc11` y `5a53bfc`: en 0. `/mantenimiento` responde 307: la ruta no existe en `cac81e8` |
+
+### b. La base (P0)
+
+`build/diagnostico-p0/p0.ts`, con `readOnly` de `gate-db.ts` —la misma comprobación de destino y una transacción
+`repeatable read read only`—, ensayado antes contra la base local.
+
+| Qué | Resultado |
+|---|---|
+| Sesión | PostgreSQL 17.6 —la versión del ensayo local—, `postgres`, `transaction_read_only = on` |
+| Migraciones | **77**, `0001`–`0077`, con los nombres del repositorio; ninguna posterior. `0078` y `0079`, solo en el repositorio |
+| Esquema frente a migraciones | Existe todo lo que la `0078` quita o usa y nada de lo que crea (comprobación «esquema» del diagnóstico previo); lo de `0073`–`0077`, presente (`verify:remote`) |
+| Pausa | Sin esquema `pausa`, sin `pausa.estado` ni `pausa.comprobar_peticion()`; `authenticator` **sin** `pgrst.db_pre_request` |
+| Límites de los roles de la API | `authenticator`: `statement_timeout` y `lock_timeout` de 8 s; `authenticated` 8 s; `anon` 3 s |
+| `pg_cron` | `payment-reminders-due` y `push-dispatch-wake` cada minuto, `payment-reminders-cron-cleanup` a las 08:17 UTC; las tres activas. En 24 h: 1.440, 1.440 y 1 ejecuciones, **0** no correctas |
+| Recordatorios de pago | 2 activos, 0 pausados, 0 vencidos sin procesar; los próximos, 2026-10-02 21:15 UTC y 2026-10-03 23:50 UTC |
+| Sincronizador de loterías | Candado libre; última ejecución, 2026-09-29 05:02 UTC |
+| Actividad | 11 conexiones de `authenticator` en reposo; ninguna transacción de la API en curso |
+| Tamaño | 30 MB |
+
+### c. Las herramientas de la publicación
+
+| Comando | Resultado |
+|---|---|
+| `maintenance-pause.ts estado --production` (23:44:22 UTC) | Exit 0. Instalada: no · gancho configurado: no · PostgREST la usa: no. Sonda: `service_role` 200 sin cabecera y `anon` 401 `42501`, **igual que en el ensayo local sin pausa**. Última migración `0077`; 0 peticiones en curso; 0 recordatorios en 60 min; candado libre |
+| `npm run verify:remote` | Exit 1, esperado: **49 OK y 5 en rojo**, los cinco documentados (§d) |
+| `earning-precheck.ts --production` (23:45:47 UTC) | Exit 0, **limpio**: «nada que impida aplicar la 0078 ni nada que decidir antes». Volumen: 2 organizaciones, 4 vendedores, 1 jefe, 1 integrante por tramos y 0 fijos; 2 rifas, 1.321 boletas, 319 cobradas; 2 filas de `seller_commissions` y 338 del ledger. **0 filas** en las diez líneas del informe: esquema, tramos (BR-G32), organizaciones sin tramos, tres niveles (I-176), fijos fuera de rango, recuento distinto (I-180), ledger por partes (BR-G22), par incompatible, faltante de equipo y rebaja sin cubrir |
+
+**Sin diferencias de dinero:** el recuento con el motor de hoy (`0031`) reproduce cada fila de comisión y el ledger las
+explica por partes. No hay ninguna cuenta desalineada que presentar al dueño.
+
+### d. Los cinco en rojo de `verify:remote`, uno por uno
+
+| Comprobación | Lo que dice | Por qué es lo esperado |
+|---|---|---|
+| Funciones INTERNAS ejecutables por authenticated (I-078) | 1: **solo** `team_max_fixed_commission` | La `0078` la retira y la lista blanca ya es la de después (D-238, advertencia 4 del relevo) |
+| Funciones de ganancias con EXECUTE distinto de la lista blanca exacta (0078) | 37 filas | Desglose en §e |
+| La lista de tramos ya no es una tabla mutable (0078) | `commission_tiers` existe y `commission_tier_lists` no | Es el esquema `0077` |
+| Reorganizar un equipo recalcula también al padre nuevo (0079) | 0, esperado 1 | El cuerpo de la `0079` no está |
+| El acuerdo de equipo solo lo cambia su vendedor padre (0079) | 0, esperado 1 | El cuerpo de la `0079` no está |
+
+«Funciones de ganancias sin clasificar en la lista blanca (0078)» sale **en verde**: no hay sobrecargas fuera de la
+lista. Es exactamente la expectativa de D-238 (§f de su entrada): la matriz y la tabla de la `0078`, las dos de la
+`0079` y la de I-078 con `team_max_fixed_commission`.
+
+### e. La matriz de la `0078`, desglosada
+
+`build/diagnostico-p0/matriz.ts`, en `readOnly`: las 37 filas y el EXECUTE efectivo de las funciones que ya existen.
+
+| Grupo | Cuántas | Cuáles | Qué hará la `0078` |
+|---|---|---|---|
+| Todavía no existen | **32** | Las que crea la `0078`: sus RPC nuevas (`save_commission_template`, `staff_create_seller_membership`, `staff_set_seller_agreement`, `team_commission_limits`), `commission_agreement_problems()`, las piezas internas de listas, acuerdos y compatibilidad, y dos funciones de disparador | Crearlas y fijar su EXECUTE |
+| Existen, con `service_role=true` | **5** | `team_set_commission_model(uuid,commission_model,bigint)`, `commission_summary(uuid)`, `commission_rate_for_seller(uuid,uuid,uuid,integer)`, `commission_floor_rate(uuid,uuid,uuid)` y `memberships_sync_commission()` | Revocarles `service_role`: líneas 2497, 2499, 2476, 2477 y 2489 de la migración |
+
+El `service_role=true` es el privilegio por defecto del proyecto alojado (I-132): en `pg_default_acl`, las funciones que
+crea `postgres` en `public` nacen con `service_role=X/postgres`. `recalc_seller_commission` ya tiene el EXECUTE
+esperado y no cuenta. **Que las revocaciones surtan efecto con los privilegios alojados no se probó aquí**: es lo que
+ensaya P3 con `gate-mirror-privileges.ts`, y la `0078` se comprueba sola con esta misma matriz al aplicarse.
+
+### f. Lo que no se pudo comprobar
+
+| Qué | Por qué |
+|---|---|
+| Imponer la solo lectura a `verify:remote` con `PGOPTIONS="-c default_transaction_read_only=on"` | Se ejecutó así, pero una prueba posterior con la misma variable mostró que el *pooler* de sesión no reenvía la opción: la sesión seguía con `default_transaction_read_only = off`. **No se confirmó la solo lectura por ese mecanismo.** Se revisó que todas las consultas de `verify-remote.ts` y de las listas que importa (`earning-function-grants.ts`, `prize-function-grants.ts`) son `SELECT` sobre el catálogo. Las demás lecturas de la base —P0, la matriz, `estado` y el diagnóstico— fueron en transacciones `read only` |
+
+### g. Para planificar la ventana: lecturas, no mediciones de la migración
+
+| Dato | Valor | Qué NO dice |
+|---|---|---|
+| `select 1` dentro de la transacción, 30 veces | Mediana 90,3 ms; p90 95,0 ms; máximo 96,6 ms | Cuánto tardan la migración o la recuperación |
+| Conectar y abrir la transacción, con sus tres órdenes | ~1,1 s | — |
+| Recuperación, por la fórmula de `RUNBOOK` §10.8 | ≈120 sentencias × ~90 ms ≈ 11 s, más cualquier cerrojo | **Es una estimación**: no se ejecutó nada |
+| `db push` de la `0078` y la `0079` | Sin dato de producción. Hay menos boletas que en el ensayo (1.321 frente a 4.893), pero cada sentencia paga la ida y vuelta | Se mide en P3, sobre la copia |
+| Drenaje de la pausa | Acotado por los 8 s de `statement_timeout` de los roles de la API | Deducido de la configuración, no medido |
+| Horas del programador de loterías | UTC 3, 4, 5, 6, 12, 13, 15 y 16 (`vercel.json`, igual en `cac81e8`, `9a64986` y `464fc11`); en Bogotá, 22, 23, 0, 1, 7, 8, 10 y 11 | En Hobby, el turno cae en cualquier minuto de esa hora |
+| Recordatorios | Viernes 2/10 a las 4:15 p. m. y sábado 3/10 a las 6:50 p. m., en Bogotá; `cerrar` se niega 60 min antes | — |
+
+### h. Otras lecturas
+
+| Qué | Resultado |
+|---|---|
+| Errores de ejecución de Vercel, 24 h (`get_runtime_errors`) | Dos agrupaciones sobre `dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`: `Invalid Refresh Token: Refresh Token Not Found` (6, 1 usuario, `/middleware`), la de **I-174**, **sin causa demostrada** —D-236 no la confirma y no está publicada—; y `PGRST303 JWT issued at future` (1, 1 usuario, `/seller/tickets.rsc`), **no investigada y sin causa atribuida**. Nada de esta publicación está en producción |
+
+### i. Lo de hoy y lo de antes
+
+Todo lo de §a a §h es **producción, leído hoy**. Los números locales que la acompañan —`verify` 1.887/1.887, `test:db`
+1.510 + 1, E2E 103/103, `db push` de ~20 s con 4.893 boletas, recuperación de 0,05 a 0,5 s, restauración de 10,6 s y el
+puente— son **de los ensayos de D-238 y D-239** (sus entradas, más arriba) y **no se repitieron**.
+
+### j. Errores propios
+
+| Error | Corrección |
+|---|---|
+| Dos consultas del guion de P0 nombraban columnas que no existen (`send_time`; `status` en `lottery_sync_runs`), y un `.catch` no impedía que la transacción quedara abortada | Visto en el ensayo local, antes de producción: `time_of_day` y `outcome`, sin `.catch` |
+| El recuento de ejecuciones de cron daba 1 donde no había ninguna (`count(*)` sobre un `left join`) | `count(d.runid)`, también visto en local |
+| `defaclobjtype` es `"char"` y no se concatenaba | `::text` |
+| El guion de P0 ponía «produccion» también en el nombre de sus informes locales | Los dos renombrados a `p0-local-…`, tras comprobar su destino por su contenido; el nombre sale ahora del destino |
+| La primera prueba de `PGOPTIONS` se lanzó **sin** la variable | Repetida con ella: mismo resultado, la opción no llega |
+| Una expresión regular que comparaba la API de `.env.local` con la CSP no admitía las comillas del valor y dijo «no coincide» | Comprobado sin ella: coincide |
+| Dos lecturas del sitio fallaron por la red (`ECONNRESET` y tiempo de conexión agotado) | Reintentadas; `curl` daba 200 en ese momento |
+
+### k. Informes
+
+| Archivo | Qué |
+|---|---|
+| `build/gate/p0-produccion-2026-09-29T23-44-05-634Z.json` | P0 de la base |
+| `build/gate/pausa-estado-2026-09-29T23-44-22-846Z.json` | `estado` de la pausa |
+| `build/gate/matriz-0078-production-2026-09-29T23-45-30-167Z.json` | Las 37 filas y el EXECUTE de las funciones que existen |
+| `build/gate/diagnostico-0078-produccion-2026-09-29T23-45-47-521Z.json` | El diagnóstico previo |
+| `verify:remote` | No guarda informe: su salida está en §c y §d |
+| `build/gate/p0-local-…` y `build/gate/matriz-0078-local-…` | Los ensayos locales de los guiones. **No son evidencia de producción** |
+
+**Siguiente paso:** la autorización expresa del dueño para **PB**, el puente (`DEPLOYMENT` §3.3.c). Nada de P2 a P10
+está autorizado.
