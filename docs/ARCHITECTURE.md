@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.49 · **Estado:** implementado · **Actualizado:** 2026-09-30 (**EN PRODUCCIÓN desde las 18:00 UTC**,
+- **Versión:** 1.50 · **Estado:** implementado · **Actualizado:** 2026-09-30, más tarde (**§8.32 nueva**: el cierre de
+  cuentas —D-241, `0080`, **solo en local**—: la base calcula y la pantalla explica, cuatro rutas nuevas en §6 y el
+  módulo `features/settlements/` en §5). Antes, ese mismo día (**EN PRODUCCIÓN desde las 18:00 UTC**,
   con `5f84e13`: lo que las entradas de 2026-09-28 y 2026-09-29 marcan «solo en local» —D-236 a D-239— está publicado,
   `DEPLOYMENT` §3.2.u). Antes, 2026-09-29, al final (**§8.31 nueva**: la pausa de
   publicación vista desde la aplicación —D-239, **solo en local**—: la lectura de la membresía lanza, las pantallas van a
@@ -217,6 +219,7 @@ importa desde un componente cliente.
     │   ├── lottery/              # Constantes, adaptadores, sync, recuadro del Panel, tick y plan de cron (D-149)
     │   │                         # parse/pdf.ts y parse/acta-cundinamarca.ts: acta oficial (D-153)
     │   ├── search/               # Búsqueda híbrida compartida
+    │   ├── settlements/          # Cierre de cuentas: lecturas, escrituras, frases y pantallas (D-241)
     │   ├── whatsapp/               # Invitación al grupo del vendedor: config, diálogo y textos (D-176)
     │   └── tour/                 # Recorridos guiados
     ├── lib/
@@ -285,6 +288,8 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | ~~`/owner/clients/[clientId]`~~ | — | 3 → **retirada post-9** | Ídem |
 | ~~`/owner/payments`~~ | — | 5 → **retirada post-9** | Ídem: sin consulta global de pagos ni anulación |
 | `/owner/prizes` | owner, admin | post-9 (local) | **Premios ganados** de la organización (D-208, §8.28): rifa, vendedor y fechas del sorteo en la URL, los cuatro indicadores y la lista **sin un solo dato de cliente**. Un `clientId` en la dirección se descarta |
+| `/owner/settlements` | owner, admin **con la capacidad** | post-9 (local) | **Cierre de cuentas** (D-241, §8.32): la rifa en `?raffleId=`, lo recibido, lo que falta y las cuentas cerradas, y las cuentas con el dueño con búsqueda, estado y página en la URL. Sin la capacidad, `/denied` |
+| `/owner/settlements/[sellerId]` | owner, admin **con la capacidad** | post-9 (local) | La cuenta de un vendedor directo con su equipo dentro: el saldo, el cálculo línea a línea, los premios y las entregas. Cifras agregadas, **sin un solo cliente** (BR-Z13) |
 | `/owner/reports` | owner, admin | **6 ✅** · post-9 | Tres reportes de recuentos —por vendedor, por estado y por rifa— con filtros y CSV; sin dinero ni clientes (D-198) |
 | `/seller/dashboard` | seller | 1 → 4 → **6 ✅** | Métricas propias (`CLAUDE.md` §23 completo) |
 | `/seller/tickets` | seller | **4 ✅** | Boletas propias |
@@ -299,6 +304,8 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
 | `/seller/prizes` | seller | post-9 (local) | **Premios ganados** de sus clientes (D-208, §8.28): rifa —también cerradas—, fechas del sorteo y cliente en la URL; `?clientId=` llega desde la ficha, y uno ajeno responde «no encontrada» |
+| `/seller/settlement` | seller | post-9 (local) | **Mi cierre de cuentas** (D-241, §8.32): lo que entrega —al dueño o a su vendedor a cargo—, su cálculo, sus premios con su cliente y sus entregas; al vendedor a cargo, además, «Cuentas con tu equipo» |
+| `/seller/settlement/team/[memberId]` | seller | post-9 (local) | La cuenta de un integrante vista por su vendedor a cargo de hoy, para confirmar lo recibido y registrar sus premios. Un id ajeno responde «no encontrada» |
 | `/seller/reports` | seller | **6 ✅** · post-9 | Sus reportes, sin el que compara vendedores (D-059). Abre en **«Ventas por fecha»** con las ventas de hoy, sin redirección (D-151) |
 | `/seller/settings` | seller | post-9 ✅ | **Configuración.** Un resumen con cuatro tarjetas —cuentas para recibir pagos, grupo de WhatsApp, recordatorios de pago y resultados de la semana (D-176, D-188, D-194)—, cada una con su subruta (§8.23). Se entra por el menú del avatar, que **solo la ofrece al vendedor**; el personal que escriba la ruta cae en `/denied` por el layout del portal |
 | `/seller/settings/weekly-results` | seller | post-9 ✅ | **Resultados de la semana** (D-194, §8.25): los seis números mayores de la última semana terminada, la imagen para el grupo y su mensaje. La imagen la pide el navegador a `/api/weekly-results/image` |
@@ -2443,6 +2450,42 @@ lectura de la membresía, que ya es lo primero de cada pantalla y de cada acció
 Nada de esto cuesta una petición cuando no hay pausa: reacciona al error, no pregunta el estado. El catálogo público
 no se tocó —cae en su página de error de siempre— y el resto de I-115 tampoco: un corte de PostgREST que no es la pausa
 sigue su camino de antes. Es el mismo código en el puente (`cac81e8` + esto) y en la publicación.
+
+### 8.32 Cierre de cuentas: la base calcula, la pantalla explica (D-241)
+
+> 🧪 **Solo en local**, con la migración `0080` (`DATA_MODEL` §4.26, `SECURITY` §4.27).
+
+**Ninguna pantalla suma ni resta dinero.** Las cuatro rutas leen cuentas ya calculadas por `settlement_account_rows`
+—que lee `seller_commissions`, el motor publicado— y escriben HECHOS por cinco RPC. Lo único que la interfaz decide
+es **qué frase** acompaña a una cifra.
+
+| Pieza | Qué es |
+|---|---|
+| `src/features/settlements/queries.ts` | `server-only`. Una función por RPC de lectura, tipada con `Database` y con el `Loaded<T>` de siempre: un fallo de lectura se enseña como fallo, nunca como $0 |
+| `src/features/settlements/actions.ts` | Las cinco escrituras, con `authorizeAction(['owner', 'admin', 'seller'])`, Zod y `mapPgError`. **No autorizan nada más**: quién recibe lo decide la base con la relación de hoy. Una entrega devuelve `{ ok }`, `{ changed: { before, now } }` o `{ error }` |
+| `src/features/settlements/schemas.ts` | Las escrituras y los parámetros de la URL (`raffleId`, `q`, `status`, `page`) |
+| `src/features/settlements/view.ts` | **Puro**: las frases de un premio y de su estado, quién pudo pagarlo según quien mira (`staffPrizePayers`, `headPrizePayers`) y quién puede anular. Lo prueba `tests/unit/settlements.test.ts` |
+| `src/features/settlements/copy.ts` | **Todos** sus textos (`SETTLEMENT_COPY`, Anexo B de la guía) |
+| `ReceiverHero` | El saldo para **quien recibe**, con el botón de confirmar o la explicación de por qué no hay botón. `audience` decide solo el posesivo: «Ya recibiste» al vendedor a cargo, «Recibido» al personal (D-182) |
+| `BalanceRows` | Las líneas del cálculo: etiqueta y cifra en un `<dl>`, el signo de una resta escrito **y** en `sr-only`. Es la «Balance Row» de la propuesta, local del módulo (§10.55 del relevo del sistema de diseño) |
+| `SettlementAccountsList` | Las cuentas con el dueño: una consulta, dos presentaciones —tarjetas hasta `lg`, tabla desde ahí—, el patrón de `PrizeAwardsList` |
+| `RecordTransferDialog` · `RecordPrizePaymentDialog` · `VoidRecordButton` · `ConfirmCloseButton` | Las escrituras. Los dos primeros crean un identificador de solicitud **por apertura** (el de entregas, uno nuevo tras cada éxito) y el de entregas manda además el saldo que se tenía a la vista; `ConfirmCloseButton` manda la huella que se tenía a la vista. Los cuatro devuelven el foco al botón que los abrió, o al contenido si ya no está (I-152) |
+| `SettlementPrizesCard` · `SettlementTransfersCard` · `TeamAccountsCard` · `SettlementParts` | Lo que comparten las tres pantallas de una cuenta |
+| `SettlementRaffleSelect` · `SettlementListFilters` | La rifa, la búsqueda y el estado, en la URL |
+
+**Cómo se confirma una entrega.** El diálogo manda el importe, la fecha, **el saldo que la persona tenía a la vista** y
+un identificador de solicitud creado al abrirlo. La RPC toma el cerrojo de la cuenta, recalcula y compara: si el saldo
+cambió, no guarda nada y la acción responde `changed`; el diálogo enseña el antes y el ahora y la persona decide con la
+cifra nueva. El mismo identificador hace inofensivo un doble toque o un reintento de red. Después, `revalidatePath` de
+las cuatro rutas: los contadores del listado salen de lo confirmado, no de lo que la pantalla crea.
+
+**Reutilizado del sistema de diseño**: `PageHeader`, `MetricCard`, `TableSection`, `EmptyState`, `Notice`,
+`StatusBadge` (con `SettlementStatusBadge` y sus etiquetas en `constants.ts`), `RowLink`, `RowChevron`, `Card`,
+`Dialog`, `ConfirmDialog`, `MoneyInput`, `SearchInput` con `useUrlSearch`, `Select` y `Button` en su tamaño táctil. Lo
+único nuevo son las piezas de arriba, locales del módulo; ninguna entró en `components/`.
+
+**El menú.** «Cierre de cuentas» (`HandCoins`) aparece en el portal administrativo solo con la capacidad, y «Mi cierre
+de cuentas» en el del vendedor, para todos: uno sin boletas pagadas ve su estado vacío.
 
 ## 9. Configuración regional
 

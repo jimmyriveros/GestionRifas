@@ -7038,6 +7038,47 @@ Las composiciones de Figma están en Light, a 1440 y 390; no certifican responsi
 de la aplicación. No se ejecutaron suites de la aplicación, no se alteró la base local ni se leyó
 o escribió producción. Herramientas y estado del diseño: `build/cierre-propuesta/`, fuera de Git.
 
+---
+### 10.64 CIERRE DE CUENTAS — IMPLEMENTADO EN LOCAL SOBRE EL NÚCLEO (2026-09-30; D-241, sin publicar)
+
+La propuesta de §10.63 se implementó con datos persistentes (migración `0080`) en cuatro rutas: `/owner/settlements`,
+`/owner/settlements/[sellerId]`, `/seller/settlement` y `/seller/settlement/team/[memberId]`. **Ningún archivo del
+núcleo cambió de API, ningún token nuevo, ningún rol renombrado ni ningún valor de tema.**
+
+**Reutilizado (REUSE):** `PageHeader`, `MetricCard`, `TableSection` con su tabla, `EmptyState`, `Notice`, `StatusBadge`,
+`RowLink`, `RowChevron`, `Card`, `Dialog`, `ConfirmDialog`, `MoneyInput`, `SearchInput` con `useUrlSearch`, `Select` y
+`Button` en tamaño `touch`, y los ayudantes de foco `focusTargetAfterClose` / `restoreFocus` (I-152).
+**Extendido (EXTEND):** `StatusBadge.tsx` gana `SettlementStatusBadge`, con sus siete etiquetas y tonos en
+`constants.ts` —los tonos son los semánticos de siempre (`neutral`, `warning`, `info`, `success`)—.
+**Creado, local del módulo (CREATE):** las tres piezas que §10.63 marcó como locales, sin subirlas al núcleo:
+
+| Pieza de Figma | En el código | Por qué sigue siendo local |
+|---|---|---|
+| Balance Row `325:5` | `features/settlements/components/BalanceRows.tsx`: un `<dl>` con el signo escrito y un «menos» en `sr-only` | Solo la usa este módulo. Si otra pantalla la necesita, se sube entonces |
+| Account Row `325:8` | `SettlementAccountsList.tsx`: la tabla del núcleo desde `lg` y tarjetas debajo, con las mismas filas | Es la composición de lista de `PrizeAwardsList`, no un componente nuevo |
+| Receipt Dialog `329:771` | `RecordTransferDialog.tsx` sobre `Dialog` | Sus contenidos son del dominio; el contenedor es el del núcleo |
+
+**Adaptaciones de la propuesta** (D-241, Anexo C de la guía de textos): «Responsable» → **vendedor a cargo**; «Boletas
+asignadas» → **Boletas activas**; la insignia «Pendiente» con una entrega hecha → **Entrega parcial**; la devolución la
+confirma **quien la recibe**; el portal administrativo dice **«Recibido»** y **«Falta devolver a …»** en lugar de «Ya
+recibiste» y «Debes devolver a …» (D-182); el icono del menú es `HandCoins`, porque la billetera ya es «Mis pagos».
+
+**Matriz de revisión** —evidencia en `build/cierre-ui/shots/`, fuera de Git—:
+
+| Qué | Cómo se comprobó | Resultado |
+|---|---|---|
+| Anchos 320, 390, 768 y 1440 | 10 estados de pantalla × 4 anchos × claro y oscuro (80 capturas) y los 5 diálogos a 390 y 1440 en los dos temas (20) | Sin desbordamiento horizontal en ninguna: `scrollWidth ≤ innerWidth` medido en cada captura |
+| Modo oscuro | Clase `.dark` en el documento —la aplicación no tiene selector de tema— | Contraste y superficies con los roles de siempre; ningún color escrito a mano |
+| Estados | El listado del dueño —con cuentas pendientes, parciales y cerradas—, el listado filtrado sin resultados, el error de lectura, la cuenta de un vendedor a cargo con entrega parcial, la de importes grandes, la de un nombre largo con saldo a favor, un premio sin pago («Falta información»), y las vistas del vendedor a cargo, del integrante, de un vendedor directo y de uno sin boletas | Cada uno con su insignia, su frase y su acción, o la explicación de por qué no hay acción |
+| Teclado y foco | Orden importe → fecha → Cancelar → Confirmar; Escape cierra; el foco vuelve al botón que abrió | Medido con Playwright en el diálogo de recibido. Los otros cuatro usan el mismo mecanismo —`onCloseAutoFocus` con `restoreFocus`, o `ConfirmDialog`— |
+| Dianas táctiles | Botones y enlaces de fila, medidos en las E2E móviles | ≥ 44 px |
+| Color | Ninguna cifra ni estado se dice solo con color: signo escrito, insignia con texto y frase | `CLAUDE.md` §27 |
+
+Las capturas se **repitieron al final**, con los textos definitivos (`855abb8` y `79c74b2`): 80 de pantalla con **0
+desbordamientos** y los 20 de los diálogos. En las capturas de pantalla completa del teléfono, la barra inferior fija
+aparece encima del contenido a la altura del viewport: es cómo se fotografía un elemento `fixed`, no un solapamiento
+real —la página reserva su hueco con `--bottom-nav-space`—.
+
 ## 11. Repository checkpoint — 2026-09-07
 
 | Item | Value |

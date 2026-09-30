@@ -1,6 +1,9 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.38 · **Actualizado:** 2026-09-29, al final (**§4.13.b nueva**, D-239, **solo en local**: 3 pruebas de base
+- **Versión:** 2.39 · **Actualizado:** 2026-09-30 (**§4.14 nueva**, D-241, **solo en local**: el cierre de cuentas con
+  **44** pruebas de base —el ejemplo de Figma y la tabla de casos escritos a mano—, **4** de volumen con un cálculo
+  aparte, **18** unitarias y **10** E2E sobre un escenario propio; y lo que se ensaya fuera de `test:db`). Antes,
+  2026-09-29, al final (**§4.13.b nueva**, D-239, **solo en local**: 3 pruebas de base
   —I-184 y el guardia—, la suite de la pausa (8) y su E2E (4), que cierran la API local entera, y 48 unitarias —47 en dos archivos nuevos y 1 en `errors.test.ts`—). Antes,
   ese mismo día, más tarde (**§4.13.a nueva**, D-238, **solo en local**: 16 pruebas
   de base para reorganizar (I-180) y para quién cambia el acuerdo de equipo (I-181), con su mutación medida; 16
@@ -1427,6 +1430,51 @@ orden vaciaría `public`: la prueba mira antes el estado y, si la encuentra cerr
 un fallo en cada archivo; P9 en CONTINUAR sobre datos reales y en DETENER con ocho alteraciones; y la recuperación con
 los privilegios alojados y con los locales. Necesitan una base en `0077` o vaciar `public`, y romperían al resto de la
 suite. Los guiones vivieron en `build/d240/`, ignorado por Git.
+
+### 4.14 Cierre de cuentas (BR-Z01..BR-Z18; D-241)
+
+`tests/db/settlements.test.ts` — **44** pruebas (`Z1`..`Z9`), migración `0080`, **solo en local**. Los hechos van por los
+caminos reales —altas por las RPC del personal y del vendedor a cargo, ventas y cobros con la sesión de cada vendedor,
+entregas y premios por las RPC del cierre con quien los confirma—; lo único escrito a mano es el premio ganado, porque
+el motor solo premia sorteos futuros.
+
+**Las cifras esperadas se escriben a mano**, desde la aritmética de la propuesta y la tabla de casos del encargo; ninguna
+se copia de la función que la calcula.
+
+| Grupo | Pruebas | Qué comprueba |
+|---|---|---|
+| La migración | Z1-01..03 | Las cuatro comprobaciones de `verify:remote` en cero; ninguna sesión lee ni escribe las tablas; la capacidad, del Dueño y del Administrador y nunca del vendedor |
+| La tabla de casos | Z2-01..04 | Boleta de $120.000, jefe a $30.000, integrante a $20.000: sin premio ($100.000 y $90.000), premio de $15.000 pagado por el integrante, por el jefe y por el dueño, con la ganancia del dueño |
+| El ejemplo de Figma | Z3-01..08 | El motor pone a Carlos en $30.000 con 45 boletas; su cuenta entrega $3.800.000 y faltan $2.300.000; la de Ana, $500.000; el listado, $3.480.000 recibidos y 2 de 4 cerradas; recibir lo que falta cierra la cuenta y lleva el contador a $5.780.000; la foto del cierre y su bitácora; lo que ve Carlos y lo que ve Ana |
+| El motor dentro | Z4-01, Z4-02 | Una rebaja la paga quien vende; una boleta sin pagar no entra y lo abonado solo lo ve su vendedor |
+| Premios | Z5-01..09 | Sin pago registrado, «Falta información»; en especie se escribe el valor; el valor conocido no se cambia; el reintento y dos personas a la vez no duplican; dos registros simultáneos, gana uno; un resultado por verificar no se paga; **elegir un nombre no autoriza**: cada pago lo registra quien recibe al pagador; las fechas; anular y quién anula |
+| Entregas | Z6-01..07 | Una parcial suma a «Recibido»; confirma quien recibe y lo interno no suma; importes y fechas en la base; el reintento no escribe dos veces; un saldo que cambió no guarda nada; dos confirmaciones a la vez; saldo a favor y su devolución |
+| Cierres | Z7-01..05 | Un cobro posterior cambia la cuenta sin tocar el cierre; anular devuelve el saldo y solo lo hace quien recibió; un cambio de acuerdo que deja la cuenta en cero pide cerrarla con la huella a la vista; anular el pago de un cliente deja saldo a favor; nada se modifica ni se borra |
+| Cambio de equipo | Z8-01 | El vendedor a cargo nuevo no hereda lo que el integrante ya entregó al anterior |
+| Privacidad | Z9-01..05 | Ninguna lectura del personal trae un campo de cliente o de abonos; el vendedor a cargo ve cifras de su integrante sin clientes; un vendedor no obtiene nada del personal; otra organización, nada; un vendedor sin equipo, solo lo suyo |
+
+`tests/db/settlements-volume.test.ts` — **4** (`V1`, `V2`): 100 vendedores, 5.000 boletas y 200 premios en una
+organización propia, que se borra al terminar. **V1** compara las 100 cuentas, cifra por cifra, con un cálculo hecho
+aparte en la prueba, y el listado con la suma de las cuentas; **V2** mide las lecturas por PostgREST con la sesión real
+frente a `admin_list_sellers` y `commission_summary`, y el plan de `settlement_account_rows`. Escribe el informe en
+`build/cierre-volumen/informe.md`, fuera de Git.
+
+**Unitarias:** `tests/unit/settlements.test.ts` (**18**) —las siete etiquetas, la capacidad, las frases de un premio y
+quién puede registrarlo o anularlo según quien mira, lo que llega del navegador (pesos enteros, fechas, pagador), los
+filtros de la URL, y tres invariantes: las pantallas del personal no importan nada del vendedor, su lectura no declara
+cliente ni abonos, y ningún texto dice que el dinero se envió ni que un premio fue «ganador»—.
+
+**E2E:** `cierre-cuentas.spec.ts` (**7**, escritorio) y `cierre-cuentas-movil.spec.ts` (**3**, móvil), sobre el
+escenario de `tests/e2e/cierre-escenario.ts` —el ejemplo de Figma en una rifa propia de «Rifas Demo», creado por los
+caminos reales y borrado por prefijo al empezar y al terminar—. Comprueban el listado y la cuenta del dueño sin un solo
+cliente en el HTML, la revalidación («La cuenta cambió» sin guardar nada), que un vendedor directo no ve el botón de
+confirmar, lo que ve Ana, que lo que Carlos recibe de Ana no suma a lo del dueño, anular y volver a registrar un premio,
+y en el teléfono las tarjetas, el saldo antes del cálculo, dianas de 44 px y ningún desbordamiento.
+
+**Lo que no se prueba en `test:db`, y se ensayó** (`TEST_RESULTS`, D-241): la `0080` aplicada por la CLI con los
+privilegios de producción, los cerrojos que retiene frente a una escritura concurrente y la comparación de la puerta en
+CONTINUAR. Necesitan una base sin la `0080`. El método está en `RUNBOOK` §11.3; los guiones, en `build/cierre-ui/`,
+ignorado por Git.
 
 ## 5. Pruebas unitarias clave
 

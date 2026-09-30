@@ -1,6 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.32 · **Estado:** implementado · **Actualizado:** 2026-09-30 (**EN PRODUCCIÓN desde las 18:00 UTC**:
+- **Versión:** 2.33 · **Estado:** implementado · **Actualizado:** 2026-09-30, más tarde (**§4.27 nueva**: el cierre de
+  cuentas —D-241, `0080`, **solo en local**—: acceso solo por 14 RPC, quién confirma cada hecho, la excepción acotada
+  de cifras agregadas (nota nueva al final de §4.19), cinco acciones nuevas en §6 y **T20** y **T21** en §8). Antes, ese
+  mismo día (**EN PRODUCCIÓN desde las 18:00 UTC**:
   lo que las entradas de 2026-09-28 y 2026-09-29 marcan «solo en local» —D-236 a D-239— está publicado; la matriz de
   permisos de la `0078` y la `0079`, comprobada en producción con `verify:remote` 54/54; la pausa, retirada,
   `DEPLOYMENT` §3.2.u). Antes, 2026-09-29, al final (**§4.26 nueva**: la pausa de
@@ -1196,6 +1199,11 @@ de dos vendedores y de otra organización— y `tests/e2e/privacidad-admin.spec.
 en el HTML, en la carga RSC ni en las respuestas de red. ✅ **En producción desde el 2026-09-15**:
 `0057` aplicada al proyecto real y `verify:remote` **27/27**.
 
+**Acotada el 2026-09-30 (D-241, BR-Z13, solo en local).** El cierre de cuentas abre una excepción **de cifras
+agregadas**: el personal con `settlements.manage` ve de cada cuenta sus boletas pagadas y su valor, las ganancias, los
+premios con su boleta y las entregas. No abre ninguna política de esta sección, no devuelve ningún cliente ni abono y
+vive entera en sus propias RPC (§4.27).
+
 ### 4.20 Premios configurables y la capacidad central (`0058` + `0059` + `0060`; BR-J01..BR-J16; D-199 a D-202)
 
 > ✅ **En producción desde el 2026-09-17:** `0058`–`0066` aplicadas y el código desplegado en `da81663`
@@ -1508,6 +1516,55 @@ exige abrirla antes y `estado` la enseña. Una pausa instalada que PostgREST **n
 no la da por buena sin la cabecera «abierta» y `cerrar` exige el 423 en `anon` y en `service_role` antes de dejar
 seguir. Y `abrir` solo abre si la base, el commit y lo servido son pareja.
 
+### 4.27 El cierre de cuentas (`0080`; BR-Z01..BR-Z18; D-241)
+
+> 🧪 **Solo en local.** Nada de esto existe todavía en el proyecto real.
+
+**Solo por funciones.** Las tres tablas (`DATA_MODEL` §4.26) tienen RLS forzada **sin ninguna política** y ningún
+privilegio para `anon` ni `authenticated`; `service_role` solo lee. Todo pasa por 14 RPC `SECURITY DEFINER` que
+deciden dentro quién es quién, con la organización tomada de la sesión y nunca de un parámetro.
+
+**Quién confirma: quien recibe** (BR-Z05, BR-Z07, BR-Z14). Es la regla que responde a «elegir un nombre en un formulario
+no autoriza a registrar dinero a nombre de otra persona»:
+
+| Hecho | Lo confirma | No lo confirma, aunque lo intente |
+|---|---|---|
+| Entrega de un vendedor directo al dueño | El personal con `settlements.manage` | El propio vendedor; cualquier otro vendedor |
+| Entrega de un integrante | Su vendedor a cargo **de hoy**, activo | El personal; el integrante; otro vendedor a cargo; el anterior |
+| Devolución | Quien la recibe: el vendedor de la cuenta | El personal; el vendedor a cargo |
+| Premio que pagó un integrante | Su vendedor a cargo de hoy | El personal; el propio integrante |
+| Premio que pagó un vendedor directo o un vendedor a cargo | El personal | El propio pagador |
+| Premio que pagó el dueño | El personal | Cualquier vendedor |
+| Anular una entrega o una devolución | Quien la recibió | Quien la entregó |
+| Anular un pago de premio | Quien podría registrarlo hoy | Los demás |
+| Cerrar a mano una cuenta saldada | Quien recibe sus entregas | El titular |
+
+El pagador de un premio solo puede ser **el vendedor de la boleta, su vendedor a cargo de hoy o el dueño**:
+`settlement_payer_problem` rechaza cualquier otro nombre con una frase que dice quién pudo pagarlo.
+
+| Riesgo | Cómo se cierra |
+|---|---|
+| Registrar dinero a nombre de otra persona | La tabla de arriba, dentro de cada RPC y antes de escribir nada. Nadie confirma su propia entrega ni su propio premio. Pruebas Z5-07, Z5-09, Z6-02 y Z7-02, con sesiones reales |
+| El descuento de un premio se aplica dos veces | Índice único parcial de pagos vigentes, `request_id` único por organización y el cerrojo de la cuenta (BR-Z08). Probado con dos confirmaciones simultáneas y con el mismo identificador repetido |
+| Dos confirmaciones pisan un saldo | `settlement_lock` de la cuenta con el dueño y la comparación con el saldo que la persona tenía a la vista: si cambió, **no se escribe nada** y la pantalla enseña el antes y el ahora (BR-Z12) |
+| Un cambio de equipo se cuela entre la lectura y la escritura | `for share` sobre la membresía del vendedor antes del cerrojo: la estructura de hoy no cambia mientras se confirma |
+| El personal recupera la cartera | Las lecturas del personal devuelven cifras agregadas de una cuenta: **ningún** cliente, abono de una boleta sin pagar ni pago de un cliente. Excepción acotada a BR-Q01, BR-Q08 y BR-E05, pedida por el dueño (BR-Z13). Z9-01 falla si una lectura del personal trae un campo de cliente o de abonos, y la E2E, si el HTML de la cuenta que ve el dueño contiene el cliente sembrado |
+| El vendedor a cargo ve la cartera de su integrante | Lo mismo: del integrante, sus agregados. `partial_paid` y el nombre del cliente de un premio solo salen en la vista **propia** (Z9-02) |
+| Un identificador manipulado | Las lecturas devuelven cero filas a quien no tiene la capacidad o la relación de hoy; las escrituras responden lo mismo a una cuenta ajena que a una inexistente |
+| Una persona desactivada sigue operando | `has_org_capability`, `current_org_ids`, `current_seller_org_ids` y `current_profile_leads_team` exigen membresía, perfil y organización activos. Consecuencia conocida: I-196 |
+| Borrar o reescribir la evidencia | `settlement_rows_guard`: ningún `DELETE`; de una entrega o de un pago solo la anulación, una vez y con motivo; un cierre no se toca (BR-Z18) |
+| Una función nace ejecutable por quien no debe | Matriz exacta en `scripts/settlement-function-grants.ts` —14 RPC de sesión solo para `authenticated`, **7 internas que no ejecuta nadie**—, escrita en la migración, que **se comprueba a sí misma** al aplicarse; la repiten `verify:remote` y la suite Z1. Es el patrón de §4.23 (I-132) |
+| La capacidad cae en otro rol | `app_role_default_capabilities` la da al Dueño y al Administrador; la autocomprobación de la `0080` falla si la tuviera un vendedor. Z1-03 fija los tres roles y `tests/db/raffle-prizes.test.ts` compara la base con el espejo `src/lib/auth/capabilities.ts` |
+
+**La aplicación.** Las páginas del personal exigen `requireStaff` y la capacidad (sin ella, `/denied`), y el menú no
+enseña «Cierre de cuentas» a quien no la tiene; las del vendedor, `requireRole(['seller'])`. Las Server Actions de `src/features/settlements/actions.ts`
+pasan por `authorizeAction(['owner', 'admin', 'seller'])` y validan con Zod, pero **no deciden nada**: la autorización
+es de la base, que conoce la relación de hoy. Un rechazo de la base se muestra con `mapPgError`.
+
+**La bitácora.** Cada escritura deja su fila en `audit_logs` (§6). El personal la lee por `admin_audit_log`, y
+`admin_audit_redact` es una **lista blanca** que la `0080` no amplía: esas filas le llegan **sin valores**. Es el lado
+seguro —el personal ya ve esas cifras en el cierre— y lo completo sigue en `audit_logs`, para `service_role`.
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de
@@ -1708,6 +1765,9 @@ Eventos mínimos registrados en `audit_logs` (BR-D01):
 | `ticket.import` | `raffle` | RPC (`log_ticket_import`, 0019). Quién, cuándo, rifa, vendedor, tipo de archivo y recuentos. **Nunca el archivo** |
 | `payment.create`, `payment.update`, `payment.void` | `payment` | RPC |
 | `client.create`, `client.update`, `client.archive` | `client` | Trigger |
+| `settlement.transfer`, `settlement.transfer_void` | `settlement_transfer` | RPC (`0080`, D-241). Tipo, vendedor, contraparte, importe, fecha y el saldo antes y después; la anulación, con su **motivo** |
+| `settlement.prize_payment`, `settlement.prize_payment_void` | `settlement_prize_payment` | RPC (`0080`, D-241). Coincidencia, premio, boleta, pagador, importe y si el valor se escribió; la anulación, con su **motivo**. Ningún cliente |
+| `settlement.close` | `settlement_closing` | RPC (`0080`, D-241). Las cifras del cierre anterior y las del nuevo, su versión y su causa |
 
 - Append-only: sin políticas de `UPDATE`/`DELETE`.
 - Los triggers de auditoría no disparan otros triggers: `audit_logs` no tiene triggers propios, lo
@@ -1763,6 +1823,8 @@ Controles:
 | T17 | Server Action nueva sin guarda | Alguien añade una acción y olvida `authorizeAction` | Prueba estructural que recorre **recursivamente** `src/features` y falla sola | `unit/server-actions-guard.test.ts`. Su recorrido a un solo nivel dejaba fuera 6 de 28 acciones hasta la Fase 9 (A-01) |
 | T18 | **Abono de $0 registrado saltándose la RPC** | `authenticated` tiene `INSERT` sobre `payments` y `payment_allocations` (`0010`), así que un `POST` directo a PostgREST podría crear un pago de $0 desde que D-158 relajó los `CHECK` de fila a `>= 0` | Disparadores `BEFORE INSERT` `payments_insert_positive` y `payment_allocations_insert_positive` (`0042`): el `> 0` de BR-F03 lo sigue garantizando **la base** en el alta, y el cero solo entra por `update_payment_allocation` al corregir | `tests/db/payment-update.test.ts` › «tampoco por INSERT directo: el disparador de alta lo impide» |
 | T19 | **El personal lee la cartera de un vendedor** | Una sesión de Dueño o Administrador consulta `tickets`, `clients` o `payments` por PostgREST, llama a una RPC de venta, busca el nombre de un cliente, compara mensajes de rechazo o lee avisos y bitácora | Políticas solo del vendedor, siete proyecciones de lista blanca, RPC de venta con el mensaje de un id inexistente, anulación de vendidas rechazada igual para los tres estados, avisos y bitácora redactados (`0057`, §4.19, D-198) | `tests/db/admin-privacy.test.ts`, `tests/unit/admin-privacy.test.ts` y `tests/e2e/privacidad-admin*.spec.ts` |
+| T20 | **Registrar dinero a nombre de otra persona en el cierre de cuentas** | Una sesión confirma una entrega que no recibió, o registra como pagado por otro un premio, eligiendo un nombre en el formulario o llamando a la RPC con otro pagador | Solo confirma quien recibe; el pagador solo puede ser el vendedor de la boleta, su vendedor a cargo de hoy o el dueño, y lo registra quien recibe las entregas de ese pagador (`0080`, §4.27, BR-Z05, BR-Z07) | `tests/db/settlements.test.ts` Z5-07, Z5-09, Z6-02 y Z7-02 |
+| T21 | **Descontar dos veces un premio o pisar un saldo** | Dos pestañas, dos personas o un reintento confirman a la vez | Cerrojo de la cuenta, saldo esperado comparado con el de ahora, `request_id` único e índice único de pagos vigentes (BR-Z08, BR-Z12) | Z5-04, Z5-05, Z6-04, Z6-05 y Z6-06 |
 
 ---
 

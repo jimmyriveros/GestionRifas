@@ -1,6 +1,10 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-30 (**D-240**: §5.2 y §10 dejan de usar `psql`, que no está instalado en el equipo desde el
+**Actualizado:** 2026-09-30, más tarde (**§11 nueva**: publicar el cierre de cuentas —D-241, `0080`—, **preparada y
+ensayada en local con los privilegios de producción, sin autorizar**. Aditiva y sin pausa: la base primero, en una franja
+fuera del programador y con `lock_timeout`; sus llaves foráneas van al final del archivo porque, dentro de cada tabla,
+bloqueaban las escrituras de boletas **5,9 s** por la CLI, y al final **288 ms**. §11.2 dice lo que el dueño verá el primer
+día y decide). Antes, ese mismo día (**D-240**: §5.2 y §10 dejan de usar `psql`, que no está instalado en el equipo desde el
 que se opera. La restauración es **una orden que se detiene ante el primer fallo** (`scripts/restore-backup.ts`); la
 recuperación es `scripts/earning-recovery.ts`, que devuelve los permisos de la **foto de P6**; y P9 da **CONTINUAR** con
 los efectos exactos de la `0078` y la `0079`. Las órdenes de esas secciones son las **ejecutadas en el ensayo**, con
@@ -1265,3 +1269,97 @@ garantía para el proyecto alojado.
 | Que `schema.sql` y `data.sql`, enviados enteros, pasen por el *session pooler* como en local | En local se conecta a Postgres directo. Si el pooler rechazara una petición de ese tamaño, `restore-backup.ts` se detendría en ese paso sin cargar nada de ese archivo |
 | Una restauración en el proyecto alojado | Solo se ensayó en local (I-183) |
 | ~~Cuánto tarda el despliegue en Vercel~~ | **Medido en P8**: READY 1 min 17 s después del empuje |
+
+---
+
+## 11. Publicar el cierre de cuentas (`0080` y su código, D-241) — **PREPARADA Y ENSAYADA EN LOCAL; SIN AUTORIZAR**
+
+> **Nada de esto se ha ejecutado contra producción.** El último estado documentado de producción es `5f84e13` sobre
+> `0079` (§10), y no se volvió a comprobar al preparar esta sección. Publicar exige la **autorización expresa del
+> dueño**: empujar la rama (C1), migrar (C4) y desplegar (C6). Cada paso que escribe lo hace el dueño con su sesión o
+> con autorización para ese paso; quien la prepara se detiene, le da los pasos y verifica en solo lectura.
+
+### 11.0 Por qué no lleva pausa, y qué la hace segura
+
+| Hecho | Medido en el ensayo (§11.3) | Consecuencia |
+|---|---|---|
+| **Aditiva** | Crea 3 tablas, 4 tipos y 21 funciones; redefine `app_capability_catalog()` y `app_role_default_capabilities()` con la misma firma y un valor más. El código servido no nombra ninguna de las dos en tiempo de ejecución —resuelve las capacidades en TypeScript— ni nada del cierre | El código de hoy funciona igual con la base nueva: **la base va primero** y la pausa de D-239, que es para cambios incompatibles, no hace falta |
+| **No toca datos** | `gate-compare` da **CONTINUAR** con **0 filas tocadas** y las tres tablas nuevas vacías | No hay efectos de datos que explicar ni que recuperar |
+| **Una transacción** | La CLI aplica el archivo y su fila de historial juntos | Si falla, no queda nada aplicado: se repite |
+| **Cerrojos** | Sus 19 llaves foráneas toman `SHARE ROW EXCLUSIVE` sobre `tickets`, `memberships`, `profiles`, `organizations`, `raffles`, `raffle_prizes` y `lottery_ticket_matches` hasta confirmar: **leer pasa, escribir espera**. La CLI envía el archivo **sentencia a sentencia** (visto en `pg_stat_activity`). Con las llaves dentro de cada `create table`, una escritura de boletas esperó **5,9 s** en local, y `authenticated` corta a los **8 s**: una venta o un abono podían fallar. Con las llaves **al final** del archivo (su sección 10), **288 ms** | Sin pausa, pero en una franja tranquila, fuera de las horas del programador y con `lock_timeout` en la conexión |
+| **Código nuevo sin la base** | El menú ofrece «Cierre de cuentas» y la pantalla dice «No pudimos cargar las cuentas» | **Nunca** se despliega el código antes que la migración |
+
+### 11.1 El orden, con sus puertas
+
+`<SHA>` es el commit que se publique —la cabeza de la rama con su CI **2/2**—; `<REF>`, la referencia del proyecto;
+`<SUPABASE_DB_URL>`, la conexión directa (*session pooler*), que nunca se escribe en un documento. Las herramientas son
+las de §10.1 salvo la pausa y la recuperación, que aquí no se usan.
+
+| # | Puerta | Qué se hace | Se sigue solo si |
+|---|---|---|---|
+| C0 | Solo lectura | `npx supabase migration list --db-url "<SUPABASE_DB_URL>"`: la última aplicada es `0079` y no hay ninguna posterior. El despliegue servido es `5f84e13` y **el anterior de producción existe** (la reversión de Hobby solo va al anterior, `DEPLOYMENT` §4.1). `npm run verify:remote` **con el código de `<SHA>`**: **55 OK + 3 en rojo a propósito** —las tres del cierre: la matriz de funciones (21 «no existe»), las tablas (3) y la capacidad (2); la cuarta, «sin clasificar», en verde— | Exactamente eso. Otra roja, o una migración posterior a `0079`, detiene |
+| C1 | Rama y CI | Empujar la rama, PR en borrador y CI **2/2** sobre `<SHA>`: su trabajo de base de datos aplica todas las migraciones desde cero y corre las 48 pruebas del cierre | 2/2. **Requiere autorización de push** |
+| C2 | Franja | Una hora tranquila, **fuera** de las del programador (UTC 3, 4, 5, 6, 12, 13, 15 y 16 = Bogotá 22, 23, 0, 1, 7, 8, 10 y 11): su turno escribe en `lottery_ticket_matches`, que la migración bloquea al final. `pg_cron` no escribe en ninguna de las siete tablas. No se desactiva ni se suspende nada (D-208) | Franja acordada con el dueño |
+| C3 | Respaldo y foto | Los tres volcados de §5.1 y `npx tsx scripts/gate-snapshot.ts antes-0080 --production --project-ref <REF>`; se anota la ruta de la foto | Respaldo sin `"auth".` y «Guardada en build\gate\foto-antes-0080-produccion-….json» |
+| C4 | Migrar | `npx supabase db push --dry-run --db-url "<SUPABASE_DB_URL>"` lista **solo** `0080`; después `npx supabase db push --db-url "<SUPABASE_DB_URL>&lock_timeout=900ms"` | «Finished supabase db push.». Un `55P03` es un cerrojo que no se consiguió: **no se aplicó nada**; se espera un minuto y se repite desde el `--dry-run`. Cualquier otro error detiene y se reporta |
+| C5 | Comprobar | `npm run verify:remote` **58/58**. `npx tsx scripts/gate-snapshot.ts despues-0080 --production --project-ref <REF> --base <foto de C3>` y `npx tsx scripts/gate-compare.ts <foto de C3> <foto de después> --production --project-ref <REF> --operation migrations --migrations 0080 --expected-delta build/gate/delta-esperado-0080.json --report c5.json` | 58/58 y **CONTINUAR**. Un DETENER se lee y se reporta: las ventas, los cobros y un turno programado de la franja son actividad normal de la lista; cualquier otra fila, no |
+| C6 | Código | `git ls-remote origin refs/heads/main`; `git push origin <SHA>:refs/heads/main` por avance rápido; **un** despliegue | READY sobre `<SHA>` y su identificador servido (`DEPLOYMENT` §6.1). **Requiere autorización de push y de despliegue** |
+| C7 | Revisión | El dueño, con su sesión: «Cierre de cuentas» en el menú, el listado de la rifa y la cuenta de un vendedor; un vendedor, «Mi cierre de cuentas». **Solo mirar**. Los registros de Vercel de esa hora, sin errores | Todo como en local. **No se confirma una entrega ni se registra un premio de prueba**: son hechos de dinero real, y solo se anulan, no se borran |
+
+### 11.2 Después: la puesta en marcha, que decide el dueño
+
+El cierre **no conoce el pasado**, a propósito (BR-Z07): nada se marca como entregado ni como pagado solo.
+
+| Lo que verá el dueño el primer día | Por qué | Qué se hace |
+|---|---|---|
+| **«Recibido $0»** y cada vendedor debiendo todo lo cobrado de sus boletas pagadas, menos sus ganancias | Las entregas anteriores al cierre de cuentas no se registraron en ninguna parte | El dueño decide: registrarlas con «Registrar recibido» y **su fecha real** —se admite desde el inicio de la rifa—, o empezar a contar desde ese día. No se cargan por detrás ni con un script |
+| Cuentas en **«Falta información»** | Cada premio ganado desde el 9 de agosto espera que alguien diga quién lo pagó. La foto de producción de P9 (2026-09-30, 17:54 UTC) tenía **4** filas de premios —2 del motor y 2 reconocidas por el negocio—; la cifra de ese día es la que diga «Premios ganados» | Quien recibe las entregas del pagador registra cada uno (BR-Z07). Un premio que nadie pagó todavía se deja así: la cuenta no se cierra, y es verdad |
+| Nada de antes del 9 de agosto | El historial de premios empieza ahí (I-194) | Si hubo premios anteriores pagados con dinero de la rifa, lo decide el dueño: hoy no hay un ajuste en el cierre |
+
+### 11.3 El ensayo (hecho el 2026-09-30, en local, con los privilegios de producción)
+
+Sobre la base local sembrada y con los privilegios de la foto de producción de P9 (`gate-mirror-privileges.ts`,
+I-132), para que la matriz de la `0080` y su autocomprobación se ejercieran con el privilegio por defecto alojado
+—`service_role` con `EXECUTE` en toda función nueva—:
+
+```
+npx supabase db reset --version 0079
+npm run seed:local
+npx tsx scripts/gate-mirror-privileges.ts build/gate/foto-p9-despues-produccion-2026-09-30T17-54-44-956Z.json
+npx tsx scripts/gate-snapshot.ts ensayo-antes-0080 --local
+npx supabase db push --dry-run --db-url "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+npx supabase db push --db-url "postgresql://postgres:postgres@127.0.0.1:54322/postgres?lock_timeout=900ms"
+npx tsx scripts/gate-snapshot.ts ensayo-despues-0080 --local --base <foto de antes>
+npx tsx scripts/gate-compare.ts <antes> <después> --structure-only --save-delta build/gate/delta-esperado-0080.json
+npx tsx scripts/gate-compare.ts <antes> <después> --local --operation migrations --migrations 0080 --expected-delta build/gate/delta-esperado-0080.json
+```
+
+| Resultado | |
+|---|---|
+| `--dry-run` | Lista solo `0080` |
+| La migración | Aplicada por la CLI, con su autocomprobación en verde bajo los privilegios alojados |
+| El delta de estructura | 3 tablas, 4 tipos, 21 funciones nuevas, 2 redefinidas, sus índices, disparadores y la fila de historial. Con las llaves al final **es byte a byte el mismo** que con las llaves dentro: el esquema que queda no cambia |
+| La comparación | **CONTINUAR**, 0 diferencias con lo ensayado, 0 filas tocadas, las tres tablas nuevas vacías |
+| Las comprobaciones de `verify:remote` del cierre, antes y después | Antes, 3 rojas (21, 3 y 2 filas) y 1 verde; después, las 4 en verde |
+| Escrituras en boletas durante el `push` | 1.588 en 25 s, mediana 2,6 ms, máximo **288 ms** (5,9 s con las llaves dentro de cada tabla) |
+
+El delta y las fotos quedan en `build/gate/`, **fuera de Git**. En otro equipo, o si cambia la `0080`, se repite el
+ensayo con una foto de producción tomada en C0: la de P9 es de antes de cualquier cambio posterior.
+
+### 11.4 Si algo falla
+
+| Dónde | Qué se hace |
+|---|---|
+| C4 falla | No quedó nada: la migración es una transacción. `55P03` se repite; otro error se reporta sin tocar nada más |
+| C5 dice DETENER | No se despliega. Se reporta cada motivo; el código servido sigue funcionando con la base nueva |
+| El código nuevo falla después de C6 | *Instant Rollback* al despliegue anterior (`5f84e13`), que funciona con la `0080` —no la nombra—. Lo pulsa el dueño; antes de volver a desplegar, «Undo Rollback» (`DEPLOYMENT` §4.1) |
+| Hay que retirar la `0080` | Una **migración nueva**, según la nota del final de la `0080`: exacta mientras las tres tablas estén vacías. Con filas, primero se exportan: son la historia del dinero entregado |
+
+### 11.5 Lo que NO se hace nunca
+
+* **No** se despliega el código antes de la migración.
+* **No** se migra sin `lock_timeout`, ni en una hora del programador.
+* **No** se edita ni se vuelve a aplicar la `0080` una vez publicada: un cambio es una migración nueva.
+* **No** se confirma una entrega ni se registra un premio de prueba en producción.
+* **No** se cargan entregas ni pagos de premios históricos por detrás: los registra quien recibe, con su sesión.
+* **No** se borra ninguna fila del cierre para corregir algo: se **anula**, con su motivo (BR-Z14).

@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (P4–P10: la configuración de ganancias EN PRODUCCIÓN, `0078`, `0079` y `5f84e13`, 2026-09-30, 17:45–18:03 UTC)** | CI del PR (`36723630637`) y de `main` (`36754548208`) sobre `5f84e13`: ✅ 2/2 | Producción en `0079`; `verify:remote` **54/54** antes de abrir y después; la comparación de P9 contra la foto de P6, **CONTINUAR** con 4 filas explicadas y ninguna de dinero | Sin E2E: la revisión del dueño con su sesión, conforme | — | ✅ **Publicada.** Interrupción de 12 min 5 s; la pausa, retirada; registros sin errores |
+| **Post-9 vigente (D-241: el cierre de cuentas, `0080`, solo en local, 2026-09-30)** | **1.966/1.966** en 97 archivos (+18, `settlements.test.ts`) | **1.563 ✅ y 1 omitida** en 64 archivos (+48: `settlements` 44 y `settlements-volume` 4). La `0080` ensayada por la CLI con los privilegios de producción: **CONTINUAR** | ⚠️ **986/989** en 54,3 min: 1 fallo por un commit durante la corrida (repetida, 4/4) y 2 conocidos, I-148 e I-090. Las 10 del cierre, en verde, y otra vez tras la última corrección de textos | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Implementado y probado **solo en local**; la publicación, `RUNBOOK` §11, **sin autorizar** |
+| Post-9 anterior (P4–P10: la configuración de ganancias EN PRODUCCIÓN, `0078`, `0079` y `5f84e13`, 2026-09-30, 17:45–18:03 UTC) | CI del PR (`36723630637`) y de `main` (`36754548208`) sobre `5f84e13`: ✅ 2/2 | Producción en `0079`; `verify:remote` **54/54** antes de abrir y después; la comparación de P9 contra la foto de P6, **CONTINUAR** con 4 filas explicadas y ninguna de dinero | Sin E2E: la revisión del dueño con su sesión, conforme | — | ✅ **Publicada.** Interrupción de 12 min 5 s; la pausa, retirada; registros sin errores |
 | Post-9 anterior (P4: comprobaciones previas en producción, solo lectura; la pausa NO se instaló, 2026-09-30, 14:08–14:11 UTC) | Sin cambio de código: el candidato `5f84e13` | Producción: `0077`, sin pausa ni gancho; diagnóstico previo **limpio**; `verify:remote` 49 + las 5 en rojo a propósito | No aplica | — | ⏸️ **P4 no ejecutada**: a las 09:10 de Bogotá quedaban 50 min antes de la hora del programador y la ventana necesita ~90 (estimado). Nada instalado; la plataforma sigue abierta. Dos franjas propuestas |
 | Post-9 anterior (D-240: I-191 e I-192 corregidas, y el ensayo de P3 repetido, solo en local, 2026-09-30) | **1.948/1.948** en 96 archivos (+61: `gate-data-effects` 28, `earning-recovery` 18, `restore-backup` 14 y 1 en `gate-tools`) | **1.515 ✅ y 1 omitida** en 62 archivos (+5: `restore-backup` 3 y `gate-provenance` 2). Sobre la copia de P3: restaurada con `restore-backup.ts` (**12.360 filas iguales**), `0078`+`0079` en 9,3 s, **P9 en CONTINUAR** y **DETENER** en 8 alteraciones; recuperada con la estructura **idéntica** y el dinero con la misma huella, con privilegios alojados (7 concesiones) y locales (0) | No aplica: sin cambios en `src/` | `npm run verify` ✅ sobre `86e13fc` | ✅ **Corregidas en local, sin publicar.** Candidato `5f84e13`, PR #9 en borrador, CI ✅ **2/2** (`36723630637`). P4 y siguientes, **sin autorizar**; I-190, abierta |
 | Post-9 anterior (P3: ensayo sobre una copia de producción restaurada en local, 2026-09-30) | Sin cambio de código: el candidato `30e28c5` | Copia fiel (**12.360 filas iguales**, 0 ajustes de privilegios); `0078`+`0079` en 8,8 s con el **dinero idéntico** y las cinco revocaciones efectivas; recuperación en 0,43 s con el dinero idéntico | No aplica | `verify-remote` contra la copia: 53 + 1 (el cron desactivado en local) migrada; 48 + 1 recuperada, con el del puente | ✅ **P3 pasada en lo que comprueba**, con dos hallazgos para el dueño: la comparación por fila de P9 dirá DETENER por diseño (**I-191**) y la recuperación deja 7 funciones sin `service_role` (**I-192**, más restrictivo) |
@@ -17043,3 +17044,110 @@ aquí.
 Nada pendiente de esta publicación. Siguen abiertas **I-190** —esta vez el dueño no notó demora— e **I-193**. La
 restauración en el proyecto alojado sigue sin ensayarse (I-183); no hizo falta. El siguiente trabajo, según el dueño,
 es «Cierre de cuentas».
+
+---
+
+## D-241 — Cierre de cuentas (2026-09-30, solo en local)
+
+Encargo del dueño: implementar «Cierre de cuentas» a partir de la propuesta de Figma (§10.63 del relevo del sistema de
+diseño), con datos persistentes y el motor de ganancias publicado. **Solo en local**: migración `0080`, sin push, sin
+despliegue y sin tocar ni leer producción. Evidencia fuera de Git en `build/cierre-ui/`, `build/cierre-volumen/` y
+`build/gate/`. Ningún dato de cliente ni importe de producción aquí.
+
+### a. Qué se entregó
+
+| Commit | Qué |
+|---|---|
+| `659bbec` | La base: `0080`, `scripts/settlement-function-grants.ts`, `verify-remote`, la capacidad y su espejo, los tipos y `tests/db/settlements.test.ts` |
+| `64b803b` | Las pantallas de los dos portales, el módulo `features/settlements/`, las pruebas unitarias, de volumen y E2E, y la `0080` ampliada antes de publicarse |
+| `855abb8` | **Las llaves foráneas de la `0080` al final del archivo** (§f) y los textos del personal sin tuteo (§e) |
+| `79c74b2` | El resumen de premios dice «pagados» (§e) |
+| El de este registro | La documentación |
+
+### b. Verificaciones del repositorio, con el código final
+
+| Orden | Resultado |
+|---|---|
+| `npm run verify` (tipos, lint, unitarias, build) | ✅ Salida 0 en 1 min 30 s tras la revisión de textos, y **otra vez** tras la última corrección (`79c74b2`), en 2 min 51 s. Lint: 0 errores y los 2 avisos de siempre. **1.966/1.966** unitarias en **97** archivos (+18, `settlements.test.ts`). El build lista las cuatro rutas nuevas |
+| `db:reset` + `seed:local` y `npm run test:db` | ✅ Salida 0 en 3 min 38 s. **1.563 ✅ y 1 omitida** en **64** archivos (+48: `settlements.test.ts` 44 y `settlements-volume.test.ts` 4) |
+| `db:reset` + `seed:local` y `npm run test:e2e` completa | ⚠️ **986/989** en 54,3 min (989 pruebas en 91 archivos, escritorio y teléfono, con `dev:local`). Las **10 del cierre**, en verde. Los 3 fallos, en §e: **uno lo provocó un commit mío en mitad de la corrida** —`pausa-publicacion:185`; repetida sola con el servidor nuevo, **4/4**— y **dos son anteriores y conocidos**: `premios-ganados:443` (**I-148**, la misma firma: `dateFrom=` tras «Atrás», línea 470) y `ventas-por-fecha:163` (**I-090**, acumulación: «< 26» frente a 55). Repetidas las dos con la base recién sembrada: **pasan**; en esa repetición falló `ventas-por-fecha:257`, **I-164** (la copia oculta del `Suspense`), también conocida: 35/36 |
+
+### c. Pruebas nuevas
+
+| Suite | Pruebas | Qué fijan |
+|---|---|---|
+| `tests/db/settlements.test.ts` | 44 (Z1..Z9) | La migración y su acceso; la tabla de casos del encargo; el ejemplo completo de Figma con sus cifras escritas a mano —$3.800.000 a entregar, $2.300.000 por recibir, el contador de $3.480.000 a $5.780.000 y de 2 a 3 de 4 cerradas—; rebajas y boletas sin pagar; premios (valor, duplicados, concurrencia, quién registra); entregas (parciales, quién confirma, reintentos, saldo cambiado, concurrencia, saldo a favor); cierres; cambio de equipo; privacidad y aislamiento (`TESTING` §4.14) |
+| `tests/db/settlements-volume.test.ts` | 4 (V1, V2) | 100 cuentas cuadradas con un cálculo hecho aparte y los tiempos (§d) |
+| `tests/unit/settlements.test.ts` | 18 | Etiquetas, capacidad, frases de premios, quién registra y quién anula, lo que llega del navegador, y tres invariantes estructurales |
+| `tests/e2e/cierre-cuentas.spec.ts` y `-movil` | 7 + 3 | El recorrido del dueño, del vendedor a cargo y de la integrante sobre el ejemplo de Figma, sin un cliente en el HTML del dueño, con la revalidación, anular y volver a registrar, y el teléfono sin desbordamiento y con dianas de 44 px |
+
+### d. Volumen y rendimiento
+
+100 vendedores, 5.000 boletas y 200 premios en una organización propia; 20 llamadas por PostgREST con la sesión real.
+
+| Lectura | Prueba sola (mediana) | Dentro de la batería completa (mediana) |
+|---|---:|---:|
+| `admin_list_sellers`, página 1 (referencia) | 7,0 ms | 6,0 ms |
+| `commission_summary` del jefe (referencia) | 3,9 ms | 3,9 ms |
+| `staff_settlement_overview` | 21,8 ms | 86,2 ms |
+| `staff_settlement_accounts`, página 1 | 22,0 ms | 85,3 ms |
+| `staff_settlement_account` | 21,7 ms | 86,0 ms |
+| `staff_settlement_prizes` | 18,0 ms | 13,9 ms |
+| `staff_settlement_transfers` | 3,4 ms | 3,2 ms |
+| `seller_settlement_account` | 22,0 ms | 87,6 ms |
+| `seller_settlement_team` | 22,3 ms | 85,4 ms |
+| `seller_settlement_prizes` | 18,4 ms | 14,7 ms |
+| `settlement_account_rows` en la base (`explain analyze`) | 24 ms | 24 ms |
+
+Las lecturas que calculan cuentas cuestan unas **tres veces** la lista de vendedores con la prueba sola. Dentro de la
+batería completa, con la base recién cargada por las suites anteriores, subieron a 85–88 ms, y la misma prueba repetida
+sola después volvió a 22 ms: **no se aisló la causa** (I-195). La primera medición, antes de la revisión, dio 23–31 ms.
+
+### e. Errores encontrados y corregidos
+
+| Dónde | Error | Corrección |
+|---|---|---|
+| `0080` | Un nombre de función usado como tipo de fila en PL/pgSQL | `record` |
+| Pruebas de la base | Dos premios de prueba chocaban por calendario (BR-J08) | Cada uno en un mes distinto de 2087 y 2088 |
+| PostgREST | «Could not find the function» al omitir `p_payer_id` y `p_amount`: elige la función por los **nombres** de los argumentos | Los dos al final y con valor por defecto, en la migración, la lista de permisos y los tipos |
+| Pruebas | `staff_set_seller_agreement` recibe `p_seller_id`; tres cifras esperadas mal escritas (el saldo de un integrante, dos estados parciales, un recuento de premios) | Corregidas contra la regla, no contra la salida |
+| Tipos | El guion de fusión buscaba las secciones fuera de `public` | Busca desde `  public: {` y recalcula el índice de `Constants` |
+| TypeScript | Inferencia literal de un arreglo; una clave `paidByYou` repetida | Tipo explícito; `paidByYouOn` |
+| Revisión visual | El modo oscuro no se aplicaba en las capturas | La clase `.dark` en el documento: la aplicación no tiene selector de tema |
+| Volumen | El modo réplica se saltaba el disparador del código interno | Boletas creadas con disparadores y actualizadas después; cada preparación en su transacción |
+| E2E | Un localizador estricto chocaba entre «Tu cuenta» y «Premios de tu cuenta» | Por encabezado, con nombre exacto |
+| Textos, en la revisión visual | «de el dueño»; el saldo negativo mal dicho; la descripción de un estado vacío; el recuento partido en dos líneas; el foco que caía en `body` al cerrar | «del dueño»; «A tu favor»; la frase del Anexo; `nowrap`; `onCloseAutoFocus` con `restoreFocus` |
+| Textos, en la revisión de la documentación | «Dueño pagó el …» sin artículo; el portal administrativo tuteaba sobre dinero de la organización («Ya recibiste», «Debes devolver a Marta»), contra D-182; «se le devuelven cuando lo confirme» | «El dueño pagó el …»; «Recibido», «Devuelto» y «Falta devolver a …» para el personal, y el vendedor a cargo sigue con su «tú»; «La devolución cuenta cuando la confirme.» |
+| `0080`, al ensayar la publicación | Las llaves foráneas bloqueaban las escrituras casi toda la migración (§f) | Al final del archivo |
+| Textos, en la revisión visual final | «4 premios · $450.000» encabezaba una lista cuyas filas sumaban $550.000: la de un premio sin pago registrado enseña su valor, y el resumen solo sumaba lo pagado. Un total que no suma su desglose (D-172) | «4 premios · $450.000 pagados»; la prueba unitaria y la E2E del dueño lo fijan (`79c74b2`) |
+| Pruebas, mío | Hice el commit `855abb8` **durante** la E2E completa: `next.config.ts` fija el identificador del build con `HEAD` al arrancar el servidor, y `pausa-publicacion:185` pide a `abrir` el build de `HEAD` de ahora: «no sirve el build de 855abb8» | Repetida sola con el servidor nuevo: **4/4**. Anotado como trampa en `HANDOFF` §9: durante la E2E completa no se hace commit |
+| Operación | Con el vendedor a cargo desactivado, nadie confirma lo que le entrega su equipo | **No se corrigió**: comprobado en una transacción deshecha y anotado como **I-196** para que decida el dueño |
+
+### f. La publicación, ensayada en local con los privilegios de producción
+
+`RUNBOOK` §11.3. La base local, sembrada y sin la `0080`, con los privilegios de la foto de producción de P9
+(`gate-mirror-privileges.ts`: 48 sentencias, entre ellas el `EXECUTE` por defecto para `service_role`, I-132).
+
+| Paso | Resultado |
+|---|---|
+| Las cuatro comprobaciones de `verify:remote` del cierre, **antes** | 3 en rojo —la matriz, 21 funciones «no existe»; las tablas, 3; la capacidad, 2— y «sin clasificar» en verde: **55 OK + 3 en rojo a propósito** esperado en C0 |
+| `db push --dry-run` | Solo `0080` |
+| `db push` con `lock_timeout=900ms` | Salida 0; 13,4–14,8 s de reloj. La autocomprobación de la `0080`, en verde bajo los privilegios alojados |
+| Cómo la envía la CLI | **Sentencia a sentencia** dentro de una transacción de ~7 s, visto en `pg_stat_activity` cada 20 ms (101 sentencias distintas vistas) |
+| Escrituras en boletas durante el `push`, con las llaves dentro de cada `create table` | 1.305 y 1.228 en dos pasadas; mediana 2,5–2,7 ms; **máximo 5,25 s y 5,88 s** |
+| Cerrojos que la `0080` retiene hasta confirmar (SQL directo, 36 ms) | `SHARE ROW EXCLUSIVE` sobre `tickets`, `memberships`, `profiles`, `organizations`, `raffles`, `raffle_prizes` y `lottery_ticket_matches`; otra sesión **lee** boletas sin esperar y **no puede escribir** (cae por `lock_timeout`, `55P03`) |
+| Las mismas escrituras con las llaves **al final** del archivo | 1.588; mediana 2,6 ms; **máximo 288 ms** |
+| El delta de estructura, antes y después del cambio | **Idéntico byte a byte** (31.047 bytes): el esquema que queda no cambia. Guardado como `build/gate/delta-esperado-0080.json` |
+| `gate-compare --operation migrations --migrations 0080` | **CONTINUAR**: 0 diferencias con lo ensayado, 0 filas tocadas, las tres tablas nuevas vacías |
+| Las cuatro comprobaciones, **después** | En verde: **58/58** esperado en C5 |
+| El código servido (`5f84e13`) frente a la `0080` | No nombra en tiempo de ejecución nada de la `0080` ni las dos funciones de capacidad redefinidas (solo comentarios y tipos): funciona igual con la base nueva |
+
+Cada ensayo dejó la base local como estaba; después se reinició y se sembró para las baterías de §b.
+
+### g. Revisión del sistema de diseño
+
+La matriz está en §10.64 del relevo del sistema de diseño. Las capturas se **repitieron al final**, con los textos definitivos: 80 de pantalla —10 estados × 320/390/768/1440 × claro y oscuro— con **0 desbordamientos**, y los 5 diálogos a 390 y 1440 en los dos temas. En ellas se comprobaron a ojo «Recibido» y «Falta devolver a María» en el recuadro del personal, «El dueño pagó el …» y «4 premios · $450.000 pagados». Las 10 E2E del cierre repetidas después de ese último cambio: **10/10**.
+
+### h. Entorno al terminar
+
+Base local reiniciada y sembrada, en `0080`, sin el escenario del cierre, con las tres tablas vacías y sin pausa (`maintenance-pause.ts estado --local`). Sin servidor de desarrollo. Producción, sin tocar ni leer: el último estado documentado sigue siendo `5f84e13` sobre `0079`.

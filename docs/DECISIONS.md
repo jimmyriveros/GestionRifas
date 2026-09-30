@@ -15997,3 +15997,120 @@ fila tocada.
 > `0079` y `5f84e13` —D-236 a D-240— están en producción desde las 18:00 UTC. Las herramientas de esta decisión se
 > usaron tal como se ensayaron: la foto de P6 guardó `hechos.ganancias` y la comparación de P9 dio **CONTINUAR** con los
 > efectos de datos comprobados por entidad. La recuperación y la restauración no hicieron falta.
+
+---
+
+## D-241 — Cierre de cuentas: el dinero sigue la cadena integrante → vendedor a cargo → dueño, se calcula con el motor publicado y solo lo confirma quien lo recibe
+
+**Fecha:** 2026-09-30 · **Encargo del dueño:** implementar «Cierre de cuentas» a partir de la propuesta de Figma
+«06 — Cierre de cuentas — Propuesta» (nodos `324:3`…`324:10`, relevada en §10.63 del relevo del sistema de diseño),
+con datos persistentes y listo para datos reales. Mantenimiento posterior a la Fase 9, **no es una fase** ni lleva
+etiqueta. **Solo en local**: migración `0080`, sin push, sin despliegue y sin tocar producción. El último estado
+documentado de producción sigue siendo `5f84e13` sobre `0079` (no se volvió a comprobar en esta sesión).
+
+### Lo que había, medido antes de escribir
+
+| Hecho | Consecuencia |
+|---|---|
+| El motor de ganancias (`0078`, `0079`) ya guarda por rifa y vendedor lo propio (`earned`, con las rebajas) y lo del equipo (`team_earned` = tarifa del jefe − tarifa del integrante, por boleta del integrante); el tramo del jefe cuenta sus boletas y las de su equipo | La cuenta **lee** `seller_commissions`; no hay un segundo motor ni se vuelve a multiplicar por el precio de hoy |
+| El valor de una boleta pagada es su `sale_price`; una boleta a medias sigue siendo cartera del vendedor | Solo entran las boletas **pagadas por completo** (BR-Z02); lo abonado a las demás lo ve solo su vendedor |
+| Los premios ganados tienen una sola definición, `prize_award_rows` (D-208), con valor cierto o pendiente | La cuenta usa esa definición; un premio ganado **no** está pagado hasta que alguien lo registra |
+| El personal no ve dinero ni ganancias por vendedor (D-198, BR-Q08) y el vendedor a cargo ve de su equipo solo sus ventas (BR-E05) | El encargo pide que el dueño vea cuentas y ganancias: se abre una **excepción acotada**, solo de cifras agregadas (BR-Z13) |
+| La pausa de publicación (D-239) existe para cambios incompatibles | La `0080` solo añade objetos y amplía el catálogo de capacidades: se publica **sin pausa** (RUNBOOK §11) |
+
+### El contrato
+
+**1. Cuentas.** Por rifa hay una cuenta **con el dueño** por cada vendedor directo —con las ventas de su equipo de
+hoy dentro— y una cuenta de **cada integrante con su vendedor a cargo**. El dueño cierra con el vendedor a cargo, que
+responde por su equipo; lo que un integrante le entrega **no suma** a lo recibido por el dueño.
+
+**2. La parte de cada persona** (todo por rifa, con la estructura de equipos de HOY):
+
+```
+parte(s) = cobrado(s) − ganado(s) − ganado_de_equipo(s) − premios_que_pagó(s)
+           − lo_que_entregó(s) + lo_que_le_devolvieron(s)
+           + lo_que_le_entregaron_sus_integrantes(s) − lo_que_devolvió_a_integrantes(s)
+```
+
+Saldo de la cuenta de un integrante = su parte. Saldo de la cuenta con el dueño = la suma de las partes del titular y
+de su equipo; las entregas entre ellos se anulan. Total que debe entregar = cobrado − ganancias − premios que pagaron
+± movimientos con otros equipos. Ganancia del dueño = parte del dueño − **todos** los premios pagados de las boletas de
+la cuenta, los pagara quien los pagara.
+
+**3. Cambios de equipo.** El motor ya recalcula las ganancias con la estructura de hoy (BR-G31). El DINERO se queda
+con quien lo recibió: lo que un integrante entregó a su vendedor a cargo anterior sigue en la cuenta de ese anterior, y
+el nuevo responde solo por lo que falta (BR-Z10, probado en Z8). No se atribuyen cobros históricos al nuevo.
+
+**4. Quién confirma: quien recibe** (BR-Z05, BR-Z07). La entrega de un vendedor directo la confirma el personal con
+`settlements.manage`; la de un integrante, su vendedor a cargo de hoy; una devolución, quien la recibe. Nadie confirma su
+propia entrega. Un premio pagado lo registra quien recibe las entregas del pagador: lo que pagó un integrante, su
+vendedor a cargo; lo que pagó un vendedor directo o un vendedor a cargo, el personal; lo que pagó el dueño, el personal.
+Elegir un nombre no autoriza nada: el pagador tiene que ser el vendedor de la boleta, su vendedor a cargo o el dueño, y la
+base lo exige.
+
+**5. Revalidar al confirmar** (BR-Z12). Cada escritura toma el cerrojo de la cuenta con el dueño
+(`pg_advisory_xact_lock`), recalcula el saldo y lo compara con el que la persona tenía a la vista: si cambió, **no
+guarda nada** y devuelve el saldo de ahora. Un identificador de solicitud por diálogo hace el reintento inofensivo; un
+índice único impide dos pagos vigentes del mismo premio.
+
+**6. Estados y cierres** (BR-Z04, BR-Z11). El estado se deriva: Sin boletas pagadas · Falta información · Pendiente ·
+Entrega parcial · A favor del vendedor · Por cerrar · Cerrada. Una entrega o un premio que dejan la cuenta en $0 y sin
+premios por registrar la **cierran solos**, guardando la foto de sus cifras y su huella; si algo cambia después, la foto
+no se toca y la pantalla enseña la diferencia; el siguiente saldo en cero guarda la versión 2. Cerrar una cuenta no
+cierra la rifa.
+
+**7. Privacidad** (BR-Z13). El personal y el vendedor a cargo ven cifras agregadas de una cuenta —boletas pagadas y su
+valor, ganancias, premios con su boleta, entregas—; nunca un cliente, un abono de una boleta sin pagar ni un pago de un
+cliente. Las tablas tienen RLS forzada **sin políticas**: todo pasa por 14 RPC que autorizan dentro. Una cuenta de una
+sola boleta pagada deja deducir su precio: es inherente a que el dueño sepa qué recibe, y se acepta.
+
+### La publicación, medida antes de escribir el procedimiento
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| La CLI aplica la migración **sentencia a sentencia** dentro de una transacción (visto en `pg_stat_activity`). Con las 19 llaves foráneas dentro de cada `create table`, su `SHARE ROW EXCLUSIVE` sobre boletas, membresías, perfiles, organizaciones, rifas, premios y coincidencias duraba casi todo el archivo: **una escritura de boletas esperó 5,9 s** en local, y `authenticated` tiene `statement_timeout = 8s` | Las llaves pasan al **final** de la `0080` (sección 10): **288 ms**. El esquema que queda es el mismo —el delta de estructura es idéntico byte a byte— y la `0080` sigue sin estar publicada, así que cambiarla no es editar una migración aplicada |
+| El código servido (`5f84e13`) no nombra nada de la `0080` en tiempo de ejecución | Se publica **sin la pausa** de D-239: la base primero y el código después (RUNBOOK §11) |
+| El cierre no conoce las entregas ni los pagos de premios anteriores | El primer día se verá «Recibido $0» y cuentas en «Falta información»: la puesta en marcha la decide el dueño (RUNBOOK §11.2) |
+
+### Adaptaciones de la propuesta de Figma (§35.2.4 de CLAUDE.md)
+
+| Propuesta | Implementado | Por qué |
+|---|---|---|
+| «Responsable» | **Vendedor a cargo** | Es el término que la aplicación ya usa para el jefe de un equipo (D-238); «responsable» no está en el glosario |
+| «Boletas asignadas» | **Boletas activas** | D-172: «activas» son las que puede vender o ya vendió; «asignar» nombra otra cosa |
+| Insignia «Pendiente» con una entrega previa | **«Entrega parcial»** | El encargo pide verificar el estado parcial por separado; «Pendiente» queda para nada recibido |
+| El dueño «Registra devolución» | **El vendedor «Confirma devolución recibida»** | Solo quien recibe confirma; el dueño ve «Falta devolver a Marta» y la explicación |
+| El dueño lee «Ya recibiste» y «Debes devolver a Marta» | **«Recibido» y «Falta devolver a Marta»** en el portal administrativo; el vendedor a cargo sí lee «Ya recibiste» y «Debes devolver a Ana» | D-182: el personal no lee de «tú» el dinero de la organización, y quien mira puede no ser quien recibió. Corregido en la revisión de textos, después del commit de las pantallas |
+| «3 premios · $450.000» sobre la lista de premios | **«3 premios · $450.000 pagados»** | La cifra es lo pagado y la lista enseña también el valor de un premio sin pago: un total que no suma su desglose tiene que decir qué suma (D-172). Corregido en la revisión visual final |
+| La integrante registra «Yo pagué el premio» | **Su vendedor a cargo lo registra** | Es quien recibe sus entregas y quien acepta la reducción; la integrante ve a quién pedírselo |
+| Icono de billetera en el menú | **`HandCoins`** | La billetera ya es «Mis pagos» en el portal del vendedor |
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Guardar el saldo de cada cuenta | Se desincroniza con cada pago, anulación o cambio de acuerdo; se guardan los HECHOS y se calcula |
+| Que el personal registre lo que pagó un integrante | Registraría dinero sobre la cuenta del vendedor a cargo sin que este lo confirme |
+| Cerrar la cuenta a mano siempre | Una entrega que salda es la confirmación válida; el botón queda para el caso en que la cuenta quedó en cero por otro camino |
+| Mover al vendedor a cargo nuevo lo entregado al anterior | Es atribuirle cobros que nunca recibió (lo prohíbe el encargo) |
+
+### Límites conocidos
+
+- Los premios de sorteos anteriores al inicio del historial (`prize_award_history_start()`, 9 de agosto de 2026) no
+  existen para el sistema y no entran en ninguna cuenta (I-194).
+- Cada lectura recalcula la rifa entera: 24 ms en la base y 22–31 ms por PostgREST con 100 vendedores y 5.000 boletas
+  (unas tres veces la lista de vendedores, que no hace cuentas); 85–88 ms dentro de la batería completa, con la base
+  recién cargada por otras suites. Si crece mucho, se mide antes de cachear (I-195).
+- Con el vendedor a cargo desactivado nadie confirma lo que le entrega su equipo: el personal lo reorganiza primero
+  (BR-E08) y lo ya entregado se queda con el anterior (I-196, comprobado en local).
+- Ni avisos de la campana ni CSV para esta sección: el encargo no los pidió.
+
+### Qué decide el dueño
+
+| Decisión | Estado |
+|---|---|
+| Publicar la `0080` y el código (RUNBOOK §11) | **Sin autorizar** |
+| Mantener «Entrega parcial» como estado aparte | Propuesto aquí; el Figma decía «Pendiente» |
+| Mantener que los integrantes no registren sus propios premios | Propuesto aquí (regla de quien recibe) |
+| La puesta en marcha: registrar con su fecha las entregas y los premios ya pagados, o empezar a contar desde el día de la publicación | Sin decidir (RUNBOOK §11.2) |
+| Con el vendedor a cargo desactivado, ¿basta reorganizar su equipo para cerrar sus cuentas? | Sin decidir (I-196) |

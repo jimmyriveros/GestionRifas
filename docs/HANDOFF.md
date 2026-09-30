@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **Cierre de cuentas, SOLO EN LOCAL (2026-09-30, D-241, `0080`)** | **Implementado, probado y con la publicación preparada y ensayada; nada publicado.** Dueño y Administrador: «Cierre de cuentas» (`/owner/settlements`); vendedores: «Mi cierre de cuentas» (`/seller/settlement`), con las cuentas de su equipo. El dinero sigue integrante → vendedor a cargo → dueño; la cuenta la calcula `settlement_account_rows` desde `seller_commissions`; solo confirma quien recibe; nada se borra. `verify` ✅ 1.966; `test:db` ✅ 1.563 + 1; `test:e2e` 986/989, con un fallo propio repetido en verde y dos conocidos (I-148, I-090). Publicar: `RUNBOOK` §11, **sin autorizar** |
 | **La configuración de ganancias EN PRODUCCIÓN (2026-09-30, 18:00 UTC; D-236 a D-240; `0078` y `0079`)** | **Publicada** con la autorización conjunta del dueño para P4–P10: `0078` y `0079` aplicadas (36,0 s) y **`5f84e13`** servido (`dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`, build `334960b56704`). Pausa **cerrada 12 min 5 s** —de 12:48 a 1:00 p. m. en Bogotá— y **retirada**. `verify:remote` **54/54**; P9 en **CONTINUAR** contra la foto de P6; revisión del dueño conforme; registros sin errores. Producción **abierta y funcionando**. Siguiente trabajo del dueño: «Cierre de cuentas». I-190 e I-193, abiertas |
 | **P4: comprobaciones previas en producción, SOLO LECTURA; la pausa NO se instaló (2026-09-30, 14:08–14:11 UTC)** | Autorizada P4, condicionada a que la franja sirviera. **P0 repetida, conforme**: proyecto `zqwu…`, sirve `9a64986`, base en `0077`, sin pausa ni gancho, `main` y el candidato `5f84e13` donde se esperaba. **Diagnóstico previo, limpio** (una boleta cobrada y un movimiento más que en P3: actividad normal). **La franja no era adecuada**: a las 09:10 de Bogotá quedaban 50 minutos antes de la hora del programador (10:00) y la ventana necesita del orden de 90, estimados. **No se instaló nada; producción sigue abierta e igual que antes.** Propuestas: miércoles 30/09 de 4:00 a 6:00 p. m. o de 7:00 a 9:00 p. m. (Bogotá). I-190 e I-193, abiertas |
 | **D-240: I-191 e I-192 corregidas y el ensayo de P3 repetido, SOLO EN LOCAL (2026-09-30, 13:05–13:40 UTC; sin migración)** | Por decisión del dueño, **antes de la ventana**. **P9** (`gate-compare --operation migrations`) comprueba los efectos de datos de la `0078` y la `0079` —derivados de la foto de antes y de las reglas de la migración, por entidad— y da **CONTINUAR** sobre la copia; **DETENER** en las 8 alteraciones probadas. **La recuperación** (`scripts/earning-recovery.ts`) devuelve a las funciones que recrea el permiso exacto de la foto de antes de migrar: estructura **idéntica** y dinero con la misma huella, con privilegios alojados (7 concesiones) y locales (0). **La restauración** (`scripts/restore-backup.ts`) es una orden que se detiene ante el primer fallo. `verify` y `test:db` en verde sobre `86e13fc`. Producción, **sin tocar ni leer**. **Candidato nuevo: `5f84e13b93ad58ad7b0f8f8676d959169bd010a2`**, empujado sin `force` a la rama del PR #9 —que sigue en borrador—, con CI ✅ **2/2** (run `36723630637`). **P4 y siguientes, sin autorizar; I-190, abierta** |
@@ -183,7 +184,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — Propuesta Figma de Cierre de cuentas (2026-09-30)
+## 1.a Último relevo significativo — Cierre de cuentas, implementado y con la publicación preparada (D-241, `0080`, **solo en local**, 2026-09-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Implementado en local, sin publicar.** La propuesta de Figma (§1.a.0) convertida en módulo con datos persistentes: cuentas por rifa con el dueño y de cada integrante con su vendedor a cargo, entregas parciales, devoluciones, pagos de premios, cierres con su foto, anulaciones con motivo y revalidación del saldo al confirmar. La publicación está **escrita y ensayada** con los privilegios de producción (`RUNBOOK` §11), **sin autorizar**. Fuera, a propósito: avisos de la campana, CSV y un ajuste manual (I-194) |
+| Archivos | `supabase/migrations/0080_settlements.sql`; `scripts/settlement-function-grants.ts` y `verify-remote.ts`; `src/features/settlements/` (lecturas, escrituras, frases, esquemas, `view.ts` y 13 componentes); las cuatro rutas y los dos menús; `SettlementStatusBadge`; `constants.ts`, `errors.ts`, `capabilities.ts` y los tipos; pruebas `tests/db/settlements*.test.ts`, `tests/unit/settlements.test.ts`, `tests/e2e/cierre-*.ts`. Documentación: D-241, BR-Z (§12.j), `DATA_MODEL` §4.26, `SECURITY` §4.27, `ARCHITECTURE` §8.32, la guía de textos (Anexos A, B y C), `RUNBOOK` §11, `OPERATIONS` §4.e, `TESTING` §4.14, `MASTER_SPEC` §9.9, `DEPLOYMENT` §3.3.b, I-194..I-196 y §10.64 del sistema de diseño |
+| Reutilización | El motor de ganancias publicado (se **lee** `seller_commissions`; no hay un segundo motor), `prize_award_rows` (D-208) para los premios, `has_org_capability` con una capacidad más, el patrón de lista exacta de `EXECUTE` (I-132) y las piezas del sistema de diseño de siempre. Tres piezas locales del módulo, las de §10.63, sin subir al núcleo |
+| Decisiones | D-241 y BR-Z01..BR-Z18. Del dueño, en el encargo: la cadena de entregas y la excepción de privacidad de cifras agregadas. Propuestas aquí, para confirmar: «Entrega parcial» como estado aparte, que los integrantes no registren sus premios, y cinco adaptaciones de textos de Figma (Anexo C) |
+| Verificación | `verify` ✅ (1.966/1.966); `test:db` ✅ (1.563 + 1 omitida); `test:e2e` completa **986/989** —un fallo mío, un commit en mitad de la corrida, repetido en verde; y I-148 e I-090, conocidos—, con las 10 del cierre en verde; volumen con 100 cuentas cuadradas aparte; la `0080` ensayada por la CLI con los privilegios de producción: **CONTINUAR**, y el cerrojo de sus llaves medido y corregido (5,9 s → 288 ms). Matriz del sistema de diseño en §10.64. Detalle en `TEST_RESULTS`, D-241 |
+| Advertencias | **1)** No se despliega el código antes que la `0080`: su menú lleva a «No pudimos cargar las cuentas». **2)** La `0080` todavía se puede cambiar —no está publicada—; una vez aplicada en producción, un cambio es una migración nueva. **3)** El primer día en producción dirá «Recibido $0» y habrá cuentas en «Falta información»: el pasado no se marca solo (`RUNBOOK` §11.2). **4)** Con el vendedor a cargo desactivado, nadie confirma lo de su equipo (I-196). **5)** El escenario E2E y los guiones de revisión (`build/cierre-ui/`) escriben en la base local: se borran por prefijo, pero después de usarlos a mano conviene resembrar |
+| Pendiente | Del dueño: autorizar la publicación (C1 empuja, C4 migra, C6 despliega), decidir la puesta en marcha y responder I-196. Siguen I-190 e I-193 |
+| Entorno (al entregar) | Local: `0080`, recién sembrada, sin el escenario del cierre y sin pausa; sin servidor de desarrollo. Producción: sin tocar ni leer; último estado documentado, `5f84e13` sobre `0079` |
+| Git | Rama `feature/detalle-boleta-admin`: `659bbec` (la base), `64b803b` (pantallas y pruebas), `855abb8` (las llaves de la `0080` al final y los textos del personal), `79c74b2` (el resumen de premios dice «pagados») y el commit de este registro, **sin empujar**. Remoto en `5f84e13`. Los tres archivos del usuario, intactos |
+
+## 1.a.0 Relevo anterior — Propuesta Figma de Cierre de cuentas (2026-09-30)
 
 | Campo | Estado |
 |---|---|
@@ -2786,6 +2801,12 @@ declared_prize_awards (premio que RECONOCE el negocio sobre una coincidencia que
                  parcial, asi que anular y volver a registrar si se puede
                  -> 0067 y 0068, D-208, BR-J19. SOLO EN LOCAL)
 
+settlement_transfers · settlement_prize_payments · settlement_closings (cierre de cuentas:
+                 entregas y devoluciones, quien pago un premio y la foto de una cuenta
+                 saldada; RLS forzada SIN politicas, solo por 14 RPC; inmutables salvo la
+                 anulacion. La CUENTA no se guarda: la calcula settlement_account_rows
+                 desde seller_commissions -> 0080, D-241. SOLO EN LOCAL)
+
 lottery_sync_runs (proceso interno; sin SELECT para authenticated)
 
 payments 1─N payment_allocations N─1 tickets   (amount; SUM = payments.total_amount)
@@ -2861,6 +2882,12 @@ una existente.
 > para la service role, entera o nada y con vista previa—, que **no se ha ejecutado sobre ninguna rifa
 > real**: eso es la Entrega 5 (`RUNBOOK` §8).
 
+**Cierre de cuentas (`0080`, D-241, solo en LOCAL):** las tres tablas **no se leen ni se escriben** desde una
+sesión: todo pasa por las 14 RPC de `scripts/settlement-function-grants.ts`, que deciden quién recibe con la estructura
+de equipos de **hoy**. La cuenta y su estado los calcula **solo** `settlement_account_rows`; no escribas otro cálculo
+en TypeScript. Una escritura manda el saldo que la persona tenía a la vista y un identificador de solicitud: si el saldo
+cambió, responde `balance_changed` sin guardar nada.
+
 **Vistas de solo lectura:** `v_ticket_balances` · `v_client_balances` · `v_seller_summary` ·
 `v_raffle_summary` · `v_payment_history`.
 
@@ -2875,7 +2902,8 @@ RLS de quien consulta (D-057). Úsalas para cualquier agregado de pagos que nece
 ```
 components/data/    DataTable · DataTablePagination · EmptyState
                     StatusBadge: badges de boleta, rifa y AccountStatusBadge, que es
-                    el estado de una PERSONA (pendiente/activa/inactivo, BR-E14)
+                    el estado de una PERSONA (pendiente/activa/inactivo, BR-E14);
+                    SettlementStatusBadge, el de una CUENTA del cierre (D-241)
                     PageHeader (backHref = flecha de volver, D-089; compactAction = CTA
                     de la cabecera contextual, D-150) · BackButton · MetricCard
 lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
@@ -3546,3 +3574,5 @@ del código: repite con `.next/dev` ya poblado antes de culpar a un cambio.
 | Restauras un respaldo con `DROP SCHEMA public CASCADE` y las filas cuadran | Se llevó el dueño y el USAGE de PUBLIC del esquema, los privilegios por defecto de `supabase_admin` y las concesiones de `pg_trgm`; y vaciar sin apartar los de `postgres` **ensancha** privilegios (I-188). El procedimiento es el de `RUNBOOK` §5.2 | D-239 · I-183 |
 | `abrir` se niega con «no son pareja» | El commit que dices servir trae otra última migración que la que tiene la base: el puente no abre sobre la `0079`. Es la protección, no un fallo | D-239 · `RUNBOOK` §10.2 |
 | En el árbol de trabajo del puente, `admin-privacy.test.ts:283` falla con dos textos que se ven iguales | I-171: `eligibility.ts` sale con CRLF en un árbol de trabajo nuevo. Bórralo y `git -c core.autocrlf=false checkout HEAD -- <ese archivo>` (sin borrarlo, Git no lo reescribe) | I-171 · D-239 |
+| Una migración «solo aditiva» deja a los vendedores sin poder guardar unos segundos | La CLI aplica el archivo **sentencia a sentencia** dentro de una transacción, y una llave foránea hacia una tabla viva bloquea sus **escrituras** hasta confirmar (leer, no). Medido en la `0080`: con las llaves dentro de cada `create table`, una escritura de boletas esperó **5,9 s** —`authenticated` corta a los 8 s—; con ellas **al final** del archivo, **288 ms**. Mídelo con un bucle que escriba en la tabla durante el `db push` | D-241 · `RUNBOOK` §11.0 |
+| `pausa-publicacion.spec.ts:185` («al abrir… cada quien sigue donde estaba») falla en la batería completa y pasa sola | Se hizo un **commit durante la corrida**. `next.config.ts` inyecta el identificador de `HEAD` al arrancar el servidor, y la prueba pide a `abrir` que compruebe que el sitio sirve el build de `HEAD` **de ahora**: con otro commit ya no es el mismo. No es un fallo del producto. Durante la E2E completa no se edita `src/` **ni se hace commit** | D-241 · `TEST_RESULTS`, D-241 |

@@ -1,6 +1,9 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.33 · **Estado:** implementado · **Actualizado:** 2026-09-30 (**`0078` y `0079` APLICADAS EN
+- **Versión:** 2.34 · **Estado:** implementado · **Actualizado:** 2026-09-30, más tarde (**§4.26 nueva**: el
+  **cierre de cuentas** —D-241, migración `0080`, **solo en local**—: tres tablas de hechos inmutables salvo la
+  anulación, cuatro tipos, la cuenta calculada por `settlement_account_rows` desde `seller_commissions` y 14 RPC; §5
+  y §7 con sus índices y sus disparadores). Antes, ese mismo día (**`0078` y `0079` APLICADAS EN
   PRODUCCIÓN** a las 17:52 UTC: lo que las entradas de 2026-09-29 marcan «solo en local» está publicado; el esquema
   `pausa` se instaló y se retiró en la ventana, `DEPLOYMENT` §3.2.u). Antes, 2026-09-29, al final (**§4.25 nueva**: el esquema
   `pausa` de D-239, temporal y fuera de las migraciones; el modelo no cambia). Antes, ese mismo día, más tarde (§4.3 y §4.24: la
@@ -1429,6 +1432,83 @@ y la función que PostgREST llama antes de cada petición (`SECURITY` §4.26, `R
 y fuera de la ventana no existe. `pausa.estado` no tiene clave primaria a propósito: un respaldo tomado con la pausa
 instalada tiene que poder restaurarse (I-187).
 
+---
+
+### 4.26 Cierre de cuentas (`0080`, BR-Z01..BR-Z18, D-241)
+
+> 🧪 **Solo en local.** El proyecto real no tiene la `0080`. Es aditiva —tres tablas, cuatro tipos, funciones
+> nuevas y el catálogo de capacidades ampliado— y se publica sin pausa (`RUNBOOK` §11).
+
+**La cuenta se calcula, no se guarda** (BR-Z01). Las tres tablas guardan HECHOS: el dinero que pasó de una persona
+a otra, quién pagó un premio y la foto de una cuenta saldada. Ninguna guarda un saldo.
+
+| Tabla | Qué guarda |
+|---|---|
+| `settlement_transfers` | Una **entrega** (`kind = 'delivery'`, hacia arriba) o una **devolución** (`'refund'`, hacia abajo). `seller_id` es siempre el vendedor de la cuenta; `counterpart_id` NULL = el dueño, un perfil = su vendedor a cargo. `amount` 1..100.000.000.000, `received_on`, `confirmed_by` (quien recibe, BR-Z05), `request_id` y `balance_before`/`balance_after`, el saldo de esa cuenta al confirmar, amarrados por `settlement_transfers_balance_check` |
+| `settlement_prize_payments` | Quién pagó un premio ganado: `payer = 'seller'` con `payer_id` (el vendedor de la boleta o su vendedor a cargo) u `'organization'` sin él (`settlement_prize_payments_payer_check`). FK compuesta a `lottery_ticket_matches` —la identidad del historial, D-208— y a `raffle_prizes`; la boleta y su vendedor se copian (`ticket_id`, `ticket_seller_id`). `amount` 1..10.000.000.000, `value_was_pending` (el valor se escribió porque el premio no lo tenía cierto), `paid_on`, `confirmed_by` y `request_id` |
+| `settlement_closings` | La foto de una cuenta saldada: `seller_id` + `counterpart_id` (NULL = la cuenta con el dueño), `version` desde 1 —única con `nulls not distinct`—, `figures` (jsonb) y su `fingerprint` (md5, 32 hex), `closed_by`, `cause` (`transfer`, `prize_payment` o `manual`) y `cause_id`, nulo solo en `manual` |
+
+Las entregas y los pagos de premios llevan la anulación —`voided_at`, `voided_by` y `void_reason` de 5 a 500
+caracteres sin espacios en los extremos— con un CHECK de todo o nada. Las FK a personas van a `memberships (profile_id,
+organization_id)` y la de la rifa a `raffles (id, organization_id)`: nadie de otra organización cabe en una fila. Las 19
+llaves hacia tablas que ya existían se añaden **al final de la migración** (su sección 10): cada una bloquea las
+escrituras de la tabla a la que apunta hasta confirmar, y dentro de cada `create table` ese cerrojo duraba casi todo el
+archivo (`RUNBOOK` §11.0).
+
+| Garantía | Cómo |
+|---|---|
+| Nada se borra | `settlement_rows_guard` (`BEFORE UPDATE OR DELETE`) en las tres: ningún `DELETE` |
+| Solo la anulación, una vez | El mismo disparador: de una entrega o de un pago solo cambian las tres columnas de anulación y una fila anulada no se vuelve a tocar; un cierre no se modifica nunca (BR-Z18) |
+| Un pago vigente por premio | Índice único parcial `settlement_prize_payments_live_key (match_id, prize_id) where voided_at is null` (BR-Z08) |
+| Reintentar no duplica | `unique (organization_id, request_id)` en las entregas y en los pagos de premios: la misma solicitud devuelve lo que ya se guardó |
+| Nadie lee ni escribe directamente | RLS `enable` + `force` **sin ninguna política** y ningún privilegio de tabla para `anon` ni `authenticated`; `service_role` conserva `SELECT` para el diagnóstico (BR-Z17) |
+
+**Tipos.** `settlement_transfer_kind` (`delivery`, `refund`), `settlement_prize_payer` (`seller`, `organization`),
+`settlement_close_cause` (`transfer`, `prize_payment`, `manual`) y `settlement_account_status` (`no_activity`,
+`missing_info`, `pending`, `partial`, `in_favor`, `to_close`, `closed`), que **no se guarda**: lo deriva la lectura.
+
+**Las lecturas internas**, que no ejecuta ninguna sesión:
+
+| Función | Qué hace |
+|---|---|
+| `settlement_seller_figures(org, rifa)` | Una fila por persona con algo en la rifa, con la estructura de equipos de HOY: boletas activas, vendidas y pagadas; `collected` (Σ `sale_price` de las pagadas, BR-Z02); `partial_paid` (lo abonado a las vendidas sin pagar, BR-Z03); `earned`, `team_earned` y `rate` **leídos de `seller_commissions`**; los premios que pagó y el costo de los premios de sus boletas; lo entregado y lo devuelto con el dueño, con cualquier vendedor a cargo y con el de hoy; y lo que le entregaron sus integrantes |
+| `settlement_account_rows(org, rifa)` | **La única definición de una cuenta.** Una fila por cuenta con el dueño (titular + equipo de hoy) y por cuenta de un integrante con su vendedor a cargo: `owner_share`, `total_due`, `balance`, `owner_gain` (solo con el dueño), el estado derivado, `figures` y su huella, y el cierre vigente (`closing_version`, `closing_figures`, `changed_after_close`) |
+| `settlement_award_rows(org, rifa)` | Cada premio de `prize_award_rows` (D-208) con su pago vigente, y cada pago vigente cuyo premio ya no aparece (`award_missing`). Lleva `client_id`: solo la usa la lectura del propio vendedor |
+| `settlement_lock(rifa, titular)` | `pg_advisory_xact_lock` de la cuenta con el dueño: toda escritura que mueve su dinero se ordena ahí (BR-Z12) |
+| `settlement_payer_problem(…)` | Quién pudo pagar un premio y quién puede registrarlo (BR-Z07): nulo si quien llama puede; si no, la frase que se enseña |
+| `settlement_try_close(…)` | Guarda la versión siguiente del cierre si la cuenta quedó en $0 y sin nada pendiente, y la audita (BR-Z11) |
+
+La fórmula se escribe una vez, en la cabecera de la migración y en D-241: `parte = cobrado − ganado − ganado_de_equipo
+− premios_que_pagó − entregado + devuelto + recibido_de_integrantes − devuelto_a_integrantes`. La cuenta de un integrante
+es su parte; la cuenta con el dueño, la suma de las partes del titular y de su equipo de hoy.
+
+**Las 14 RPC de una sesión**, con `EXECUTE` solo para `authenticated`. Autorizan dentro, por la capacidad o por la
+relación de equipo de hoy:
+
+| Escritura | La ejecuta |
+|---|---|
+| `settlement_record_transfer(rifa, vendedor, tipo, importe, fecha, saldo_esperado, solicitud)` | Quien recibe: el personal con `settlements.manage` la entrega de un vendedor directo; el vendedor a cargo, la de un integrante; el propio vendedor, una devolución |
+| `settlement_record_prize_payment(rifa, coincidencia, premio, pagador, fecha, solicitud, pagador_id?, importe?)` | Quien recibe las entregas del pagador (BR-Z07). `importe` solo cuando el valor del premio no es cierto |
+| `settlement_void_transfer(id, motivo)` · `settlement_void_prize_payment(id, motivo)` | Quien recibió la entrega o la devolución; quien podría registrar hoy ese pago (BR-Z14) |
+| `settlement_confirm_close(rifa, vendedor, huella)` | Quien recibe las entregas de esa cuenta, con la huella que tenía a la vista |
+
+| Lectura | Para |
+|---|---|
+| `staff_settlement_overview`, `staff_settlement_accounts` (búsqueda, estado y página, en la base), `staff_settlement_account`, `staff_settlement_prizes`, `staff_settlement_transfers` | El personal con `settlements.manage`; cero filas a quien no la tiene. **Ningún campo de cliente** |
+| `seller_settlement_account(rifa, integrante?)`, `seller_settlement_team`, `seller_settlement_prizes(rifa, integrante?)`, `seller_settlement_transfers(rifa, integrante?)` | El vendedor sobre su cuenta y el vendedor a cargo sobre la de cada integrante de hoy. `partial_paid` y el cliente de un premio, solo en la vista propia (BR-Z03, BR-Z13) |
+
+La lista exacta vive en `scripts/settlement-function-grants.ts` (14 de sesión y 7 internas) y la migración se comprueba
+a sí misma al aplicarse (`SECURITY` §4.27).
+
+**La capacidad.** `app_capability_catalog()` y `app_role_default_capabilities()` ganan `settlements.manage`, del Dueño y
+del Administrador; `create or replace` conserva los privilegios de la `0066`. Como `has_org_capability` la resuelve en
+cada llamada desde el rol, **ninguna fila cambia**: los administradores de hoy la tienen desde que se aplica.
+
+**Revertir** es una migración nueva y, sin filas, exacta (la nota del final de la `0080`). Con filas, primero se
+exportan: son la historia del dinero entregado.
+
+---
+
 ## 4.bis Lo que falta del encargo de cobro — **NADA: LAS CINCO TABLAS EXISTEN**
 
 > ✅ **YA NO FALTA NINGUNA TABLA.** Las etapas 1 a 5 están entregadas: §4.15 y §4.16 (`0051`),
@@ -1493,6 +1573,11 @@ es ese toque sino la cola.
 | `push_subscriptions` | `(profile_id) WHERE revoked_at is null` (`0053`) | Los dispositivos vivos de una persona |
 | `push_outbox` | `(next_attempt_at) WHERE status = 'queued'` (`0054`) | La única consulta del despachador |
 | `push_outbox` | `(claimed_at) WHERE status = 'sending'` (`0054`) | Recuperar las filas que otro dejó a medias |
+| `settlement_transfers` | `(organization_id, raffle_id)`, `(raffle_id, seller_id)` y `(raffle_id, counterpart_id) WHERE counterpart_id is not null` (`0080`) | Las entregas de una rifa, de un vendedor y las que recibe un vendedor a cargo |
+| `settlement_transfers` · `settlement_prize_payments` | `(organization_id, request_id)` (único, `0080`) | La idempotencia de cada confirmación (BR-Z12) |
+| `settlement_prize_payments` | `(match_id, prize_id) WHERE voided_at is null` (único, `0080`) | Un pago vigente por premio (BR-Z08) |
+| `settlement_prize_payments` · `settlement_closings` | `(organization_id, raffle_id)` (`0080`) | Todo se lee por rifa |
+| `settlement_closings` | `(organization_id, raffle_id, seller_id, counterpart_id, version)` (único, `nulls not distinct`, `0080`) | Una versión de cada cierre, también en la cuenta con el dueño (`counterpart_id` NULL) |
 
 Los índices de `tickets` por `(organization_id, raffle_id, daily_number)` y `weekly_number` (`0003`)
 bastan para el matching: no se añadió otro sobre los números.
@@ -2233,6 +2318,10 @@ UPDATE OR DELETE`) y **dos de sentencia** con tabla de transición, `AFTER INSER
 `lottery_ticket_match_prizes_check` sobre los enlaces y `lottery_ticket_matches_prize_links_check`
 sobre las fotografías. Valen también con la service role.
 
+**Los del cierre de cuentas** (`0080`, §4.26): `settlement_transfers_guard`, `settlement_prize_payments_guard` y
+`settlement_closings_guard`, los tres `BEFORE UPDATE OR DELETE` con `settlement_rows_guard`: nada se borra, de una
+entrega o de un pago solo se escribe la anulación, y un cierre no se toca. Valen también con la service role.
+
 ---
 
 ## 8. Cardinalidades y pertenencia
@@ -2286,3 +2375,7 @@ Reglas de pertenencia derivadas:
 | E22 | Boleta asignada después de `official_scheduled_at` | Fotografía `late_assignment`, sin cliente (BR-L10) |
 | E23 | Segundo número mayor distinto para el mismo sorteo | `conflict`; se conserva el original (BR-L08) |
 | E24 | Varias rifas con el mismo número en la misma fecha | Coinciden todas las elegibles; no se elige una (D-140) |
+| E25 | Dos personas confirman a la vez entregas de la misma cuenta | Cerrojo de la cuenta; la segunda compara su saldo esperado con el de ahora y **no guarda nada** si cambió (BR-Z12) |
+| E26 | El mismo premio registrado dos veces como pagado | Índice único parcial de pagos vigentes; un reintento con la misma solicitud devuelve el pago ya guardado (BR-Z08) |
+| E27 | Un integrante cambia de vendedor a cargo con dinero ya entregado | Lo entregado se queda en la cuenta del anterior; el nuevo responde solo por lo que falta (BR-Z10) |
+| E28 | Una cuenta cerrada cambia después (una anulación, un pago nuevo, otro acuerdo) | El cierre no se toca; la lectura marca `changed_after_close` y el siguiente saldo en cero guarda la versión siguiente (BR-Z11) |

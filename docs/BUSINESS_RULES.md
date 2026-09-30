@@ -1,6 +1,9 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.41 · **Estado:** normativo · **Actualizado:** 2026-09-30 (**EN PRODUCCIÓN desde las 18:00 UTC**: las
+- **Versión:** 1.42 · **Estado:** normativo · **Actualizado:** 2026-09-30, más tarde (§12.j nueva: el **cierre de
+  cuentas** —D-241, migración `0080`, **solo en local**—, **BR-Z01..BR-Z18**: el dinero sigue la cadena integrante →
+  vendedor a cargo → dueño, se calcula con el motor publicado y lo confirma quien lo recibe; **BR-Q08 y BR-E05
+  acotadas** por la excepción de cifras agregadas, BR-Z13). Antes, ese mismo día (**EN PRODUCCIÓN desde las 18:00 UTC**: las
   reglas nuevas BR-G27..BR-G35 y las precisiones de BR-G25 y BR-G33, que las entradas de 2026-09-29 marcan «solo en
   local», rigen en producción, `DEPLOYMENT`
   §3.2.u). Antes, 2026-09-29, al final (§3.b: **BR-E08**, I-184 decidida por
@@ -146,7 +149,7 @@ La diferencia entre un vendedor con equipo y uno sin equipo es solo que el prime
 | BR-E02 | El vendedor padre debe ser un vendedor **activo de la misma organización**. La FK compuesta contra `(profile_id, organization_id)` lo hace imposible de violar entre organizaciones. | D | post-9 |
 | BR-E03 | **Dos niveles.** Un vendedor que ya pertenece al equipo de alguien no puede formar el suyo. El modelo admite más profundidad; lo que la limita son el trigger `memberships_validate_parent_seller` y la política de alta. *Precisada el 2026-09-29 (I-176, D-237): ese trigger solo miraba que el padre nuevo no tuviera padre, y reorganizando se podía colgar de otro a quien ya tenía equipo; desde la `0078` lo impide también `memberships_validate_seller_agreements`.* | S, D | post-9 |
 | BR-E04 | Un vendedor solo crea integrantes **para su propio equipo** y **siempre con rol vendedor**. No puede crear administradores ni dueños, ni meter gente en el equipo de otro, ni crear vendedores sueltos a cargo del Dueño (eso sigue siendo BR-U01). | S, D | post-9 |
-| BR-E05 | El vendedor padre ve las **ventas** de su equipo y los indicadores que salen de ellas, **solo dentro de «Mi equipo»** y a través de `team_sales_summary` / `team_member_sales`. **No** ve sus clientes, **no** ve sus pagos, **no** puede modificarles nada, y sus propias pantallas («Mis boletas», su panel, sus reportes, su búsqueda) siguen mostrando **únicamente lo suyo**. Es la única excepción a BR-U07 y no se amplía sin una decisión explícita (D-092). | S, D | post-9 |
+| BR-E05 | El vendedor padre ve las **ventas** de su equipo y los indicadores que salen de ellas, **solo dentro de «Mi equipo»** y a través de `team_sales_summary` / `team_member_sales`. **No** ve sus clientes, **no** ve sus pagos, **no** puede modificarles nada, y sus propias pantallas («Mis boletas», su panel, sus reportes, su búsqueda) siguen mostrando **únicamente lo suyo**. Es la única excepción a BR-U07 y no se amplía sin una decisión explícita (D-092). **Ampliada el 2026-09-30 por decisión explícita del dueño (D-241, BR-Z13):** en «Mi cierre de cuentas» el vendedor a cargo ve de cada integrante las cifras **agregadas** de su cuenta con él —boletas pagadas y su valor, su ganancia, sus premios y sus entregas—, sin clientes, abonos ni pagos. | S, D | post-9 |
 | BR-E06 | Un vendedor no puede cambiar su propio `parent_seller_id` ni el de nadie. Reorganizar equipos es exclusivo del Dueño y el Administrador. | D | post-9 |
 | BR-E07 | La visibilidad es **en un solo sentido**: un integrante no ve las ventas de su vendedor padre ni las de sus compañeros de equipo. | D | post-9 |
 | BR-E08 | El Dueño y el Administrador conservan visibilidad y control totales: ven todos los equipos, pueden crear un vendedor ya dentro de un equipo y pueden moverlo de equipo. **Acotada el 2026-09-14 (D-198):** la estructura, sí; lo que vende y gana cada integrante, no (BR-Q08). **Precisada el 2026-09-29 (D-238):** mover a alguien de equipo, o darlo de alta dentro de uno, es decidir **quién** es su padre; lo que gana dentro del equipo lo adjudica ese padre (BR-G34). Por eso un traslado lleva el acuerdo de equipo que la persona ya tenía —o la lista general, si nunca tuvo— y **se rechaza si no cabe** en el acuerdo del padre nuevo (BR-G28). En ese caso no hay camino desde el personal: no puede cambiarlo y el padre nuevo solo actúa sobre su equipo. **Decidido por el dueño el 2026-09-29 (D-239, I-184): se mantiene el rechazo como limitación aceptada** —no se rebaja la ganancia del integrante, no se amplían los permisos del personal, no se carga la diferencia a nadie y no hay por ahora un flujo de propuestas—. El rechazo dice el par, con qué conteo y qué cifras, y no cambia nada. El padre **de ahora** sí puede fijar antes una ganancia que el padre nuevo cubra (BR-G34); un vendedor directo que entra con la lista general no tiene ese camino. | S, D | post-9 |
@@ -949,6 +952,10 @@ pantalla. Alcance **B**, elegido por el usuario: tampoco ven dinero ni ganancias
 procedimiento está en D-198. Llevan nota de lo que esta sección acota: BR-E08, BR-G12, BR-N12, BR-N13,
 BR-N14, BR-I10, BR-I13, BR-I14, BR-B03, BR-P13, BR-F10, BR-F16, BR-D04, BR-T01 y BR-T04.
 
+> **Acotada el 2026-09-30 por decisión explícita del dueño (D-241, BR-Z13):** el cierre de cuentas da al personal,
+> por cuenta, **cifras agregadas** —boletas pagadas y su valor, ganancias del titular y de su equipo, premios con su
+> boleta y entregas— para que sepa cuánto recibe. Ningún cliente, abono de una boleta sin pagar ni pago de un cliente.
+
 ---
 
 ## 12.i Premios configurables por rifa (BR-J)
@@ -1050,12 +1057,46 @@ rifa—, no una letra nueva.
 **Lo que el historial NO hace, dicho para que no se lea de más:** no construye otro motor, no recalcula
 ganadores desde las boletas de hoy, no reprocesa resultados, no cambia el modo de ninguna rifa, no
 registra qué alternativa se llevó quien acertó —eso sigue fuera (BR-J02)— y no registra entregas,
-desembolsos ni pagos de premios. **Son premios ganados.**
+desembolsos ni pagos de premios. **Son premios ganados.** Desde D-241, **quién pagó** un premio se registra
+en el cierre de cuentas (BR-Z07), y el historial sigue sin enseñarlo.
 
 **Nota sobre BR-L15.** El historial habla de **premios**, que es lo que una rifa entrega a quien acierta
 (D-199), y sigue sin llamar «ganador», «ganadora» ni «premiada» a una persona o a una boleta: el
 **resultado** y la **coincidencia** son de la lotería, el **premio** es de la rifa, y una prueba unitaria
 falla si esas palabras aparecen. BR-L15 no se relaja.
+
+---
+
+## 12.j Cierre de cuentas (BR-Z)
+
+Mantenimiento posterior a la Fase 9 (2026-09-30, **D-241**, migración `0080`, **solo en local**). El dinero de una
+rifa sigue la cadena de la organización: **el integrante entrega a su vendedor a cargo y el vendedor a cargo entrega
+al dueño**. La letra es `Z` de «**z**anjar» una cuenta: las demás ya tienen dueño.
+
+| ID | Regla | Capas | Estado |
+|----|-------|-------|--------|
+| BR-Z01 | **La cuenta se calcula, no se guarda.** `settlement_account_rows` es su única definición: lee las boletas, `seller_commissions` —el motor publicado, sin un segundo motor—, los pagos de premios y las entregas. Lo que se guarda son HECHOS: entregas, devoluciones, pagos de premios y cierres. | S, D | ✅ local |
+| BR-Z02 | **Solo entran las boletas pagadas por completo**, por su `sale_price`: lo que de verdad se cobró, nunca el precio de hoy multiplicado otra vez. Una boleta a medias no entra aunque tenga abonos, y la pantalla lo dice («Las 3 sin pagar aún no entran»). | C, S, D | ✅ local |
+| BR-Z03 | **Lo abonado a boletas sin pagar es cartera** (BR-Q01): lo ve solo su vendedor, en su propia cuenta, como aviso. Ni el personal ni el vendedor a cargo lo reciben. | S, D | ✅ local |
+| BR-Z04 | **El estado se deriva, nadie lo elige**: *Sin boletas pagadas* (nada que cerrar), *Falta información* (un premio sin pago registrado, o un pago cuyo premio ya no aparece), *Pendiente* (saldo y ninguna entrega), *Entrega parcial* (saldo y alguna entrega), *A favor del vendedor* (saldo negativo), *Por cerrar* (en $0, sin nada pendiente y sin cierre vigente) y *Cerrada* (en $0 y con un cierre de estas mismas cifras). | C, S, D | ✅ local |
+| BR-Z05 | **Solo quien recibe confirma.** La entrega de un vendedor directo la confirma el personal con `settlements.manage`; la de un integrante, **su vendedor a cargo de hoy**; una devolución, **quien la recibe**. Nadie confirma su propia entrega, y un vendedor no confirma lo que recibe el dueño. | C, S, D | ✅ local |
+| BR-Z06 | **Una cuenta por vendedor directo, con su equipo dentro**, y una cuenta de cada integrante con su vendedor a cargo. El dueño no cobra dos veces al integrante: lo que este entrega a su vendedor a cargo **no suma** a lo recibido por el dueño, y lo que todavía no le entrega ya está dentro de lo que el vendedor a cargo debe al dueño. | C, S, D | ✅ local |
+| BR-Z07 | **Un premio pagado se registra, no se supone.** Pudo pagarlo el vendedor de la boleta, **su vendedor a cargo** o el dueño —nadie más—, y lo registra **quien recibe las entregas del pagador**: lo del integrante, su vendedor a cargo; lo del vendedor directo o del vendedor a cargo, el personal; lo del dueño, el personal. Elegir un nombre no autoriza nada. El valor es el del premio si se conoce; en especie o con alternativas **se escribe** y nunca vale $0. La fecha va del sorteo a hoy. Un resultado por verificar no se paga. Ningún premio histórico se marca pagado solo. | C, S, D | ✅ local |
+| BR-Z08 | **Un pago vigente por premio.** Un índice único lo impide dos veces —dos pestañas, dos personas o un reintento—, y la misma solicitud repetida devuelve lo que ya se guardó: el descuento nunca se aplica dos veces. | S, D | ✅ local |
+| BR-Z09 | **El premio es un costo del dueño y no toca ninguna ganancia.** Si lo pagó el integrante, baja su entrega al vendedor a cargo y, **una sola vez**, la de este al dueño; si lo pagó el vendedor a cargo, baja solo la suya; si lo pagó el dueño, no baja ninguna entrega y sí la ganancia del dueño. La ganancia del dueño resta todos los premios pagados de las boletas de la cuenta. | S, D | ✅ local |
+| BR-Z10 | **Cambiar de equipo no mueve el dinero ya entregado.** Las ganancias las recalcula el motor con la estructura de hoy (BR-G31); lo que un integrante entregó a su vendedor a cargo anterior sigue en la cuenta de ese anterior, y el nuevo responde solo por lo que falta. Esas cifras se enseñan como «Movimientos por cambios de equipo». | C, S, D | ✅ local |
+| BR-Z11 | **Una cuenta saldada guarda la foto de sus cifras.** Una entrega o un premio que la dejan en $0 sin nada pendiente la cierran solos; si quedó en $0 por otro camino, se cierra a mano con la huella que se tenía a la vista. La foto es inmutable y lleva versión: un cambio posterior la deja intacta, la pantalla enseña la diferencia y el siguiente saldo en cero guarda la versión siguiente. **Cerrar una cuenta no cierra la rifa.** | C, S, D | ✅ local |
+| BR-Z12 | **Se revalida al confirmar.** Cada escritura toma el cerrojo de la cuenta con el dueño, recalcula el saldo y lo compara con el que la persona tenía a la vista: si cambió, **no guarda nada** y responde el saldo de ahora. Una entrega no supera el saldo; una devolución, lo que se le debe al vendedor; la fecha no es futura ni anterior a la rifa. | C, S, D | ✅ local |
+| BR-Z13 | **Excepción acotada a BR-Q01, BR-Q08 y BR-E05**, pedida por el dueño: el personal y el vendedor a cargo ven de una cuenta sus **cifras agregadas** —boletas activas, vendidas y pagadas, valor de las pagadas, ganancias (del titular y del equipo), premios con su boleta, entregas—. **Nunca** un cliente, un abono de una boleta sin pagar ni un pago de un cliente. El nombre del cliente de un premio solo lo ve su vendedor. | C, S, D | ✅ local |
+| BR-Z14 | **Anular no borra.** Una entrega o una devolución la anula quien la recibió; un pago de premio, quien podría registrarlo hoy; siempre con motivo (5 a 500 caracteres). La fila queda marcada y el cierre que la incluía no cambia. | C, S, D | ✅ local |
+| BR-Z15 | **Saldo a favor del vendedor.** Cuando pagó premios por encima de lo que debía, se le devuelve; la devolución la confirma él y **no suma a «Recibido»**: se cuenta aparte. | C, S, D | ✅ local |
+| BR-Z16 | **Los contadores salen de registros confirmados.** «Recibido» = entregas vigentes al dueño en la rifa; «Falta recibir» = saldos positivos de las cuentas con el dueño; «Cuentas cerradas» = cerradas de las que tienen actividad. | C, S, D | ✅ local |
+| BR-Z17 | **Acceso solo por funciones.** Las tres tablas tienen RLS forzada **sin políticas** y ningún privilegio para una sesión; 14 RPC con lista exacta de EXECUTE (`scripts/settlement-function-grants.ts`) autorizan dentro. La capacidad `settlements.manage` es del Dueño y del Administrador. | S, D | ✅ local |
+| BR-Z18 | **Inmutable salvo la anulación.** De una entrega o de un pago de premio solo se escribe su anulación, una vez; un cierre no se toca nunca. Nada se borra. | D | ✅ local |
+
+**Lo que el cierre NO hace:** no calcula ganancias —las lee—, no registra qué alternativa de un premio se llevó
+nadie, no mueve dinero, no avisa por la campana y no exporta CSV. Tampoco existe para los sorteos anteriores al inicio
+del historial (BR-J22, I-194).
 
 ---
 

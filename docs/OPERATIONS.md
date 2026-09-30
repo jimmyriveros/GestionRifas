@@ -1,6 +1,7 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-09-14 (D-198: §4, §4.b y §4.c). Para quien **opera el negocio** (Owner/Admin), no para quien
+**Actualizado:** 2026-09-30 (D-241: **§4.e nueva**, el cierre de cuentas, **solo en local**). Antes, 2026-09-14
+(D-198: §4, §4.b y §4.c). Para quien **opera el negocio** (Owner/Admin), no para quien
 programa. Para desplegar la aplicación ver [`DEPLOYMENT.md`](DEPLOYMENT.md); para problemas
 frecuentes, [`RUNBOOK.md`](RUNBOOK.md).
 
@@ -195,6 +196,60 @@ entrega, no quien lo recibe.
 
 Todo queda en la bitácora: quién lo marcó, cuándo, y qué valor tenía antes. Detalle de la regla en
 `BUSINESS_RULES.md` (BR-I15) y de la decisión en `DECISIONS.md` (D-170).
+
+---
+
+## 4.e Cierre de cuentas: recibir el dinero de los vendedores (D-241)
+
+> 🧪 **Solo en local** hasta que se publique (`RUNBOOK` §11). Lo que sigue es cómo se usa cuando esté en producción.
+
+El dinero de una rifa sube por la cadena: **el integrante entrega a su vendedor a cargo, y el vendedor a cargo entrega
+al dueño**. En «Cierre de cuentas» (`/owner/settlements`, Dueño y Administrador) se ve, por rifa, lo **recibido**, lo
+que **falta recibir** y las cuentas **cerradas**; en «Mi cierre de cuentas» (`/seller/settlement`) cada vendedor ve lo
+que tiene que entregar y, si tiene equipo, las cuentas de sus integrantes.
+
+| Quiero… | Dónde | Quién |
+|---|---|---|
+| Confirmar dinero que me entregó un vendedor directo | Su cuenta → **«Registrar recibido»**. Se puede entregar por partes | Dueño o Administrador |
+| Confirmar lo que me entregó un integrante de mi equipo | «Mi cierre de cuentas» → «Cuentas con tu equipo» → su cuenta | Su vendedor a cargo, y nadie más |
+| Registrar quién pagó un premio | La cuenta, en «Premios» → **«Registrar premio pagado»** | Quien recibe las entregas del que pagó: si pagó un integrante, su vendedor a cargo; si pagó un vendedor directo, un vendedor a cargo o el dueño, el personal |
+| Devolver dinero a un vendedor con saldo a su favor | Se le entrega fuera de la aplicación; **él** confirma «Devolución recibida» en su cierre | El vendedor que la recibe |
+| Corregir una entrega o un pago de premio confirmados por error | En su fila → **«Anular»**, con el motivo. La fila se queda, marcada | Una entrega, quien la recibió: si la recibió el dueño, el Dueño o cualquier Administrador. Un premio, quien podría registrarlo hoy |
+| Cerrar una cuenta que quedó en $0 por otro camino | **«Cerrar cuenta»** en su recuadro | Quien recibe sus entregas |
+
+**Tres cosas que no se hacen:** confirmar dinero que todavía no se tiene en la mano; «cerrar» una cuenta para cerrar la
+rifa —son dos cosas distintas, y cerrar una cuenta no toca la rifa—; y registrar a nombre de otra persona: la aplicación
+solo deja confirmar a quien recibe.
+
+**Si al confirmar sale «La cuenta cambió»**, alguien registró otro movimiento mientras se revisaba: **no se guardó
+nada**. Se revisa el saldo nuevo y se vuelve a confirmar.
+
+**Si un vendedor a cargo se desactiva**, nadie puede confirmar lo que le entrega su equipo (I-196): primero se
+reorganiza el equipo (§2) y cada integrante pasa a entregar a su vendedor a cargo nuevo o al dueño. Lo que ya le había
+entregado al anterior se queda en la cuenta de ese anterior.
+
+**El primer día** el cierre no conoce las entregas ni los pagos de premios anteriores: se verá «Recibido $0» y
+cuentas en «Falta información». Cómo arrancar —registrarlos con su fecha real o empezar a contar desde ese día— lo
+decide el dueño (`RUNBOOK` §11.2).
+
+**Diagnóstico en solo lectura** (quien opera, con la *service role*; ninguna sesión puede leer estas tablas):
+
+```sql
+-- Entregas y devoluciones vigentes de una rifa, por tipo y destino
+select kind, counterpart_id is null as al_dueno, count(*), sum(amount)
+  from settlement_transfers
+ where raffle_id = '<RIFA>' and voided_at is null
+ group by 1, 2;
+
+-- Premios con más de un pago vigente (tiene que dar cero filas: lo impide un índice único)
+select match_id, prize_id, count(*)
+  from settlement_prize_payments
+ where voided_at is null
+ group by 1, 2 having count(*) > 1;
+```
+
+Nada de estas tablas se corrige a mano: una fila equivocada se **anula** desde la aplicación, y un cierre no se toca
+nunca (BR-Z14, BR-Z18). Detalle de las reglas en `BUSINESS_RULES.md` §12.j y de la decisión en `DECISIONS.md` (D-241).
 
 ---
 

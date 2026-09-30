@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-30, 18:03 UTC (**§3.2.u nueva: la configuración de ganancias EN PRODUCCIÓN** —`0078`, `0079` y
+**Actualizado:** 2026-09-30, más tarde (§3.3.b y §4.1: la `0080` del cierre de cuentas —D-241, **solo en local, sin
+autorizar**— es aditiva y se publica sin pausa, la base primero; volver a `5f84e13` basta; `RUNBOOK` §11). Antes, ese
+mismo día, 18:03 UTC (**§3.2.u nueva: la configuración de ganancias EN PRODUCCIÓN** —`0078`, `0079` y
 `5f84e13`, con D-236 y D-240 dentro—, con la pausa cerrada 12 min 5 s; el punto de reversión del código es el puente,
 **solo después** de recuperar el esquema, `RUNBOOK` §10.5). Antes, 2026-09-29, al final (§3.3.b: la ventana de la `0078` y la `0079` la controla la **pausa de la API**
 —D-239, solo en local—; **§3.3.c nueva**: el puente de la pausa, `cac81e8` con solo el manejo de la pausa, **preparado y
@@ -1374,6 +1376,12 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > `supabase/recovery/0079_a_0077.sql` y devuelve los permisos de la foto de antes de migrar (D-240)— y después el
 > código. Todo en `RUNBOOK` §10. **No está autorizada**: nada de la `0078` ni de la `0079` existe en el proyecto real.
 
+> **Pendiente, sin autorizar: la `0080`, el cierre de cuentas (D-241).** Es **aditiva** y vuelve al orden de siempre:
+> la base primero y el código después, **sin pausa** —el código servido, `5f84e13`, no nombra nada de la `0080`—. Dos
+> cuidados medidos en el ensayo: la CLI la aplica sentencia a sentencia y sus llaves foráneas bloquean las escrituras
+> de siete tablas hasta confirmar, así que van **al final del archivo** (288 ms en local, frente a 5,9 s dentro de cada
+> tabla) y se migra con `lock_timeout`, fuera de las horas del programador. Procedimiento en `RUNBOOK` §11.
+
 #### 3.3.c El puente de la pausa — **EN PRODUCCIÓN desde el 2026-09-30, 01:16 UTC** (D-239, PB; registro en §3.2.t)
 
 | | |
@@ -1415,6 +1423,9 @@ permisos de escritura comprobados.
 **Con la `0078` y la `0079` (D-239)**, el despliegue anterior será el **puente** de §3.3.c, y volver a él no basta:
 antes, la comprobación previa de `RUNBOOK` §10.5 y, si se puede, la recuperación del esquema. Si no se puede, **no se
 vuelve**: el código nuevo es el único que entiende esa base.
+
+**Con la `0080` (D-241), cuando se publique**, el despliegue anterior será `5f84e13`, y volver a él **sí basta**: no
+nombra nada de la `0080`, que se queda en la base sin estorbar (`RUNBOOK` §11.4).
 
 ### 4.2 Base de datos
 

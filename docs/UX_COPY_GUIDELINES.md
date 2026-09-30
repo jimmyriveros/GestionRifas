@@ -513,6 +513,23 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Las dos fechas del filtro de ese historial | **Sorteos desde** y **Sorteos hasta** | «Desde» y «Hasta» a secas, que ahí no dicen de qué fecha se trata |
 | En el aviso de cobertura, un sorteo sin resultado o con el resultado en conflicto | **«con el resultado sin confirmar o por verificar»**; «por verificar» es la misma familia que «Requiere verificación» de la fila | «En revisión», «con problemas», «en conflicto» —que en premios ya nombra otra cosa— |
 | Quien vendió, tiene premios en el historial y hoy tiene otro rol, en el desplegable «Vendedor» del personal | **«Nombre (ya no vende)»**, como **«Nombre (inactivo)»** para un vendedor desactivado (Etapa 3) | Exvendedor, ascendido, antiguo vendedor, «(administrador)» |
+| El vendedor que tiene un equipo, visto por sus integrantes o por el personal | **Vendedor a cargo**: «Carlos es tu vendedor a cargo.», «Lo que entrega Luis Pérez lo confirma su vendedor a cargo, Carlos Ruiz.» (D-238, D-241) | Responsable, jefe, líder, superior, «vendedor padre», que es la palabra de la documentación |
+| La sección donde se revisa y se confirma el dinero que los vendedores entregan en una rifa | **Cierre de cuentas**; la del vendedor, **Mi cierre de cuentas** (D-241) | Liquidación, cuadre, rendición de cuentas, conciliación |
+| Lo que un vendedor tiene que entregar en una rifa, con lo que ya entregó | **Cuenta**, siempre con de quién es o con quién: «Cuenta de Carlos Ruiz», «Tu cuenta», «Cuentas con el dueño», «Cuentas con tu equipo» (D-241) | Liquidación, corte, estado de cuenta. Y «cuenta» a secas, que fuera del cierre es la de acceso (Cuenta activa) o la de recibir pagos (Anexo C) |
+| Dar al dueño o al vendedor a cargo el dinero cobrado de las boletas | **Entregar**; el hecho, una **entrega**; solo una parte, **entrega parcial** (D-241) | Pagar, consignar, liquidar, rendir, y nunca **abonar**: el abono es del cliente |
+| Lo que el dueño ya confirmó que le entregaron los vendedores en una rifa | **Recibido**; lo que todavía no, **Falta recibir** (D-241) | **Recaudado**, que es lo que pagan los clientes; cobrado, ingresado, en caja |
+| Lo mismo visto por quien entrega | **Ya entregaste** y **Falta entregar**; el total, **Para entregar al dueño** o **Para entregar a Carlos** (D-241) | Debes, deuda, pendiente de pago |
+| Lo ya recibido de una cuenta, en su recuadro | Al vendedor a cargo, **Ya recibiste**; al personal, **Recibido**, sin tuteo: es dinero de la organización y quien mira puede no ser quien lo recibió (D-241, D-182) | «Ya recibiste» en el portal administrativo, que es lo que decía la propuesta |
+| Decir que ya se tiene el dinero en la mano | **Confirmar**: el botón que abre dice **Registrar recibido** y el que guarda, **Confirmar recibido** (D-241) | Aprobar, validar, aceptar, «marcar como pagado» |
+| Lo que le queda a una cuenta por entregar, dentro del cierre | **Saldo** de la cuenta: «Saldo que quedará» (D-241) | Balance, deuda. Y **saldo pendiente**, que es lo que debe un cliente por una boleta y no aparece en el cierre |
+| Cuando el vendedor pagó más de lo que debía entregar | **A favor del vendedor**; a él, **A tu favor** y **Te deben devolver**; al vendedor a cargo que devuelve, **Debes devolver a Ana**; al personal, **Falta devolver a Marta** (D-241, D-182) | Saldo negativo, crédito, sobrante |
+| El dinero que se le regresa entonces | **Devolución**; la confirma quien la recibe: **Confirmar devolución recibida** (D-241) | Reembolso, reintegro. «Devolver» tampoco nombra liberar una boleta |
+| Lo que queda para el dueño después de las ganancias de los vendedores | **Parte del dueño**; restados los premios, **Ganancia del dueño después de los premios** (D-241) | Utilidad, margen, lo de la casa |
+| Lo que una cuenta suma o resta porque un integrante cambió de vendedor a cargo | **Movimientos por cambios de equipo** (D-241) | Ajustes, traslados, transferencias, correcciones |
+| Que alguien ya le pagó el premio al cliente, registrado en el cierre | **Premio pagado**; registrarlo, **Registrar premio pagado**; la pregunta, **¿Quién lo pagó?** (D-241) | Entregado, desembolsado, liquidado. En «Premios ganados» **sigue sin escribirse «pagado»**: esa pantalla no lo sabe |
+| Un premio ganado del que nadie ha dicho quién lo pagó | **Falta registrar quién lo pagó**; en la cuenta, el estado **Falta información** (D-241) | Pendiente de pago, sin pagar, impago |
+| Guardar la foto de una cuenta que quedó en $0 | **Cerrar cuenta**; hecha, **Cerrada**; a punto de hacerse, **Por cerrar** (D-241) | Liquidar, saldar, finalizar. **No es cerrar la rifa**, y se dice: «Cerrar una cuenta no cierra la rifa.» |
+| Que una cuenta cerrada ya no tiene las mismas cifras | **Cambió después del cierre**; el aviso, «Esta cuenta cambió después del cierre del …», con **Al cerrar** y **Ahora** (D-241) | Descuadrada, alterada, reabierta |
 
 **«Rebaja», no «descuento» (D-099).** Un vendedor puede vender una boleta más barata, y en pantalla
 eso se llama **rebajar**: «Puedes rebajarlo hasta $60.000», «rebaja de $20.000». *Descuento* se evita
@@ -1654,11 +1671,65 @@ se descarta. El vendedor, en cambio, filtra por su cliente desde la ficha con **
 nombre accesible **empieza por lo que se ve** —«Ver premios de Ana Torres»—, y el historial lo dice
 arriba: «Solo los premios de Ana Torres.», con «Ver todos los premios» al lado.
 
+**El cierre de cuentas lo confirma quien recibe, y cada pantalla lo dice** (D-241, BR-Z05). El botón de confirmar
+solo lo ve quien tiene el dinero en la mano: el personal, lo que entrega un vendedor directo; el vendedor a cargo, lo
+que le entrega su integrante; el vendedor, una devolución. Los demás no ven un botón que va a fallar: ven **a quién le
+toca** —«Marta confirma la devolución cuando reciba el dinero.», «Lo registra Carlos cuando le confirmes que lo
+pagaste.»—. Es la misma regla de siempre: se explica la salida, no se ofrece una acción imposible.
+
+**«Confirma únicamente el dinero que ya tienes.»** Va con el saldo de quien recibe, junto al botón. Es la única
+frase de prevención que el cierre necesita, porque confirmar es lo que mueve los contadores de todo el mundo.
+
+**El diálogo dice qué va a pasar ANTES de guardar.** Debajo del importe, el **saldo que quedará** y una frase con la
+consecuencia: «Se guardará esta entrega y la cuenta quedará cerrada con los valores de hoy.», «…seguirá con saldo
+pendiente.» o «…La cuenta se cierra cuando se registren los premios que faltan.». Y la línea que explica la
+revalidación: «El saldo se vuelve a comprobar al confirmar. Si cambió, primero verás la diferencia.»
+
+**Si la cuenta cambió mientras se revisaba, se dice que no se guardó nada.** El diálogo «La cuenta cambió» enseña
+**Antes** y **Ahora** y termina con «No se ha guardado nada.»: sin esa frase, quien lo ve no sabe si su entrega quedó
+dentro. Es la misma familia que la regla de sin conexión (D-116): nunca se da por guardado lo que no llegó.
+
+**Un premio ganado no es un premio pagado, y el texto no lo supone.** Mientras nadie lo registre, la fila dice
+**«Falta registrar quién lo pagó»** y la cuenta queda en **Falta información**. Un premio en especie o con
+alternativas no vale «$0»: dice **«Valor por confirmar»** y, al registrarlo, pide escribir lo que se pagó —«Es un
+premio en especie o con alternativas: escribe el valor que se pagó.»—. Un resultado en conflicto no se paga:
+«Resultado por verificar», con la frase de siempre de la fuente oficial. Y el resumen de la tarjeta dice **qué suma**:
+«4 premios · $450.000 **pagados**», porque la lista de debajo enseña también el valor de los que nadie ha registrado, y un
+total que no suma su desglose tiene que decirlo (D-172).
+
+**El efecto de un premio se dice con nombres, antes de confirmar.** «Este valor se descontará de lo que Ana te entrega.
+Su ganancia no cambia.», «…de lo que Carlos entrega. La cuenta de Ana con Carlos no cambia.» o «Lo pagó el dueño:
+baja la ganancia del dueño y no cambia lo que se entrega.». La segunda mitad es lo que la persona teme y no puede
+deducir: que pagar un premio le quite ganancia.
+
+**Una resta se escribe con su signo y se oye con su palabra.** El cálculo dice «− $900.000»; el signo es `aria-hidden`
+y viaja un «menos» en `sr-only`, porque el guion largo no lo lee igual cada lector de pantalla. El color nunca es la
+única señal (`CLAUDE.md` §27).
+
+**«Recibido» es solo lo que llegó al dueño, y se dice dos veces donde puede confundirse.** Bajo el listado: «Lo que un
+integrante entrega a su vendedor a cargo no se suma a «Recibido».»; y en una cuenta a favor: «La devolución no
+aumenta «Recibido».». No es redundante: son los dos caminos por los que alguien creería que se cuenta dos veces.
+
+**El personal lee cifras, no clientes, y la pantalla lo dice al pie**: «Los nombres de los clientes solo aparecen en la
+cuenta de su vendedor.». En la cuenta propia del vendedor, en cambio, cada premio lleva **«Cliente: …»**, y lo abonado
+a boletas sin pagar se le dice solo a él: «Tus boletas sin pagar ya tienen $X en abonos. Entran en la cuenta cuando
+cada una quede pagada.».
+
+**Cerrar una cuenta no es cerrar la rifa, y se escribe donde se ve una cerrada** (D-241, Anexo C): en el recuadro de
+una cuenta cerrada o por cerrar, y en el diálogo de cerrar. «Cerrada» es además la etiqueta de una rifa terminada; la frase evita
+que alguien crea que acaba de terminar la rifa entera.
+
+**Anular una entrega no la borra, y el diálogo lo dice**: «La entrega de $X deja de contar y el saldo vuelve a subir.
+Queda en el historial como anulada.», con **«Motivo de la anulación»** y la línea de siempre: «Queda guardado en el
+historial de la cuenta.». Anular aquí es lo mismo que en un pago: definitivo para esa fila, que se queda a la vista.
+
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
 las tres de una persona: **Invitación pendiente · Cuenta activa · Inactivo**, las dos de un
 cliente: **Activo · Archivado** (`CLIENT_STATUS_LABELS`, D-113), y las tres de un recordatorio de
-pago: **Activo · Pausado · Archivado** (`PAYMENT_REMINDER_STATUS_LABELS`, D-188). El portal
+pago: **Activo · Pausado · Archivado** (`PAYMENT_REMINDER_STATUS_LABELS`, D-188), y las siete de una
+cuenta del cierre: **Sin boletas pagadas · Falta información · Pendiente · Entrega parcial · A favor del
+vendedor · Por cerrar · Cerrada** (`SETTLEMENT_STATUS_LABELS`, D-241). El portal
 administrativo usa solo **Sin pagar** y **Pagada** (`ADMIN_TICKET_PAYMENT_STATE_LABELS`, D-198), tomadas
 de esas mismas constantes. Fuente única:
 `src/lib/constants.ts` (`docs/ARCHITECTURE.md` §8.3). Cambiar una etiqueta significa cambiar ese
@@ -1882,6 +1953,12 @@ castigo donde solo había una espera.
 | «Sorteos desde» y «Sorteos hasta» | `PRIZE_AWARDS_COPY.filters`, que `PrizeAwardsView` pasa a `ReportFilters` en `dateLabels`. En los reportes la barra sigue diciendo «Desde» y «Hasta» |
 | «premio» y «premios» en la paginación | `LIST_ITEM_LABELS.prizes`, en `src/lib/constants.ts` (D-111) |
 | «entre el 9 y el 24 de agosto de 2026» | `formatLongDateBetweenEs` (`lib/dates.ts`), hermana de `formatLongDateRangeEs`: comparten el cálculo y cambian solo las palabras |
+| Todos los textos del cierre de cuentas: los dos portales, el recuadro del saldo, el cálculo, los premios, las entregas, el equipo y los cinco diálogos | `src/features/settlements/copy.ts` (`SETTLEMENT_COPY`), **todos juntos** (D-241). El primer nombre de «Falta recibir de Carlos» lo corta `firstName`, ahí mismo |
+| Las siete etiquetas del estado de una cuenta —Sin boletas pagadas · Falta información · Pendiente · Entrega parcial · A favor del vendedor · Por cerrar · Cerrada— y su tono | `src/lib/constants.ts` (`SETTLEMENT_STATUS_LABELS` y `SETTLEMENT_STATUS_TONES`, D-241). Las pinta `SettlementStatusBadge` |
+| Las frases de un premio dentro del cierre: su estado, quién pudo pagarlo según quien mira y a quién pedírselo | `src/features/settlements/view.ts` (`prizeState`, `prizeStateLabel`, `staffPrizePayers`, `headPrizePayers`), que las **compone** de `SETTLEMENT_COPY` sin escribir ninguna |
+| «Cierre de cuentas» y «Mi cierre de cuentas» en el menú | El `label` de cada portal, en su `layout.tsx` (D-106); son las mismas palabras de `SETTLEMENT_COPY.nav` |
+| Lo que responde la base al confirmar, registrar un premio, anular o cerrar | Los `raise` de la `0080`: dicen quién confirma («Lo que entrega Luis Pérez lo confirma su vendedor a cargo, Carlos Ruiz.»), el tope con la cifra y las fechas. Las que también comprueba el formulario —el tope, el importe vacío, el motivo, el pagador— usan **las mismas palabras** en `SETTLEMENT_COPY` |
+| «Este premio ya tiene un pago registrado.» y «Esta confirmación ya se había enviado con otros datos. Vuelve a abrir la cuenta.», los duplicados | `src/lib/errors.ts` (`CONSTRAINT_MESSAGES`, por los índices `settlement_prize_payments_live_key` y los dos `…_request_key`, D-241): la red de abajo, con **las mismas palabras** que las RPC dicen antes |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 
@@ -1898,6 +1975,12 @@ Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extr
 | El Anexo A reserva **Versión** para el código nuevo tras un despliegue; la lista general se guarda por versiones (D-237) | Se dice «Versión 3 · guardada el …» **siempre junto a la lista general**, como ya hacía un premio con «una versión nueva». El aviso de actualización de la aplicación sigue siendo el único que dice «versión» a secas; si algún día se confunden, se cambia aquí |
 | El encargo de D-237 decía «Configuración → Ganancias de vendedores», y «Configuración» era solo del vendedor (D-188) | Hay **una por portal, en el mismo sitio** —el menú del avatar— y con el mismo nombre: cada rol ve la suya y nunca una puerta a `/denied` |
 | La pantalla de la pausa vive en `/mantenimiento`, y «mantenimiento» es una palabra que el Anexo A no usa (D-239) | Una dirección no es un texto de la interfaz: la pantalla dice «Estamos actualizando Rifas» y no nombra la ruta. Si algún día se cambia, se cambia `MAINTENANCE_PATH` y el proxy a la vez |
+| La propuesta de Figma del cierre (D-241) dice «Responsable», «Boletas asignadas», «Pendiente» con una entrega ya hecha, que el dueño «Registra devolución» y le habla de «tú» sobre lo recibido («Ya recibiste», «Debes devolver a Marta») | Se escriben **vendedor a cargo** (el término que la aplicación ya usa, D-238), **Boletas activas** (D-172), **Entrega parcial**, **Confirmar devolución recibida** en manos de quien la recibe (BR-Z05) y, en el portal administrativo, **Recibido** y **Falta devolver a Marta** (D-182). Las cinco están explicadas en D-241 |
+| «Cuenta» ya nombraba tres cosas —la de acceso («Cuenta activa»), la de recibir pagos y, prohibida, la organización— y el cierre la necesita para una cuarta | Se conserva, porque «cerrar cuentas» es como lo dice el negocio, pero **nunca va sola**: «Cuenta de Carlos Ruiz», «Tu cuenta», «Cuentas con el dueño», «Cuentas con tu equipo», y siempre dentro de «Cierre de cuentas». Si un texto del cierre necesitara hablar de la cuenta de acceso, dice «tu usuario» o «tu contraseña», nunca «tu cuenta» |
+| «Cerrada» es la etiqueta de una rifa terminada y ahora también la de una cuenta saldada | Las dos se quedan: cada una vive en su lista de `constants.ts` y en su pantalla. Donde se ve una cuenta cerrada se escribe «Cerrar una cuenta no cierra la rifa.» (D-241) |
+| El Anexo A prohíbe «descuento» para la rebaja, y el cierre dice que un premio «se descuenta de la entrega» | Es otro concepto: restar un premio pagado. En el cierre solo se usa el **verbo** —«Se descuenta de la entrega», «Este valor se descontará de lo que Ana te entrega»—; el sustantivo «descuento» no se escribe ahí, y en una venta sigue siendo **rebaja** |
+| «Entregado» es la forma corta del paz y salvo, y el cierre habla de dinero entregado | En el cierre se escribe **con su sujeto o su importe** —«Ya entregaste», «Entregó Ana», «Entregado» solo como rótulo de una cifra en la comparación de un cierre—; el paz y salvo nunca aparece en esas pantallas, y el cierre nunca en la lista de boletas |
+| «Premios ganados» no puede escribir «pagado», y el cierre registra premios pagados | Las dos reglas siguen: «Premios ganados» no sabe si un premio se pagó y no lo dice; el cierre lo dice **solo** cuando alguien lo registró, con quién y cuándo |
 
 ## Anexo D — Estado de aplicación
 
