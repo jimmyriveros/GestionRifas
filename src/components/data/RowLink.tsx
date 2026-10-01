@@ -29,6 +29,10 @@ import type { ComponentProps } from 'react'
  *
  * Las entradas del menú lateral (`NavLinks`) NO usan esto: ahí la precarga sí
  * compensa.
+ *
+ * Sin precarga, la pantalla anterior se queda quieta hasta que llega la nueva.
+ * Para decir «se está abriendo» en el mismo clic, la fila lleva dentro una de
+ * las piezas de `RowLinkPending` (D-244); este enlace no cambia.
  */
 export function RowLink(props: ComponentProps<typeof Link>) {
   return <Link {...props} prefetch={false} />

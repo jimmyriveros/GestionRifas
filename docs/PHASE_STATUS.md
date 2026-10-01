@@ -3,7 +3,25 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-01, 01:07 UTC — **El cierre de cuentas EN PRODUCCIÓN (D-241 a D-243; `0080` y `edbc778`)**:
+- **Actualizado:** 2026-10-01, 02:55 UTC (21:55 del 30 en Bogotá) — **«Revisar cuenta» avisa mientras se abre (D-244),
+  SOLO EN LOCAL**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin push ni despliegue y sin leer
+  producción. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en «Cierre de cuentas» del personal, el botón «Revisar cuenta» dice «Abriendo cuenta…» en el
+  mismo clic, la tarjeta del teléfono cambia de fondo y gira su flecha, y se anuncia «Abriendo la cuenta de {nombre}…»
+  (`RowLinkPending`, `useLinkStatus`). La precarga no cambia. **No** corrige la causa del incidente que lo motivó.
+  **(2) Pruebas:** `verify` ✅ antes y después, **1.966/1.966** y build; `test:db` ✅ antes y después, **1.572 + 1
+  omitida**; E2E del cierre **15/15** —5 nuevas, de las que 4 fallan con la lista anterior—; mediciones con un build de
+  producción local antes y después, en `TEST_RESULTS`, D-244. La E2E completa no se repitió. Errores encontrados al
+  escribir —un localizador de fila y dos de los guiones de medición—, corregidos.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-198**, la lista quieta que vio el dueño, con la causa **sin demostrar** (lo más
+  compatible, un servidor lento ese tramo); **I-199**, nueva: la búsqueda con pausa cancela la apertura de una fila
+  pulsada justo después, reproducida y sin corregir. Siguen I-190, I-193 e I-194 a I-197.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y D-244. Publicar D-244 está **sin autorizar**; I-199 espera
+  una decisión.
+
+- Antes, 2026-10-01, 01:07 UTC — **El cierre de cuentas EN PRODUCCIÓN (D-241 a D-243; `0080` y `edbc778`)**:
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Producción sirve **`edbc778`**
   (`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`) sobre **`0080`**, publicada con la autorización del dueño para C0–C7 de
   `RUNBOOK` §11, sin pausa ni interrupción. Los seis puntos de `CLAUDE.md` §34.3:

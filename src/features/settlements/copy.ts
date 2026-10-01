@@ -113,6 +113,10 @@ export const SETTLEMENT_COPY = {
     viewClosed: 'Ver cierre',
     /** Nombre accesible del enlace de cada fila: el verbo solo no dice de quién es la cuenta. */
     reviewAria: (name: string) => `Revisar la cuenta de ${name}`,
+    /** Mientras se abre la cuenta pulsada (D-244): ocupa el sitio de «Revisar cuenta». */
+    opening: 'Abriendo cuenta…',
+    /** Lo mismo, para quien escucha la pantalla: sin la fila a la vista, dice de quién es. */
+    openingAria: (name: string) => `Abriendo la cuenta de ${name}…`,
     formerSeller: (name: string) => `${name} (ya no vende)`,
     inactiveSeller: (name: string) => `${name} (inactivo)`,
     internalNote: 'Lo que un integrante entrega a su vendedor a cargo no se suma a «Recibido».',

@@ -1477,6 +1477,16 @@ cliente en el HTML, la revalidación («La cuenta cambió» sin guardar nada), q
 confirmar, lo que ve Ana, que lo que Carlos recibe de Ana no suma a lo del dueño, anular y volver a registrar un premio,
 y en el teléfono las tarjetas, el saldo antes del cálculo, dianas de 44 px y ningún desbordamiento.
 
+**El aviso de «Abriendo cuenta…»** (D-244) vive aparte, en `cierre-navegacion.spec.ts` (**4**, escritorio) y
+`cierre-navegacion-movil.spec.ts` (**1**, móvil), sobre la rifa y el vendedor **del seed** y sin escribir nada. La
+lentitud se fabrica con `page.route` sobre la petición RSC de la cuenta —retrasada, colgada o abortada—, y se espera a la
+hidratación antes de pulsar (§5.3: aquí un reintento ya habría navegado). Comprueban que el aviso se ve en el mismo clic
+—también con el teclado— y se anuncia con el nombre; que el botón y la fila no se mueven, ni la tarjeta del teléfono, que
+toma el fondo de una fila pulsada; que una cuenta que no responde se abre con otro clic; que una petición fallida acaba en
+la cuenta pulsada, y siempre que se abre la cuenta pulsada. **Comprobadas al revés:** con la lista anterior fallan 4 de
+las 5; la que pasa es la del fallo de red, que mide la recuperación de Next. Las mediciones con un build de producción
+están en `TEST_RESULTS`, D-244.
+
 **Lo que no se prueba en `test:db`, y se ensayó** (`TEST_RESULTS`, D-241): la `0080` aplicada por la CLI con los
 privilegios de producción, los cerrojos que retiene frente a una escritura concurrente y la comparación de la puerta en
 CONTINUAR. Necesitan una base sin la `0080`. El método está en `RUNBOOK` §11.3; los guiones, en `build/cierre-ui/`,

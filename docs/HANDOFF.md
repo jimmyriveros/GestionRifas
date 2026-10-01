@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **«Revisar cuenta» sin aviso: la respuesta visual, corregida SOLO EN LOCAL; la causa, sin demostrar (2026-09-30 en Bogotá, D-244; I-198 e I-199; sin push ni despliegue)** | El dueño vio en producción la lista quieta y sin aviso tras pulsar «Revisar cuenta». **Hecho:** `RowLinkPending` (`useLinkStatus`, el recurso del menú): el botón dice «Abriendo cuenta…» en el mismo clic, la tarjeta del teléfono cambia de fondo y gira su flecha, y se anuncia «Abriendo la cuenta de {nombre}…»; la precarga no cambia. Medido en un build de producción local: aviso a 1 ms del clic, la misma única petición y el mismo tiempo de apertura; con demoras, cuelgues y fallos siempre acaba en la cuenta pulsada o la abre un segundo clic. **Sin demostrar** la causa del incidente (I-198): los registros son compatibles con un servidor lento ese tramo. **Encontrado y sin corregir:** I-199, la búsqueda con pausa cancela la apertura de una fila pulsada justo después. Los avisos de consola de la captura **no son de Rifas**. `verify` ✅ 1.966; `test:db` ✅ 1.572 + 1; E2E del cierre **15/15**, con 5 nuevas. Relevo en §1.a |
 | **El cierre de cuentas EN PRODUCCIÓN (2026-10-01, 01:03 UTC; D-241 a D-243; `0080` y `edbc778`)** | **Publicado** con la autorización del dueño para C0–C7 de `RUNBOOK` §11, sin pausa ni interrupción: `0080` aplicada (24,7 s) y **`edbc778`** servido (`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`, build `a691f412c09e`). `verify:remote` 55 + 3 rojas a propósito antes y **58/58** después; C5 **CONTINUAR**, sin diferencias con lo ensayado ni filas tocadas; CI del PR y de `main`, 2/2; en vivo, todo en verde; registros sin errores. Las tablas del cierre, vacías: nadie registró nada; «Recibido $0» es lo correcto y los 4 premios siguen sin pago registrado. **La revisión del dueño (C7), conforme**, sin un movimiento registrado. Reversión del código: `dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq` (`5f84e13`), compatible |
 | **El candidato del cierre de cuentas, PREPARADO EN LOCAL (2026-09-30, D-243; sin push, migración ni despliegue)** | El dueño confirmó que **los vendedores todavía no le han entregado dinero** —«Recibido $0» es correcto— y que **no hubo premios pagados** en los 25 sorteos sin resultado guardado (no que no hubo premios ganados, ni que el historial esté completo). Sin cambios en el producto: I-194 e I-197 quedan como límites documentados que no requieren cambios para esta puesta en marcha; I-196 no afecta hoy. Los 4 premios del historial no se marcan solos: falta saber de cada uno si se pagó, quién, la fecha y, si su valor está por confirmar, el importe (`RUNBOOK` §11.2.a). **Candidato:** la cabeza de la rama con D-243; su código es el verificado en D-242 (`verify` ✅ 1.966, `test:db` ✅ 1.572 + 1) y su `0080`, la ensayada. **Falta:** C0 (lectura de producción), C1 (push y CI), la franja y la autorización de migrar y desplegar |
 | **La puesta en marcha del cierre de cuentas, REVISADA (2026-09-30, D-242; producción en solo lectura; nada publicado)** | El dueño confirmó «Entrega parcial», que el vendedor a cargo registre y confirme los premios de sus integrantes, y la cadena. **«Empezar a contar desde hoy» se retira**: la cuenta suma todas las boletas pagadas y lo ya entregado quedaría pendiente (Z10-01); se registra la **historia real**, con fechas y por quien corresponde (BR-Z19, `RUNBOOK` §11.2). En producción, leída: la rifa activa tiene **25 sorteos sin resultado guardado** con ventas reales —sus dos cuentas con el dueño no se tratan como definitivas hasta que el dueño confirme (I-194, BR-Z20)—, **222 boletas a medias** —una entrega de abonos o de dinero bruto no cabe (I-197)— y ningún vendedor a cargo desactivado (I-196, BR-Z21). `verify` ✅ 1.966; `test:db` ✅ 1.572 + 1 (+9, `Z10`..`Z13`). **Falta la información del dueño** |
@@ -187,7 +188,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — El cierre de cuentas EN PRODUCCIÓN (C0–C7 de `RUNBOOK` §11, 2026-10-01, 00:49–01:07 UTC)
+## 1.a Último relevo significativo — «Revisar cuenta» avisa mientras se abre; el incidente, investigado (D-244, **solo en local**, 2026-09-30 en Bogotá)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Hecho y comprobado:** en «Cierre de cuentas» del personal, el clic en una cuenta se ve en el mismo instante —el botón dice «Abriendo cuenta…» con el icono girando; en el teléfono, la tarjeta toma el fondo de una fila pulsada y su flecha gira— y se anuncia «Abriendo la cuenta de {nombre}…». **Investigado y sin demostrar:** por qué la lista se quedó quieta en producción (I-198). **Encontrado:** una carrera real del buscador, anterior a este trabajo (I-199). Fuera, a propósito: cambiar la precarga, corregir I-199 y llevar el aviso a «Cuentas con tu equipo» del vendedor (`TeamAccountsCard`, el mismo enlace) |
+| Archivos | `src/components/data/RowLinkPending.tsx` (nuevo); `SettlementAccountsList.tsx`; `settlements/copy.ts` (`opening`, `openingAria`); el comentario de `RowLink.tsx`; `tests/e2e/cierre-navegacion.spec.ts` y `-movil.spec.ts` (nuevas). Documentación: D-244, I-198, I-199, `TEST_RESULTS`, `TESTING` §4.14, `ARCHITECTURE` §8.2, `UX_COPY_GUIDELINES` y `PHASE_STATUS`. Fuera de Git, en `build/cierre-navegacion/`: el diagnóstico de Codex, y los guiones, mediciones y capturas de esta sesión |
+| Reutilización | `useLinkStatus` con el icono girando y el texto para lector de pantalla de `NavIcon`/`BottomNavIcon` (D-104); `RowChevron` dentro de la pieza nueva; `Loader2Icon` y el giro de `RetryButton`; el escenario de Figma del cierre y `contrast.ts` para medir; el lanzador de builds locales de I-190 (`build/demora-ficha/lanzar.ts`) |
+| Decisiones | D-244. La región `role="status"` existe porque estos enlaces llevan `aria-label`; los dos textos del botón comparten celda para no mover la tabla (el botón mide ≈165 px); sin espera antes del aviso, como el menú. Descartados: `loading.tsx`, precargar, desactivar el enlace y escribir el texto en la tarjeta del teléfono |
+| Verificación | `verify` ✅ antes y después (**1.966/1.966**, build); `test:db` ✅ antes y después (**1.572 + 1**); E2E del cierre **15/15** —las 10 de antes y 5 nuevas—, y las 5 nuevas fallan 4 con la lista anterior; build de producción local, antes y después, con 11 experimentos; contraste ≥ 14,5 en claro y oscuro; consola limpia sin extensiones. La E2E completa **no** se repitió. Detalle en `TEST_RESULTS`, D-244 |
+| Advertencias | **1)** El aviso no corrige la causa: una respuesta lenta sigue siendo lenta. **2)** Antes de hidratar no hay aviso posible: el clic es una carga del navegador. **3)** Los guiones de `build/cierre-navegacion/` leen `escenario.json`, que borró la E2E del cierre al terminar: `npx tsx build/cierre-navegacion/escenario.ts` lo vuelve a crear. **4)** Para medir con un build de producción, constrúyelo con las variables locales en el proceso (`lanzar.ts`); el de `verify` lleva las del proyecto real |
+| Pendiente | Publicar D-244, **sin autorizar**. Decidir I-199 (propuesta en `KNOWN_ISSUES`). Si I-198 se repite: la hora exacta y la pestaña Red. Siguen I-190 e I-193, y lo de §1.a.0 (los 4 premios, el respaldo fuera del equipo, `Invalid Refresh Token`) |
+| Entorno (al entregar) | Local: `0080`, recién sembrada —después solo corrieron las 5 E2E nuevas, que no escriben—, sin servidores. Producción: sin tocar ni leer en este trabajo; sigue `edbc778` |
+| Git | Rama `feature/detalle-boleta-admin` sobre `79000ef`, con el commit de este trabajo **sin empujar**. Los tres archivos del usuario, intactos |
+
+## 1.a.0 Relevo anterior — El cierre de cuentas EN PRODUCCIÓN (C0–C7 de `RUNBOOK` §11, 2026-10-01, 00:49–01:07 UTC)
 
 | Campo | Estado |
 |---|---|
@@ -2552,6 +2567,8 @@ si no existieran:
 | **I-030** — persisten mensajes de base de datos sin tildes | Autorizar una migración nueva que reescriba las definiciones vigentes y aplicarla al proyecto real (D-073) |
 | **I-037** — filtro fijo de clientes topado en 200 | Priorizar un selector con búsqueda cuando el volumen lo justifique |
 | **I-046 a I-053** — límites y derivas encontrados por esta auditoría | Revisar `KNOWN_ISSUES.md`: no se modificó código para corregirlos porque esta tarea es solo documental |
+| **I-198** — «Revisar cuenta» dejó la lista quieta en producción | La respuesta visual está corregida **en local** (D-244, sin publicar). La causa sigue **sin demostrar**: si se repite, la hora exacta y la pestaña Red del navegador |
+| **I-199** — la búsqueda con pausa cancela la apertura de una fila pulsada justo después | **Reproducida, sin corregir**, en todas las listas con `useUrlSearch`. Decidir la corrección propuesta en `KNOWN_ISSUES` y probarla con las E2E de esas listas |
 
 ## 1.c Contexto histórico preservado
 
@@ -2951,6 +2968,13 @@ components/data/    DataTable · DataTablePagination · EmptyState
                     SettlementStatusBadge, el de una CUENTA del cierre (D-241)
                     PageHeader (backHref = flecha de volver, D-089; compactAction = CTA
                     de la cabecera contextual, D-150) · BackButton · MetricCard
+                    RowLink (prefetch={false}, D-104) y, DENTRO de el, RowLinkPending
+                    (D-244): el aviso de «se esta abriendo» con useLinkStatus.
+                    RowLinkPendingLabel para un enlace con forma de boton (los dos
+                    textos comparten celda: no mueve la tabla); RowLinkPendingChevron
+                    para una tarjeta (la flecha gira; el enlace cambia de fondo con
+                    has-[[data-link-pending=true]]). Traen su role="status": no
+                    copies el useLinkStatus en otra lista, usa estas
 lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
                     BackButton. Contador de modulo, no sessionStorage (D-089)
 components/layout/  AppShell · CompactHeader (cabecera contextual, D-150): el cruce

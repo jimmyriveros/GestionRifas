@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (C0–C7: el cierre de cuentas EN PRODUCCIÓN, `0080` y `edbc778`, 2026-10-01, 00:49–01:07 UTC)** | CI del PR (`36798406550`) y de `main` (`36799151910`) sobre `edbc778`: ✅ 2/2, **1.966/1.966** | En los dos CI: **1.572 ✅ y 1 omitida** en 64 archivos. Producción en `0080`; `verify:remote` **55 + 3 rojas a propósito** antes y **58/58** después; C5 **CONTINUAR**, 0 filas tocadas | **No se repitió**: la última completa es la de D-241, **986/989**, aparte de sus repeticiones | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** |
+| **Post-9 vigente (D-244: «Revisar cuenta» avisa mientras se abre; I-198 e I-199, solo en local, 2026-09-30 en Bogotá)** | **1.966/1.966** en 97 archivos, antes y después: el cambio es de interfaz | **1.572 ✅ y 1 omitida**, antes y después: sin cambio de esquema | **5 nuevas** (`cierre-navegacion` 4, `-movil` 1) y las **10 del cierre**: **15/15**; las 5 nuevas, **4 fallan con la lista anterior**. La completa no se repitió | ✅ | **Solo en local**; la causa del incidente, **sin demostrar** (I-198) |
+| Post-9 anterior (C0–C7: el cierre de cuentas EN PRODUCCIÓN, `0080` y `edbc778`, 2026-10-01, 00:49–01:07 UTC) | CI del PR (`36798406550`) y de `main` (`36799151910`) sobre `edbc778`: ✅ 2/2, **1.966/1.966** | En los dos CI: **1.572 ✅ y 1 omitida** en 64 archivos. Producción en `0080`; `verify:remote` **55 + 3 rojas a propósito** antes y **58/58** después; C5 **CONTINUAR**, 0 filas tocadas | **No se repitió**: la última completa es la de D-241, **986/989**, aparte de sus repeticiones | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** |
 | Post-9 anterior (D-243: el candidato del cierre de cuentas, solo en local, 2026-09-30) | Las de D-242: **1.966/1.966**, sin repetir | Las de D-242: **1.572 ✅ y 1 omitida**, sin repetir. El código es el mismo desde `79c74b2` y la `0080`, desde `855abb8` | La completa de D-241, **986/989**, aparte de sus repeticiones | ✅ El de D-242 | Candidato preparado; **sin push, migración ni despliegue** |
 | Post-9 anterior (D-242: la puesta en marcha del cierre de cuentas, revisada; producción en solo lectura, 2026-09-30) | **1.966/1.966** en 97 archivos, sin cambio | **1.572 ✅ y 1 omitida** en 64 archivos (+9: `Z10`..`Z13` en `settlements`). Producción leída en `repeatable read read only` a las 23:15–23:18 UTC: solo recuentos | No se ejecutó: sin cambio de código de la aplicación. La última **completa** sigue siendo la de D-241, **986/989**; sus repeticiones aisladas, aparte | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Revisada, **nada publicado**. Falta la información del dueño (`RUNBOOK` §11.2) |
 | Post-9 anterior (D-241: el cierre de cuentas, `0080`, solo en local, 2026-09-30) | **1.966/1.966** en 97 archivos (+18, `settlements.test.ts`) | **1.563 ✅ y 1 omitida** en 64 archivos (+48: `settlements` 44 y `settlements-volume` 4). La `0080` ensayada por la CLI con los privilegios de producción: **CONTINUAR** | ⚠️ **986/989** en 54,3 min: 1 fallo por un commit durante la corrida (repetida, 4/4) y 2 conocidos, I-148 e I-090. Las 10 del cierre, en verde, y otra vez tras la última corrección de textos | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Implementado y probado **solo en local**; la publicación, `RUNBOOK` §11, **sin autorizar** |
@@ -17332,3 +17333,73 @@ de cliente ni importe aquí. **Todo lo de esta sección se ejecutó en esta publ
 | `db push` de la `0080` | 24,7 s de reloj |
 | Del empuje a `main` a READY | 1 min 12 s; el build servido, a los 1 min 35 s |
 | De C0 al final de C7 | ~17 min, con la API abierta |
+
+---
+
+## D-244 — «Revisar cuenta» sin aviso: la respuesta visual y la investigación (2026-09-30 en Bogotá, solo en local)
+
+Rama `feature/detalle-boleta-admin` sobre `79000ef`. **Producción, sin tocar ni leer**: los registros son los que
+guardó Codex en `build/cierre-navegacion/`. Guiones, mediciones y capturas de esta sesión, en esa misma carpeta, fuera
+de Git: `medir.ts`, `escenario.ts`, `consola.ts`, `temas.ts`, `medicion-base.json`, `medicion-nuevo.json`,
+`consola-limpia.json`, `temas.json` y `capturas-*`.
+
+### a. Entorno y baterías
+
+| Comando | Resultado |
+|---|---|
+| `npx supabase start`; `npm run db:reset && npm run seed:local` | ✅ antes de empezar, y de nuevo antes de cada batería |
+| `npm run test:db`, antes del cambio | ✅ **1.572 y 1 omitida** en 64 archivos (242,6 s) |
+| `npm run verify`, antes del cambio | ✅ typecheck, lint con los **2 avisos de siempre** (TanStack), **1.966/1.966** y build |
+| `npm run verify`, después | ✅ lo mismo: **1.966/1.966** y build |
+| `npm run test:db`, después | ✅ **1.572 y 1 omitida** |
+| E2E `cierre-navegacion` (escritorio, 4) y `cierre-navegacion-movil` (1), nuevas | ✅ **5/5** |
+| E2E del cierre ya existentes (`cierre-cuentas` 7 y `-movil` 3), junto a las nuevas | ✅ **15/15** (1,2 min) |
+| Las 5 nuevas con `SettlementAccountsList` de `HEAD` | **4 fallan**, como debe ser; pasa la del fallo de red, que mide la recuperación de Next y ya existía |
+| Las 5 nuevas, al final, sobre una base recién sembrada | ✅ **5/5** (31,9 s) |
+| E2E completa | **No se repitió**: el cambio es un componente nuevo usado en una sola lista (`HANDOFF` §1.b: `verify` más las E2E que le corresponden) |
+
+**Errores encontrados al escribir, y corregidos:** una aserción de la prueba de escritorio buscaba la fila con
+`filter({ has })` y un localizador de la página entera, que no casa nunca: pasó a `hasText`. En los guiones de
+medición, `tsx` envuelve las funciones con `__name` y la página no lo conoce (se define en un `addInitScript`); y
+retrasar `/_next/static/chunks/**` retrasaba también la hoja de estilos, con lo que se veían a la vez la tabla y las
+tarjetas: se retrasan solo los `.js`.
+
+### b. Mediciones en un build de producción local
+
+`next build` y `next start` con las variables de la Supabase **local** en el proceso (`build/demora-ficha/lanzar.ts`):
+ninguna URL del proyecto real en el build. Escenario de Figma del cierre (`tests/e2e/cierre-escenario.ts`). En cada
+apertura: clic, aviso, URL y título, medidos dentro de la página con `performance.now()`.
+
+| Experimento | Antes (`79000ef`) | Después (D-244) |
+|---|---|---|
+| 8 aperturas de escritorio y 8 de teléfono | Ningún aviso. Título a 120–144 ms (mediana 126 / 125). **1** petición RSC por apertura | Aviso a **1 ms** del clic en las 16; se va al pintarse el título. Título a 119–156 ms (mediana 127 / 125). **1** petición |
+| La cuenta, retrasada 3 s | La lista **quieta y sin aviso** 3,1 s; la cuenta correcta | El aviso los 3,1 s; la cuenta correcta |
+| La primera petición no responde | Quieta a los 5 s; el segundo clic pide otra vez (2 peticiones) y abre | El aviso sigue a los 5 s; el segundo clic abre |
+| La petición RSC, abortada / con 500 | Next carga la página entera: la cuenta correcta | Igual |
+| Abortadas la RSC y la carga entera | Error del navegador; atrás y otro clic la abren | Igual |
+| «Ca» en el buscador y clic a los 100 ms | 5 de 5 abren | 5 de 5 abren |
+| Lo mismo con la cuenta a 1,5 s | **0 de 3**: queda `/owner/settlements?q=Ca` (I-199) | **0 de 3**; el aviso se ve ~200 ms y se apaga |
+| Con «Estado de la cuenta» abierto, un clic de ratón | Solo cierra el desplegable; 0 peticiones; el segundo abre | Igual |
+| Clic antes de hidratar (los `.js` a 4 s, sin caché ni service worker) | Carga entera del navegador, 181 ms | Igual (184 ms): antes de React no hay aviso posible |
+| Precargas al abrir la lista | 15 (7 `/_tree` y 8 rutas); 0 tras ir a la cuenta y volver | Sin cambio: la precarga no se tocó |
+| Clic con esas precargas todavía en curso | Se reinician: 11 peticiones de precarga en los 183 ms siguientes, casi todas abortadas | Sin cambio |
+
+**Contraste del aviso** (`tests/e2e/contrast.ts`, pintado en canvas): «Abriendo cuenta…» 19,8 en claro y 15,4 en
+oscuro; el icono sobre la tarjeta pulsada, 18,2 y 14,5.
+
+**Consola** (`consola.ts`): con la lista y cuatro aperturas de cuenta en un Chromium **sin extensiones**, **0** mensajes.
+`ObjectMultiplex`, `app-init-liveness`, `background-liveness`, `MaxListenersExceeded`, `setMaxListeners` y «orphaned
+data» no aparecen en `src/`, en `public/` ni en `.next/static`.
+
+### c. Los registros de producción, releídos
+
+| Hora (Bogotá) | Lo que hay |
+|---|---|
+| 20:55:09,219–,249 | Proxy: las 4 primeras rutas del menú. Next 16.3.6 lanza como mucho **4** precargas a la vez (`segment-cache/scheduler.js`) |
+| 20:55:14,772–,837 | Proxy: las 3 siguientes, la cuenta `009dd2f5…` (14,820) y otra vez el Panel: la apertura entre precargas, como en local al pulsar con precargas en curso |
+| 20:55:18,293–,358 | Función: seis rutas del menú **juntas**, de 3,5 a 9 s después de su proxy |
+| 20:56:59 y 20:57:08 | Proxy: dos aperturas de cuenta más, que sí funcionaron |
+
+Ninguna apertura de cuenta tiene entrada de función, ni las que funcionaron: la exportación está incompleta (50 únicas
+de 200). Sin duraciones, y sin saber si `timestamp` marca el inicio o el fin, la lectura «el servidor tardó varios
+segundos en ese tramo» es **compatible, no demostrada** (I-198).

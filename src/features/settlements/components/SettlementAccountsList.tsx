@@ -1,5 +1,5 @@
-import { RowChevron } from '@/components/data/RowChevron'
 import { RowLink } from '@/components/data/RowLink'
+import { RowLinkPendingChevron, RowLinkPendingLabel } from '@/components/data/RowLinkPending'
 import { SettlementStatusBadge } from '@/components/data/StatusBadge'
 import { buttonVariants } from '@/components/ui/button'
 import {
@@ -27,6 +27,11 @@ const COPY = SETTLEMENT_COPY.staffList
  *
  * Nada se esconde en el telefono: el vendedor, su equipo, las pagadas, lo que
  * falta y el estado van en las dos.
+ *
+ * MIENTRAS SE ABRE UNA CUENTA (D-244), las dos lo dicen en el mismo clic: el
+ * boton pasa a «Abriendo cuenta…» y la tarjeta cambia de fondo y gira su
+ * flecha. Antes no cambiaba nada hasta que llegaba la cuenta, y con una
+ * respuesta lenta parecia que el clic no habia hecho nada.
  */
 export function SettlementAccountsList({
   rows,
@@ -43,7 +48,7 @@ export function SettlementAccountsList({
             <RowLink
               href={hrefFor(row.sellerId)}
               aria-label={COPY.reviewAria(displayName(row))}
-              className="hover:bg-surface-accent focus-visible:ring-focus-ring flex items-start gap-3 rounded-md px-2 py-4 focus-visible:ring-2 focus-visible:outline-none"
+              className="hover:bg-surface-accent focus-visible:ring-focus-ring has-[[data-link-pending=true]]:bg-surface-accent flex items-start gap-3 rounded-md px-2 py-4 focus-visible:ring-2 focus-visible:outline-none"
             >
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -71,7 +76,10 @@ export function SettlementAccountsList({
                   </p>
                 ) : null}
               </div>
-              <RowChevron className="mt-1" />
+              <RowLinkPendingChevron
+                className="mt-1"
+                announcement={COPY.openingAria(displayName(row))}
+              />
             </RowLink>
           </li>
         ))}
@@ -122,7 +130,11 @@ export function SettlementAccountsList({
                     aria-label={COPY.reviewAria(displayName(row))}
                     className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                   >
-                    {row.status === 'closed' ? COPY.viewClosed : COPY.review}
+                    <RowLinkPendingLabel
+                      label={row.status === 'closed' ? COPY.viewClosed : COPY.review}
+                      pendingLabel={COPY.opening}
+                      announcement={COPY.openingAria(displayName(row))}
+                    />
                   </RowLink>
                 </TableCell>
               </TableRow>

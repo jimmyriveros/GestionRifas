@@ -16284,3 +16284,60 @@ pruebas, y no se repitieron las baterías completas por cambios de documentació
 | C7 | La revisión del dueño, con su sesión, después de C6 |
 
 Para **empezar a cerrar cuentas** hace falta, además, la información de los 4 premios.
+
+---
+
+## D-244 — «Revisar cuenta» avisa en el mismo clic que la cuenta se está abriendo; la causa de la lista quieta sigue sin demostrarse
+
+**Fecha:** 2026-09-30 · **Estado:** aceptada · **Sin migración** · Solo interfaz · **Solo en local**: sin push ni
+despliegue · Continúa D-104 · Abre **I-198** e **I-199**
+
+**Contexto.** En producción, hacia las 20:55 de Bogotá, el dueño pulsó «Revisar cuenta» en «Cierre de cuentas» y vio la
+misma lista, sin ningún indicador, hasta que volvió a funcionar. Codex guardó el diagnóstico y los registros en
+`build/cierre-navegacion/` (fuera de Git): 50 filas únicas, todas 200, ninguna de error y sin duraciones. `RowLink` no
+precarga (D-104) y la cuenta no tiene `loading.tsx`, así que nada cambia en pantalla hasta que responde el servidor.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| El aviso | `RowLinkPending` (`src/components/data/`): dos piezas cliente que leen `useLinkStatus` **dentro** del enlace, el recurso de `NavIcon` y `BottomNavIcon` (D-104). Se encienden en el mismo clic y no crean ningún fallback de Suspense |
+| Escritorio | El botón pasa de «Revisar cuenta» —o «Ver cierre»— a «Abriendo cuenta…» con el icono girando. Los dos textos ocupan la misma celda: el botón mide siempre lo que mide el más ancho (de ≈118 a ≈165 px), así que encenderse no mueve la tabla |
+| Teléfono y tableta | La tarjeta entera es el enlace y no tiene un texto que cambiar: toma el fondo de una fila pulsada (`has-[[data-link-pending=true]]`) y la flecha se convierte en el icono girando, en su mismo hueco |
+| Lo que se oye | Los enlaces llevan `aria-label`, así que cambiar su contenido no se anunciaría: cada aviso trae una región `role="status"` siempre presente, vacía, que recibe «Abriendo la cuenta de {nombre}…» |
+| Movimiento reducido | `motion-reduce:animate-none`: el icono se queda quieto y el texto sigue diciendo lo que pasa |
+| La precarga | **No cambia**: `RowLink` sigue con `prefetch={false}` y el menú lateral sigue precargando |
+
+**Medido en un build de producción local** (Supabase local; el escenario de Figma del cierre; guiones y datos en
+`build/cierre-navegacion/`):
+
+| | Antes | Después |
+|---|---|---|
+| Aviso tras el clic, en el DOM | ninguno | **1 ms**, en las 16 aperturas (8 de escritorio, 8 de teléfono) |
+| Apertura de la cuenta, mediana escritorio / teléfono | 126 / 125 ms | 127 / 125 ms |
+| Peticiones por apertura | 1 | 1 |
+| La cuenta tarda 3 s | la lista quieta 3,1 s; la cuenta correcta | el aviso los 3,1 s; la cuenta correcta |
+| La primera petición no responde | la lista quieta; un segundo clic la abre | el aviso sigue a los 5 s; un segundo clic la abre |
+| La petición RSC falla o da 500 | Next carga la página entera: la cuenta correcta | igual |
+| Fallan la RSC y la carga entera | página de error del navegador; atrás y otro clic la abren | igual |
+| Contraste del aviso, claro / oscuro | — | texto 19,8 / 15,4; icono sobre la tarjeta 18,2 / 14,5 |
+
+**Lo que el aviso no resuelve, y lo que se investigó.**
+
+| Hallazgo | Estado |
+|---|---|
+| Escribir en «Buscar vendedor» y pulsar una cuenta antes de que venzan los 350 ms de la búsqueda: el `router.replace` de la búsqueda sustituye a la navegación y queda la lista filtrada | **Reproducido**: 3 de 3 con la cuenta a 1,5 s; 0 de 5 con la respuesta local de ~125 ms. Anterior a este cambio, de `useUrlSearch` y de todas sus listas: **I-199**, sin corregir |
+| Con un desplegable abierto (Radix), el primer clic solo lo cierra | Reproducido: ninguna petición y el segundo clic abre. Es el comportamiento modal de Radix; no se toca |
+| Un clic antes de que React hidrate | Navegación completa del navegador. Ningún aviso de la página puede encenderse antes de React |
+| El incidente de producción | **Sin demostrar** (I-198). Lo más compatible con los registros es un servidor lento en ese tramo: Next 16.3.6 lanza como mucho 4 precargas a la vez; salieron 4 a las 20:55:09,2 y las 3 siguientes a las 20:55:14,77, junto a la apertura de la cuenta (14,82), y las entradas de función de esas seis rutas llegan juntas de 20:55:18,29 a 18,36, entre 3,5 y 9 s después de su paso por el proxy. No hay duraciones, la exportación está incompleta y Vercel no documenta si `timestamp` marca el inicio o el fin |
+| Los avisos de consola de la captura (`MaxListenersExceededWarning`, `ObjectMultiplex`) | **No son de Rifas**: 0 mensajes en un Chromium sin extensiones con la lista y cuatro aperturas, y ninguna de esas cadenas está en el código ni en el JavaScript servido. Coinciden con MetaMask #43090; el navegador del usuario no se inspeccionó. No se toca ningún límite de oyentes |
+
+**Alternativas descartadas.** Volver a un `loading.tsx` (los ~300 ms de D-104); precargar las cuentas (D-104, y la
+instrucción de mantener la precarga); desactivar el enlace mientras se abre, que impediría reintentar, la salida cuando
+no responde; esperar 100 ms antes de enseñar el aviso, como sugiere la guía de Next, porque el menú lo enseña en el
+mismo clic y ese destello es lo que confirma el clic; escribir «Abriendo cuenta…» en la tarjeta del teléfono, que no
+cabe sin mover la tarjeta y que no tiene un «Revisar cuenta» visible que sustituir.
+
+**Consecuencia.** Una vez hidratada la página, el clic responde siempre en pantalla. Que el aviso exista **no demuestra
+que la causa esté corregida**: una respuesta lenta sigue siendo lenta, ahora con aviso. «Cuentas con tu equipo» del
+vendedor (`TeamAccountsCard`) usa el mismo enlace y sigue sin aviso: queda fuera de este encargo.
