@@ -3,7 +3,23 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-30, al final — **La puesta en marcha del cierre de cuentas, revisada (D-242), SOLO EN
+- **Actualizado:** 2026-09-30, por la noche — **El candidato del cierre de cuentas, preparado SOLO EN LOCAL (D-243)**:
+  mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin cambiar el producto y sin tocar producción.
+  Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna nueva. El dueño confirmó que los vendedores todavía no le han entregado dinero y que
+  no hubo premios pagados en los 25 sorteos sin resultado guardado: no hay historia que registrar, salvo los 4 premios
+  del historial si se pagaron (`RUNBOOK` §11.2.a). El candidato para publicar es la cabeza de la rama con este registro.
+  **(2) Pruebas:** no se repitieron las baterías: solo cambió documentación. Valen las de D-242 —`verify` ✅
+  **1.966/1.966** y `test:db` ✅ **1.572 + 1 omitida**—, la E2E completa de D-241 y el ensayo de la `0080`: el código
+  de la aplicación es idéntico desde `79c74b2` y la `0080` desde `855abb8`. Detalle en `TEST_RESULTS`, D-243.
+  **(3) Migraciones:** ninguna nueva. Producción: `0001`–`0079`. Local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-194** e **I-197**, límites documentados que no requieren cambios para esta puesta
+  en marcha; **I-196**, sin casos hoy. Siguen I-195, I-190 e I-193.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, D-243 y `RUNBOOK` §11. Publicar sigue **sin autorizar**: C0 se
+  hace al abrir la ventana y C1 requiere push.
+
+- Antes, 2026-09-30, al final — **La puesta en marcha del cierre de cuentas, revisada (D-242), SOLO EN
   LOCAL; producción leída en solo lectura**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas y sin
   cambiar el producto. **El estado de producción no cambia**: `0079`, sin la `0080`, leída a las 23:15–23:18 UTC. Los
   seis puntos de `CLAUDE.md` §34.3:

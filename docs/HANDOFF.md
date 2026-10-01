@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **El candidato del cierre de cuentas, PREPARADO EN LOCAL (2026-09-30, D-243; sin push, migración ni despliegue)** | El dueño confirmó que **los vendedores todavía no le han entregado dinero** —«Recibido $0» es correcto— y que **no hubo premios pagados** en los 25 sorteos sin resultado guardado (no que no hubo premios ganados, ni que el historial esté completo). Sin cambios en el producto: I-194 e I-197 quedan como límites documentados que no requieren cambios para esta puesta en marcha; I-196 no afecta hoy. Los 4 premios del historial no se marcan solos: falta saber de cada uno si se pagó, quién, la fecha y, si su valor está por confirmar, el importe (`RUNBOOK` §11.2.a). **Candidato:** la cabeza de la rama con D-243; su código es el verificado en D-242 (`verify` ✅ 1.966, `test:db` ✅ 1.572 + 1) y su `0080`, la ensayada. **Falta:** C0 (lectura de producción), C1 (push y CI), la franja y la autorización de migrar y desplegar |
 | **La puesta en marcha del cierre de cuentas, REVISADA (2026-09-30, D-242; producción en solo lectura; nada publicado)** | El dueño confirmó «Entrega parcial», que el vendedor a cargo registre y confirme los premios de sus integrantes, y la cadena. **«Empezar a contar desde hoy» se retira**: la cuenta suma todas las boletas pagadas y lo ya entregado quedaría pendiente (Z10-01); se registra la **historia real**, con fechas y por quien corresponde (BR-Z19, `RUNBOOK` §11.2). En producción, leída: la rifa activa tiene **25 sorteos sin resultado guardado** con ventas reales —sus dos cuentas con el dueño no se tratan como definitivas hasta que el dueño confirme (I-194, BR-Z20)—, **222 boletas a medias** —una entrega de abonos o de dinero bruto no cabe (I-197)— y ningún vendedor a cargo desactivado (I-196, BR-Z21). `verify` ✅ 1.966; `test:db` ✅ 1.572 + 1 (+9, `Z10`..`Z13`). **Falta la información del dueño** |
 | **Cierre de cuentas, SOLO EN LOCAL (2026-09-30, D-241, `0080`)** | **Implementado, probado y con la publicación preparada y ensayada; nada publicado.** Dueño y Administrador: «Cierre de cuentas» (`/owner/settlements`); vendedores: «Mi cierre de cuentas» (`/seller/settlement`), con las cuentas de su equipo. El dinero sigue integrante → vendedor a cargo → dueño; la cuenta la calcula `settlement_account_rows` desde `seller_commissions`; solo confirma quien recibe; nada se borra. `verify` ✅ 1.966; `test:db` ✅ 1.563 + 1; `test:e2e` 986/989, con un fallo propio repetido en verde y dos conocidos (I-148, I-090). Publicar: `RUNBOOK` §11, **sin autorizar** |
 | **La configuración de ganancias EN PRODUCCIÓN (2026-09-30, 18:00 UTC; D-236 a D-240; `0078` y `0079`)** | **Publicada** con la autorización conjunta del dueño para P4–P10: `0078` y `0079` aplicadas (36,0 s) y **`5f84e13`** servido (`dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`, build `334960b56704`). Pausa **cerrada 12 min 5 s** —de 12:48 a 1:00 p. m. en Bogotá— y **retirada**. `verify:remote` **54/54**; P9 en **CONTINUAR** contra la foto de P6; revisión del dueño conforme; registros sin errores. Producción **abierta y funcionando**. Siguiente trabajo del dueño: «Cierre de cuentas». I-190 e I-193, abiertas |
@@ -185,7 +186,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — La puesta en marcha del cierre de cuentas, revisada (D-242, **solo en local**; producción en solo lectura, 2026-09-30)
+## 1.a Último relevo significativo — El candidato del cierre de cuentas, preparado en local (D-243, 2026-09-30)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Confirmaciones del dueño registradas y candidato preparado, sin tocar producción.** Los vendedores todavía no han entregado dinero al dueño, y no hubo premios **pagados** en los 25 sorteos sin resultado guardado: se registró eso y nada más —no que no hubo premios ganados, ni que el historial esté completo—. El cálculo y los permisos no cambian; I-194 e I-197 siguen como límites documentados que no requieren cambios para esta puesta en marcha; I-196 no afecta hoy y se conserva BR-Z21. Los 4 premios del historial no se marcan pagados: `RUNBOOK` §11.2.a dice dónde verlos y qué dato falta de cada uno |
+| Archivos | Solo documentación: D-243 (y el estado de lo pendiente en D-242), BR-Z20, I-194, I-196 e I-197, `RUNBOOK` §11, §11.2 y §11.2.a, `OPERATIONS` §4.e, `TEST_RESULTS`, `PHASE_STATUS` y este relevo |
+| Reutilización | El procedimiento de `RUNBOOK` §11, tal cual. Nada nuevo |
+| Decisiones | D-243: sin anticipos, inclusión de abonos, entregas mayores que el saldo ni ajustes; el registro acotado y la guardia de I-194, y el aviso de I-196, sin construir |
+| Verificación | **Sin baterías nuevas, a propósito**: el código de la aplicación es idéntico desde `79c74b2` y la `0080` desde `855abb8` (`git diff`, vacío), así que valen `verify` ✅ 1.966/1.966 y `test:db` ✅ 1.572 + 1 de D-242, la E2E completa de D-241 (986/989, con sus repeticiones aparte) y el ensayo de la `0080` con los privilegios de producción. Lo preparado, con 0 CR. Detalle en `TEST_RESULTS`, D-243 |
+| Advertencias | **1)** Ningún paso de §11 que escriba se ejecuta sin autorización expresa: push (C1), migrar (C4), desplegar (C6). **2)** C0 se hace al abrir la ventana: la última lectura de producción es de las 23:15 UTC del 2026-09-30 y el despliegue servido no se volvió a comprobar. **3)** Ninguno de los 4 premios se registra con un importe distinto de su valor: se para y se consulta |
+| Pendiente | Del dueño: autorizar C1 (push y CI), acordar la franja (C2) y autorizar C4 y C6. Para empezar a cerrar cuentas, la información de los 4 premios. Siguen I-190 e I-193 |
+| Entorno (al entregar) | Local: `0080`, recién sembrada, tablas del cierre vacías, sin pausa y sin servidor. Producción: sin tocar ni leer en este trabajo |
+| Git | Rama `feature/detalle-boleta-admin`: el commit de este registro es **el candidato**, sobre `d372500`, **sin empujar**. Los tres archivos del usuario, intactos |
+
+## 1.a.0 Relevo anterior — La puesta en marcha del cierre de cuentas, revisada (D-242, **solo en local**; producción en solo lectura, 2026-09-30)
 
 | Campo | Estado |
 |---|---|

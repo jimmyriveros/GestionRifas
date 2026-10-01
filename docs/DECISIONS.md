@@ -16222,8 +16222,65 @@ por recibir, antes de confirmar. La otra salida —que el personal registre en n
 
 | Decisión | Estado |
 |---|---|
-| Si hubo premios pagados en los 25 sorteos sin resultado (27/07–24/08), y cuáles | **Pendiente** (I-194) |
-| Si los vendedores entregaron abonos de boletas sin terminar o dinero bruto con la ganancia devuelta después | **Pendiente** (I-197) |
-| Si hubo premios: el registro acotado de I-194; y, aparte, la guardia que no cierre esas cuentas hasta su confirmación | Propuestos, sin construir |
-| El aviso al desactivar a un vendedor con equipo | Propuesto |
+| Si hubo premios pagados en los 25 sorteos sin resultado (27/07–24/08), y cuáles | **Confirmado por el dueño** el 2026-09-30 (D-243): no hubo premios **pagados** en esos sorteos |
+| Si los vendedores entregaron abonos de boletas sin terminar o dinero bruto con la ganancia devuelta después | **Resuelto** (D-243): los vendedores todavía no han entregado dinero al dueño |
+| Si hubo premios: el registro acotado de I-194; y, aparte, la guardia que no cierre esas cuentas hasta su confirmación | **No se construyen** (D-243) |
+| El aviso al desactivar a un vendedor con equipo | Propuesto; **no se construye ahora** (D-243) |
 | Publicar la `0080` y el código (`RUNBOOK` §11) | **Sin autorizar** |
+
+---
+
+## D-243 — Puesta en marcha del cierre de cuentas: lo que el dueño confirmó, y el candidato para publicar
+
+**Fecha:** 2026-09-30 · **Encargo del dueño:** registrar dos confirmaciones y preparar el candidato según `RUNBOOK` §11.
+**Solo preparación local**: sin leer producción, sin push, sin migración y sin despliegue. No cambia el producto ni las
+pruebas, y no se repitieron las baterías completas por cambios de documentación.
+
+### Lo que el dueño confirmó
+
+| Confirmación, tal como la dio | Qué permite | Qué **no** dice |
+|---|---|---|
+| **Los vendedores todavía no han entregado dinero al dueño** | «Recibido $0» es correcto y no hay entregas anteriores al dueño que registrar. Tampoco hay entregas de un integrante a su vendedor a cargo: el único integrante no tiene ventas (lectura de D-242) | — |
+| **No hubo premios pagados en los 25 sorteos sin resultado guardado** de la rifa activa (12 del 27/07 al 08/08 y 13 del 10/08 al 24/08) | BR-Z20 queda cumplida en esta rifa: sus dos cuentas con el dueño no esperan ningún premio pagado de esos sorteos | **No** dice que no hubo premios ganados en ellos, ni que el historial de premios esté completo. El sistema sigue sin conocer esos sorteos (I-194) |
+
+### Lo que se decide con eso
+
+| Tema | Decisión |
+|---|---|
+| El cálculo | **Sin cambios**: boletas pagadas por completo (BR-Z02) y el motor de ganancias publicado, con el acuerdo vigente de cada vendedor (BR-G31) |
+| I-194 | Sigue como **límite documentado**. No requiere cambios para esta puesta en marcha: el dueño confirmó que no hubo premios pagados en esos sorteos. El registro acotado y la guardia que propuso D-242 **no se construyen** |
+| I-197 | Sigue como **límite documentado**. No requiere cambios: sin entregas anteriores, no hay ninguna historia que no quepa. Si en adelante un vendedor entrega más de lo que pide su cuenta, la aplicación no lo deja confirmar y no guarda nada (BR-Z12): se para y se decide con el dueño, sin recortar la entrega. **No** se implementan anticipos, inclusión de abonos, entregas mayores que el saldo ni ajustes |
+| I-196 | Hoy no afecta: el único vendedor a cargo está activo. Se mantienen **los permisos actuales** y el procedimiento de BR-Z21. El aviso al desactivar a un vendedor con equipo, propuesto en D-242, no se construye ahora |
+| Los 4 premios del historial | **No se marcan pagados solos** (BR-Z07). Mientras falte su información, la cuenta queda en «Falta información», que es lo correcto |
+
+### Los 4 premios: dónde se ven y qué hace falta de cada uno
+
+| | |
+|---|---|
+| Hoy, en producción | «Premios ganados» (`/owner/prizes`), con la rifa activa en el filtro «Rifa»: la fecha del sorteo, el sorteo —lotería y número—, el vendedor, la boleta, el premio y su valor. Dos llevan «Reconocido por la organización» |
+| Después de publicar | «Cierre de cuentas» → la rifa → la cuenta del vendedor directo con equipo → «Premios de esta cuenta»: cada uno dice «Falta registrar quién lo pagó» y tiene «Registrar premio pagado» |
+| Quién los registra | El Dueño o un Administrador: los cuatro son de boletas de un vendedor directo (BR-Z07) |
+| Qué aporta el dueño de cada uno | **Si se pagó.** Si se pagó: **quién lo pagó** —el vendedor o el dueño—, **la fecha de pago** —entre la del sorteo y hoy— y **el importe**, solo si la pantalla dice «Valor por confirmar» (en especie o con alternativas). Un premio en dinero se registra con su valor, que la aplicación no deja cambiar: si se pagó otro importe, se para y se consulta |
+| Qué cambia al registrarlo | Si lo pagó el vendedor, se descuenta de lo que entrega y su ganancia no cambia. Si lo pagó el dueño, baja la ganancia del dueño y no cambia lo que se entrega |
+| Si todavía no se pagó | Se deja así: la cuenta sigue en «Falta información», que es verdad |
+
+### El candidato
+
+| Comprobado en local | Resultado |
+|---|---|
+| Qué publica frente a producción (`5f84e13`) | Once commits con este: cuatro solo de documentación —el registro de P4–P10 y la propuesta de Figma—, cinco de D-241, uno de D-242 y este. Fuera de `docs/`, solo el cierre de cuentas: la `0080`, dos guiones, el módulo y sus rutas, `constants.ts`, `errors.ts`, `capabilities.ts`, `StatusBadge`, los tipos y las pruebas |
+| La `0080` | Idéntica a la ensayada con los privilegios de producción (`855abb8`, `RUNBOOK` §11.3): el ensayo y `build/gate/delta-esperado-0080.json` siguen valiendo |
+| El código de la aplicación | Idéntico desde `79c74b2`: valen `verify` y `test:db`, corridos sobre `d372500` en D-242 |
+| Su SHA | La cabeza de la rama con este registro. Un documento no cita su propio commit (`HANDOFF` §0): va en el relevo de la entrega |
+
+### Lo que falta para publicar
+
+| Puerta (`RUNBOOK` §11.1) | Por qué no está hecha |
+|---|---|
+| C0 | Lee producción, y esta preparación es solo local: se hace al abrir la ventana |
+| C1 | Requiere push: sin el CI 2/2 sobre el candidato no se migra |
+| C2 | La franja, por acordar con el dueño |
+| C3–C6 | Requieren la autorización de migrar y de desplegar |
+| C7 | La revisión del dueño, con su sesión, después de C6 |
+
+Para **empezar a cerrar cuentas** hace falta, además, la información de los 4 premios.

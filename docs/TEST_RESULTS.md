@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-242: la puesta en marcha del cierre de cuentas, revisada; producción en solo lectura, 2026-09-30)** | **1.966/1.966** en 97 archivos, sin cambio | **1.572 ✅ y 1 omitida** en 64 archivos (+9: `Z10`..`Z13` en `settlements`). Producción leída en `repeatable read read only` a las 23:15–23:18 UTC: solo recuentos | No se ejecutó: sin cambio de código de la aplicación. La última **completa** sigue siendo la de D-241, **986/989**; sus repeticiones aisladas, aparte | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Revisada, **nada publicado**. Falta la información del dueño (`RUNBOOK` §11.2) |
+| **Post-9 vigente (D-243: el candidato del cierre de cuentas, solo en local, 2026-09-30)** | Las de D-242: **1.966/1.966**, sin repetir | Las de D-242: **1.572 ✅ y 1 omitida**, sin repetir. El código es el mismo desde `79c74b2` y la `0080`, desde `855abb8` | La completa de D-241, **986/989**, aparte de sus repeticiones | ✅ El de D-242 | Candidato preparado; **sin push, migración ni despliegue** |
+| Post-9 anterior (D-242: la puesta en marcha del cierre de cuentas, revisada; producción en solo lectura, 2026-09-30) | **1.966/1.966** en 97 archivos, sin cambio | **1.572 ✅ y 1 omitida** en 64 archivos (+9: `Z10`..`Z13` en `settlements`). Producción leída en `repeatable read read only` a las 23:15–23:18 UTC: solo recuentos | No se ejecutó: sin cambio de código de la aplicación. La última **completa** sigue siendo la de D-241, **986/989**; sus repeticiones aisladas, aparte | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Revisada, **nada publicado**. Falta la información del dueño (`RUNBOOK` §11.2) |
 | Post-9 anterior (D-241: el cierre de cuentas, `0080`, solo en local, 2026-09-30) | **1.966/1.966** en 97 archivos (+18, `settlements.test.ts`) | **1.563 ✅ y 1 omitida** en 64 archivos (+48: `settlements` 44 y `settlements-volume` 4). La `0080` ensayada por la CLI con los privilegios de producción: **CONTINUAR** | ⚠️ **986/989** en 54,3 min: 1 fallo por un commit durante la corrida (repetida, 4/4) y 2 conocidos, I-148 e I-090. Las 10 del cierre, en verde, y otra vez tras la última corrección de textos | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Implementado y probado **solo en local**; la publicación, `RUNBOOK` §11, **sin autorizar** |
 | Post-9 anterior (P4–P10: la configuración de ganancias EN PRODUCCIÓN, `0078`, `0079` y `5f84e13`, 2026-09-30, 17:45–18:03 UTC) | CI del PR (`36723630637`) y de `main` (`36754548208`) sobre `5f84e13`: ✅ 2/2 | Producción en `0079`; `verify:remote` **54/54** antes de abrir y después; la comparación de P9 contra la foto de P6, **CONTINUAR** con 4 filas explicadas y ninguna de dinero | Sin E2E: la revisión del dueño con su sesión, conforme | — | ✅ **Publicada.** Interrupción de 12 min 5 s; la pausa, retirada; registros sin errores |
 | Post-9 anterior (P4: comprobaciones previas en producción, solo lectura; la pausa NO se instaló, 2026-09-30, 14:08–14:11 UTC) | Sin cambio de código: el candidato `5f84e13` | Producción: `0077`, sin pausa ni gancho; diagnóstico previo **limpio**; `verify:remote` 49 + las 5 en rojo a propósito | No aplica | — | ⏸️ **P4 no ejecutada**: a las 09:10 de Bogotá quedaban 50 min antes de la hora del programador y la ventana necesita ~90 (estimado). Nada instalado; la plataforma sigue abierta. Dos franjas propuestas |
@@ -17225,3 +17226,35 @@ pedía demostrar también **quién pagó** cada importe, y el archivo quedó en 
 
 Base local reiniciada y sembrada, en `0080`, con las tres tablas del cierre vacías y sin pausa. Sin servidor de
 desarrollo. Producción, **solo leída**: `0079`, sin la `0080`; nada escrito.
+
+## D-243 — El candidato del cierre de cuentas (2026-09-30, solo en local)
+
+Encargo del dueño: registrar dos confirmaciones y preparar el candidato según `RUNBOOK` §11. **Solo local**: sin leer
+producción, sin push, sin migración y sin despliegue. Solo cambió documentación, así que **no se repitieron las baterías
+completas**: se comprobó que el código que verificaron sigue siendo el mismo.
+
+### a. Lo que se comprobó
+
+| Comprobación | Resultado |
+|---|---|
+| `git log 5f84e13..HEAD` | 10 commits antes de este: cuatro solo de documentación, cinco de D-241 y uno de D-242 |
+| `git diff 5f84e13 HEAD`, fuera de `docs/` | 39 archivos, todos del cierre de cuentas: la `0080`, dos guiones, el módulo y sus rutas, `constants.ts`, `errors.ts`, `capabilities.ts`, `StatusBadge`, los tipos y las pruebas |
+| `git diff 855abb8 HEAD -- supabase/ scripts/` | Vacío: la `0080` es la ensayada con los privilegios de producción (D-241 §f) |
+| `git diff 79c74b2 HEAD` en `src/`, `supabase/`, `scripts/`, `next.config.ts`, `package*.json` y `.github/` | Vacío: el código de la aplicación es el que verificaron `verify` y `test:db` en D-242 |
+| `build/gate/delta-esperado-0080.json` (31.047 bytes) y la foto de P9 | Presentes, fuera de Git: el delta lo necesita C5, y la foto, repetir el ensayo de §11.3 |
+| Saltos de línea de lo preparado | 0 CR |
+
+### b. Verificaciones vigentes del candidato
+
+| Verificación | Resultado | Sobre qué |
+|---|---|---|
+| `npm run verify` | ✅ 1.966/1.966, lint 0 errores (2 avisos de siempre), build ✅ | El árbol de `d372500` (D-242 §c) |
+| `npm run test:db` | ✅ 1.572 + 1 omitida, 64 archivos | El árbol de `d372500` (D-242 §c) |
+| E2E completa | ⚠️ 986/989, con los tres fallos explicados (D-241 §b y §e). Sus repeticiones aisladas, aparte: 4/4 y 35/36 | El árbol de antes del último cambio de textos (`79c74b2`); las 10 del cierre, repetidas después de ese cambio: 10/10 |
+| La `0080` por la CLI con los privilegios de producción | CONTINUAR, 0 filas tocadas, el cerrojo más largo 288 ms | La `0080` de `855abb8`, idéntica (D-241 §f) |
+| CI | **No existe todavía**: requiere push (C1) | — |
+
+### c. Entorno al terminar
+
+Sin cambios: base local en `0080`, sembrada, con las tablas del cierre vacías, sin pausa y sin servidor. Producción, sin
+tocar ni leer.

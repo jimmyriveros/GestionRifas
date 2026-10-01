@@ -1,7 +1,10 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-30, al final (**§11.2 rehecha**, D-242: la puesta en marcha registra la historia real —se
-retira «empezar a contar desde ese día», que dejaba pendiente lo ya entregado—, con lo que el dueño tiene que confirmar
+**Actualizado:** 2026-09-30, por la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
+ya confirmó —sin entregas al dueño y sin premios pagados en los 25 sorteos— y **§11.2.a, nueva**, dónde se ven los 4
+premios del historial y qué falta de cada uno). Antes, ese mismo día, al final (**§11.2 rehecha**, D-242: la puesta en
+marcha registra la historia real —se retira «empezar a contar desde ese día», que dejaba pendiente lo ya entregado—, con
+lo que el dueño tiene que confirmar
 antes: los 25 sorteos sin resultado, cómo se entregó el dinero, las entregas y los premios reales, los acuerdos y los
 vendedores a cargo desactivados). Antes, ese mismo día, más tarde (**§11 nueva**: publicar el cierre de cuentas
 —D-241, `0080`—, **preparada y ensayada en local con los privilegios de producción, sin autorizar**. Aditiva y sin pausa: la base primero, en una franja
@@ -1275,10 +1278,12 @@ garantía para el proyecto alojado.
 
 ---
 
-## 11. Publicar el cierre de cuentas (`0080` y su código, D-241) — **PREPARADA Y ENSAYADA EN LOCAL; SIN AUTORIZAR**
+## 11. Publicar el cierre de cuentas (`0080` y su código, D-241) — **PREPARADA Y ENSAYADA EN LOCAL, CON SU CANDIDATO (D-243); SIN AUTORIZAR**
 
 > **Nada de esto se ha ejecutado contra producción.** El último estado documentado de producción es `5f84e13` sobre
-> `0079` (§10), y no se volvió a comprobar al preparar esta sección. Publicar exige la **autorización expresa del
+> `0079` (§10); la lectura de D-242 (2026-09-30, 23:15 UTC, solo lectura) confirmó la base en `0079`, sin la `0080`,
+> y el despliegue servido no se volvió a comprobar: es C0. **El candidato** es la cabeza de la rama con D-243: su
+> código es el verificado en D-242 y su `0080`, la ensayada (§11.3). Publicar exige la **autorización expresa del
 > dueño**: empujar la rama (C1), migrar (C4) y desplegar (C6). Cada paso que escribe lo hace el dueño con su sesión o
 > con autorización para ese paso; quien la prepara se detiene, le da los pasos y verifica en solo lectura.
 
@@ -1328,6 +1333,16 @@ El cierre **no conoce el pasado** y nada se marca solo (BR-Z07): el primer día 
 | 4 | Que el acuerdo de ganancia de hoy es el que corresponde a **toda** la rifa | La cuenta calcula las ganancias con el acuerdo vigente (BR-G31) | «Total que debe entregar» no coincidirá con lo que el vendedor se quedó |
 | 5 | Ningún vendedor a cargo desactivado con cosas sin registrar | Nadie confirma por él (I-196). Hoy no hay ninguno | Se reactiva un momento para que registre él lo que recibió, y el personal registra lo que él pagó, **antes** de reorganizar su equipo (BR-Z21) |
 
+**En la rifa activa** (D-243, 2026-09-30):
+
+| # | Estado |
+|---|---|
+| 1 | ✅ **Confirmado por el dueño: no hubo premios pagados** en esos 25 sorteos. No dice que no hubo premios ganados ni que el historial esté completo: I-194 sigue como límite. BR-Z20, cumplida |
+| 2 | ✅ **Confirmado: los vendedores todavía no han entregado dinero al dueño.** «Recibido $0» es correcto y no hay entregas anteriores que registrar: I-197 no tiene ninguna historia que no quepa |
+| 3 | Sin entregas que registrar —el único integrante no tiene ventas—. **Faltan los 4 premios del historial** (§11.2.a) |
+| 4 | Se mantiene el motor de ganancias publicado: la cuenta usa el acuerdo vigente de cada vendedor (BR-G31). Si un vendedor dice haberse quedado otra ganancia, se para y se consulta |
+| 5 | ✅ Ningún vendedor a cargo desactivado (lectura de D-242). Se mantienen los permisos y BR-Z21 |
+
 **Cómo se registra** —con la aplicación y la sesión de quien corresponde; nunca por detrás ni con un script—:
 
 | Paso | Qué | Quién |
@@ -1339,13 +1354,26 @@ El cierre **no conoce el pasado** y nada se marca solo (BR-Z07): el primer día 
 | 5 | Una equivocación se **anula** con su motivo y se registra bien (BR-Z14) | Quien la registró |
 
 El orden no cambia el resultado (Z10-02). Una cuenta que llegue a $0 durante el registro se cierra sola, y un hecho
-registrado después —por ejemplo, un premio del punto 1, cuando exista cómo registrarlo— la deja en «Cambió después del
-cierre», sin borrar nada. Por eso las dos cuentas del punto 1 no se dan por cerradas antes de su confirmación.
+registrado después la deja en «Cambió después del cierre», sin borrar nada.
 
 **Lo que la historia real demuestra en local** (Z10): con entregas del integrante al vendedor a cargo y de este al
 dueño, premios pagados por el integrante, por el vendedor a cargo, por el dueño y por un vendedor directo, una
 equivocación anulada y actividad posterior, cada saldo es exactamente lo que falta, y al final lo recibido por el dueño
 es lo cobrado menos las ganancias y los premios que pagaron los vendedores.
+
+### 11.2.a Los 4 premios del historial: dónde se ven y qué hace falta (D-243)
+
+No se marcan pagados solos (BR-Z07). Mientras falte su información, la cuenta del vendedor queda en **«Falta
+información»**, que es lo correcto.
+
+| | |
+|---|---|
+| Dónde se ven hoy | «Premios ganados» (`/owner/prizes`), con la rifa activa en el filtro «Rifa»: la fecha del sorteo, el sorteo —lotería y número—, el vendedor, la boleta, el premio y su valor. Dos llevan «Reconocido por la organización» |
+| Dónde se registran, después de publicar | «Cierre de cuentas» → la rifa → la cuenta del vendedor directo con equipo → «Premios de esta cuenta»: cada uno dice «Falta registrar quién lo pagó» y tiene **«Registrar premio pagado»** |
+| Quién los registra | El Dueño o un Administrador, con su sesión: los cuatro son de boletas de un vendedor directo (BR-Z07) |
+| Qué hace falta de cada uno | **Si se pagó.** Si se pagó: **quién lo pagó** —el vendedor o el dueño—, **la fecha de pago** —entre la del sorteo y hoy— y **el importe**, solo si la pantalla dice «Valor por confirmar» (en especie o con alternativas). Un premio en dinero se registra con su valor, que la aplicación no deja cambiar: si se pagó otro importe, **se para y se consulta** |
+| Qué cambia al registrarlo | Si lo pagó el vendedor, se descuenta de lo que entrega y su ganancia no cambia. Si lo pagó el dueño, baja la ganancia del dueño y no cambia lo que se entrega |
+| Si todavía no se pagó | Se deja así: la cuenta sigue en «Falta información», que es verdad |
 
 ### 11.3 El ensayo (hecho el 2026-09-30, en local, con los privilegios de producción)
 

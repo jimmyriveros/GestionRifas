@@ -1,8 +1,10 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-09-30, al final (D-242: §4.e — el primer día se registra la historia real, sin empezar desde
-cero, y lo de un vendedor a cargo se registra antes de desactivarlo). Antes, ese mismo día (D-241: **§4.e nueva**, el
-cierre de cuentas, **solo en local**). Antes, 2026-09-14
+**Actualizado:** 2026-09-30, por la noche (D-243: §4.e — en la rifa activa ya está confirmado que los vendedores no
+han entregado dinero al dueño y que no hubo premios pagados en los sorteos sin resultado). Antes, ese mismo día, al
+final (D-242: §4.e — el primer día se registra la historia real, sin empezar desde cero, y lo de un vendedor a cargo se
+registra antes de desactivarlo). Antes, ese mismo día (D-241: **§4.e nueva**, el cierre de cuentas, **solo en
+local**). Antes, 2026-09-14
 (D-198: §4, §4.b y §4.c). Para quien **opera el negocio** (Owner/Admin), no para quien
 programa. Para desplegar la aplicación ver [`DEPLOYMENT.md`](DEPLOYMENT.md); para problemas
 frecuentes, [`RUNBOOK.md`](RUNBOOK.md).
@@ -241,6 +243,10 @@ suma todas las boletas pagadas de la rifa, y lo ya entregado seguiría aparecien
 premio ya pagado se registran **con su fecha real**, por quien corresponde, después de que el dueño confirme lo que el
 sistema no sabe —si hubo premios en los sorteos sin resultado guardado, y cómo se entregó el dinero— (`RUNBOOK` §11.2,
 BR-Z19, BR-Z20).
+
+**En la rifa activa ya está confirmado** (D-243): los vendedores todavía no le han entregado dinero al dueño y no hubo
+premios pagados en los sorteos sin resultado guardado. Lo único por registrar son los 4 premios del historial, si se
+pagaron: dónde se ven y qué dato falta de cada uno, en `RUNBOOK` §11.2.a.
 
 **Diagnóstico en solo lectura** (quien opera, con la *service role*; ninguna sesión puede leer estas tablas):
 

@@ -1,6 +1,8 @@
 # REGLAS DE NEGOCIO
 
-- **Versión:** 1.43 · **Estado:** normativo · **Actualizado:** 2026-09-30, al final (§12.j: **BR-Z19..BR-Z21** —la
+- **Versión:** 1.44 · **Estado:** normativo · **Actualizado:** 2026-09-30, por la noche (§12.j: **BR-Z20, cumplida en
+  la rifa activa** —el dueño confirmó que no hubo premios pagados en los 25 sorteos sin resultado guardado, D-243—).
+  Antes, ese mismo día, al final (§12.j: **BR-Z19..BR-Z21** —la
   puesta en marcha registra la historia real; una cuenta con sorteos sin información de premios no se trata como
   definitiva; lo de un vendedor a cargo se registra antes de desactivarlo—, y **BR-Z04, BR-Z06 y BR-Z07 confirmadas
   por el dueño**, D-242). Antes, ese mismo día, más tarde (§12.j nueva: el **cierre de
@@ -1097,7 +1099,7 @@ al dueño**. La letra es `Z` de «**z**anjar» una cuenta: las demás ya tienen 
 | BR-Z17 | **Acceso solo por funciones.** Las tres tablas tienen RLS forzada **sin políticas** y ningún privilegio para una sesión; 14 RPC con lista exacta de EXECUTE (`scripts/settlement-function-grants.ts`) autorizan dentro. La capacidad `settlements.manage` es del Dueño y del Administrador. | S, D | ✅ local |
 | BR-Z18 | **Inmutable salvo la anulación.** De una entrega o de un pago de premio solo se escribe su anulación, una vez; un cierre no se toca nunca. Nada se borra. | D | ✅ local |
 | BR-Z19 | **La puesta en marcha registra la historia real.** La cuenta suma todas las boletas pagadas de la rifa, así que no existe «empezar desde hoy»: cada entrega y cada premio pagado antes de estrenar el cierre se registra **con su fecha real** y lo confirma quien corresponde (BR-Z05, BR-Z07). Nada se inventa ni se pone en cero; una equivocación se anula con motivo (BR-Z14). Una entrega real que no cabe en el saldo (I-197) se deja sin registrar y se resuelve con el dueño, no se recorta. | S, D | ✅ local (Z10) |
-| BR-Z20 | **Una cuenta de una rifa con sorteos sin información de premios no se trata como definitiva** hasta que el dueño confirme si hubo premios pagados en ellos (I-194). Es una condición de la puesta en marcha (`RUNBOOK` §11.2): **la aplicación no la impone** —una cuenta en $0 se cierra (Z13-01)—. Un premio de esos sorteos **hoy no se puede registrar** (hace falta la solución mínima de I-194); cuando se pueda, registrarlo después de un cierre deja la cuenta en «Cambió después del cierre», sin borrar nada. | — | procedimiento |
+| BR-Z20 | **Una cuenta de una rifa con sorteos sin información de premios no se trata como definitiva** hasta que el dueño confirme si hubo premios pagados en ellos (I-194). Es una condición de la puesta en marcha (`RUNBOOK` §11.2): **la aplicación no la impone** —una cuenta en $0 se cierra (Z13-01)— y un premio de esos sorteos **no se puede registrar**: no hay cómo (I-194). *Cumplida en la rifa activa: el dueño confirmó el 2026-09-30 que no hubo premios pagados en esos 25 sorteos (D-243). No dice que no hubo premios ganados ni que el historial esté completo.* | — | procedimiento; cumplida en la rifa activa |
 | BR-Z21 | **Lo que recibió y lo que pagó un vendedor a cargo se registra antes de desactivarlo o de reorganizar su equipo.** Desactivado, nadie confirma por él, y **no se amplía ningún permiso** para hacerlo. Reorganizar con hechos sin registrar los atribuye al vendedor a cargo **nuevo** (Z12-01), y un premio de su integrante que pagó él ya no se le puede atribuir (Z12-03); si ya se desactivó, se reactiva un momento para que registre él lo que recibió, el personal registra lo que él pagó, y después se reorganiza (Z12-02, Z12-03). | S, D | ✅ local (Z12) |
 
 **Lo que el cierre NO hace:** no calcula ganancias —las lee—, no registra qué alternativa de un premio se llevó
