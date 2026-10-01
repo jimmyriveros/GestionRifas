@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC)** | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, pendiente |
+| **Post-9 vigente (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC)** | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **hecha** (23:14–23:18 UTC), sin problemas informados ni movimientos contables |
 | Post-9 anterior (D-245: la búsqueda pendiente no cancela la navegación elegida —I-199 resuelta— y el aviso en «Cuentas con tu equipo»; I-200 nueva; solo en local, 2026-09-30 en Bogotá) | **1.976/1.976** en 98 archivos (+10, `navigation-start`) | **1.572 ✅ y 1 omitida**: sin cambio de esquema | **16 nuevas** —13 del buscador, que fallan **9** con el buscador anterior, y 3 del equipo, que fallan con la tarjeta anterior—; completa: ver la sección | ✅ | **Solo en local**; candidato para publicar con D-244, **sin autorizar** |
 | Post-9 anterior (D-244: «Revisar cuenta» avisa mientras se abre; I-198 e I-199, solo en local, 2026-09-30 en Bogotá) | **1.966/1.966** en 97 archivos, antes y después: el cambio es de interfaz | **1.572 ✅ y 1 omitida**, antes y después: sin cambio de esquema | **5 nuevas** (`cierre-navegacion` 4, `-movil` 1) y las **10 del cierre**: **15/15**; las 5 nuevas, **4 fallan con la lista anterior**. La completa no se repitió | ✅ | **Solo en local**; la causa del incidente, **sin demostrar** (I-198) |
 | Post-9 anterior (C0–C7: el cierre de cuentas EN PRODUCCIÓN, `0080` y `edbc778`, 2026-10-01, 00:49–01:07 UTC) | CI del PR (`36798406550`) y de `main` (`36799151910`) sobre `edbc778`: ✅ 2/2, **1.966/1.966** | En los dos CI: **1.572 ✅ y 1 omitida** en 64 archivos. Producción en `0080`; `verify:remote` **55 + 3 rojas a propósito** antes y **58/58** después; C5 **CONTINUAR**, 0 filas tocadas | **No se repitió**: la última completa es la de D-241, **986/989**, aparte de sus repeticiones | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** |
@@ -17477,7 +17477,7 @@ de esa ventana. No lo introduce D-245 y no se investigó.
 | `premios-ganados.spec.ts:443` | **I-148**, anterior: tras recargar y pulsar Atrás la dirección sigue con `dateFrom=…`, la misma firma registrada en `735eb67` | Repetida 3 veces: **2/3**, el fallo con la misma firma. Esa pantalla no usa `useUrlSearch` ni escucha el aviso de navegación |
 | `catalogo-publico-movil.spec.ts:103` | **I-106**, anterior: «0» en el buscador y la dirección no llega a `?q=0` en 15 s. Hoy falló también con su archivo solo —1 de 1, y **2 de 5** repetida—, como I-106 ya registra desde el 2026-09-25 según la carga. Pero el catálogo usa el buscador cambiado, así que **se midió antes de descartarlo** | E2E repetida 5 veces: buscador anterior **con** `instrumentation-client`, 1 de 5; **sin**, 0 de 5. Con muestras tan cortas, un guion en `next dev`, 12 aperturas cada uno (`hidratacion-catalogo.ts`): hidratación ≈458 ms en los dos, la tecla **nunca** antes de hidratar, y la búsqueda sin llegar en 4 s en **5 de 12 con D-245** y **6 de 12 sin nada de D-245** (buscador anterior, sin el archivo). El mismo fallo **con y sin D-245**: **no lo introduce D-245**, y con muestras tan cortas no se puede afirmar que su frecuencia sea la misma *(corregido el 2026-10-01: decía «a la misma tasa»)*. La causa sigue sin investigar |
 
-## Publicación de D-244 y D-245 — EN PRODUCCIÓN: `a5d90f9` (2026-10-01, 13:45–17:13 UTC)
+## Publicación de D-244 y D-245 — EN PRODUCCIÓN: `a5d90f9` (2026-10-01, 13:45–17:13 UTC; la revisión del dueño, 23:14–23:21 UTC)
 
 Autorización expresa del dueño para completar la validación y publicar D-244 y D-245 juntos según `DEPLOYMENT` §3.3.d,
 sin pedir permiso por paso mientras se cumplieran sus condiciones. **Sin migración y sin pausa.** Evidencia fuera de
@@ -17582,16 +17582,26 @@ Las huellas de D-245 se tomaron del build de producción local del candidato: Tu
 
 ### h. La revisión del dueño, con su sesión
 
-**Pendiente al escribir este registro.** Se le pidieron tres comprobaciones, solo mirando y **sin ningún movimiento
-contable**: «Revisar cuenta» en «Cierre de cuentas» como Dueño o Administrador; «Cuentas con tu equipo» con la sesión del
-vendedor que tiene equipo, si la tiene a mano; y en una lista con buscador, escribir y abrir enseguida una fila. Y avisar
-al terminar, para leer sus registros dentro de la hora.
+Se le pidieron tres comprobaciones, solo mirando y **sin ningún movimiento contable**: «Revisar cuenta» en «Cierre de
+cuentas» como Dueño o Administrador; «Cuentas con tu equipo» con la sesión del vendedor que tiene equipo, si la tenía a
+mano; y en una lista con buscador, escribir y abrir enseguida una fila. **Hecha**: el dueño avisó a las 23:19 UTC —«Ya
+hice toda la revisión»— **sin informar de ningún problema**, y los registros se leyeron enseguida, dentro de la hora.
+
+| Qué | Resultado |
+|---|---|
+| Sus registros (23:14:21–23:18:33 UTC; 18:14–18:18 en Bogotá) | Entra en `/` (307, 23:14:21); como personal, «Cierre de cuentas» (23:16:26) y **la cuenta `009dd2f5…`** (23:16:42), en 200; cierra sesión —un POST a esa misma página a las 23:17:08 y `/login` enseguida—; entra como vendedor (23:17:14), «Mi cierre de cuentas» (23:18:16) y, desde «Mis boletas» (23:18:26), **el detalle de una boleta** (23:18:33), en 200. **0** errores, avisos o fatal; **0** 4xx y 5xx: 65 × 200 y el 307 de la entrada. No hubo más tráfico en esa hora |
+| «Cuentas con tu equipo» | **No aparece** en los registros (`/seller/settlement/team/…`, 0 filas): la sesión de vendedor usada no abrió la cuenta de un integrante. Ese recorrido queda probado **solo en local** (`cierre-navegacion*`, 46/46 con el resto) |
+| Lo que los registros no pueden decir | Si se vio «Abriendo cuenta…» y si la fila se abrió mientras la búsqueda seguía en pausa: Vercel no guarda la dirección con `?q=` en el registro ni nada de lo que pinta el navegador. Eso lo afirma el dueño, que no informó de ningún problema |
+| La base, en solo lectura, al terminar (23:21 UTC) | **Ningún movimiento contable**: el cierre con las mismas cifras de antes de publicar —0 entregas, 8 pagos de premios (el último, de las 01:53 UTC) y 0 cierres—, **0** filas del cierre en la bitácora desde la publicación y **0 filas de ninguna clase** desde las 23:14. El POST de las 23:17:08 no escribió nada auditado: encaja con «Cerrar sesión» |
+| Uso real desde la publicación | Entre las 17:32 y las 21:57 UTC, la bitácora registra 13 pagos, 3 clientes, 6 asignaciones a cliente, 3 boletas creadas por vendedores y 3 aprobadas: la operación normal, con el código nuevo. Sus registros detallados ya no se pueden leer |
+| Errores agrupados desde las 17:01 (`get_runtime_errors`) | **Uno**: `PGRST303 «JWT issued at future»` en `/seller/tickets.rsc`, **1 vez, 1 usuario, a las 21:18:23 UTC**, en el despliegue nuevo. Es la agrupación vista desde el 2026-08-06, la misma que el 2026-09-29 sobre `cac81e8` (1, 1 usuario, la misma ruta): un JWT recién emitido que llega a PostgREST con la hora adelantada. **Anterior a esta entrega y sin investigar**; ahora tiene ficha, **I-202** |
 
 ### i. Lo que NO se ejecutó en esta publicación
 
 | Qué | Por qué |
 |---|---|
-| Probar en producción el aviso al abrir una cuenta, «Cuentas con tu equipo» y la carrera del buscador | Necesitan sesión: lo revisa el dueño (§h). Un agente no inicia sesión |
+| Probar en producción, con sesión, el aviso al abrir una cuenta y la carrera del buscador | Lo revisó el dueño (§h), sin informar de ningún problema; los registros muestran las páginas, no lo que pintó el navegador. Un agente no inicia sesión |
+| «Cuentas con tu equipo» en producción | La revisión no abrió la cuenta de un integrante (§h): ese recorrido está probado **solo en local** |
 | Comparar el navegador con el despliegue anterior | Protegido por el SSO de Vercel (§g) |
 | Repetir la E2E completa | Se ejecutó **una** completa válida, la de §a; no se relanzó para buscar verde. El primer intento no llegó a ejecutar ninguna prueba |
 | La pila de I-201 | No se reprodujo con trazas (§c) |

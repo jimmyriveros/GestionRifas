@@ -3,7 +3,7 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-01, 17:13 UTC (12:13 en Bogotá) — **D-244 y D-245 EN PRODUCCIÓN** (`a5d90f9`, `DEPLOYMENT`
+- **Actualizado:** 2026-10-01, 23:25 UTC (18:25 en Bogotá; publicado a las 17:02 UTC) — **D-244 y D-245 EN PRODUCCIÓN** (`a5d90f9`, `DEPLOYMENT`
   §3.2.w): mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas; publicado con la autorización del dueño, sin
   migración ni pausa. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** las de D-244 y D-245, ahora servidas: «Revisar cuenta» y «Cuentas con tu equipo» avisan en el
@@ -18,10 +18,11 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** **I-201**, nueva e informativa —un aviso de Node en `next dev`, registrado por
-  decisión del dueño—; **I-200**, sin corregir; **I-198**, sin causa demostrada; I-090, I-106 e I-148, de las pruebas.
-  Siguen I-190, I-193 e I-194 a I-197.
+  decisión del dueño—; **I-202**, ficha nueva para un `PGRST303` de producción anterior y sin investigar; **I-200**, sin
+  corregir; **I-198**, sin causa demostrada; I-090, I-106 e I-148, de las pruebas. Siguen I-190, I-193 e I-194 a I-197.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y `DEPLOYMENT` §3.2.w. **La revisión del dueño con su sesión,
-  pendiente**: leer sus registros dentro de la hora. Punto de reversión: `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` (`edbc778`).
+  hecha** (23:14–23:18 UTC), sin problemas informados ni movimientos contables; «Cuentas con tu equipo» no se abrió y
+  queda probado solo en local. Punto de reversión: `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` (`edbc778`).
 
 - Antes, 2026-10-01 en UTC (noche del 30 en Bogotá) — **La búsqueda pendiente no cancela la navegación elegida
   (D-245, I-199) y «Cuentas con tu equipo» avisa, SOLO EN LOCAL**: mantenimiento posterior a la Fase 9, sin fase ni
