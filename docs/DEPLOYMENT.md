@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-01, 01:42 UTC (§3.2.v: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+**Actualizado:** 2026-10-01, 17:13 UTC (**§3.2.w nueva: D-244 y D-245 EN PRODUCCIÓN** —`a5d90f9`, sin migración ni
+pausa; el punto de reversión pasa a `edbc778`—; §3.3.d y §4.1, al día; la revisión del dueño, pendiente). Antes, ese mismo
+día, 01:42 UTC (§3.2.v: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
 (**§3.2.v nueva: el cierre de cuentas EN PRODUCCIÓN** —`0080` y `edbc778`, sin
 pausa—; §3.3.b y §4.1, al día). Antes, 2026-09-30, más tarde (§3.3.b y §4.1: la `0080` del cierre de cuentas —D-241,
 **solo en local, sin
@@ -1197,6 +1199,46 @@ tocada; las tres tablas nuevas, vacías; en vivo, todo en verde con `a691f412c09
 registros de 00:41 a 01:06 UTC, **0** errores, avisos o 5xx. **La revisión del dueño con su sesión (C7), conforme**, como Administrador y como vendedor: `/owner/settlements` en 200 (01:36:40 y 01:37:03), la cuenta de un vendedor en 200 (01:37:35) y `/seller/settlement` en 200 (01:38:31 y 01:39:55); 62 × 200 y 2 × 307, **0** 4xx y **0** 5xx. En esa hora, **una** línea de error a las 01:35:35, antes de la revisión: `GET /` → 307 a `/login` con «Invalid Refresh Token: Refresh Token Not Found», la agrupación **ya conocida** del proxy (1 usuario, desde el 2026-08-10), de una sesión vieja; la redirección es la esperada y no tiene relación con el cierre. Después de la revisión, las tablas del cierre siguen vacías.
 Detalle en `TEST_RESULTS`, «C0–C7 del cierre de cuentas».
 
+### 3.2.w Release de D-244 y D-245: el aviso al abrir una cuenta y la búsqueda que no cancela la fila — 2026-10-01
+
+**Sin migración y sin pausa.** Autorización expresa del dueño para completar la validación y publicar D-244 y D-245
+juntos según §3.3.d, sin pedir permiso por paso mientras se cumplieran sus condiciones. La publicación **se detuvo una
+vez**: el único fallo de la E2E completa, I-090, no estaba entre los aceptados de antemano (I-148 e I-106), y el dueño lo
+aceptó para esta publicación; también decidió **registrar y seguir** con un aviso nuevo del servidor local (I-201).
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`a5d90f9350d99fc3f543b952f9930a50c38c7368`**, el validado: el mismo SHA del PR #11 con el CI en verde. Ningún commit se añadió durante la publicación |
+| Commit anterior en producción | `edbc778524259658ce24e369c4cdb4362df3b769` (§3.2.v) |
+| Integración | **Avance rápido** `edbc778..a5d90f9`, 4 commits —`673c6b3` y `79000ef`, el registro de C0–C7; `1b4da23`, D-244; `a5d90f9`, D-245—, **sin fusión, sin `force` y sin la rama local `main`**: `git ls-remote` confirmó `edbc778` justo antes, y `git push origin a5d90f9…:refs/heads/main` a las **17:01:17 UTC**, con la franja libre. GitHub marca el PR #11 fusionado a las 17:01:20, sin commit de fusión |
+| Despliegue Vercel | **`dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW`**: creado a las 17:01:22, **READY a las 17:02:13 UTC**, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`5c813f6adf4e`** en la comprobación de las 17:04:01. El único de producción que disparó el empuje |
+| Despliegue anterior (**punto de reversión**) | **`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`** (`edbc778`), con `isRollbackCandidate`; `dpl_Ai8D4…` dejó de serlo, como corresponde en Hobby. **Compatible**: esta entrega no cambia la base. *Instant Rollback*, **sin tocar la base**; lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1) |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` sin una línea de diferencia. Siguen **80** |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni `.env.example`, ni `public/` |
+| Huellas de esta entrega | Además del identificador de versión (§6.1): el módulo de `src/instrumentation-client.ts` y el de `lib/navigation-start.ts` en los fragmentos de las cuatro páginas públicas, y la regla del tinte de D-244 en la hoja de estilos. Las tres, **ausentes antes** y **presentes después** |
+| CI | En el PR, run **`36883743652`** sobre `a5d90f9`: ✅ **2/2** (15:22:29–15:30:04 UTC). En `main`, run **`36896303913`** (`push`): ✅ **2/2** (17:01:22–17:09:00 UTC): **1.976/1.976** unitarias y **1.572 ✅ y 1 omitida** de base |
+
+**Validado antes, en local:** E2E completa del candidato **1.009/1.010** en 55,8 min, con la huella del código idéntica
+antes y después de la pasada; las 46 del buscador y del cierre, en verde; el único fallo, **I-090** —55 ventas de hoy,
+las mismas que dijo la pantalla—, aceptado por el dueño. Un primer intento no llegó a ejecutar ninguna prueba: el servidor
+de desarrollo no arrancó en 180 s tras volver el equipo de la suspensión. **P0, en solo lectura (15:11–15:14 UTC):**
+servido `a691f412c09e` (`edbc778`), base en `0080` sin pausa, `verify:remote` **58/58**, en vivo todo en verde y las
+huellas de esta entrega ausentes. **La franja (`RUNBOOK` §9.0), a las 17:00:49 UTC** en solo lectura: hora 17, el candado
+libre —el turno de las 16 lo soltó a las 16:57:55, sin trabajo—, ninguna corrida sin terminar y ningún recordatorio en 3 h.
+
+**Verificación en vivo (17:04–17:13 UTC):** `5c813f6adf4e` servido y `a691f412c09e` **desaparecido**; 40/40 rutas, 0 5xx,
+7/7 cabeceras, CSP por *nonce* con un solo proyecto, 0 secretos en 952 KB, Next 16.3.6; **`instrumentation-client` se
+carga en las cuatro páginas públicas**; la regla de D-244, una vez; D-234 y Color v2, servidos. `verify:remote` **58/58**;
+la base, igual. En un Chromium sin extensiones, `/login` hidrata y navega a «¿Olvidaste tu contraseña?» dentro del mismo
+documento sin un mensaje de consola. Registros desde las 17:00: **0** errores, avisos o 5xx. Dos observaciones **ajenas a
+esta entrega**: la sonda de Zod 4 (`allowsEval`) deja un evento de CSP `script-src eval` en `/login`, sin mensaje, y
+`/mantenimiento` no ejecuta JavaScript por diseño (D-239, como I-070). Detalle en `TEST_RESULTS`, «Publicación de D-244 y
+D-245».
+
+> **Revisión del dueño con su sesión: pendiente** al escribir este registro (`TEST_RESULTS`, §h). **Los commits de
+> documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra versión y moverían el
+> punto de reversión.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1421,7 +1463,11 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 | Cómo se publicó (puerta PB de `RUNBOOK` §10.2, **hecha**; §3.2.t) | `git ls-remote origin refs/heads/main` tiene que ser `cac81e8`; `git push origin fix/puente-pausa-publicacion:refs/heads/main` por avance rápido, sin `force`; CI 2/2; READY; identificador servido (§6.1); `/mantenimiento` en 200 y la aplicación igual que antes. Su punto de reversión es `cac81e8` (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`) |
 | Después | **Hecho, en local:** fusionado en `feature/detalle-boleta-admin` (`0e268df`) con 0 archivos cambiados, como la del puente de D-228; esa rama sigue sin empujar. Desde que la publicación esté servida, la reversión del código vuelve **al puente**, que maneja la pausa |
 
-#### 3.3.d D-244 y D-245 juntos: el aviso al abrir una cuenta y la búsqueda que no cancela la fila — **preparado en local, SIN AUTORIZAR**
+#### 3.3.d D-244 y D-245 juntos: el aviso al abrir una cuenta y la búsqueda que no cancela la fila — **EN PRODUCCIÓN desde el 2026-10-01, 17:02 UTC** (registro en §3.2.w)
+
+> **Publicados el 2026-10-01** con la autorización del dueño: `a5d90f9` por avance rápido desde `edbc778`, sin migración
+> ni pausa. Lo que sigue es cómo se preparó; se siguió tal cual, y la validación se completó con una E2E completa nueva
+> sobre el candidato (§3.2.w).
 
 El dueño autorizó **prepararlos para publicarlos juntos**; push, CI sobre `main` y despliegue siguen **sin autorizar**.
 
@@ -1468,6 +1514,10 @@ vuelve**: el código nuevo es el único que entiende esa base.
 **Con la `0080` (D-241), publicada el 2026-10-01**, el despliegue anterior es `dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`
 (`5f84e13`), candidato a *Instant Rollback*, y volver a él **sí basta**: no
 nombra nada de la `0080`, que se queda en la base sin estorbar (`RUNBOOK` §11.4).
+
+**Con D-244 y D-245, publicados el 2026-10-01** (§3.2.w), el despliegue anterior pasa a ser
+`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` (`edbc778`), candidato a *Instant Rollback*, y volver a él **sí basta**: la entrega
+no cambia la base, y `edbc778` es el código que estrenó la `0080`.
 
 ### 4.2 Base de datos
 

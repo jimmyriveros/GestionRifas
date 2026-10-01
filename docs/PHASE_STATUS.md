@@ -3,7 +3,27 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-01 en UTC (noche del 30 en Bogotá) — **La búsqueda pendiente no cancela la navegación elegida
+- **Actualizado:** 2026-10-01, 17:13 UTC (12:13 en Bogotá) — **D-244 y D-245 EN PRODUCCIÓN** (`a5d90f9`, `DEPLOYMENT`
+  §3.2.w): mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas; publicado con la autorización del dueño, sin
+  migración ni pausa. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** las de D-244 y D-245, ahora servidas: «Revisar cuenta» y «Cuentas con tu equipo» avisan en el
+  mismo clic («Abriendo cuenta…»); en «Cierre de cuentas», «Boletas» de los dos portales, «Mis clientes» y el catálogo
+  público, una búsqueda pendiente ya no cancela la fila que se abre, y se combina con el filtro o el orden elegidos en la
+  pausa.
+  **(2) Pruebas:** **local** —E2E completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante
+  la pasada; buscador y cierre 46/46; el único fallo, **I-090**, aceptado por el dueño; un primer intento no llegó a
+  ejecutar ninguna prueba (el servidor no arrancó en 180 s tras volver el equipo de la suspensión)—. **CI** —el PR #11 y
+  `main`, 2/2: 1.976/1.976 y 1.572 + 1—. **Producción** —`verify:remote` 58/58 antes y después; `5c813f6adf4e` servido;
+  `instrumentation-client` en las cuatro páginas públicas; registros sin errores ni 5xx—. Detalle en `TEST_RESULTS`.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-201**, nueva e informativa —un aviso de Node en `next dev`, registrado por
+  decisión del dueño—; **I-200**, sin corregir; **I-198**, sin causa demostrada; I-090, I-106 e I-148, de las pruebas.
+  Siguen I-190, I-193 e I-194 a I-197.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y `DEPLOYMENT` §3.2.w. **La revisión del dueño con su sesión,
+  pendiente**: leer sus registros dentro de la hora. Punto de reversión: `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` (`edbc778`).
+
+- Antes, 2026-10-01 en UTC (noche del 30 en Bogotá) — **La búsqueda pendiente no cancela la navegación elegida
   (D-245, I-199) y «Cuentas con tu equipo» avisa, SOLO EN LOCAL**: mantenimiento posterior a la Fase 9, sin fase ni
   etiqueta nuevas, sin push ni despliegue y sin leer producción. Candidato para publicar con D-244. Los seis puntos de
   `CLAUDE.md` §34.3:
@@ -14,7 +34,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(2) Pruebas:** `verify` ✅ **1.976/1.976** y build; `test:db` ✅ **1.572 + 1**; 13 E2E nuevas del buscador —**9 fallan**
   con el anterior— y 3 del equipo —fallan con la tarjeta anterior—; builds de producción antes y después, con
   peticiones, desplazamientos y consola. E2E completa **1.007/1.010** en 56,3 min: un fallo por una edición mía durante
-  la pasada (aislado, 5/5) e I-148 e I-106, anteriores; I-106 medido con y sin D-245, a la misma tasa. Errores al
+  la pasada (aislado, 5/5) e I-148 e I-106, anteriores; I-106 reproducida con y sin D-245 *(corregido el 2026-10-01:
+  decía «a la misma tasa», y las muestras no demuestran que la frecuencia sea igual)*. Errores al
   escribir —una prueba de desplegable que no elegía nada y esa edición—, corregidos y repetidos.
   **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
   **(4) Variables de entorno:** ninguna nueva.

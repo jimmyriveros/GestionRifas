@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-245: la búsqueda pendiente no cancela la navegación elegida —I-199 resuelta— y el aviso en «Cuentas con tu equipo»; I-200 nueva; solo en local, 2026-09-30 en Bogotá)** | **1.976/1.976** en 98 archivos (+10, `navigation-start`) | **1.572 ✅ y 1 omitida**: sin cambio de esquema | **16 nuevas** —13 del buscador, que fallan **9** con el buscador anterior, y 3 del equipo, que fallan con la tarjeta anterior—; completa: ver la sección | ✅ | **Solo en local**; candidato para publicar con D-244, **sin autorizar** |
+| **Post-9 vigente (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC)** | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, pendiente |
+| Post-9 anterior (D-245: la búsqueda pendiente no cancela la navegación elegida —I-199 resuelta— y el aviso en «Cuentas con tu equipo»; I-200 nueva; solo en local, 2026-09-30 en Bogotá) | **1.976/1.976** en 98 archivos (+10, `navigation-start`) | **1.572 ✅ y 1 omitida**: sin cambio de esquema | **16 nuevas** —13 del buscador, que fallan **9** con el buscador anterior, y 3 del equipo, que fallan con la tarjeta anterior—; completa: ver la sección | ✅ | **Solo en local**; candidato para publicar con D-244, **sin autorizar** |
 | Post-9 anterior (D-244: «Revisar cuenta» avisa mientras se abre; I-198 e I-199, solo en local, 2026-09-30 en Bogotá) | **1.966/1.966** en 97 archivos, antes y después: el cambio es de interfaz | **1.572 ✅ y 1 omitida**, antes y después: sin cambio de esquema | **5 nuevas** (`cierre-navegacion` 4, `-movil` 1) y las **10 del cierre**: **15/15**; las 5 nuevas, **4 fallan con la lista anterior**. La completa no se repitió | ✅ | **Solo en local**; la causa del incidente, **sin demostrar** (I-198) |
 | Post-9 anterior (C0–C7: el cierre de cuentas EN PRODUCCIÓN, `0080` y `edbc778`, 2026-10-01, 00:49–01:07 UTC) | CI del PR (`36798406550`) y de `main` (`36799151910`) sobre `edbc778`: ✅ 2/2, **1.966/1.966** | En los dos CI: **1.572 ✅ y 1 omitida** en 64 archivos. Producción en `0080`; `verify:remote` **55 + 3 rojas a propósito** antes y **58/58** después; C5 **CONTINUAR**, 0 filas tocadas | **No se repitió**: la última completa es la de D-241, **986/989**, aparte de sus repeticiones | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** |
 | Post-9 anterior (D-243: el candidato del cierre de cuentas, solo en local, 2026-09-30) | Las de D-242: **1.966/1.966**, sin repetir | Las de D-242: **1.572 ✅ y 1 omitida**, sin repetir. El código es el mismo desde `79c74b2` y la `0080`, desde `855abb8` | La completa de D-241, **986/989**, aparte de sus repeticiones | ✅ El de D-242 | Candidato preparado; **sin push, migración ni despliegue** |
@@ -17474,4 +17475,123 @@ de esa ventana. No lo introduce D-245 y no se investigó.
 |---|---|---|
 | `busqueda-navegacion.spec.ts:73`, «con el teclado» | **Una edición mía durante la pasada**: cambié `use-url-search.ts` unos 30 s (22:59 en Bogotá) para un experimento, con la suite en las pruebas 44 a 48; `next dev` recargó el archivo y esta prueba vio **dos** peticiones al destino con `_rsc` distintos | Aislada, **5/5**; las tres suites del buscador, **28/28**. Las demás pruebas de la ventana pasaron. El experimento se rehízo después de la pasada |
 | `premios-ganados.spec.ts:443` | **I-148**, anterior: tras recargar y pulsar Atrás la dirección sigue con `dateFrom=…`, la misma firma registrada en `735eb67` | Repetida 3 veces: **2/3**, el fallo con la misma firma. Esa pantalla no usa `useUrlSearch` ni escucha el aviso de navegación |
-| `catalogo-publico-movil.spec.ts:103` | **I-106**, anterior: «0» en el buscador y la dirección no llega a `?q=0` en 15 s. Hoy falló también con su archivo solo —1 de 1, y **2 de 5** repetida—, como I-106 ya registra desde el 2026-09-25 según la carga. Pero el catálogo usa el buscador cambiado, así que **se midió antes de descartarlo** | E2E repetida 5 veces: buscador anterior **con** `instrumentation-client`, 1 de 5; **sin**, 0 de 5. Con muestras tan cortas, un guion en `next dev`, 12 aperturas cada uno (`hidratacion-catalogo.ts`): hidratación ≈458 ms en los dos, la tecla **nunca** antes de hidratar, y la búsqueda sin llegar en 4 s en **5 de 12 con D-245** y **6 de 12 sin nada de D-245** (buscador anterior, sin el archivo). El mismo fallo, a la misma tasa: **no lo introduce D-245**. La causa sigue sin investigar |
+| `catalogo-publico-movil.spec.ts:103` | **I-106**, anterior: «0» en el buscador y la dirección no llega a `?q=0` en 15 s. Hoy falló también con su archivo solo —1 de 1, y **2 de 5** repetida—, como I-106 ya registra desde el 2026-09-25 según la carga. Pero el catálogo usa el buscador cambiado, así que **se midió antes de descartarlo** | E2E repetida 5 veces: buscador anterior **con** `instrumentation-client`, 1 de 5; **sin**, 0 de 5. Con muestras tan cortas, un guion en `next dev`, 12 aperturas cada uno (`hidratacion-catalogo.ts`): hidratación ≈458 ms en los dos, la tecla **nunca** antes de hidratar, y la búsqueda sin llegar en 4 s en **5 de 12 con D-245** y **6 de 12 sin nada de D-245** (buscador anterior, sin el archivo). El mismo fallo **con y sin D-245**: **no lo introduce D-245**, y con muestras tan cortas no se puede afirmar que su frecuencia sea la misma *(corregido el 2026-10-01: decía «a la misma tasa»)*. La causa sigue sin investigar |
+
+## Publicación de D-244 y D-245 — EN PRODUCCIÓN: `a5d90f9` (2026-10-01, 13:45–17:13 UTC)
+
+Autorización expresa del dueño para completar la validación y publicar D-244 y D-245 juntos según `DEPLOYMENT` §3.3.d,
+sin pedir permiso por paso mientras se cumplieran sus condiciones. **Sin migración y sin pausa.** Evidencia fuera de
+Git, en `build/aviso-busqueda-publicacion/`. Ningún dato de cliente ni importe aquí. **Todo lo de esta sección se
+ejecutó en esta publicación**; lo anterior se cita como tal. Se distinguen tres sitios: **local** (§a–§c), **CI** (§e) y
+**producción** (§d, §f–§h).
+
+### a. El candidato y la validación estable, en local
+
+| Qué | Resultado |
+|---|---|
+| Candidato | **`a5d90f9350d99fc3f543b952f9930a50c38c7368`**, la cabeza de la rama. Frente a lo servido (`edbc778`): 4 commits —`673c6b3` y `79000ef`, solo documentación; `1b4da23`, D-244; `a5d90f9`, D-245—, 29 archivos, todos en `docs/`, `src/` y `tests/`. Ninguna migración ni cambio de `package.json`, *lock*, `next.config.ts`, `vercel.json`, `.github/`, `public/`, `scripts/` o `.env.example` |
+| Huella del código | Rama, `HEAD`, `git status`, `git diff HEAD` vacío, `stash` vacío, el sha256 de los 957 archivos versionados de la copia de trabajo y el de los tres archivos del usuario: **idéntica** a las 13:45:27, a las 13:59:16 —justo antes de la pasada— y después de ella. Durante la pasada no se editó ningún archivo del repositorio, ni se cambió de versión, ni se hizo commit, ni se tocaron su servidor o su base |
+| **Primer intento** (13:45:48–13:48:52) | **No llegó a ejecutar ninguna prueba**: «Timed out waiting 180000ms from config.webServer». El equipo había vuelto de la suspensión a las ~13:33 (Docker y las aplicaciones, arrancadas a esa hora) y Next avisó «Slow filesystem detected. The benchmark took 506ms». `npm run dev:local`, lanzado aparte para medir, respondió `/` en 1 s pero **compiló `/login` en 63 s y `/offline` en 2,3 min**, hasta que terminó «filesystem cache database compaction in 24.0s». Es el entorno, no el código: lo mismo que I-075, en el arranque |
+| Preparación para el segundo | Con el servidor ya respondiendo, **las 45 pantallas con sesión abiertas una vez** (`calentar.mjs`, el dueño y vendedor1 por la interfaz, como `loginAs`): **0** por encima de 10 s. Después `db:reset`, Kong y `seed:local` otra vez, porque el recorrido había abierto sesiones. Playwright **reutilizó** ese mismo `npm run dev:local` (`reuseExistingServer`, la configuración local), en vez de arrancar otro |
+| **E2E completa**, `npx playwright test` (13:59:24–14:55:14) | **1.009/1.010** en **55,8 min**, base recién sembrada: 1 fallo, 0 intermitentes, 0 reintentos, 0 omitidas. Informe íntegro: `e2e-completa-2.log` y `.json` |
+| Las del buscador y del cierre | ✅ **46/46**: `busqueda-hibrida` 15, `busqueda-navegacion` 11 y `-movil` 2, `cierre-cuentas` 7 y `-movil` 3, `cierre-navegacion` 6 y `-movil` 2 |
+| I-148 e I-106 | **No reaparecieron**: `premios-ganados:443` y `:383`, en verde; `catalogo-publico-movil:103`, en verde, y el catálogo público entero, **58/58** |
+
+### b. El único fallo: I-090, aceptado por el dueño para esta publicación
+
+`ventas-por-fecha.spec.ts:163` («muestra inicialmente las ventas de HOY…»), a las **14:38:21 UTC (09:38 en Bogotá)**:
+«Expected: < 26 · Received: 55». **No estaba entre los fallos que el dueño había aceptado** (I-148 e I-106), así que la
+publicación **se detuvo** y se le preguntó con esta evidencia; respondió **aceptarlo** para esta publicación.
+
+| Evidencia | Resultado |
+|---|---|
+| La aplicación, bien | La prueba lee la cifra de la base y primero comprueba que la pantalla la diga: **pasó** (línea 184). La captura dice «Boletas vendidas **55** · 01 de oct de 2026». Falla solo la suposición de la línea 186: menos de 26 ventas de hoy |
+| De dónde salen las 55 | Leído en la base después de la pasada, con las ventas de hoy de vendedor1 en «Rifa Navidad 2026» asignadas antes de las 14:38:21: **6** de la siembra, **44** que otras suites insertan ya vendidas con el **día UTC** (`createAssignedTicket`, `new Date().toISOString()`) y **5** vendidas por la aplicación. **55 = 44 + 11, la misma composición medida en D-226** (2026-09-25), con código anterior |
+| Por qué hoy sí y en la pasada de D-245 no | Antes de las 19:00 en Bogotá el día UTC coincide con el de Bogotá y esas 44 cuentan; la de D-245 corrió de noche (nota de D-226 en I-090) |
+| Relación con D-244 y D-245 | Ninguna: no tocan reportes, `db-setup.ts` ni cómo se fecha una venta |
+
+### c. El registro del servidor de la pasada, y un aviso nuevo (I-201)
+
+`dev-servidor-pasada.log`, 6.986 líneas. Lo que trae, frente al registro completo de D-241 (`build/cierre-ui/e2e-completo.log`, que también recogía la salida de errores del servidor):
+
+| Línea | Hoy | D-241 | Qué es |
+|---|---|---|---|
+| «The destination stream closed early» | 32 | 37 | Respuestas que el navegador corta al navegar; las pruebas lo provocan |
+| «aborted» / `ECONNRESET` | 3 | 2 | Lo mismo, desde el otro lado |
+| `RIFAS_PAUSA` | 3 | 3 | Las pruebas de la pausa (D-239) |
+| «Failed to fetch RSC payload … Falling back to browser navigation» | 2 | — | La prueba de D-244 que aborta la cuenta a propósito; se reenvía desde el navegador, que D-241 no recogía |
+| «Hydration failed…» en `/catalogo/…` | 1 | — | I-106 (2): la última prueba del archivo escribe en el DOM |
+| **`MaxListenersExceededWarning: … 11 drain listeners added to [Gzip]`** | **1** | **0** | **Nuevo**, del proceso de `next dev`, durante el catálogo en el teléfono |
+
+**Investigado, sin causa demostrada.** El listener lo pone la canalización de respuestas de Next: su `compression`
+reenvía al flujo Gzip cada `res.on('drain')`, y `pipe-readable.js` registra uno cada vez que una escritura llena el
+flujo. Los 8 archivos de `src/` que cambia el candidato son del navegador. Con `next dev` y `--trace-warnings`, las dos
+suites del catálogo repetidas (`--repeat-each=2`): **116/116 y ningún aviso**, así que tampoco hay pila. No hizo fallar
+ninguna prueba. **El dueño decidió registrarlo y seguir**: queda como I-201 (`KNOWN_ISSUES`), con qué hacer si vuelve.
+
+### d. Producción antes de empujar (P0, en solo lectura, 15:11–15:14 UTC)
+
+| Qué | Resultado |
+|---|---|
+| Proyecto | La CSP servida nombra **un** proyecto, el mismo de `.env.local` (`zqwu…`) |
+| Lo servido | `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` sobre `edbc778`, READY y candidato a *Instant Rollback*; nada desplegado después. `main` y la rama, en `edbc778` |
+| Base (`p0-base.mts`) | **80** migraciones, la última `0080`; sin esquema `pausa` ni gancho; `pg_cron`, 3 activas y **0** fallos en 24 h; 2 recordatorios activos, **ninguno** en 3 h —el siguiente, el 2 de octubre a las 21:15 UTC—; el candado libre, tocado a las 15:10:35 por un turno sin trabajo; 0 corridas sin terminar; **0** peticiones de la API en curso. Del cierre: 0 entregas, **8 pagos de premios** —uso real desde la publicación anterior, no se tocaron— y 0 cierres. **1** vendedor con equipo |
+| `verify:remote` | **58/58** |
+| En vivo, modo «antes» (`en-vivo.mjs`) | **Todo en verde**: 40/40 rutas, 0 5xx, 7/7 cabeceras, CSP por *nonce*; **`a691f412c09e`** (`edbc778`) servido y **`5c813f6adf4e`** (el candidato) ausente; 0 secretos en 951 KB; Next 16.3.6. Las huellas de esta entrega, **ausentes** como se esperaba: ni `instrumentation-client` ni `navigation-start` en los fragmentos de `/login`, `/offline`, `/mantenimiento` y el catálogo inexistente, ni la regla del tinte de D-244 en la hoja |
+| La red de este equipo | Cortaba a ráfagas: el `fetch` de Node agotó la conexión dos veces y `curl` falló 4 de 6 antes de acertar. La comprobación en vivo reintenta ahora cada lectura hasta 8 veces; ninguna lectura fallida se da por buena |
+
+Las huellas de D-245 se tomaron del build de producción local del candidato: Turbopack escribe cada exportación como
+`"nombre",0,function`, y el módulo de `instrumentation-client` llama a `notifyNavigationStart`. El nombre
+`onRouterTransitionStart` a secas no sirve: también está en el código de Next. La regla del tinte es
+`.has-\[\[data-link-pending\=true\]\]\:bg-surface-accent:has([data-link-pending=true])`, una vez.
+
+### e. La rama, el PR y el CI
+
+| Qué | Resultado |
+|---|---|
+| Empuje (15:22:11 UTC) | `edbc778..a5d90f9` a `feature/detalle-boleta-admin`, avance rápido, **sin `force`**; `main`, intacto |
+| PR | **#11, en borrador**, hacia `main`, con el aviso de no fusionarlo desde GitHub; su cabeza, `a5d90f9` exacto |
+| Vista previa de Vercel | `dpl_FtLm6eykuYRhs8GFgXgZuFHJs7Wh`, ERROR, **exactamente D-066**: `prebuild` → `check:env` → «Faltan variables de entorno obligatorias» con las tres de Supabase, y «Command "npm run build" exited with 1», la única línea de error. Construyó «Detected Next.js version: 16.3.6» con Vercel CLI 62.0.0 |
+| CI del SHA exacto, run `36883743652` (`pull_request`, `a5d90f9`) | ✅ **2/2**. «Typecheck, lint, unitarias, build» (15:22:33–15:25:18): lint 0 errores y los 2 avisos de siempre, **1.976/1.976** unitarias en 98 archivos, compilación correcta. «Migraciones desde cero + pruebas de base de datos» (15:22:34–15:30:04): las 80 migraciones desde cero y **1.572 ✅ y 1 omitida** en 64 archivos. Registro: `ci-pr-completo.log` |
+
+### f. La franja y el código (17:00–17:04 UTC)
+
+| Paso | Hora UTC | Resultado |
+|---|---|---|
+| Franja (`RUNBOOK` §9.0) | 17:00:49 | 12:00 en Bogotá, hora 17: no es del programador. El candado, libre —lo tocó el turno de las 16 a las 16:57:55, sin trabajo—; 0 corridas sin terminar; ningún recordatorio en 3 h; 0 peticiones de la API en curso; `pg_cron` sin fallos; base en `0080` y sin pausa. En Vercel, nada desplegado desde P0; `main` en `edbc778` y el PR #11 en `a5d90f9` |
+| Empuje a `main` | 17:01:17 | `publicar-main.sh`: comprobó la hora, que `main` seguía en `edbc778` y el avance rápido, y `git push origin a5d90f9…:refs/heads/main`: **`edbc778..a5d90f9`, sin `force` y sin la rama local `main`**. GitHub marca el PR #11 fusionado a las 17:01:20, **sin commit de fusión** |
+| Despliegue | 17:01:22–17:02:13 | **`dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW`**, el único de producción que disparó el empuje: creado a las 17:01:22, **READY a las 17:02:13**, alias `gestion-rifas.vercel.app` y `aliasError: null` |
+| Servido | 17:04:01 | El dominio entrega **`5c813f6adf4e`** (`a5d90f9`) en la comprobación de las 17:04:01 (`esperar-version.mjs`, cada 15 s y con la red cortando a ráfagas): el momento exacto pudo ser antes |
+| CI de `main`, run `36896303913` (`push`, `a5d90f9`) | 17:01:22–17:09:00 | ✅ **2/2**: verificación 17:01:26–17:04:14, lint con los 2 avisos de siempre y **1.976/1.976** en 98 archivos; base 17:01:25–17:08:59, las 80 migraciones desde cero y **1.572 ✅ y 1 omitida** en 64 archivos. Registro: `ci-main-completo.log` |
+
+### g. Producción después de publicar, en solo lectura y sin sesión (17:04–17:13 UTC)
+
+| Qué | Resultado |
+|---|---|
+| En vivo, modo «después» (`en-vivo.mjs`, 17:04:18) | **Todo en verde**: 40/40 rutas, 0 5xx, las cuatro del cierre sin sesión a `/login`, 7/7 cabeceras, CSP por *nonce* con un solo proyecto; **`5c813f6adf4e` servido** (1 de 15 fragmentos) y **`a691f412c09e` ausente**; 0 secretos en 952 KB; Next 16.3.6 |
+| `instrumentation-client` | **Se carga en las cuatro páginas públicas**: su módulo y el de `navigation-start`, en 1 de los 15, 13, 12 y 7 fragmentos de `/login`, `/offline`, `/mantenimiento` y el catálogo inexistente (404) |
+| D-244 en la hoja | La regla del tinte, **una vez**; D-234 (5/5) y Color v2 siguen servidos; 2 hojas, 143 KB |
+| `verify:remote` | **58/58** |
+| Base (`p0-base.mts`, 17:07:13) | Igual que antes: 80 migraciones, la `0080`; sin pausa; del cierre, las mismas cifras (0 entregas, 8 pagos de premios, 0 cierres); candado libre, 0 corridas sin terminar, `pg_cron` sin fallos |
+| Reversión | `list_deployments`: el nuevo, servido; **`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` (`edbc778`) con `isRollbackCandidate`**; `dpl_Ai8D4…` dejó de serlo, como corresponde en Hobby. **Compatible**: la base no cambió |
+| Un navegador de verdad (`consola-publica.mjs`, Chromium sin extensiones) | El panel del navegador de la aplicación no pudo abrir el dominio («denied or failed») y no se insistió. **`/login`**: 200, **hidrata**, 0 mensajes de consola; el enlace «¿Olvidaste tu contraseña?» navega **dentro del mismo documento** a `/forgot-password` —el gancho de `instrumentation-client` corrió— sin un solo mensaje. **`/offline`**: limpia. **Catálogo inexistente**: solo el 404 del propio documento. Dos cosas que **no son de esta entrega** y se explican abajo |
+| `/login`: un evento de CSP `script-src eval`, sin mensaje en consola | Es la **sonda de Zod 4** (`allowsEval`, `07ex5nmaxklfz.js`, columna 5986): prueba `Function("")` dentro de un `try` para decidir si compila sus validadores, y su propio comentario dice que una CSP estricta lo registra aunque el error se trague. Zod 4.4.3, **sin cambios** (`package.json` y *lock* idénticos a `edbc778`). No estaba anotado: si se quiere silenciar, `jitless` en la configuración de Zod; no se toca en esta publicación |
+| `/mantenimiento`: la CSP bloquea sus 14 scripts | **Por diseño** (D-239, como `/denied` en I-070): se prerenderiza —`X-Nextjs-Prerender: 1`, desde la caché— y su HTML no lleva *nonce*, así que no ejecuta JavaScript; su único control es un enlace, que funciona sin React. La página, el proxy y la CSP son idénticos en `edbc778` y `a5d90f9` |
+| Registros de Vercel desde las 17:00 | **0** errores, avisos o fatal y **0** 5xx. 4xx: exactamente los 3 × 404 del catálogo inexistente y los 2 × 401 de los programadores sin su secreto, de estas comprobaciones. Fuera de ellas, una visita del personal a `/owner/tickets/bulk` (17:11:31, 200). `get_runtime_errors` en 3 h: ninguno (en 24 h la consulta agotó su tiempo) |
+| Comparar el navegador con el despliegue anterior | **No se pudo**: su dirección propia exige el SSO de Vercel y un agente no inicia sesión. Lo que lo sustituye es que Zod, la página de mantenimiento, el proxy y la CSP no cambian entre los dos |
+
+### h. La revisión del dueño, con su sesión
+
+**Pendiente al escribir este registro.** Se le pidieron tres comprobaciones, solo mirando y **sin ningún movimiento
+contable**: «Revisar cuenta» en «Cierre de cuentas» como Dueño o Administrador; «Cuentas con tu equipo» con la sesión del
+vendedor que tiene equipo, si la tiene a mano; y en una lista con buscador, escribir y abrir enseguida una fila. Y avisar
+al terminar, para leer sus registros dentro de la hora.
+
+### i. Lo que NO se ejecutó en esta publicación
+
+| Qué | Por qué |
+|---|---|
+| Probar en producción el aviso al abrir una cuenta, «Cuentas con tu equipo» y la carrera del buscador | Necesitan sesión: lo revisa el dueño (§h). Un agente no inicia sesión |
+| Comparar el navegador con el despliegue anterior | Protegido por el SSO de Vercel (§g) |
+| Repetir la E2E completa | Se ejecutó **una** completa válida, la de §a; no se relanzó para buscar verde. El primer intento no llegó a ejecutar ninguna prueba |
+| La pila de I-201 | No se reprodujo con trazas (§c) |
