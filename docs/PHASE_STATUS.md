@@ -17,8 +17,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(3) Migraciones:** `0080`, aplicada. Producción y local: `0001`–`0080`.
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** I-194 a I-197, límites documentados del cierre; I-190 e I-193.
-  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y `RUNBOOK` §11. La revisión del dueño (C7) está pendiente;
-  después, los datos reales de los 4 premios (`RUNBOOK` §11.2.a).
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y `RUNBOOK` §11. La revisión del dueño (C7), conforme;
+  lo siguiente, los datos reales de los 4 premios (`RUNBOOK` §11.2.a).
 
 - Antes, 2026-09-30, por la noche — **El candidato del cierre de cuentas, preparado SOLO EN LOCAL (D-243)**:
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin cambiar el producto y sin tocar producción.

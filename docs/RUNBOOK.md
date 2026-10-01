@@ -1,6 +1,7 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-01, 01:07 UTC (**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
+**Actualizado:** 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+(**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
 sin pausa; C4 dice ahora `?lock_timeout`, porque la URL de `.env.local` no trae parámetros). Antes, 2026-09-30, por
 la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
 ya confirmó —sin entregas al dueño y sin premios pagados en los 25 sorteos— y **§11.2.a, nueva**, dónde se ven los 4
@@ -1285,7 +1286,7 @@ garantía para el proyecto alojado.
 > **Ejecutada el 2026-10-01, de 00:49 a 01:07 UTC**, con la autorización expresa del dueño para C0–C7 —sin pedir
 > permiso por paso mientras se cumplieran sus condiciones—. Producción sirve **`edbc778`**
 > (`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`) sobre **`0080`**, sin pausa y sin interrupción. Registro en `DEPLOYMENT` §3.2.v
-> y en `TEST_RESULTS`, «C0–C7 del cierre de cuentas». La revisión del dueño con su sesión (C7) queda en sus manos.
+> y en `TEST_RESULTS`, «C0–C7 del cierre de cuentas». La revisión del dueño con su sesión (C7), **conforme**, de 01:36 a 01:40 UTC.
 
 ### 11.0 Por qué no lleva pausa, y qué la hace segura
 
@@ -1312,7 +1313,7 @@ las de §10.1 salvo la pausa y la recuperación, que aquí no se usan.
 | C4 | Migrar — **hecha: solo `0080`, en 24,7 s, sin `55P03`** | `npx supabase db push --dry-run --db-url "<SUPABASE_DB_URL>"` lista **solo** `0080`; después `npx supabase db push --db-url "<SUPABASE_DB_URL>?lock_timeout=900ms" --yes` —con `&` si la URL ya trae parámetros; la de `.env.local` no los trae— | «Finished supabase db push.». Un `55P03` es un cerrojo que no se consiguió: **no se aplicó nada**; se espera un minuto y se repite desde el `--dry-run`. Cualquier otro error detiene y se reporta |
 | C5 | Comprobar — **hecha: 58/58 y CONTINUAR, 0 diferencias con lo ensayado y 0 filas tocadas** | `npm run verify:remote` **58/58**. `npx tsx scripts/gate-snapshot.ts despues-0080 --production --project-ref <REF> --base <foto de C3>` y `npx tsx scripts/gate-compare.ts <foto de C3> <foto de después> --production --project-ref <REF> --operation migrations --migrations 0080 --expected-delta build/gate/delta-esperado-0080.json --report c5.json` | 58/58 y **CONTINUAR**. Un DETENER se lee y se reporta: las ventas, los cobros y un turno programado de la franja son actividad normal de la lista; cualquier otra fila, no |
 | C6 | Código — **hecha: `5f84e13..edbc778`; `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` READY a las 01:03:34 UTC** | `git ls-remote origin refs/heads/main`; `git push origin <SHA>:refs/heads/main` por avance rápido; **un** despliegue | READY sobre `<SHA>` y su identificador servido (`DEPLOYMENT` §6.1). **Requiere autorización de push y de despliegue** |
-| C7 | Revisión — **en vivo, `verify:remote` y registros, conformes; la del dueño, pendiente** | El dueño, con su sesión: «Cierre de cuentas» en el menú, el listado de la rifa y la cuenta de un vendedor; un vendedor, «Mi cierre de cuentas». **Solo mirar**. Los registros de Vercel de esa hora, sin errores | Todo como en local. **No se confirma una entrega ni se registra un premio de prueba**: son hechos de dinero real, y solo se anulan, no se borran |
+| C7 | Revisión — **hecha: en vivo, `verify:remote` y registros, conformes; la del dueño, conforme (01:36–01:40 UTC), sin un movimiento registrado** | El dueño, con su sesión: «Cierre de cuentas» en el menú, el listado de la rifa y la cuenta de un vendedor; un vendedor, «Mi cierre de cuentas». **Solo mirar**. Los registros de Vercel de esa hora, sin errores | Todo como en local. **No se confirma una entrega ni se registra un premio de prueba**: son hechos de dinero real, y solo se anulan, no se borran |
 
 ### 11.2 La puesta en marcha: la historia real, antes de cerrar ninguna cuenta (D-242, BR-Z19..BR-Z21)
 

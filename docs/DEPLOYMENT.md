@@ -1,6 +1,7 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-01, 01:07 UTC (**§3.2.v nueva: el cierre de cuentas EN PRODUCCIÓN** —`0080` y `edbc778`, sin
+**Actualizado:** 2026-10-01, 01:42 UTC (§3.2.v: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+(**§3.2.v nueva: el cierre de cuentas EN PRODUCCIÓN** —`0080` y `edbc778`, sin
 pausa—; §3.3.b y §4.1, al día). Antes, 2026-09-30, más tarde (§3.3.b y §4.1: la `0080` del cierre de cuentas —D-241,
 **solo en local, sin
 autorizar**— es aditiva y se publica sin pausa, la base primero; volver a `5f84e13` basta; `RUNBOOK` §11). Antes, ese
@@ -1193,7 +1194,7 @@ mientras se cumplieran sus condiciones, confirmada en la sesión. Publica D-241,
 **Verificado:** `verify:remote` **55 OK + 3 en rojo a propósito** antes, y **58/58** después de migrar y después de
 desplegar; la comparación de C5 contra la foto de C3, **CONTINUAR**, sin diferencias con lo ensayado y sin una fila
 tocada; las tres tablas nuevas, vacías; en vivo, todo en verde con `a691f412c09e` servido y el de `5f84e13` ausente;
-registros de 00:41 a 01:06 UTC, **0** errores, avisos o 5xx. **La revisión del dueño con su sesión (C7), pendiente.**
+registros de 00:41 a 01:06 UTC, **0** errores, avisos o 5xx. **La revisión del dueño con su sesión (C7), conforme**, como Administrador y como vendedor: `/owner/settlements` en 200 (01:36:40 y 01:37:03), la cuenta de un vendedor en 200 (01:37:35) y `/seller/settlement` en 200 (01:38:31 y 01:39:55); 62 × 200 y 2 × 307, **0** 4xx y **0** 5xx. En esa hora, **una** línea de error a las 01:35:35, antes de la revisión: `GET /` → 307 a `/login` con «Invalid Refresh Token: Refresh Token Not Found», la agrupación **ya conocida** del proxy (1 usuario, desde el 2026-08-10), de una sesión vieja; la redirección es la esperada y no tiene relación con el cierre. Después de la revisión, las tablas del cierre siguen vacías.
 Detalle en `TEST_RESULTS`, «C0–C7 del cierre de cuentas».
 
 ### 3.3 Despliegues futuros
