@@ -1,6 +1,8 @@
 # PROBLEMAS CONOCIDOS Y RIESGOS
 
-**Actualizado:** 2026-09-30, por la noche — **El candidato del cierre de cuentas** (D-243, solo documentación): el
+**Actualizado:** 2026-10-01, 01:07 UTC — **El cierre de cuentas EN PRODUCCIÓN** (`0080` y `edbc778`, `DEPLOYMENT`
+§3.2.v): I-194 a I-197 dejan de ser solo locales y siguen como límites documentados; ninguno nuevo. Antes,
+2026-09-30, por la noche — **El candidato del cierre de cuentas** (D-243, solo documentación): el
 dueño confirmó que los vendedores todavía no le han entregado dinero y que no hubo premios **pagados** en los 25
 sorteos sin resultado guardado. **I-194** e **I-197** quedan como límites documentados que no requieren cambios para
 esta puesta en marcha; **I-196**, sin casos y con los permisos de siempre. Antes, 2026-09-30, al final — **La puesta

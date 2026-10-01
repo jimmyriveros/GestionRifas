@@ -1,6 +1,7 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-09-30, por la noche (D-243: §4.e — en la rifa activa ya está confirmado que los vendedores no
+**Actualizado:** 2026-10-01 (§4.e: el cierre de cuentas, **en producción**). Antes, 2026-09-30, por la noche (D-243:
+§4.e — en la rifa activa ya está confirmado que los vendedores no
 han entregado dinero al dueño y que no hubo premios pagados en los sorteos sin resultado). Antes, ese mismo día, al
 final (D-242: §4.e — el primer día se registra la historia real, sin empezar desde cero, y lo de un vendedor a cargo se
 registra antes de desactivarlo). Antes, ese mismo día (D-241: **§4.e nueva**, el cierre de cuentas, **solo en
@@ -205,7 +206,7 @@ Todo queda en la bitácora: quién lo marcó, cuándo, y qué valor tenía antes
 
 ## 4.e Cierre de cuentas: recibir el dinero de los vendedores (D-241)
 
-> 🧪 **Solo en local** hasta que se publique (`RUNBOOK` §11). Lo que sigue es cómo se usa cuando esté en producción.
+> ✅ **En producción desde el 2026-10-01** (`DEPLOYMENT` §3.2.v).
 
 El dinero de una rifa sube por la cadena: **el integrante entrega a su vendedor a cargo, y el vendedor a cargo entrega
 al dueño**. En «Cierre de cuentas» (`/owner/settlements`, Dueño y Administrador) se ve, por rifa, lo **recibido**, lo

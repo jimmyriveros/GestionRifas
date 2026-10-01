@@ -4,9 +4,10 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.17
+- **Versión del documento:** 1.18
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-09-30, al final (§9.9: **la puesta en marcha** del cierre de cuentas registra la
+- **Última actualización:** 2026-10-01 (§9.9: el cierre de cuentas, **en producción**). Antes, 2026-09-30, al final
+  (§9.9: **la puesta en marcha** del cierre de cuentas registra la
   historia real, D-242). Antes, ese mismo día (**§9.9 nueva**: el **cierre de cuentas** —D-241, `0080`, **solo en
   local**—; §9.1, §9.2 y §9.8 lo nombran). Antes, 2026-09-19, más tarde (§9.5: **Bre-B** y **Otros**, en producción). Antes, ese mismo día
   (§9.5: las cuentas para recibir pagos admiten **Bre-B** y **Otros** —D-209,
@@ -282,7 +283,7 @@ por número, detalle, creación individual, masiva y por archivo sin vender; sel
 anulación de las no vendidas, cambio de vendedor y eliminación controlada) · Reportes de recuentos con
 exportación CSV. **Sin «Clientes» ni «Pagos» desde el 2026-09-14** (D-198, BR-Q08). **Premios ganados**
 de la organización, sin un solo dato de cliente (§9.8, D-208, solo en local). **Cierre de cuentas**: lo recibido
-de cada vendedor, sus cuentas y los premios pagados, en cifras agregadas (§9.9, D-241, solo en local).
+de cada vendedor, sus cuentas y los premios pagados, en cifras agregadas (§9.9, D-241, en producción desde el 2026-10-01).
 
 ### 9.2 Portal Seller (`/seller/*`)
 Dashboard propio · Boletas propias (búsqueda parcial por número diario o semanal; filtros por estado y
@@ -291,7 +292,7 @@ Clientes propios (crear, editar, archivar, perfil con historial) · Asignación 
 abonos y pagos · Consulta de saldos e historial · Reportes propios con exportación CSV, sin el que
 compara vendedores (D-059, D-080 a D-085) · **Premios ganados** de sus clientes, con su resumen en la
 ficha de cada cliente (§9.8, D-208, solo en local) · **Mi cierre de cuentas**: lo que entrega y, con
-equipo, las cuentas de sus integrantes (§9.9, D-241, solo en local).
+equipo, las cuentas de sus integrantes (§9.9, D-241, en producción desde el 2026-10-01).
 
 
 ### 9.3 Catálogo público (`/catalogo/<slug>`)
@@ -535,7 +536,7 @@ Administrador** ven lo mismo de toda la organización (`/owner/prizes`), con el 
 cliente, un filtro por vendedor —también desactivado, y también quien vendió y hoy tiene otro rol, que aparece como «(ya no vende)»— y el resumen en la ficha de cada vendedor. **Ningún
 dato de un cliente llega al personal**: el recuento de clientes con premio es un número.
 
-**Son premios GANADOS**: esta pantalla no registra entregas ni pagos de premios. *Desde D-241 (solo en local),
+**Son premios GANADOS**: esta pantalla no registra entregas ni pagos de premios. *Desde D-241 (en producción desde el 2026-10-01),
 quién pagó un premio se registra en el cierre de cuentas (§9.9); «Premios ganados» sigue sin decirlo.* Los cuatro indicadores
 —premios, clientes con premio, total conocido en dinero y premios con valor pendiente— los calcula la base
 sobre todo el filtro; unas alternativas a elegir o un premio en especie **no se valoran en cero** y quedan
@@ -545,7 +546,7 @@ auditó en local —aislamiento, volumen, rendimiento e interfaz— y dejó escr
 Nada de esto está en producción: promover `0067`–`0072`, reconocer los dos premios y desplegar son puertas
 aparte.
 
-### 9.9 Cierre de cuentas — **SOLO EN LOCAL** (D-241, D-242, BR-Z01..BR-Z21)
+### 9.9 Cierre de cuentas — **EN PRODUCCIÓN desde el 2026-10-01** (D-241, D-242, BR-Z01..BR-Z21)
 
 El dinero de cada rifa sigue la cadena **integrante → vendedor a cargo → dueño**. El **Dueño y el Administrador** ven en
 «Cierre de cuentas» (`/owner/settlements`) lo recibido, lo que falta recibir y las cuentas cerradas de la rifa, y una
@@ -558,7 +559,7 @@ Un premio ganado **no** es un premio pagado: alguien registra quién lo pagó �
 cargo o el dueño— y cuánto, y eso ajusta la entrega sin tocar ninguna ganancia. Solo confirma **quien recibe**; nada se
 borra, se anula con motivo; una cuenta en $0 guarda la foto de sus cifras, y un cambio posterior se enseña como
 diferencia. Cerrar una cuenta no cierra la rifa. Las cifras del personal son **agregadas**: ningún cliente ni abono de
-una boleta sin pagar (excepción acotada a BR-Q01, BR-Q08 y BR-E05). Publicarlo es `RUNBOOK` §11, sin autorizar.
+una boleta sin pagar (excepción acotada a BR-Q01, BR-Q08 y BR-E05). Se publicó el 2026-10-01 (`RUNBOOK` §11, `DEPLOYMENT` §3.2.v).
 
 **La puesta en marcha** (D-242, BR-Z19..BR-Z21): lo anterior al estreno se registra **como ocurrió** —cada entrega y
 cada premio ya pagado, con su fecha real y por quien corresponde—; no se empieza desde cero ni se pone un saldo en

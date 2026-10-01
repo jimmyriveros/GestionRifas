@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.50 · **Estado:** implementado · **Actualizado:** 2026-09-30, más tarde (**§8.32 nueva**: el cierre de
+- **Versión:** 1.51 · **Estado:** implementado · **Actualizado:** 2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §8.32 y
+  las cuatro rutas del cierre de cuentas están publicadas, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, más tarde (**§8.32
+  nueva**: el cierre de
   cuentas —D-241, `0080`, **solo en local**—: la base calcula y la pantalla explica, cuatro rutas nuevas en §6 y el
   módulo `features/settlements/` en §5). Antes, ese mismo día (**EN PRODUCCIÓN desde las 18:00 UTC**,
   con `5f84e13`: lo que las entradas de 2026-09-28 y 2026-09-29 marcan «solo en local» —D-236 a D-239— está publicado,
@@ -288,8 +290,8 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | ~~`/owner/clients/[clientId]`~~ | — | 3 → **retirada post-9** | Ídem |
 | ~~`/owner/payments`~~ | — | 5 → **retirada post-9** | Ídem: sin consulta global de pagos ni anulación |
 | `/owner/prizes` | owner, admin | post-9 (local) | **Premios ganados** de la organización (D-208, §8.28): rifa, vendedor y fechas del sorteo en la URL, los cuatro indicadores y la lista **sin un solo dato de cliente**. Un `clientId` en la dirección se descarta |
-| `/owner/settlements` | owner, admin **con la capacidad** | post-9 (local) | **Cierre de cuentas** (D-241, §8.32): la rifa en `?raffleId=`, lo recibido, lo que falta y las cuentas cerradas, y las cuentas con el dueño con búsqueda, estado y página en la URL. Sin la capacidad, `/denied` |
-| `/owner/settlements/[sellerId]` | owner, admin **con la capacidad** | post-9 (local) | La cuenta de un vendedor directo con su equipo dentro: el saldo, el cálculo línea a línea, los premios y las entregas. Cifras agregadas, **sin un solo cliente** (BR-Z13) |
+| `/owner/settlements` | owner, admin **con la capacidad** | post-9 | **Cierre de cuentas** (D-241, §8.32): la rifa en `?raffleId=`, lo recibido, lo que falta y las cuentas cerradas, y las cuentas con el dueño con búsqueda, estado y página en la URL. Sin la capacidad, `/denied` |
+| `/owner/settlements/[sellerId]` | owner, admin **con la capacidad** | post-9 | La cuenta de un vendedor directo con su equipo dentro: el saldo, el cálculo línea a línea, los premios y las entregas. Cifras agregadas, **sin un solo cliente** (BR-Z13) |
 | `/owner/reports` | owner, admin | **6 ✅** · post-9 | Tres reportes de recuentos —por vendedor, por estado y por rifa— con filtros y CSV; sin dinero ni clientes (D-198) |
 | `/seller/dashboard` | seller | 1 → 4 → **6 ✅** | Métricas propias (`CLAUDE.md` §23 completo) |
 | `/seller/tickets` | seller | **4 ✅** | Boletas propias |
@@ -304,8 +306,8 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/seller/payments` | seller | **5 ✅** | Historial de pagos |
 | `/seller/payments/new` | seller | **5 ✅** | Registrar abono. `?clientId=` elige el cliente; `?from=` (D-135) dice a dónde volver (`ticket`, `client`, `payments`, `dashboard`); `?ticketId=` marca la boleta del reparto y, sin `from`, también el destino (D-133) |
 | `/seller/prizes` | seller | post-9 (local) | **Premios ganados** de sus clientes (D-208, §8.28): rifa —también cerradas—, fechas del sorteo y cliente en la URL; `?clientId=` llega desde la ficha, y uno ajeno responde «no encontrada» |
-| `/seller/settlement` | seller | post-9 (local) | **Mi cierre de cuentas** (D-241, §8.32): lo que entrega —al dueño o a su vendedor a cargo—, su cálculo, sus premios con su cliente y sus entregas; al vendedor a cargo, además, «Cuentas con tu equipo» |
-| `/seller/settlement/team/[memberId]` | seller | post-9 (local) | La cuenta de un integrante vista por su vendedor a cargo de hoy, para confirmar lo recibido y registrar sus premios. Un id ajeno responde «no encontrada» |
+| `/seller/settlement` | seller | post-9 | **Mi cierre de cuentas** (D-241, §8.32): lo que entrega —al dueño o a su vendedor a cargo—, su cálculo, sus premios con su cliente y sus entregas; al vendedor a cargo, además, «Cuentas con tu equipo» |
+| `/seller/settlement/team/[memberId]` | seller | post-9 | La cuenta de un integrante vista por su vendedor a cargo de hoy, para confirmar lo recibido y registrar sus premios. Un id ajeno responde «no encontrada» |
 | `/seller/reports` | seller | **6 ✅** · post-9 | Sus reportes, sin el que compara vendedores (D-059). Abre en **«Ventas por fecha»** con las ventas de hoy, sin redirección (D-151) |
 | `/seller/settings` | seller | post-9 ✅ | **Configuración.** Un resumen con cuatro tarjetas —cuentas para recibir pagos, grupo de WhatsApp, recordatorios de pago y resultados de la semana (D-176, D-188, D-194)—, cada una con su subruta (§8.23). Se entra por el menú del avatar, que **solo la ofrece al vendedor**; el personal que escriba la ruta cae en `/denied` por el layout del portal |
 | `/seller/settings/weekly-results` | seller | post-9 ✅ | **Resultados de la semana** (D-194, §8.25): los seis números mayores de la última semana terminada, la imagen para el grupo y su mensaje. La imagen la pide el navegador a `/api/weekly-results/image` |
@@ -2453,7 +2455,7 @@ sigue su camino de antes. Es el mismo código en el puente (`cac81e8` + esto) y 
 
 ### 8.32 Cierre de cuentas: la base calcula, la pantalla explica (D-241)
 
-> 🧪 **Solo en local**, con la migración `0080` (`DATA_MODEL` §4.26, `SECURITY` §4.27).
+> ✅ **En producción desde el 2026-10-01**, con la migración `0080` (`DATA_MODEL` §4.26, `SECURITY` §4.27).
 
 **Ninguna pantalla suma ni resta dinero.** Las cuatro rutas leen cuentas ya calculadas por `settlement_account_rows`
 —que lee `seller_commissions`, el motor publicado— y escriben HECHOS por cinco RPC. Lo único que la interfaz decide

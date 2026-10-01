@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-243: el candidato del cierre de cuentas, solo en local, 2026-09-30)** | Las de D-242: **1.966/1.966**, sin repetir | Las de D-242: **1.572 ✅ y 1 omitida**, sin repetir. El código es el mismo desde `79c74b2` y la `0080`, desde `855abb8` | La completa de D-241, **986/989**, aparte de sus repeticiones | ✅ El de D-242 | Candidato preparado; **sin push, migración ni despliegue** |
+| **Post-9 vigente (C0–C7: el cierre de cuentas EN PRODUCCIÓN, `0080` y `edbc778`, 2026-10-01, 00:49–01:07 UTC)** | CI del PR (`36798406550`) y de `main` (`36799151910`) sobre `edbc778`: ✅ 2/2, **1.966/1.966** | En los dos CI: **1.572 ✅ y 1 omitida** en 64 archivos. Producción en `0080`; `verify:remote` **55 + 3 rojas a propósito** antes y **58/58** después; C5 **CONTINUAR**, 0 filas tocadas | **No se repitió**: la última completa es la de D-241, **986/989**, aparte de sus repeticiones | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, pendiente |
+| Post-9 anterior (D-243: el candidato del cierre de cuentas, solo en local, 2026-09-30) | Las de D-242: **1.966/1.966**, sin repetir | Las de D-242: **1.572 ✅ y 1 omitida**, sin repetir. El código es el mismo desde `79c74b2` y la `0080`, desde `855abb8` | La completa de D-241, **986/989**, aparte de sus repeticiones | ✅ El de D-242 | Candidato preparado; **sin push, migración ni despliegue** |
 | Post-9 anterior (D-242: la puesta en marcha del cierre de cuentas, revisada; producción en solo lectura, 2026-09-30) | **1.966/1.966** en 97 archivos, sin cambio | **1.572 ✅ y 1 omitida** en 64 archivos (+9: `Z10`..`Z13` en `settlements`). Producción leída en `repeatable read read only` a las 23:15–23:18 UTC: solo recuentos | No se ejecutó: sin cambio de código de la aplicación. La última **completa** sigue siendo la de D-241, **986/989**; sus repeticiones aisladas, aparte | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Revisada, **nada publicado**. Falta la información del dueño (`RUNBOOK` §11.2) |
 | Post-9 anterior (D-241: el cierre de cuentas, `0080`, solo en local, 2026-09-30) | **1.966/1.966** en 97 archivos (+18, `settlements.test.ts`) | **1.563 ✅ y 1 omitida** en 64 archivos (+48: `settlements` 44 y `settlements-volume` 4). La `0080` ensayada por la CLI con los privilegios de producción: **CONTINUAR** | ⚠️ **986/989** en 54,3 min: 1 fallo por un commit durante la corrida (repetida, 4/4) y 2 conocidos, I-148 e I-090. Las 10 del cierre, en verde, y otra vez tras la última corrección de textos | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Implementado y probado **solo en local**; la publicación, `RUNBOOK` §11, **sin autorizar** |
 | Post-9 anterior (P4–P10: la configuración de ganancias EN PRODUCCIÓN, `0078`, `0079` y `5f84e13`, 2026-09-30, 17:45–18:03 UTC) | CI del PR (`36723630637`) y de `main` (`36754548208`) sobre `5f84e13`: ✅ 2/2 | Producción en `0079`; `verify:remote` **54/54** antes de abrir y después; la comparación de P9 contra la foto de P6, **CONTINUAR** con 4 filas explicadas y ninguna de dinero | Sin E2E: la revisión del dueño con su sesión, conforme | — | ✅ **Publicada.** Interrupción de 12 min 5 s; la pausa, retirada; registros sin errores |
@@ -17258,3 +17259,74 @@ completas**: se comprobó que el código que verificaron sigue siendo el mismo.
 
 Sin cambios: base local en `0080`, sembrada, con las tablas del cierre vacías, sin pausa y sin servidor. Producción, sin
 tocar ni leer.
+
+## C0–C7 del cierre de cuentas — EN PRODUCCIÓN: `0080` y `edbc778` (2026-10-01, 00:49–01:06 UTC)
+
+Autorización expresa del dueño para C0–C7 de `RUNBOOK` §11, sin pedir permiso por paso mientras se cumplieran sus
+condiciones, confirmada en la sesión. Publica D-241, D-242 y D-243. **Sin pausa y sin interrupción.** Evidencia fuera de
+Git, en `build/cierre-publicacion/` y `build/gate/`; el respaldo, en `Rifas-backups/2026-10-01-antes-0080/`. Ningún dato
+de cliente ni importe aquí. **Todo lo de esta sección se ejecutó en esta publicación**; lo anterior se cita como tal.
+
+### a. C0, solo lectura (00:49–00:53 UTC; 19:49–19:53 en Bogotá)
+
+| Qué | Resultado |
+|---|---|
+| Candidato | `edbc778524259658ce24e369c4cdb4362df3b769`, sin cambios locales salvo los tres archivos del usuario. Frente a `5f84e13`: 11 commits; fuera de `docs/`, solo el cierre de cuentas |
+| Remoto, leído en vivo (`git ls-remote`) | `main` y la rama, en `5f84e13`; `5f84e13` es antepasado del candidato: avance rápido. El PR #9, fusionado desde la publicación anterior |
+| Lo servido | `dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq` sobre `5f84e13`, READY y candidato a *Instant Rollback*; en vivo, todo en verde (26 comprobaciones) con `334960b56704` servido y el del candidato ausente |
+| Reversión, antes de desplegar | La CLI de Vercel con sesión de un usuario con rol de dueño del equipo; ninguna reversión en curso; el despliegue servido es candidato: al publicar pasaría a ser el anterior |
+| Migraciones (`supabase migration list`) | `0001`–`0079` aplicadas; la `0080`, solo en local |
+| Esquema y permisos | Ningún objeto del cierre: ni tablas, ni funciones, ni tipos, ni la capacidad. `verify:remote` **55 OK + 3 en rojo a propósito**: la matriz de funciones (21 «no existe»), las tablas (3) y la capacidad (2); «sin clasificar», en verde |
+| Pausa | Sin esquema `pausa` ni gancho |
+| Tareas programadas | `pg_cron`: 3 activas y **0 fallos** en 24 h. Sincronizador: candado libre; última corrida, 05:02 UTC del 30 de septiembre |
+| Recordatorios | 2 activos; **ninguno en las siguientes 3 h**; el siguiente, el 2 de octubre a las 21:15 UTC |
+| Peticiones de la API en curso | 0 |
+
+### b. C1, rama y CI (00:53–01:01 UTC)
+
+| Qué | Resultado |
+|---|---|
+| Empuje | `5f84e13..edbc778` a `feature/detalle-boleta-admin`, sin `force`; `main` intacto |
+| PR | **#10, en borrador**, hacia `main`, con el aviso de no fusionarlo desde GitHub |
+| CI del SHA exacto, run `36798406550` (`pull_request`, `edbc778`) | ✅ **2/2**. «Typecheck, lint, unitarias, build» (00:53:23–00:56:10): lint 0 errores y 2 avisos de siempre, **1.966/1.966** unitarias en 97 archivos, compilación correcta. «Migraciones desde cero + pruebas de base de datos» (00:53:23–01:00:34): las 80 migraciones, la `0080` incluida, y **1.572 ✅ y 1 omitida** en 64 archivos —`settlements.test.ts` 53 y `settlements-volume.test.ts` 4— |
+| Vista previa de Vercel | `dpl_8yH9dqjuBaXrEaHUbsHDvL44DPU7`, ERROR, **exactamente D-066**, leído entero en su registro de construcción: `prebuild` → `check:env` → «Faltan variables de entorno obligatorias: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY» y «Command "npm run build" exited with 1», la única línea de error. Los avisos, los de siempre |
+
+### c. C2 a C6
+
+| Puerta | Hora UTC | Resultado |
+|---|---|---|
+| **C2** franja | 01:01:05 | 20:01 en Bogotá; la siguiente hora del programador, a las 03:00 UTC (22:00 en Bogotá): **dos horas libres**. Ningún recordatorio en 3 h, candado libre, 0 peticiones en curso, `pg_cron` sin fallos |
+| **C3** respaldo | 00:55:55–00:57:32 | `roles.sql` 8,0 s (370 B), `schema.sql` 49,6 s (740.028 B), `data.sql` 39,0 s (5.819.341 B). **0** nombres `"auth".`, **0** `INSERT INTO "auth"`, **0** credenciales, 32 `INSERT`; `restore-backup.ts` lo aceptaría (8 sentencias en `roles.sql`) |
+| **C3** foto | 00:57:51 | **`foto-antes-0080-produccion-2026-10-01T00-57-51-685Z.json`**, en 14,1 s. Su estructura, **idéntica** a la de la foto de P9 (17:54 UTC del 30 de septiembre): delta vacío. El ensayo con los privilegios de P9 (`RUNBOOK` §11.3) sigue valiendo |
+| **C4** migrar | 01:01:14–01:01:38 | `--dry-run` (dos veces, la última justo antes): **solo `0080_settlements.sql`**, sin semillas ni roles. `db push … ?lock_timeout=900ms --yes`: salida 0 en **24,7 s** de reloj, «Finished supabase db push.», sin `55P03` |
+| **C5** comprobar | 01:01:39–01:02:13 | `verify:remote` **58/58**. Foto `despues-0080` (01:01:54, con `--base` de C3). **`gate-compare --operation migrations --migrations 0080 --expected-delta`: CONTINUAR**: producción del proyecto esperado, formato v2, capturas distintas; estructura +3 tablas, +48 columnas, +35 restricciones, +12 índices, +3 disparadores, +21 funciones y 2 redefinidas, +4 tipos, +1 migración; **0 diferencias con lo ensayado**; las tres tablas nuevas, vacías; **0 filas tocadas**; ningún motivo para detener. Informe en `build/gate/c5.json` |
+| **C6** código | 01:02:23–01:03:58 | `git ls-remote` con `main` en `5f84e13`; `git push origin edbc778…:refs/heads/main`: `5f84e13..edbc778`, avance rápido, sin `force`. **`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`**: creado 01:02:27, **READY 01:03:34**, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`a691f412c09e`** desde las 01:03:58 (92 s después del empuje). Un solo despliegue de producción |
+
+### d. C7, después de publicar (01:04–01:07 UTC)
+
+| Qué | Resultado |
+|---|---|
+| En vivo | **Todo en verde** (26 comprobaciones): `a691f412c09e` servido y `334960b56704` ausente; 40/40 rutas, las cuatro del cierre sin sesión a `/login`; 0 5xx; 7/7 cabeceras; 0 secretos en 951 KB; Next 16.3.6; D-234 y Color v2 siguen servidos; la hoja de estilos, de 141 a 143 KB |
+| `verify:remote` | **58/58** |
+| Base | `0080`, 80 migraciones. Las tres tablas del cierre, **vacías** —0 entregas, 0 pagos de premios, 0 cierres— y 0 filas del cierre en la bitácora: **nadie registró nada**. La capacidad, en el catálogo, del Dueño y del Administrador y no del vendedor. Sin pausa; `pg_cron`, 3 activas y 0 fallos en la última hora; los 2 recordatorios, igual |
+| Registros de Vercel (00:41–01:06 UTC) | **0** líneas de error, aviso o fatal y **0** 5xx; ningún grupo de errores en la última hora. Lo que hay son las peticiones de estas comprobaciones |
+| PR #10 | GitHub lo marca **fusionado** al llegar `main` a su cabeza, sin commit de fusión. Nadie pulsó «Merge» |
+| CI de `main`, run `36799151910` (`push`, `edbc778`) | ✅ **2/2** (01:02:29–01:10:18 UTC): **1.966/1.966** unitarias y **1.572 ✅ y 1 omitida** de base |
+| Revisión del dueño | **Pendiente**: con su sesión, solo mirar (`RUNBOOK` §11.1, C7). Los registros de Vercel solo se leen durante una hora |
+
+### e. Lo que NO se ejecutó en esta publicación
+
+| Qué | Dónde está |
+|---|---|
+| La E2E completa | **No se repitió.** La última completa es la de D-241 (2026-09-30), **986/989**; sus repeticiones aisladas, aparte: 4/4 y 35/36 (D-241 §b). No se presenta como de hoy |
+| El ensayo de la `0080` con los privilegios de producción | D-241 §f (2026-09-30). Lo que sí se comprobó hoy es que la estructura de producción no cambió desde aquella foto |
+
+### f. Tiempos reales en producción
+
+| Paso | Medido |
+|---|---|
+| Respaldo (los tres volcados) | 97 s |
+| Foto de C3 | 14,1 s |
+| `db push` de la `0080` | 24,7 s de reloj |
+| Del empuje a `main` a READY | 1 min 12 s; el build servido, a los 1 min 35 s |
+| De C0 al final de C7 | ~17 min, con la API abierta |

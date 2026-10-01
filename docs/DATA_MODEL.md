@@ -1,6 +1,7 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.34 · **Estado:** implementado · **Actualizado:** 2026-09-30, más tarde (**§4.26 nueva**: el
+- **Versión:** 2.35 · **Estado:** implementado · **Actualizado:** 2026-10-01 (**`0080` APLICADA EN PRODUCCIÓN**, sin
+  pausa: §4.26 está publicada, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, más tarde (**§4.26 nueva**: el
   **cierre de cuentas** —D-241, migración `0080`, **solo en local**—: tres tablas de hechos inmutables salvo la
   anulación, cuatro tipos, la cuenta calculada por `settlement_account_rows` desde `seller_commissions` y 14 RPC; §5
   y §7 con sus índices y sus disparadores). Antes, ese mismo día (**`0078` y `0079` APLICADAS EN
@@ -1436,8 +1437,8 @@ instalada tiene que poder restaurarse (I-187).
 
 ### 4.26 Cierre de cuentas (`0080`, BR-Z01..BR-Z18, D-241)
 
-> 🧪 **Solo en local.** El proyecto real no tiene la `0080`. Es aditiva —tres tablas, cuatro tipos, funciones
-> nuevas y el catálogo de capacidades ampliado— y se publica sin pausa (`RUNBOOK` §11).
+> ✅ **En producción desde el 2026-10-01**: la `0080` se aplicó sin pausa (`RUNBOOK` §11, `DEPLOYMENT` §3.2.v). Es
+> aditiva —tres tablas, cuatro tipos, funciones nuevas y el catálogo de capacidades ampliado—.
 
 **La cuenta se calcula, no se guarda** (BR-Z01). Las tres tablas guardan HECHOS: el dinero que pasó de una persona
 a otra, quién pagó un premio y la foto de una cuenta saldada. Ninguna guarda un saldo.

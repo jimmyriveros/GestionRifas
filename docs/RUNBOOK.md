@@ -1,6 +1,8 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-09-30, por la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
+**Actualizado:** 2026-10-01, 01:07 UTC (**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
+sin pausa; C4 dice ahora `?lock_timeout`, porque la URL de `.env.local` no trae parámetros). Antes, 2026-09-30, por
+la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
 ya confirmó —sin entregas al dueño y sin premios pagados en los 25 sorteos— y **§11.2.a, nueva**, dónde se ven los 4
 premios del historial y qué falta de cada uno). Antes, ese mismo día, al final (**§11.2 rehecha**, D-242: la puesta en
 marcha registra la historia real —se retira «empezar a contar desde ese día», que dejaba pendiente lo ya entregado—, con
@@ -1278,14 +1280,12 @@ garantía para el proyecto alojado.
 
 ---
 
-## 11. Publicar el cierre de cuentas (`0080` y su código, D-241) — **PREPARADA Y ENSAYADA EN LOCAL, CON SU CANDIDATO (D-243); SIN AUTORIZAR**
+## 11. Publicar el cierre de cuentas (`0080` y su código, D-241) — **EJECUTADA el 2026-10-01: C0–C7; EN PRODUCCIÓN desde las 01:03 UTC**
 
-> **Nada de esto se ha ejecutado contra producción.** El último estado documentado de producción es `5f84e13` sobre
-> `0079` (§10); la lectura de D-242 (2026-09-30, 23:15 UTC, solo lectura) confirmó la base en `0079`, sin la `0080`,
-> y el despliegue servido no se volvió a comprobar: es C0. **El candidato** es la cabeza de la rama con D-243: su
-> código es el verificado en D-242 y su `0080`, la ensayada (§11.3). Publicar exige la **autorización expresa del
-> dueño**: empujar la rama (C1), migrar (C4) y desplegar (C6). Cada paso que escribe lo hace el dueño con su sesión o
-> con autorización para ese paso; quien la prepara se detiene, le da los pasos y verifica en solo lectura.
+> **Ejecutada el 2026-10-01, de 00:49 a 01:07 UTC**, con la autorización expresa del dueño para C0–C7 —sin pedir
+> permiso por paso mientras se cumplieran sus condiciones—. Producción sirve **`edbc778`**
+> (`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`) sobre **`0080`**, sin pausa y sin interrupción. Registro en `DEPLOYMENT` §3.2.v
+> y en `TEST_RESULTS`, «C0–C7 del cierre de cuentas». La revisión del dueño con su sesión (C7) queda en sus manos.
 
 ### 11.0 Por qué no lleva pausa, y qué la hace segura
 
@@ -1305,14 +1305,14 @@ las de §10.1 salvo la pausa y la recuperación, que aquí no se usan.
 
 | # | Puerta | Qué se hace | Se sigue solo si |
 |---|---|---|---|
-| C0 | Solo lectura | `npx supabase migration list --db-url "<SUPABASE_DB_URL>"`: la última aplicada es `0079` y no hay ninguna posterior. El despliegue servido es `5f84e13` y **el anterior de producción existe** (la reversión de Hobby solo va al anterior, `DEPLOYMENT` §4.1). `npm run verify:remote` **con el código de `<SHA>`**: **55 OK + 3 en rojo a propósito** —las tres del cierre: la matriz de funciones (21 «no existe»), las tablas (3) y la capacidad (2); la cuarta, «sin clasificar», en verde— | Exactamente eso. Otra roja, o una migración posterior a `0079`, detiene |
-| C1 | Rama y CI | Empujar la rama, PR en borrador y CI **2/2** sobre `<SHA>`: su trabajo de base de datos aplica todas las migraciones desde cero y corre las 57 pruebas del cierre | 2/2. **Requiere autorización de push** |
-| C2 | Franja | Una hora tranquila, **fuera** de las del programador (UTC 3, 4, 5, 6, 12, 13, 15 y 16 = Bogotá 22, 23, 0, 1, 7, 8, 10 y 11): su turno escribe en `lottery_ticket_matches`, que la migración bloquea al final. `pg_cron` no escribe en ninguna de las siete tablas. No se desactiva ni se suspende nada (D-208) | Franja acordada con el dueño |
-| C3 | Respaldo y foto | Los tres volcados de §5.1 y `npx tsx scripts/gate-snapshot.ts antes-0080 --production --project-ref <REF>`; se anota la ruta de la foto | Respaldo sin `"auth".` y «Guardada en build\gate\foto-antes-0080-produccion-….json» |
-| C4 | Migrar | `npx supabase db push --dry-run --db-url "<SUPABASE_DB_URL>"` lista **solo** `0080`; después `npx supabase db push --db-url "<SUPABASE_DB_URL>&lock_timeout=900ms"` | «Finished supabase db push.». Un `55P03` es un cerrojo que no se consiguió: **no se aplicó nada**; se espera un minuto y se repite desde el `--dry-run`. Cualquier otro error detiene y se reporta |
-| C5 | Comprobar | `npm run verify:remote` **58/58**. `npx tsx scripts/gate-snapshot.ts despues-0080 --production --project-ref <REF> --base <foto de C3>` y `npx tsx scripts/gate-compare.ts <foto de C3> <foto de después> --production --project-ref <REF> --operation migrations --migrations 0080 --expected-delta build/gate/delta-esperado-0080.json --report c5.json` | 58/58 y **CONTINUAR**. Un DETENER se lee y se reporta: las ventas, los cobros y un turno programado de la franja son actividad normal de la lista; cualquier otra fila, no |
-| C6 | Código | `git ls-remote origin refs/heads/main`; `git push origin <SHA>:refs/heads/main` por avance rápido; **un** despliegue | READY sobre `<SHA>` y su identificador servido (`DEPLOYMENT` §6.1). **Requiere autorización de push y de despliegue** |
-| C7 | Revisión | El dueño, con su sesión: «Cierre de cuentas» en el menú, el listado de la rifa y la cuenta de un vendedor; un vendedor, «Mi cierre de cuentas». **Solo mirar**. Los registros de Vercel de esa hora, sin errores | Todo como en local. **No se confirma una entrega ni se registra un premio de prueba**: son hechos de dinero real, y solo se anulan, no se borran |
+| C0 | Solo lectura — **hecha (00:49–00:53 UTC): `0079` con la `0080` pendiente, `5f84e13` servido y candidato a reversión, 55 OK + 3 en rojo a propósito** | `npx supabase migration list --db-url "<SUPABASE_DB_URL>"`: la última aplicada es `0079` y no hay ninguna posterior. El despliegue servido es `5f84e13` y **el anterior de producción existe** (la reversión de Hobby solo va al anterior, `DEPLOYMENT` §4.1). `npm run verify:remote` **con el código de `<SHA>`**: **55 OK + 3 en rojo a propósito** —las tres del cierre: la matriz de funciones (21 «no existe»), las tablas (3) y la capacidad (2); la cuarta, «sin clasificar», en verde— | Exactamente eso. Otra roja, o una migración posterior a `0079`, detiene |
+| C1 | Rama y CI — **hecha: `5f84e13..edbc778` sin `force`, PR #10 en borrador, CI ✅ 2/2 (run `36798406550`); la vista previa, exactamente D-066** | Empujar la rama, PR en borrador y CI **2/2** sobre `<SHA>`: su trabajo de base de datos aplica todas las migraciones desde cero y corre las 57 pruebas del cierre | 2/2. **Requiere autorización de push** |
+| C2 | Franja — **hecha: a las 01:01 UTC (20:01 en Bogotá), dos horas libres hasta el programador; ningún recordatorio en 3 h** | Una hora tranquila, **fuera** de las del programador (UTC 3, 4, 5, 6, 12, 13, 15 y 16 = Bogotá 22, 23, 0, 1, 7, 8, 10 y 11): su turno escribe en `lottery_ticket_matches`, que la migración bloquea al final. `pg_cron` no escribe en ninguna de las siete tablas. No se desactiva ni se suspende nada (D-208) | Franja acordada con el dueño |
+| C3 | Respaldo y foto — **hecha: respaldo en 97 s, sin `"auth".` ni credenciales; foto `antes-0080` con la estructura idéntica a la de P9** | Los tres volcados de §5.1 y `npx tsx scripts/gate-snapshot.ts antes-0080 --production --project-ref <REF>`; se anota la ruta de la foto | Respaldo sin `"auth".` y «Guardada en build\gate\foto-antes-0080-produccion-….json» |
+| C4 | Migrar — **hecha: solo `0080`, en 24,7 s, sin `55P03`** | `npx supabase db push --dry-run --db-url "<SUPABASE_DB_URL>"` lista **solo** `0080`; después `npx supabase db push --db-url "<SUPABASE_DB_URL>?lock_timeout=900ms" --yes` —con `&` si la URL ya trae parámetros; la de `.env.local` no los trae— | «Finished supabase db push.». Un `55P03` es un cerrojo que no se consiguió: **no se aplicó nada**; se espera un minuto y se repite desde el `--dry-run`. Cualquier otro error detiene y se reporta |
+| C5 | Comprobar — **hecha: 58/58 y CONTINUAR, 0 diferencias con lo ensayado y 0 filas tocadas** | `npm run verify:remote` **58/58**. `npx tsx scripts/gate-snapshot.ts despues-0080 --production --project-ref <REF> --base <foto de C3>` y `npx tsx scripts/gate-compare.ts <foto de C3> <foto de después> --production --project-ref <REF> --operation migrations --migrations 0080 --expected-delta build/gate/delta-esperado-0080.json --report c5.json` | 58/58 y **CONTINUAR**. Un DETENER se lee y se reporta: las ventas, los cobros y un turno programado de la franja son actividad normal de la lista; cualquier otra fila, no |
+| C6 | Código — **hecha: `5f84e13..edbc778`; `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` READY a las 01:03:34 UTC** | `git ls-remote origin refs/heads/main`; `git push origin <SHA>:refs/heads/main` por avance rápido; **un** despliegue | READY sobre `<SHA>` y su identificador servido (`DEPLOYMENT` §6.1). **Requiere autorización de push y de despliegue** |
+| C7 | Revisión — **en vivo, `verify:remote` y registros, conformes; la del dueño, pendiente** | El dueño, con su sesión: «Cierre de cuentas» en el menú, el listado de la rifa y la cuenta de un vendedor; un vendedor, «Mi cierre de cuentas». **Solo mirar**. Los registros de Vercel de esa hora, sin errores | Todo como en local. **No se confirma una entrega ni se registra un premio de prueba**: son hechos de dinero real, y solo se anulan, no se borran |
 
 ### 11.2 La puesta en marcha: la historia real, antes de cerrar ninguna cuenta (D-242, BR-Z19..BR-Z21)
 
@@ -1411,7 +1411,7 @@ ensayo con una foto de producción tomada en C0: la de P9 es de antes de cualqui
 |---|---|
 | C4 falla | No quedó nada: la migración es una transacción. `55P03` se repite; otro error se reporta sin tocar nada más |
 | C5 dice DETENER | No se despliega. Se reporta cada motivo; el código servido sigue funcionando con la base nueva |
-| El código nuevo falla después de C6 | *Instant Rollback* al despliegue anterior (`5f84e13`), que funciona con la `0080` —no la nombra—. Lo pulsa el dueño; antes de volver a desplegar, «Undo Rollback» (`DEPLOYMENT` §4.1) |
+| El código nuevo falla después de C6 | *Instant Rollback* al despliegue anterior (`5f84e13`, `dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`), que funciona con la `0080` —no la nombra—. Lo pulsa el dueño; antes de volver a desplegar, «Undo Rollback» (`DEPLOYMENT` §4.1) |
 | Hay que retirar la `0080` | Una **migración nueva**, según la nota del final de la `0080`: exacta mientras las tres tablas estén vacías. Con filas, primero se exportan: son la historia del dinero entregado |
 
 ### 11.5 Lo que NO se hace nunca

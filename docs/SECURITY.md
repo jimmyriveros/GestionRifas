@@ -1,6 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.34 · **Estado:** implementado · **Actualizado:** 2026-09-30, al final (§4.27, D-242: nadie opera en
+- **Versión:** 2.35 · **Estado:** implementado · **Actualizado:** 2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §4.27
+  y la nota de §4.19 del cierre de cuentas —`0080`— están publicadas, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, al
+  final (§4.27, D-242: nadie opera en
   nombre de un vendedor a cargo desactivado —el personal tampoco, sin ampliar ningún permiso— y el pasado no se carga
   por detrás). Antes, ese mismo día, más tarde (**§4.27 nueva**: el cierre de
   cuentas —D-241, `0080`, **solo en local**—: acceso solo por 14 RPC, quién confirma cada hecho, la excepción acotada
@@ -1201,7 +1203,7 @@ de dos vendedores y de otra organización— y `tests/e2e/privacidad-admin.spec.
 en el HTML, en la carga RSC ni en las respuestas de red. ✅ **En producción desde el 2026-09-15**:
 `0057` aplicada al proyecto real y `verify:remote` **27/27**.
 
-**Acotada el 2026-09-30 (D-241, BR-Z13, solo en local).** El cierre de cuentas abre una excepción **de cifras
+**Acotada el 2026-09-30 (D-241, BR-Z13); en producción desde el 2026-10-01.** El cierre de cuentas abre una excepción **de cifras
 agregadas**: el personal con `settlements.manage` ve de cada cuenta sus boletas pagadas y su valor, las ganancias, los
 premios con su boleta y las entregas. No abre ninguna política de esta sección, no devuelve ningún cliente ni abono y
 vive entera en sus propias RPC (§4.27).
@@ -1520,7 +1522,7 @@ seguir. Y `abrir` solo abre si la base, el commit y lo servido son pareja.
 
 ### 4.27 El cierre de cuentas (`0080`; BR-Z01..BR-Z21; D-241, D-242)
 
-> 🧪 **Solo en local.** Nada de esto existe todavía en el proyecto real.
+> ✅ **En producción desde el 2026-10-01, 01:03 UTC** (`DEPLOYMENT` §3.2.v).
 
 **Solo por funciones.** Las tres tablas (`DATA_MODEL` §4.26) tienen RLS forzada **sin ninguna política** y ningún
 privilegio para `anon` ni `authenticated`; `service_role` solo lee. Todo pasa por 14 RPC `SECURITY DEFINER` que

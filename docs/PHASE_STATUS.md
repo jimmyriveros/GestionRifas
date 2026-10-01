@@ -3,7 +3,24 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-09-30, por la noche — **El candidato del cierre de cuentas, preparado SOLO EN LOCAL (D-243)**:
+- **Actualizado:** 2026-10-01, 01:07 UTC — **El cierre de cuentas EN PRODUCCIÓN (D-241 a D-243; `0080` y `edbc778`)**:
+  mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Producción sirve **`edbc778`**
+  (`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`) sobre **`0080`**, publicada con la autorización del dueño para C0–C7 de
+  `RUNBOOK` §11, sin pausa ni interrupción. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en producción, «Cierre de cuentas» para el Dueño y el Administrador y «Mi cierre de
+  cuentas» para los vendedores (D-241), con la puesta en marcha de D-242 y D-243. Sin movimientos registrados:
+  «Recibido $0» y los 4 premios del historial, sin pago registrado.
+  **(2) Pruebas, ejecutadas en esta publicación:** CI del PR y de `main` sobre el SHA exacto, ✅ 2/2 —1.966/1.966 y
+  1.572 + 1—; la vista previa, exactamente D-066; `verify:remote` 55 + 3 rojas a propósito antes y **58/58** después;
+  C5 **CONTINUAR**; en vivo y registros, conformes. La E2E no se repitió: la última completa es la de D-241
+  (986/989), aparte de sus repeticiones aisladas. Detalle en `TEST_RESULTS`, «C0–C7 del cierre de cuentas».
+  **(3) Migraciones:** `0080`, aplicada. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** I-194 a I-197, límites documentados del cierre; I-190 e I-193.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y `RUNBOOK` §11. La revisión del dueño (C7) está pendiente;
+  después, los datos reales de los 4 premios (`RUNBOOK` §11.2.a).
+
+- Antes, 2026-09-30, por la noche — **El candidato del cierre de cuentas, preparado SOLO EN LOCAL (D-243)**:
   mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin cambiar el producto y sin tocar producción.
   Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** ninguna nueva. El dueño confirmó que los vendedores todavía no le han entregado dinero y que

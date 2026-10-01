@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-09-30, más tarde (§3.3.b y §4.1: la `0080` del cierre de cuentas —D-241, **solo en local, sin
+**Actualizado:** 2026-10-01, 01:07 UTC (**§3.2.v nueva: el cierre de cuentas EN PRODUCCIÓN** —`0080` y `edbc778`, sin
+pausa—; §3.3.b y §4.1, al día). Antes, 2026-09-30, más tarde (§3.3.b y §4.1: la `0080` del cierre de cuentas —D-241,
+**solo en local, sin
 autorizar**— es aditiva y se publica sin pausa, la base primero; volver a `5f84e13` basta; `RUNBOOK` §11). Antes, ese
 mismo día, 18:03 UTC (**§3.2.u nueva: la configuración de ganancias EN PRODUCCIÓN** —`0078`, `0079` y
 `5f84e13`, con D-236 y D-240 dentro—, con la pausa cerrada 12 min 5 s; el punto de reversión del código es el puente,
@@ -1170,6 +1172,30 @@ la sesión, con su revisión manual en P9. Publica D-237, D-238, D-239 y D-240 y
 `334960b56704` servido y el del puente ausente; registros desde las 17:48, **0** errores, avisos o 5xx. La revisión del
 dueño, con la sesión del Administrador y la pausa cerrada: conforme. Detalle en `TEST_RESULTS`, P4–P10.
 
+### 3.2.v Release del cierre de cuentas (D-241 a D-243; `0080`) — 2026-10-01
+
+**Con migración y sin pausa.** Autorización expresa del dueño para C0–C7 de `RUNBOOK` §11, sin pedir permiso por paso
+mientras se cumplieran sus condiciones, confirmada en la sesión. Publica D-241, D-242 y D-243.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`edbc778524259658ce24e369c4cdb4362df3b769`**, la cabeza del PR #10 con el CI en verde: el código de `79c74b2` —el verificado en D-241 y D-242— más sus pruebas y su documentación |
+| Commit anterior en producción | `5f84e13b93ad58ad7b0f8f8676d959169bd010a2` (§3.2.u) |
+| Integración | **Avance rápido** `5f84e13..edbc778`, sin `force` y sin fusión: `git push origin edbc778…:refs/heads/main` a las **01:02:23 UTC**, con la base ya en `0080`. GitHub marca el PR #10 fusionado sin commit de fusión |
+| Despliegue Vercel | **`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`**: creado a las 01:02:27, **READY a las 01:03:34 UTC**, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`a691f412c09e`** desde las 01:03:58. El único de producción que disparó el empuje |
+| Despliegue anterior | **`dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`** (`5f84e13`), candidato a *Instant Rollback* y **compatible** con la base de ahora: no nombra nada de la `0080` (§4.1) |
+| **Migraciones** | **`0080`**, aplicada de 01:01:14 a 01:01:38 UTC (24,7 s de reloj), con `lock_timeout=900ms`. Ahora **80**, `0001`–`0080` |
+| Pausa | **Ninguna**: la API estuvo abierta todo el tiempo |
+| Respaldo | `Rifas-backups/2026-10-01-antes-0080/`, fuera del repositorio, tomado de 00:55:55 a 00:57:32 UTC. Copiarlo fuera de este equipo, como pide `RUNBOOK` §5.1, queda pendiente |
+| CI | En el PR, run **`36798406550`** sobre `edbc778`: ✅ 2/2. En `main`, run **`36799151910`** (`push`) sobre `edbc778`: ✅ **2/2** (01:02:29–01:10:18 UTC): **1.966/1.966** unitarias y **1.572 ✅ y 1 omitida** de base |
+| Dependencias y configuración | Sin cambios de `package.json`, `package-lock.json`, `next.config.ts` ni `vercel.json` respecto de `5f84e13` |
+
+**Verificado:** `verify:remote` **55 OK + 3 en rojo a propósito** antes, y **58/58** después de migrar y después de
+desplegar; la comparación de C5 contra la foto de C3, **CONTINUAR**, sin diferencias con lo ensayado y sin una fila
+tocada; las tres tablas nuevas, vacías; en vivo, todo en verde con `a691f412c09e` servido y el de `5f84e13` ausente;
+registros de 00:41 a 01:06 UTC, **0** errores, avisos o 5xx. **La revisión del dueño con su sesión (C7), pendiente.**
+Detalle en `TEST_RESULTS`, «C0–C7 del cierre de cuentas».
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1376,7 +1402,8 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 > `supabase/recovery/0079_a_0077.sql` y devuelve los permisos de la foto de antes de migrar (D-240)— y después el
 > código. Todo en `RUNBOOK` §10. **No está autorizada**: nada de la `0078` ni de la `0079` existe en el proyecto real.
 
-> **Pendiente, sin autorizar: la `0080`, el cierre de cuentas (D-241).** Es **aditiva** y vuelve al orden de siempre:
+> **EN PRODUCCIÓN desde el 2026-10-01, 01:03 UTC: la `0080`, el cierre de cuentas (D-241; registro en §3.2.v).** Es
+> **aditiva** y volvió al orden de siempre:
 > la base primero y el código después, **sin pausa** —el código servido, `5f84e13`, no nombra nada de la `0080`—. Dos
 > cuidados medidos en el ensayo: la CLI la aplica sentencia a sentencia y sus llaves foráneas bloquean las escrituras
 > de siete tablas hasta confirmar, así que van **al final del archivo** (288 ms en local, frente a 5,9 s dentro de cada
@@ -1424,7 +1451,8 @@ permisos de escritura comprobados.
 antes, la comprobación previa de `RUNBOOK` §10.5 y, si se puede, la recuperación del esquema. Si no se puede, **no se
 vuelve**: el código nuevo es el único que entiende esa base.
 
-**Con la `0080` (D-241), cuando se publique**, el despliegue anterior será `5f84e13`, y volver a él **sí basta**: no
+**Con la `0080` (D-241), publicada el 2026-10-01**, el despliegue anterior es `dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq`
+(`5f84e13`), candidato a *Instant Rollback*, y volver a él **sí basta**: no
 nombra nada de la `0080`, que se queda en la base sin estorbar (`RUNBOOK` §11.4).
 
 ### 4.2 Base de datos
