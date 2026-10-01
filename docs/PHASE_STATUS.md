@@ -3,7 +3,27 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-01, 02:55 UTC (21:55 del 30 en Bogotá) — **«Revisar cuenta» avisa mientras se abre (D-244),
+- **Actualizado:** 2026-10-01 en UTC (noche del 30 en Bogotá) — **La búsqueda pendiente no cancela la navegación elegida
+  (D-245, I-199) y «Cuentas con tu equipo» avisa, SOLO EN LOCAL**: mantenimiento posterior a la Fase 9, sin fase ni
+  etiqueta nuevas, sin push ni despliegue y sin leer producción. Candidato para publicar con D-244. Los seis puntos de
+  `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en «Cierre de cuentas», «Boletas» de los dos portales, «Mis clientes» y el catálogo público,
+  una búsqueda a medio escribir ya no cancela la fila que se abre ni un orden o filtro elegidos en la pausa; salir de la
+  pantalla o ir Atrás/Adelante la descarta al empezar. «Cuentas con tu equipo» dice «Abriendo la cuenta de {nombre}…» y
+  gira la flecha, como la lista del personal.
+  **(2) Pruebas:** `verify` ✅ **1.976/1.976** y build; `test:db` ✅ **1.572 + 1**; 13 E2E nuevas del buscador —**9 fallan**
+  con el anterior— y 3 del equipo —fallan con la tarjeta anterior—; builds de producción antes y después, con
+  peticiones, desplazamientos y consola. E2E completa **1.007/1.010** en 56,3 min: un fallo por una edición mía durante
+  la pasada (aislado, 5/5) e I-148 e I-106, anteriores; I-106 medido con y sin D-245, a la misma tasa. Errores al
+  escribir —una prueba de desplegable que no elegía nada y esa edición—, corregidos y repetidos.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-200**, nueva: la carrera al revés —un orden, un filtro o una página elegidos con
+  la búsqueda ya en camino la sustituyen—, anterior y sin corregir; **I-198**, sin causa demostrada y sin atribuir a I-199.
+  Siguen I-190, I-193 e I-194 a I-197.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a, D-245 y `DEPLOYMENT` §3.3.d. Publicar está **sin autorizar**.
+
+- Antes, 2026-10-01, 02:55 UTC (21:55 del 30 en Bogotá) — **«Revisar cuenta» avisa mientras se abre (D-244),
   SOLO EN LOCAL**: mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin push ni despliegue y sin leer
   producción. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en «Cierre de cuentas» del personal, el botón «Revisar cuenta» dice «Abriendo cuenta…» en el

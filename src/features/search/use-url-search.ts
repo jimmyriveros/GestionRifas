@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 
+import { leavesPage, subscribeNavigationStart } from '@/lib/navigation-start'
 import {
   SEARCH_DEBOUNCE_MS,
   SEARCH_SPINNER_DELAY_MS,
@@ -31,6 +32,21 @@ import { useDelayedFlag } from './use-delayed-flag'
  * - **El campo es controlado.** Antes se remontaba con `key` para que la URL
  *   fuera la unica fuente de verdad; eso ahora perderia el foco en cada
  *   busqueda. La URL sigue mandando, pero la sincronizacion es explicita.
+ *
+ * Y una cuarta, que nace de la segunda (I-199, D-245):
+ *
+ * - **Si la persona se va, la pausa se descarta al EMPEZAR a irse.** Que el
+ *   router cancele la navegacion anterior tambien vale al reves: si durante la
+ *   pausa se pulsa una fila y su pantalla tarda, el `replace` de la busqueda
+ *   llega con esa navegacion en curso y la sustituye, y la persona se queda en
+ *   la lista. Esperar al desmontaje no sirve: la lista se desmonta cuando la
+ *   pantalla nueva ya llego, justo lo que el `replace` impedia. Por eso se
+ *   escucha el inicio de cada navegacion (`lib/navigation-start.ts`). Solo se
+ *   descarta si sale de esta pantalla o va Atras/Adelante: un filtro, la pagina
+ *   o el orden se quedan en ella y la busqueda sigue su curso, construida sobre
+ *   la direccion a la que va ese filtro y no sobre la del render en que se
+ *   escribio, que lo deshacia. Abrir en otra pestaña ni siquiera navega en
+ *   esta. No se busca nada de mas: lo escrito se queda en el campo, sin enviar.
  */
 
 /**
@@ -94,6 +110,22 @@ export function useUrlSearch({
    */
   const committedRef = useRef(urlTerm)
 
+  /**
+   * Los parametros sobre los que se construye la busqueda (D-245): los de la
+   * ultima direccion pintada o, si hay una navegacion en curso DENTRO de esta
+   * pantalla —un filtro, la pagina, el orden—, los de esa navegacion. La pausa
+   * guarda la funcion del render en que se escribio, y con los parametros de
+   * aquel render la busqueda deshacia un filtro elegido mientras tanto.
+   *
+   * Un ref y no estado: cambia sin pintar nada. Y se actualiza cuando cambia la
+   * direccion, no en cada render, para que un render cualquiera no pise una
+   * navegacion que todavia no ha llegado.
+   */
+  const baseRef = useRef(searchParams.toString())
+  useEffect(() => {
+    baseRef.current = searchParams.toString()
+  }, [searchParams])
+
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
       clearTimeout(timerRef.current)
@@ -111,7 +143,7 @@ export function useUrlSearch({
       if (term === committedRef.current) return
 
       committedRef.current = term
-      const params = new URLSearchParams(searchParams.toString())
+      const params = new URLSearchParams(baseRef.current)
       if (term === '') params.delete(paramName)
       else params.set(paramName, term)
       // Cambiar el termino invalida la pagina en la que estabas.
@@ -120,7 +152,7 @@ export function useUrlSearch({
       const query = params.toString()
       startTransition(() => router.replace(query ? `${pathname}?${query}` : pathname))
     },
-    [cancelTimer, pathname, paramName, resetParams, router, searchParams],
+    [cancelTimer, pathname, paramName, resetParams, router],
   )
 
   const onChange = useCallback(
@@ -168,6 +200,22 @@ export function useUrlSearch({
 
   // Al desmontar no debe quedar ningun temporizador navegando por su cuenta.
   useEffect(() => () => cancelTimer(), [cancelTimer])
+
+  // Y antes de eso, en cuanto empieza una navegacion (I-199, D-245): si sale de
+  // esta pantalla, la busqueda pendiente se descarta —el desmontaje llega tarde,
+  // con la pantalla nueva ya pedida—; si se queda en ella, la busqueda sigue y
+  // se construira sobre la direccion a la que va.
+  useEffect(
+    () =>
+      subscribeNavigationStart((url, type) => {
+        if (leavesPage(url, type, pathname)) {
+          if (timerRef.current !== null) cancelTimer()
+        } else {
+          baseRef.current = url.searchParams.toString()
+        }
+      }),
+    [cancelTimer, pathname],
+  )
 
   const showSpinner = useDelayedFlag(isSearching, SEARCH_SPINNER_DELAY_MS)
   const isBelowMinChars = value !== '' && !meetsMinChars(value, minChars)

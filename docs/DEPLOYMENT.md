@@ -1421,6 +1421,19 @@ inmutables, así que aplicarlas antes que el código que las usa no rompe nada.
 | Cómo se publicó (puerta PB de `RUNBOOK` §10.2, **hecha**; §3.2.t) | `git ls-remote origin refs/heads/main` tiene que ser `cac81e8`; `git push origin fix/puente-pausa-publicacion:refs/heads/main` por avance rápido, sin `force`; CI 2/2; READY; identificador servido (§6.1); `/mantenimiento` en 200 y la aplicación igual que antes. Su punto de reversión es `cac81e8` (`dpl_BtpaT5y83gtFjBJ1DxioNZ5VAAaK`) |
 | Después | **Hecho, en local:** fusionado en `feature/detalle-boleta-admin` (`0e268df`) con 0 archivos cambiados, como la del puente de D-228; esa rama sigue sin empujar. Desde que la publicación esté servida, la reversión del código vuelve **al puente**, que maneja la pausa |
 
+#### 3.3.d D-244 y D-245 juntos: el aviso al abrir una cuenta y la búsqueda que no cancela la fila — **preparado en local, SIN AUTORIZAR**
+
+El dueño autorizó **prepararlos para publicarlos juntos**; push, CI sobre `main` y despliegue siguen **sin autorizar**.
+
+| | |
+|---|---|
+| Qué publica | Sobre lo servido (`edbc778`): el registro de C0–C7 (`673c6b3`, `79000ef`, solo documentación), **D-244** (`1b4da23`) y **D-245** (la cabeza de la rama). Código: `RowLinkPending` y su uso en las dos listas del cierre, `settlements/copy.ts`, `use-url-search.ts`, `lib/navigation-start.ts` y `src/instrumentation-client.ts` —nuevo, se carga en **todas** las páginas antes de hidratar—, más pruebas y documentación |
+| Lo que no publica | **Ninguna migración** (siguen `0001`–`0080`); sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/`, `public/` ni `.env.example` |
+| Punto de reversión | **`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`** (`edbc778`), el servido hoy. **Compatible**: no hay nada en la base que el código anterior no entienda. *Instant Rollback* lo pulsa el dueño |
+| Comprobado en local | `verify` ✅ **1.976/1.976** y build; `test:db` ✅ **1.572 + 1**; E2E completa **1.007/1.010** —un fallo por una edición mía durante la pasada, repetido 5/5, e I-148 e I-106, anteriores y medidos—; las del buscador y del cierre, en verde aparte; builds de producción **antes y después** (peticiones, desplazamientos y consola limpia en las cuatro listas y el catálogo público). Detalle en `TEST_RESULTS`, D-245 |
+| Al publicar, como en §3.2.s | P0 en solo lectura (servido `edbc778`, base en `0080`, sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador; avance rápido de `main`; READY, identificador servido (§6.1) y la comprobación en vivo de siempre, que ahora incluye que el fragmento de `instrumentation-client` se sirve y que las páginas públicas siguen sin errores de CSP |
+| La revisión del dueño, con su sesión | «Cierre de cuentas»: pulsar «Revisar cuenta» y ver «Abriendo cuenta…»; como vendedor con equipo, «Cuentas con tu equipo»; en cualquier lista, escribir en el buscador y abrir enseguida una fila. Avisar al terminar para leer los registros **dentro de la hora**. Si «Revisar cuenta» vuelve a quedarse quieta, la hora exacta y la pestaña Red (I-198, que sigue abierta) |
+
 ---
 
 ## 4. Reversión

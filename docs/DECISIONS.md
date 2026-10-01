@@ -16341,3 +16341,48 @@ cabe sin mover la tarjeta y que no tiene un «Revisar cuenta» visible que susti
 **Consecuencia.** Una vez hidratada la página, el clic responde siempre en pantalla. Que el aviso exista **no demuestra
 que la causa esté corregida**: una respuesta lenta sigue siendo lenta, ahora con aviso. «Cuentas con tu equipo» del
 vendedor (`TeamAccountsCard`) usa el mismo enlace y sigue sin aviso: queda fuera de este encargo.
+
+> **Nota posterior (D-245, mismo día).** «Cuentas con tu equipo» ya lleva el aviso, con la misma pieza
+> (`RowLinkPendingChevron`) y el nombre del integrante en el anuncio. La frase del anuncio se escribe una vez
+> (`openingAccount`, en `settlements/copy.ts`) para las dos listas.
+
+---
+
+## D-245 — Una búsqueda pendiente no cancela la navegación que la persona acaba de elegir (I-199)
+
+**Fecha:** 2026-09-30 · **Estado:** aceptada · **Sin migración** · Solo interfaz · **Solo en local**: sin push ni
+despliegue, autorizado para prepararse junto a D-244 · Cierra **I-199** · Abre **I-200**
+
+**Contexto.** `useUrlSearch` espera 350 ms y busca con `router.replace`. Si en esa pausa se abre una fila y su pantalla
+tarda, el `replace` llega con la navegación en curso y la sustituye: la persona se queda en la lista filtrada
+(I-199, reproducida en D-244). El temporizador se cancelaba al desmontar la lista, y la lista se desmonta cuando la
+pantalla nueva ya llegó: justo lo que el `replace` impedía. Además, la pausa guarda la función del render en que se
+escribió, y con los parámetros de aquel render la búsqueda **deshacía un orden o un filtro** elegidos mientras tanto.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Saber que la persona se va | `src/instrumentation-client.ts` exporta `onRouterTransitionStart`, que Next 16.3.6 llama de forma **síncrona** al despachar cualquier navegación del router —un `Link`, una fila con `router.push`, `router.replace`, Atrás o Adelante—, antes de pedir el destino. Solo reenvía a `lib/navigation-start.ts`, un aviso de módulo como `navigation-history.ts` |
+| Si sale de la pantalla | `useUrlSearch` descarta la búsqueda pendiente: otra ruta, otro origen, o **Atrás/Adelante** aunque sea a la misma ruta, porque llevan a otra entrada del historial y lo escrito para una no debe caer encima de otra. Lo escrito se queda en el campo, sin enviar |
+| Si se queda en ella | Un filtro, la página o el orden **no cancelan** la búsqueda. La búsqueda se construye sobre la dirección a la que va esa navegación —o, si ya llegó, sobre la pintada—, guardada en un ref que se actualiza al cambiar la dirección y no en cada render |
+| Lo que no cambia | La búsqueda sola, `Enter`, limpiar, los mínimos, la paginación y el historial (`replace`). Ninguna búsqueda de más: nada se envía al salir del campo. Abrir en otra pestaña no navega en esta, así que la búsqueda sale igual |
+| Dónde | **Solo** en `useUrlSearch`: lo heredan sus cuatro consumidores —«Cierre de cuentas», «Boletas» de los dos portales, «Mis clientes» y el catálogo público— sin tocar ninguno |
+
+**Medido** (`TEST_RESULTS`, D-245): con el buscador anterior, **9 de las 13** pruebas nuevas fallan —las 7 de la carrera
+con ratón, teclado y teléfono en cierre, boletas de los dos portales y clientes, y las 2 de un orden o un filtro elegidos
+en la pausa—; con la corrección, **13/13**. En un build de producción local, antes y después: la carrera pasa de 2
+navegaciones y acabar en la lista a **1** navegación y la fila elegida; buscar y abrir, idénticos en peticiones y en
+desplazamientos de maquetación; consola limpia en los dos.
+
+**Alternativas descartadas.** Esperar al desmontaje (es el defecto); escuchar los clics en enlaces (no ve las filas y
+tarjetas que navegan con `router.push`, ni Atrás); enviar la búsqueda al salir del campo (búsquedas de más, descartado
+en el encargo); cancelar en cada lista (descartado en el encargo); mirar `usePathname` o el evento `navigate` del
+navegador (llegan al confirmar la pantalla nueva, tarde); cancelar también en la misma pantalla (perdería la búsqueda
+por un filtro).
+
+**Lo que no cubre.** **I-200**: al revés, cuando la búsqueda **ya salió** y todavía no llega, un orden, un filtro o una
+página elegidos entonces se construyen con la dirección pintada —sin la búsqueda— y la sustituyen; el campo sigue
+mostrando lo escrito. Está en cada lista (`apply`, `useListSort`, la paginación), es anterior a D-245 y se midió igual
+antes y después: se decide aparte. Y **I-198 sigue abierta**: nada demuestra que el incidente de producción fuera esta
+carrera ni un servidor lento.

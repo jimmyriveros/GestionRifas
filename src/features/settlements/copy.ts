@@ -21,6 +21,13 @@ export function firstName(fullName: string): string {
   return fullName.trim().split(/\s+/)[0] ?? fullName
 }
 
+/**
+ * Lo que oye quien escucha la pantalla mientras se abre la cuenta pulsada
+ * (D-244): sin la fila a la vista, dice de quién es. Una sola frase para las dos
+ * listas que abren cuentas —la del personal y «Cuentas con tu equipo»—.
+ */
+const openingAccount = (name: string) => `Abriendo la cuenta de ${name}…`
+
 export const SETTLEMENT_COPY = {
   // ---------------------------------------------------------------------------
   // Navegacion y encabezados
@@ -115,8 +122,8 @@ export const SETTLEMENT_COPY = {
     reviewAria: (name: string) => `Revisar la cuenta de ${name}`,
     /** Mientras se abre la cuenta pulsada (D-244): ocupa el sitio de «Revisar cuenta». */
     opening: 'Abriendo cuenta…',
-    /** Lo mismo, para quien escucha la pantalla: sin la fila a la vista, dice de quién es. */
-    openingAria: (name: string) => `Abriendo la cuenta de ${name}…`,
+    /** Lo mismo, para quien escucha la pantalla. */
+    openingAria: openingAccount,
     formerSeller: (name: string) => `${name} (ya no vende)`,
     inactiveSeller: (name: string) => `${name} (inactivo)`,
     internalNote: 'Lo que un integrante entrega a su vendedor a cargo no se suma a «Recibido».',
@@ -350,6 +357,8 @@ export const SETTLEMENT_COPY = {
         ? `Los ${formatCOP(amount)} pendientes de ${name} ya están incluidos en tu entrega al dueño.`
         : `Los ${formatCOP(amount)} que tu equipo todavía no te entrega ya están incluidos en tu entrega al dueño.`,
     view: (name: string) => `Ver la cuenta de ${name}`,
+    /** Mientras se abre la cuenta del integrante pulsado (D-244). */
+    opening: openingAccount,
     empty: 'Tu equipo no tiene boletas en esta rifa.',
   },
 

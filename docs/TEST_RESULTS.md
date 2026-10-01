@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-244: «Revisar cuenta» avisa mientras se abre; I-198 e I-199, solo en local, 2026-09-30 en Bogotá)** | **1.966/1.966** en 97 archivos, antes y después: el cambio es de interfaz | **1.572 ✅ y 1 omitida**, antes y después: sin cambio de esquema | **5 nuevas** (`cierre-navegacion` 4, `-movil` 1) y las **10 del cierre**: **15/15**; las 5 nuevas, **4 fallan con la lista anterior**. La completa no se repitió | ✅ | **Solo en local**; la causa del incidente, **sin demostrar** (I-198) |
+| **Post-9 vigente (D-245: la búsqueda pendiente no cancela la navegación elegida —I-199 resuelta— y el aviso en «Cuentas con tu equipo»; I-200 nueva; solo en local, 2026-09-30 en Bogotá)** | **1.976/1.976** en 98 archivos (+10, `navigation-start`) | **1.572 ✅ y 1 omitida**: sin cambio de esquema | **16 nuevas** —13 del buscador, que fallan **9** con el buscador anterior, y 3 del equipo, que fallan con la tarjeta anterior—; completa: ver la sección | ✅ | **Solo en local**; candidato para publicar con D-244, **sin autorizar** |
+| Post-9 anterior (D-244: «Revisar cuenta» avisa mientras se abre; I-198 e I-199, solo en local, 2026-09-30 en Bogotá) | **1.966/1.966** en 97 archivos, antes y después: el cambio es de interfaz | **1.572 ✅ y 1 omitida**, antes y después: sin cambio de esquema | **5 nuevas** (`cierre-navegacion` 4, `-movil` 1) y las **10 del cierre**: **15/15**; las 5 nuevas, **4 fallan con la lista anterior**. La completa no se repitió | ✅ | **Solo en local**; la causa del incidente, **sin demostrar** (I-198) |
 | Post-9 anterior (C0–C7: el cierre de cuentas EN PRODUCCIÓN, `0080` y `edbc778`, 2026-10-01, 00:49–01:07 UTC) | CI del PR (`36798406550`) y de `main` (`36799151910`) sobre `edbc778`: ✅ 2/2, **1.966/1.966** | En los dos CI: **1.572 ✅ y 1 omitida** en 64 archivos. Producción en `0080`; `verify:remote` **55 + 3 rojas a propósito** antes y **58/58** después; C5 **CONTINUAR**, 0 filas tocadas | **No se repitió**: la última completa es la de D-241, **986/989**, aparte de sus repeticiones | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** |
 | Post-9 anterior (D-243: el candidato del cierre de cuentas, solo en local, 2026-09-30) | Las de D-242: **1.966/1.966**, sin repetir | Las de D-242: **1.572 ✅ y 1 omitida**, sin repetir. El código es el mismo desde `79c74b2` y la `0080`, desde `855abb8` | La completa de D-241, **986/989**, aparte de sus repeticiones | ✅ El de D-242 | Candidato preparado; **sin push, migración ni despliegue** |
 | Post-9 anterior (D-242: la puesta en marcha del cierre de cuentas, revisada; producción en solo lectura, 2026-09-30) | **1.966/1.966** en 97 archivos, sin cambio | **1.572 ✅ y 1 omitida** en 64 archivos (+9: `Z10`..`Z13` en `settlements`). Producción leída en `repeatable read read only` a las 23:15–23:18 UTC: solo recuentos | No se ejecutó: sin cambio de código de la aplicación. La última **completa** sigue siendo la de D-241, **986/989**; sus repeticiones aisladas, aparte | ✅ `verify` exit 0 (lint 0 errores, 2 avisos de siempre) | Revisada, **nada publicado**. Falta la información del dueño (`RUNBOOK` §11.2) |
@@ -17403,3 +17404,74 @@ data» no aparecen en `src/`, en `public/` ni en `.next/static`.
 Ninguna apertura de cuenta tiene entrada de función, ni las que funcionaron: la exportación está incompleta (50 únicas
 de 200). Sin duraciones, y sin saber si `timestamp` marca el inicio o el fin, la lectura «el servidor tardó varios
 segundos en ese tramo» es **compatible, no demostrada** (I-198).
+
+---
+
+## D-245 — La búsqueda pendiente no cancela la navegación elegida (I-199) y el aviso en «Cuentas con tu equipo» (2026-09-30 en Bogotá, solo en local)
+
+Rama `feature/detalle-boleta-admin` sobre `1b4da23` (D-244). **Producción, sin tocar ni leer.** Guiones y mediciones en
+`build/cierre-navegacion/`, fuera de Git: `busqueda.ts`, `consola.ts`, `busqueda-antes.json`, `busqueda-despues.json`,
+`busqueda-antes-cls.json`, `busqueda-despues-cls.json` y `consola-*-i199.json`.
+
+### a. Baterías
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ typecheck, lint con los **2 avisos de siempre**, **1.976/1.976** en 98 archivos (+10, `navigation-start.test.ts`) y build |
+| `npm run test:db` | ✅ **1.572 y 1 omitida** en 64 archivos |
+| `busqueda-navegacion` (11, escritorio) y `-movil` (2) | ✅ **13/13**. Con `use-url-search.ts` de `1b4da23`: **9 fallan** —las 7 de la carrera, que acaban en la lista («Cierre de cuentas» con «Ju», «Mis boletas» con «03», «Mis clientes» con «An»), y las 2 del orden y el filtro, que acaban en `?q=00` y `?q=An`—; pasan las 4 que no dependen del arreglo (otra pestaña ×2, Atrás/Adelante ×2) |
+| Solo la primera mitad de la corrección —descartar al salir, sin construir sobre la dirección a la que se va—, con una variante temporal del buscador | Las **2** pruebas de la misma pantalla **fallan**: «Incluir archivados» acaba en `?q=An`, sin el filtro, y el orden en `/seller/tickets`, sin orden ni búsqueda y con «00» en el campo. La segunda mitad hace falta. (Una primera ejecución de esto usaba la prueba del desplegable de §b y no valía) |
+| `cierre-navegacion` (6) y `-movil` (2), con «Cuentas con tu equipo» | ✅ **8/8**. Con `TeamAccountsCard` de `1b4da23`, sus **3** pruebas del equipo **fallan** |
+| E2E completa, base recién sembrada | ⚠️ **1.007/1.010** en 56,3 min. Los 3 fallos, explicados en §e: uno por una edición mía durante la pasada —repetido, 5/5— y dos conocidos y anteriores, I-148 e I-106 |
+| Repetido aparte, con el código final | `busqueda-navegacion`, `-movil` y `busqueda-hibrida`: **28/28**; la prueba de teclado, **5/5**; el catálogo público, escritorio y teléfono, **57/58** (el fallo es I-106) |
+
+### b. Errores encontrados al escribir, y corregidos
+
+| Error | Qué se hizo |
+|---|---|
+| La prueba del filtro elegía «Sin cerrar» con el teclado y el desplegable de Radix no llegó a cambiar: solo salía la búsqueda, y la prueba **fallaba por otro motivo** del que decía. Las dos ejecuciones anteriores con ese fallo no demostraban la pérdida del filtro | Visto con la lista de navegaciones de la prueba. Se sustituyó por dos navegaciones de **un** clic —la columna «Cliente» de «Mis boletas» y «Incluir archivados» de «Mis clientes»— y una aserción de que lo elegido **salió primero**; reproducen el defecto con el buscador anterior |
+| Con el ratón, elegir en el desplegable tardó 407 ms: la búsqueda ya había salido y el filtro, construido con la dirección pintada, la sustituyó | No es un error de la prueba: es **I-200**, la carrera al revés, medida en §c |
+| `git worktree remove` no pudo borrar el árbol temporal de `1b4da23` (rutas largas de `node_modules`) | Registro limpiado con `git worktree prune` y carpeta borrada con el prefijo `\\?\`. Los otros tres árboles de sesiones anteriores, intactos |
+| **Cambié `use-url-search.ts` con la E2E completa en marcha**, para el experimento de la primera mitad. `next dev` lo recargó dentro de la pasada | Restaurado a los ~30 s; la prueba que cayó en esa ventana se invalidó y se repitió aparte (§e), y el experimento se hizo al terminar la pasada. Anotado en `HANDOFF` como advertencia |
+
+### c. Builds de producción, antes (`1b4da23`) y después
+
+`next build` y `next start` con las variables de la Supabase local en el proceso (`build/demora-ficha/lanzar.ts`), el
+anterior desde un árbol de trabajo temporal; ninguna URL del proyecto real en ninguno de los dos. Base recién sembrada.
+Cada recorrido, **3 veces**, con resultados idénticos entre repeticiones.
+
+| Recorrido, en «Cierre de cuentas», «Boletas» de los dos portales y «Mis clientes» | Antes | Después |
+|---|---|---|
+| Buscar | 1 navegación; desplazamiento 0,0079 / 0,305 / 0,347 / 0,0092 | **Igual** |
+| Abrir una fila sin escribir | 1 navegación; desplazamiento 0 | **Igual** |
+| **Carrera**: escribir y abrir la fila en la pausa, con el destino a 1,5 s | **2** navegaciones —el destino, abortado, y la búsqueda— y acaba **en la lista** con `q`, en las 4 | **1** navegación, la del destino, y **la fila elegida**; desplazamiento 0 |
+| Un orden o un filtro en la pausa, retrasado (boletas ×2: columna; clientes: «Incluir archivados») | 2; queda **solo** `q` | 2; quedan **los dos** |
+| Un orden o un filtro con la búsqueda ya en camino (**I-200**) | 2; queda solo lo elegido, y el campo sigue diciendo «03», «06» o «An» | **Igual** |
+| Consola en un Chromium sin extensiones: las 4 listas buscando y abriendo, «Mi cierre de cuentas» y el catálogo público buscando | **0** mensajes | **0** mensajes, ni de la CSP |
+
+**Los desplazamientos son la lista que cambia, no algo nuevo que se mueve.** Atribuidos con `sources` de
+`layout-shift`: en los dos builds se mueven **los mismos** elementos —las filas, el contenedor de la lista y los botones
+de la paginación—. En «orden o filtro en la pausa», después, la lista cambia **dos** veces —el orden, a los ~1,65 s, y
+la búsqueda encima, a los ~1,95 s— y suma 0,41 en «Mis boletas» y 0,57 en las del personal, frente a una sola
+actualización antes; caen fuera de los 500 ms tras la última entrada solo porque la respuesta se retrasa a propósito. Y
+la búsqueda sola en «Boletas» ya desplazaba la lista 0,31–0,35, **igual antes y después**: llega pasada la pausa, fuera
+de esa ventana. No lo introduce D-245 y no se investigó.
+
+### d. Lo que no se probó
+
+| Qué | Por qué |
+|---|---|
+| Producción, y un teléfono real | Sin autorización para publicar; el proyecto `movil` de Playwright es Chromium emulado |
+| Safari y Firefox | Solo Chromium. `onRouterTransitionStart` es del router de Next, no del navegador, pero no se comprobó fuera de Chromium |
+| La carrera en el catálogo público | No tiene ningún enlace que salga de su página, y su escenario no llega a una segunda página. Lo cubren sus suites y la consola limpia de §c |
+| Un Atrás lento | En Next 16.3.6 Atrás restaura la pantalla al instante, así que la prueba de Atrás en la pausa pasa también con el buscador anterior: comprueba el historial, no el arreglo. El descarte en Atrás/Adelante protege una restauración lenta, que aquí no se pudo provocar |
+
+### e. La E2E completa y sus tres fallos
+
+**1.007/1.010** en 56,3 min (`npx playwright test`, `next dev`, base recién sembrada).
+
+| Fallo | Qué fue | Comprobación |
+|---|---|---|
+| `busqueda-navegacion.spec.ts:73`, «con el teclado» | **Una edición mía durante la pasada**: cambié `use-url-search.ts` unos 30 s (22:59 en Bogotá) para un experimento, con la suite en las pruebas 44 a 48; `next dev` recargó el archivo y esta prueba vio **dos** peticiones al destino con `_rsc` distintos | Aislada, **5/5**; las tres suites del buscador, **28/28**. Las demás pruebas de la ventana pasaron. El experimento se rehízo después de la pasada |
+| `premios-ganados.spec.ts:443` | **I-148**, anterior: tras recargar y pulsar Atrás la dirección sigue con `dateFrom=…`, la misma firma registrada en `735eb67` | Repetida 3 veces: **2/3**, el fallo con la misma firma. Esa pantalla no usa `useUrlSearch` ni escucha el aviso de navegación |
+| `catalogo-publico-movil.spec.ts:103` | **I-106**, anterior: «0» en el buscador y la dirección no llega a `?q=0` en 15 s. Hoy falló también con su archivo solo —1 de 1, y **2 de 5** repetida—, como I-106 ya registra desde el 2026-09-25 según la carga. Pero el catálogo usa el buscador cambiado, así que **se midió antes de descartarlo** | E2E repetida 5 veces: buscador anterior **con** `instrumentation-client`, 1 de 5; **sin**, 0 de 5. Con muestras tan cortas, un guion en `next dev`, 12 aperturas cada uno (`hidratacion-catalogo.ts`): hidratación ≈458 ms en los dos, la tecla **nunca** antes de hidratar, y la búsqueda sin llegar en 4 s en **5 de 12 con D-245** y **6 de 12 sin nada de D-245** (buscador anterior, sin el archivo). El mismo fallo, a la misma tasa: **no lo introduce D-245**. La causa sigue sin investigar |

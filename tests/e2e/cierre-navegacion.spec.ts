@@ -1,7 +1,19 @@
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test'
 
+import {
+  borrarEscenarioCierre,
+  crearEscenarioCierre,
+  type CierreEscenario,
+} from './cierre-escenario'
 import { loadSeedRefs, serviceClient } from './db-setup'
 import { ACCOUNTS, loginAs } from './fixtures'
+import {
+  comprobarTarjetaAbriendose,
+  comprobarTarjetaEnReposo,
+  esperarHidratado,
+  retrasarNavegacion,
+} from './navegacion-helpers'
+import { TOURS } from '../../src/features/tour/tours'
 
 /**
  * «Revisar cuenta» dice que se está abriendo (D-244), en escritorio.
@@ -42,17 +54,6 @@ function esLaCuenta(route: Route): boolean {
     req.headers()['rsc'] === '1' &&
     !req.headers()['next-router-prefetch']
   )
-}
-
-/**
- * Hasta que React engancha el enlace, el clic es una navegación del navegador
- * y ningún aviso de la página puede encenderse (TESTING.md §5.3). Se espera a
- * la hidratación en vez de reintentar: un clic de más ya habría navegado.
- */
-async function esperarHidratado(link: Locator) {
-  await expect
-    .poll(() => link.evaluate((el) => Object.keys(el).some((k) => k.startsWith('__reactProps'))))
-    .toBe(true)
 }
 
 async function abrirLista(page: Page): Promise<Locator> {
@@ -171,4 +172,75 @@ test('si la petición falla, la cuenta pulsada se abre igual', async ({ page }) 
   await expect(tituloDeLaCuenta(page)).toBeVisible()
   await expect(page).toHaveURL(new RegExp(`/owner/settlements/${vendedor.id}\\?`))
   expect(fallos).toBe(1)
+})
+
+/**
+ * «Cuentas con tu equipo» del vendedor a cargo (D-244): la misma tarjeta-enlace
+ * que la lista del personal en el teléfono, con el nombre del integrante en el
+ * anuncio. Sobre el escenario de Figma del cierre: Carlos y su integrante Ana.
+ */
+test.describe('«Cuentas con tu equipo», del vendedor a cargo', () => {
+  let esc: CierreEscenario
+
+  test.beforeAll(async () => {
+    test.setTimeout(180_000)
+    esc = await crearEscenarioCierre()
+  })
+
+  test.afterAll(async () => {
+    test.setTimeout(120_000)
+    await borrarEscenarioCierre()
+  })
+
+  async function entrarComoCarlos(page: Page) {
+    // Las cuentas del escenario nacen después del seed: su recorrido guiado se
+    // da por visto aquí, como en `cierre-cuentas.spec.ts`.
+    const claves = Object.values(esc.personas).flatMap((persona) =>
+      TOURS.map((tour) => `rifas.tour.${persona.id}.${tour.id}`),
+    )
+    await page.addInitScript((keys: string[]) => {
+      for (const key of keys) window.localStorage.setItem(key, 'e2e')
+    }, claves)
+    await loginAs(page, esc.personas.carlos.correo)
+    await page.goto(`/seller/settlement?raffleId=${esc.rifa.id}`)
+  }
+
+  test('la fila del integrante cambia de fondo y gira su flecha en el mismo clic, y abre su cuenta', async ({
+    page,
+  }) => {
+    await entrarComoCarlos(page)
+    const ana = esc.personas.ana
+    const fila = page.getByRole('link', { name: `Ver la cuenta de ${ana.nombre}` })
+    await esperarHidratado(fila)
+    await comprobarTarjetaEnReposo(fila)
+    const antes = (await fila.boundingBox())!
+
+    await retrasarNavegacion(page, `/seller/settlement/team/${ana.id}`, 2500)
+    await fila.click()
+
+    await comprobarTarjetaAbriendose(page, fila, `Abriendo la cuenta de ${ana.nombre}…`, antes)
+    await expect(page).toHaveURL(/\/seller\/settlement\?/)
+
+    await expect(
+      page.getByRole('heading', { level: 1, name: `Cuenta de ${ana.nombre}` }),
+    ).toBeVisible()
+    await expect(page).toHaveURL(new RegExp(`/seller/settlement/team/${ana.id}\\?`))
+  })
+
+  test('con el teclado también se avisa', async ({ page }) => {
+    await entrarComoCarlos(page)
+    const luis = esc.personas.luis
+    const fila = page.getByRole('link', { name: `Ver la cuenta de ${luis.nombre}` })
+    await esperarHidratado(fila)
+    const antes = (await fila.boundingBox())!
+
+    await retrasarNavegacion(page, `/seller/settlement/team/${luis.id}`, 2000)
+    await fila.focus()
+    await page.keyboard.press('Enter')
+
+    await comprobarTarjetaAbriendose(page, fila, `Abriendo la cuenta de ${luis.nombre}…`, antes)
+    await expect(
+      page.getByRole('heading', { level: 1, name: `Cuenta de ${luis.nombre}` }),
+    ).toBeVisible()
+  })
 })

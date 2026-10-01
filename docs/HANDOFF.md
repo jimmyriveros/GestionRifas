@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **La búsqueda pendiente ya no cancela la navegación elegida (I-199) y «Cuentas con tu equipo» avisa: SOLO EN LOCAL, candidato junto con D-244 (2026-09-30 en Bogotá, D-245; I-200 nueva; sin push ni despliegue)** | **Hecho:** `useUrlSearch` descarta la búsqueda pendiente al **empezar** una navegación que sale de la pantalla o va Atrás/Adelante —`onRouterTransitionStart` en `src/instrumentation-client.ts`, `lib/navigation-start.ts`— y, dentro de la pantalla, no la cancela y la construye sobre la dirección a la que se va. Lo heredan cierre, boletas de los dos portales, clientes y el catálogo, sin arreglos por lista. «Cuentas con tu equipo» lleva `RowLinkPendingChevron` con el nombre del integrante. **Medido:** 9 de las 13 pruebas nuevas fallan con el buscador anterior y pasan con el nuevo; las 3 del equipo, igual con la tarjeta; en builds de producción, la carrera pasa de 2 navegaciones y la lista a 1 y la fila elegida, sin peticiones ni desplazamientos de más en buscar o abrir. **Abierto:** I-200 (la carrera al revés, anterior) e I-198, sin atribuir. `verify` ✅ 1.976; `test:db` ✅ 1.572 + 1. Relevo en §1.a |
 | **«Revisar cuenta» sin aviso: la respuesta visual, corregida SOLO EN LOCAL; la causa, sin demostrar (2026-09-30 en Bogotá, D-244; I-198 e I-199; sin push ni despliegue)** | El dueño vio en producción la lista quieta y sin aviso tras pulsar «Revisar cuenta». **Hecho:** `RowLinkPending` (`useLinkStatus`, el recurso del menú): el botón dice «Abriendo cuenta…» en el mismo clic, la tarjeta del teléfono cambia de fondo y gira su flecha, y se anuncia «Abriendo la cuenta de {nombre}…»; la precarga no cambia. Medido en un build de producción local: aviso a 1 ms del clic, la misma única petición y el mismo tiempo de apertura; con demoras, cuelgues y fallos siempre acaba en la cuenta pulsada o la abre un segundo clic. **Sin demostrar** la causa del incidente (I-198): los registros son compatibles con un servidor lento ese tramo. **Encontrado y sin corregir:** I-199, la búsqueda con pausa cancela la apertura de una fila pulsada justo después. Los avisos de consola de la captura **no son de Rifas**. `verify` ✅ 1.966; `test:db` ✅ 1.572 + 1; E2E del cierre **15/15**, con 5 nuevas. Relevo en §1.a |
 | **El cierre de cuentas EN PRODUCCIÓN (2026-10-01, 01:03 UTC; D-241 a D-243; `0080` y `edbc778`)** | **Publicado** con la autorización del dueño para C0–C7 de `RUNBOOK` §11, sin pausa ni interrupción: `0080` aplicada (24,7 s) y **`edbc778`** servido (`dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ`, build `a691f412c09e`). `verify:remote` 55 + 3 rojas a propósito antes y **58/58** después; C5 **CONTINUAR**, sin diferencias con lo ensayado ni filas tocadas; CI del PR y de `main`, 2/2; en vivo, todo en verde; registros sin errores. Las tablas del cierre, vacías: nadie registró nada; «Recibido $0» es lo correcto y los 4 premios siguen sin pago registrado. **La revisión del dueño (C7), conforme**, sin un movimiento registrado. Reversión del código: `dpl_Ai8D4euCmirhhtYvBqzWQKhG4ZEq` (`5f84e13`), compatible |
 | **El candidato del cierre de cuentas, PREPARADO EN LOCAL (2026-09-30, D-243; sin push, migración ni despliegue)** | El dueño confirmó que **los vendedores todavía no le han entregado dinero** —«Recibido $0» es correcto— y que **no hubo premios pagados** en los 25 sorteos sin resultado guardado (no que no hubo premios ganados, ni que el historial esté completo). Sin cambios en el producto: I-194 e I-197 quedan como límites documentados que no requieren cambios para esta puesta en marcha; I-196 no afecta hoy. Los 4 premios del historial no se marcan solos: falta saber de cada uno si se pagó, quién, la fecha y, si su valor está por confirmar, el importe (`RUNBOOK` §11.2.a). **Candidato:** la cabeza de la rama con D-243; su código es el verificado en D-242 (`verify` ✅ 1.966, `test:db` ✅ 1.572 + 1) y su `0080`, la ensayada. **Falta:** C0 (lectura de producción), C1 (push y CI), la franja y la autorización de migrar y desplegar |
@@ -188,7 +189,21 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — «Revisar cuenta» avisa mientras se abre; el incidente, investigado (D-244, **solo en local**, 2026-09-30 en Bogotá)
+## 1.a Último relevo significativo — La búsqueda que no cancela la fila (I-199) y el aviso en «Cuentas con tu equipo» (D-245, **solo en local**, 2026-09-30 en Bogotá)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Hecho y comprobado:** una búsqueda a medio escribir ya no cancela la fila que se abre —en cierre, boletas de los dos portales y clientes, con ratón, teclado y dedo—, ni un orden o un filtro elegidos durante la pausa. «Cuentas con tu equipo» dice que se abre la cuenta del integrante. **Preparado** para publicarse junto con D-244 (`DEPLOYMENT` §3.3.d). Fuera, a propósito: I-200 —la carrera al revés, que vive en cada pieza que arma su dirección— e I-198, que sigue sin causa |
+| Archivos | Nuevos: `src/instrumentation-client.ts`, `src/lib/navigation-start.ts`, `tests/e2e/busqueda-navegacion.spec.ts` y `-movil`, `tests/e2e/navegacion-helpers.ts`, `tests/unit/navigation-start.test.ts`. Cambiados: `use-url-search.ts`, `TeamAccountsCard.tsx`, `settlements/copy.ts` (`openingAccount`, una frase para las dos listas), `cierre-navegacion*.spec.ts`. Documentación: D-245 (y una nota en D-244), I-199, I-200, I-198, `TEST_RESULTS`, `TESTING`, `ARCHITECTURE` §8.2, `UX_COPY_GUIDELINES`, `DEPLOYMENT` §3.3.d y `PHASE_STATUS`. Fuera de Git, en `build/cierre-navegacion/`: `busqueda.ts`, `consola.ts` y sus mediciones |
+| Reutilización | El gancho de Next `onRouterTransitionStart` (sin dependencias); el estilo de módulo de `navigation-history.ts`; `RowLinkPending` de D-244 tal cual; el escenario de Figma del cierre; `lanzar.ts` de I-190 para los builds locales, el anterior desde un árbol de trabajo temporal ya retirado |
+| Decisiones | D-245: descartar al **empezar** a salir —no al desmontar—, Atrás/Adelante siempre como salir, y dentro de la pantalla construir sobre la dirección a la que se va. Descartados: escuchar clics en enlaces, enviar al salir del campo, arreglos por lista, `usePathname`, el evento `navigate` |
+| Verificación | `verify` ✅ **1.976/1.976** y build; `test:db` ✅ **1.572 + 1**; las 13 nuevas del buscador, **13/13**, y **9 fallan** con el buscador anterior; las 8 de `cierre-navegacion`, **8/8**, y las 3 del equipo fallan con la tarjeta anterior; builds de producción antes y después; consola limpia en las cuatro listas y el catálogo. E2E completa **1.007/1.010** en 56,3 min: `busqueda-navegacion:73`, por mi edición durante la pasada (aislada, 5/5); I-148 (2/3 repetida); e I-106 (5 de 12 con D-245 y 6 de 12 sin él, medido). Detalle en `TEST_RESULTS`, D-245 §e |
+| Advertencias | **1)** `instrumentation-client.ts` corre en todas las páginas antes de hidratar: no le añadas nada. **2)** Una carrera de búsqueda se arregla en `useUrlSearch`, nunca en una lista. **3)** No edites código mientras corre una E2E con `next dev`: el servidor recarga el archivo y la pasada deja de valer (me pasó una vez en esta sesión, con dos suites que se repitieron aparte) |
+| Pendiente | Publicar D-244 y D-245 juntos, **sin autorizar**: push, CI y despliegue (`DEPLOYMENT` §3.3.d). Decidir I-200. Si I-198 se repite, la hora exacta y la pestaña Red. Siguen I-190, I-193 y lo de §1.a.0 |
+| Entorno (al entregar) | Local: `0080`, recién sembrada al final, sin servidores ni árboles temporales. Producción: sin tocar ni leer; sigue `edbc778` |
+| Git | Rama `feature/detalle-boleta-admin`: `1b4da23` (D-244) y el commit de este trabajo encima, **sin empujar**; esa cabeza es el candidato. Los tres archivos del usuario, intactos |
+
+## 1.a.0 Relevo anterior — «Revisar cuenta» avisa mientras se abre; el incidente, investigado (D-244, **solo en local**, 2026-09-30 en Bogotá)
 
 | Campo | Estado |
 |---|---|
@@ -2568,7 +2583,8 @@ si no existieran:
 | **I-037** — filtro fijo de clientes topado en 200 | Priorizar un selector con búsqueda cuando el volumen lo justifique |
 | **I-046 a I-053** — límites y derivas encontrados por esta auditoría | Revisar `KNOWN_ISSUES.md`: no se modificó código para corregirlos porque esta tarea es solo documental |
 | **I-198** — «Revisar cuenta» dejó la lista quieta en producción | La respuesta visual está corregida **en local** (D-244, sin publicar). La causa sigue **sin demostrar**: si se repite, la hora exacta y la pestaña Red del navegador |
-| **I-199** — la búsqueda con pausa cancela la apertura de una fila pulsada justo después | **Reproducida, sin corregir**, en todas las listas con `useUrlSearch`. Decidir la corrección propuesta en `KNOWN_ISSUES` y probarla con las E2E de esas listas |
+| **I-199** — la búsqueda con pausa cancelaba la apertura de una fila pulsada justo después | **Resuelta en local** (D-245, sin publicar), con 9 pruebas que fallan con el buscador anterior. Publicarla junto con D-244 está **sin autorizar** (`DEPLOYMENT` §3.3.d) |
+| **I-200** — un orden, un filtro o una página elegidos con la búsqueda ya en camino la sustituyen | **Reproducida, sin corregir**, igual antes y después de D-245. Está en cada pieza que arma su dirección desde la pintada (`apply`, `useListSort`, `DataTablePagination`); la propuesta, en `KNOWN_ISSUES` |
 
 ## 1.c Contexto histórico preservado
 
@@ -2977,6 +2993,12 @@ components/data/    DataTable · DataTablePagination · EmptyState
                     copies el useLinkStatus en otra lista, usa estas
 lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
                     BackButton. Contador de modulo, no sessionStorage (D-089)
+lib/navigation-start.ts  el aviso de que el router EMPIEZA a navegar (D-245): lo
+                    alimenta onRouterTransitionStart de src/instrumentation-client.ts,
+                    sincrono y antes de pedir el destino. leavesPage dice si sale de la
+                    pantalla. Si algo tiene que actuar ANTES de que llegue la pantalla
+                    nueva, se suscribe aqui: usePathname y el desmontaje llegan tarde.
+                    instrumentation-client corre en TODAS las paginas: no le añadas nada
 components/layout/  AppShell · CompactHeader (cabecera contextual, D-150): el cruce
                     lo decide IntersectionObserver; el CTA se marca con
                     CompactActionSlot y se mueve con un portal. NavLinks (lateral,
@@ -3158,7 +3180,10 @@ features/search/    busqueda hibrida (D-078/D-079): useUrlSearch (listas paginad
                     servidor) · useRemoteSearch (dialogos) · SearchInput · hints.ts,
                     donde viven TODAS las pistas de los buscadores. El termino se
                     normaliza en lib/search.ts, que tiene que seguir coincidiendo con
-                    search_normalize() de la migracion 0017
+                    search_normalize() de la migracion 0017. Desde D-245 useUrlSearch
+                    descarta la busqueda pendiente si la persona SALE de la pantalla, y
+                    dentro de ella la construye sobre la direccion a la que se va: no
+                    arregles una carrera de busqueda en una lista, arreglala aqui
 features/clients/components/ClientLinkCard  el cliente como fila pulsable entera, con
                     su avatar, su telefono y su flecha, hacia la ficha de cliente QUE YA
                     EXISTE (D-101). Un solo componente para los dos portales; el href es

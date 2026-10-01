@@ -1729,7 +1729,9 @@ cuenta…»** en el mismo clic, con el icono girando, hasta que llega la cuenta.
 vendedor, a la altura de su nombre, igual que «Revisar cuenta»; quien escucha la pantalla no tiene la fila delante y
 oye **«Abriendo la cuenta de Carlos Ruiz…»**, con el nombre (Anexo C: «cuenta» nunca va sola). En el teléfono la
 tarjeta no tiene un texto que cambiar: la flecha gira y la tarjeta toma el fondo de una fila pulsada, con el mismo
-anuncio. Ningún texto promete cuánto falta ni dice que algo falló: el aviso solo confirma que el clic llegó.
+anuncio. «Cuentas con tu equipo», la lista del vendedor a cargo, hace lo mismo con el nombre del integrante —«Abriendo
+la cuenta de Ana Gómez…»— (D-245): es la misma frase, escrita una vez. Ningún texto promete cuánto falta ni dice que
+algo falló: el aviso solo confirma que el clic llegó.
 
 **Etiquetas de estado:** su redacción está fijada y **no se improvisa** — Borrador · Pendiente de
 aprobación · Disponible · Asignada · Anulada · Sin pagar · Abonada · Pagada · Activa · Cerrada, más
@@ -1962,7 +1964,7 @@ castigo donde solo había una espera.
 | «premio» y «premios» en la paginación | `LIST_ITEM_LABELS.prizes`, en `src/lib/constants.ts` (D-111) |
 | «entre el 9 y el 24 de agosto de 2026» | `formatLongDateBetweenEs` (`lib/dates.ts`), hermana de `formatLongDateRangeEs`: comparten el cálculo y cambian solo las palabras |
 | Todos los textos del cierre de cuentas: los dos portales, el recuadro del saldo, el cálculo, los premios, las entregas, el equipo y los cinco diálogos | `src/features/settlements/copy.ts` (`SETTLEMENT_COPY`), **todos juntos** (D-241). El primer nombre de «Falta recibir de Carlos» lo corta `firstName`, ahí mismo |
-| «Abriendo cuenta…» y «Abriendo la cuenta de {nombre}…», mientras se abre una cuenta del listado | `SETTLEMENT_COPY.staffList.opening` y `openingAria` (D-244). Los pinta `RowLinkPending` (`src/components/data/`), que no escribe ningún texto: los recibe de quien lo usa |
+| «Abriendo cuenta…» y «Abriendo la cuenta de {nombre}…», mientras se abre una cuenta del listado | `SETTLEMENT_COPY.staffList.opening` y `openingAria` (D-244); en «Cuentas con tu equipo», `SETTLEMENT_COPY.team.opening` (D-245). Las dos claves del anuncio apuntan a **una** frase, `openingAccount`, en el mismo archivo. Los pinta `RowLinkPending` (`src/components/data/`), que no escribe ningún texto: los recibe de quien lo usa |
 | Las siete etiquetas del estado de una cuenta —Sin boletas pagadas · Falta información · Pendiente · Entrega parcial · A favor del vendedor · Por cerrar · Cerrada— y su tono | `src/lib/constants.ts` (`SETTLEMENT_STATUS_LABELS` y `SETTLEMENT_STATUS_TONES`, D-241). Las pinta `SettlementStatusBadge` |
 | Las frases de un premio dentro del cierre: su estado, quién pudo pagarlo según quien mira y a quién pedírselo | `src/features/settlements/view.ts` (`prizeState`, `prizeStateLabel`, `staffPrizePayers`, `headPrizePayers`), que las **compone** de `SETTLEMENT_COPY` sin escribir ninguna |
 | «Cierre de cuentas» y «Mi cierre de cuentas» en el menú | El `label` de cada portal, en su `layout.tsx` (D-106); son las mismas palabras de `SETTLEMENT_COPY.nav` |
