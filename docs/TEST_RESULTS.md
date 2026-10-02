@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada)** | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, pendiente |
+| **Post-9 vigente (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada)** | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
 | Post-9 anterior (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02) | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
 | Post-9 anterior (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02) | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
 | Post-9 anterior (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC) | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** (23:14–23:18 UTC), sin movimientos contables |
@@ -17822,7 +17822,7 @@ Huella de `src/` y `tests/` (791 archivos): **`e8cf2e733dc99fe1`** antes y despu
 
 ---
 
-## Publicación de I-204 e I-115 — EN PRODUCCIÓN: `0490d69` (2026-10-02, 15:37–17:35 UTC; la revisión del dueño, pendiente)
+## Publicación de I-204 e I-115 — EN PRODUCCIÓN: `0490d69` (2026-10-02, 15:37–17:35 UTC; la revisión del dueño, hecha a las 18:16)
 
 Autorización expresa del dueño para publicar juntas I-204 (D-247) e I-115 (D-248) según `DEPLOYMENT` §3.3.f, con el
 candidato `0490d69`, sin pedir permiso por paso mientras se cumplieran sus condiciones. **Sin migración y sin pausa.**
@@ -17884,10 +17884,50 @@ sitios: **local** (§a), **CI** (§c) y **producción** (§b, §d–§g).
 | Bash interpretó las comillas invertidas de un `node -e` al documentar | Una fila de `DEPLOYMENT` §3.3.f perdió tres fragmentos de código; se vio y se corrigió con el editor antes del commit |
 | El evento de CSP `script-src eval` en `/login` y `/forgot-password` | La sonda de Zod 4 (`allowsEval`), ya registrada como ajena en la publicación anterior; `formularios-en-vivo.mjs` la cuenta aparte, a la vista |
 
-### g. La revisión del dueño, con su sesión
+### g. La revisión del dueño, con su sesión (≈18:16–18:17 UTC)
 
-**Pendiente.** Los pasos —cinco minutos, sin cambiar nada— están en `DEPLOYMENT` §3.3.f; sus registros se leen dentro
-de la hora después de su aviso.
+**Hecha.** Su aviso, tal cual: «Acabo de hacer la revisión que me pediste. El click en "Mis boletas" toma algo de
+tiempo». No informó de ningún otro problema. Lo de debajo se leyó o se midió **después** de su aviso, sin su sesión y
+sin cambiar nada.
+
+**g.1 Registros de Vercel, dentro de la hora** (`dpl_9vnY27T4Pi4QPr7hTbmwiJGk76Ni`, de 17:31 a 18:34 UTC):
+
+| Comprobación | Resultado |
+|---|---|
+| Por código | 200 ×313, 307 ×55, 401 ×2 y 404 ×2, más un quinto valor que la herramienta no lista; **0** 5xx, en una consulta aparte |
+| Los 4xx | Las cuatro sondas de la verificación: `POST /api/lottery/sync` y `POST /api/push/dispatch` sin secreto (401, 17:32:52 y 17:32:58) y un enlace de catálogo inexistente, dos veces (404, 17:33:02 y 17:33:24) |
+| Errores | `get_runtime_errors`: ninguno. **0** líneas con `getActiveMembership` —el `console.error` del fallo de I-115—, `PGRST`, `membres` o `inactive` |
+| La ventana de la revisión | Encaja con sus pasos: `POST /login` a las 18:16:12, la portada y el panel a las 18:16:16–17, `/seller/tickets` entre las 18:16:30 y las 18:16:36, `/account/password` a las 18:17:08 y 18:17:12; **todo en 200**. A la vez, otros vendedores registraban abonos y ventas: los registros **no** dicen de quién es cada petición, y la herramienta repite o recorta filas, así que una fila que falta no prueba nada |
+| Duración de cada petición | **No disponible**: los registros de Hobby no la guardan y la API de observabilidad responde 404 |
+
+**g.2 La base, en solo lectura** (`build/publicacion-i204-i115/revision-base.mts`, 18:20:35 UTC; `pg_stat_statements`
+acumulado desde el 2026-08-02):
+
+| Consulta de «Mis boletas» | Media | Máximo |
+|---|---|---|
+| `memberships`, las de la guarda y el portal | 2,0–6,5 ms | 17–280 ms |
+| `raffles` | 3,5 ms | 485 ms |
+| `v_seller_ticket_list` | 6,5 y 14,6 ms | 40 y 70 ms |
+
+Las más lentas de media son de Studio y pg-meta (dependencias, 1,96 s; extensiones, 0,52 s), `pg_timezone_names` (0,50
+s, la caché del esquema de PostgREST), la comparación de las puertas y la limpieza de `cron`: ninguna de una pantalla. La
+bitácora desde la publicación: 3 abonos y una venta, de vendedores, como un día normal.
+
+**g.3 La red desde el equipo del dueño, en solo lectura y sin sesión** (`build/publicacion-i204-i115/red/`:
+`medir.sh` —el método de I-203 con `/seller/tickets` sin sesión añadida, copiado para no pisar aquella evidencia—,
+`resumen.mjs` y `comparar-destinos.sh`):
+
+| Medición (UTC) | Resultado |
+|---|---|
+| 18:28–18:29: 18 peticiones a Rifas, una conexión nueva cada una | **16 de 18** conexiones tardaron **≈1,1–3,3 s** en abrirse —los reintentos del SYN de Windows, a 1 y 3 s—; la más rápida, 0,02 s |
+| El servidor, ya conectado | `/login` **0,17–0,22 s** hasta el primer byte; `/seller/tickets` sin sesión —el proxy redirige a `/login`— 0,94 s la primera vez y 0,16–0,17 s después; los estáticos 0,12–0,22 s, salvo un CSS de 1,75 s |
+| 18:30–18:31: otros destinos, 4 rondas | `gestion-rifas.vercel.app` **2 de 4** con ≈3,1 s, y una tercera que, ya conectada, tardó 2,8 s en responder; `vercel.com` **1 de 4**; Supabase, Cloudflare, GitHub y Google **0 de 16**, todas por debajo de 0,15 s |
+
+**Lectura:** I-203 sigue activo, como el 2026-10-02 a la 01:41 (15 de 15): las conexiones nuevas hacia Vercel se
+pierden y salen en un reintento, y hacia los demás sitios no. Si el dueño revisó desde esta red, un clic que necesite
+una conexión nueva, o que pierda un paquete por el camino, puede tardar 1–3 s de más; y con D-104 la pantalla anterior
+se queda, con el icono girando, hasta que llega la nueva, así que esa espera se ve entera. **No se puede afirmar**
+cuánto tardó su clic ni desde qué red lo hizo. **Nada apunta a `0490d69`**, y no hay motivo para revertir.
 
 ### h. Lo que NO se hizo
 
@@ -17896,6 +17936,7 @@ de la hora después de su aviso.
 | Provocar un fallo de membresía en producción, enviar un formulario o escribir una credencial, ni ficticia | Lo prohíbe el encargo; el comportamiento está probado en local y la huella servida es el identificador |
 | Empujar los commits de documentación | Desplegarían otra versión y moverían el punto de reversión (§3.2.w) |
 | Actualizar Supabase, contratar Pro, añadir reintentos o instrumentación | Sin autorizar |
+| Medir con sesión, en producción, cuánto tarda el clic en «Mis boletas» | El agente no entra en producción; los registros de Hobby no guardan duraciones, y la instrumentación sigue sin autorizar (§g) |
 
 ---
 

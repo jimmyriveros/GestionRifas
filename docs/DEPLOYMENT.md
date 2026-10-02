@@ -1,8 +1,10 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-02, 17:40 UTC (**§3.2.x nueva: I-204 e I-115 EN PRODUCCIÓN** —`0490d69`, sin migración ni
-pausa; el punto de reversión pasa a `a5d90f9`, que reintroduciría los dos defectos—; §3.3.e, §3.3.f y §4.1, al día).
-Antes, ese mismo día, más tarde (**§3.3.f nueva**: I-115, corregida en local encima de I-204 y **preparada, sin
+**Actualizado:** 2026-10-02, 18:45 UTC (§3.2.x: **la revisión del dueño, hecha** —su único comentario, que el clic en
+«Mis boletas» tarda; los registros, sin errores, nada de esta entrega toca esa pantalla, y la red hacia Vercel, con
+I-203 activo—). Antes, ese mismo día, 17:40 UTC (**§3.2.x nueva: I-204 e I-115 EN PRODUCCIÓN** —`0490d69`, sin
+migración ni pausa; el punto de reversión pasa a `a5d90f9`, que reintroduciría los dos defectos—; §3.3.e, §3.3.f y
+§4.1, al día). Antes, ese mismo día, más tarde (**§3.3.f nueva**: I-115, corregida en local encima de I-204 y **preparada, sin
 autorizar**; D-248). Antes, ese mismo día (**§3.3.e nueva**: I-204, corregida en local y **preparada para publicarse
 sola, sin autorizar**; D-247). Antes, 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, **conforme** —«Todo se vio bien, no noté nada
 raro»—, sin movimientos contables). Antes, ese mismo día, 17:13 UTC (**§3.2.w nueva: D-244 y D-245 EN PRODUCCIÓN** —`a5d90f9`, sin migración ni
@@ -1288,8 +1290,19 @@ de Zod 4 (`script-src eval`), uno por página. `verify:remote` **58/58**; la bas
 errores, avisos o 5xx. No se envió ningún formulario ni ninguna credencial, ni ficticia. Detalle en `TEST_RESULTS`,
 «Publicación de I-204 e I-115».
 
-> **Revisión del dueño con su sesión: pendiente.** Los pasos están en §3.3.f; sus registros se leen dentro de la hora
-> después de su aviso.
+> **Revisión del dueño con su sesión, hecha** (≈18:16–18:17 UTC; 13:16 en Bogotá). Su aviso: «Acabo de hacer la
+> revisión que me pediste. El click en "Mis boletas" toma algo de tiempo». **No informó de ningún otro problema**, y
+> esa demora **no viene de esta entrega**.
+
+| Qué | Resultado |
+|---|---|
+| Registros, leídos dentro de la hora | La ventana que encaja con sus pasos —entrar a las 18:16:12, el panel, «Mis boletas» y «Cambiar contraseña» a las 18:17:08–12— está toda en 200. Desde la publicación hasta las 18:34: **0** 5xx, **0** errores de ejecución y **0** líneas de `getActiveMembership` o de `PGRST`; los cuatro 4xx son las sondas de la verificación (17:32–17:33). Otros vendedores trabajaban a la vez, y los registros no dicen de quién es cada petición |
+| ¿Lo causa esta entrega? | **No.** Lo publicado son 11 archivos: los formularios de acceso, la acción de entrar, la sesión, las guardas y dos rutas de API. En «Mis boletas» solo cambia la rama de error de la guarda, que no se dio. Sus consultas tardan **2–15 ms** de media en la base (`pg_stat_statements`) |
+| La red, medida después (I-203) | De 18:28 a 18:31 UTC, desde el equipo del dueño y sin sesión: **16 de 18** conexiones nuevas a Rifas tardaron **≈1–3 s** en abrirse, frente a **0 de 16** hacia Supabase, Cloudflare, GitHub y Google; ya conectado, `/login` respondió en **0,17–0,22 s** (`TEST_RESULTS`, «Publicación de I-204 e I-115» §g) |
+| Por qué se nota en el clic | Sin `loading.tsx`, a propósito (D-104): la pantalla anterior se queda, con el icono girando, hasta que llega la nueva, así que cualquier espera de la red se ve entera |
+| Lo que no se puede afirmar | Cuánto tardó su clic —Vercel no guarda duraciones en Hobby— ni que lo hiciera desde esa misma red |
+| Decisión | **Nada que hacer sobre la publicación**: no hay motivo de reversión, y volver a `a5d90f9` reintroduciría I-204 e I-115. Lo pendiente de I-203 no cambia: la prueba con los datos del teléfono (`KNOWN_ISSUES`, I-203) |
+
 > **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
 > versión y moverían el punto de reversión.
 
@@ -1555,7 +1568,8 @@ propio y se puede publicar solo.
 #### 3.3.f I-115: un fallo al leer la membresía no cierra la sesión — **EN PRODUCCIÓN desde el 2026-10-02, 17:31 UTC**, junto con §3.3.e (D-248; registro en §3.2.x)
 
 > **Publicado el 2026-10-02**, con la autorización expresa del dueño (§3.2.x). Lo de debajo es la preparación, tal como
-> quedó, salvo la revisión del dueño, que dice ya los pasos concretos.
+> quedó, salvo la revisión del dueño, que dice ya los pasos concretos. **La revisión, hecha** a las 18:16–18:17 UTC:
+> su resultado está en §3.2.x.
 
 El dueño autorizó corregirlo **en local**; push, CI sobre `main` y despliegue siguen **sin autorizar**. Va **encima** de
 §3.3.e en la misma rama: publicarlo publica también I-204, que sí se puede publicar antes y sola, hasta su commit.
