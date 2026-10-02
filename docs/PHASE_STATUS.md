@@ -21,7 +21,7 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   decisión del dueño—; **I-202**, ficha nueva para un `PGRST303` de producción anterior y sin investigar; **I-200**, sin
   corregir; **I-198**, sin causa demostrada; I-090, I-106 e I-148, de las pruebas. Siguen I-190, I-193 e I-194 a I-197.
   **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y `DEPLOYMENT` §3.2.w. **La revisión del dueño con su sesión,
-  hecha** (23:14–23:18 UTC), sin problemas informados ni movimientos contables; «Cuentas con tu equipo» no se abrió y
+  conforme** (23:14–23:18 UTC: «Todo se vio bien, no noté nada raro»), sin movimientos contables; «Cuentas con tu equipo» no se abrió y
   queda probado solo en local. Punto de reversión: `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` (`edbc778`).
 
 - Antes, 2026-10-01 en UTC (noche del 30 en Bogotá) — **La búsqueda pendiente no cancela la navegación elegida

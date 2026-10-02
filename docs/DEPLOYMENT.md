@@ -1,7 +1,7 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, hecha, sin problemas informados ni movimientos
-contables). Antes, ese mismo día, 17:13 UTC (**§3.2.w nueva: D-244 y D-245 EN PRODUCCIÓN** —`a5d90f9`, sin migración ni
+**Actualizado:** 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, **conforme** —«Todo se vio bien, no noté nada
+raro»—, sin movimientos contables). Antes, ese mismo día, 17:13 UTC (**§3.2.w nueva: D-244 y D-245 EN PRODUCCIÓN** —`a5d90f9`, sin migración ni
 pausa; el punto de reversión pasa a `edbc778`—; §3.3.d y §4.1, al día). Antes, ese mismo
 día, 01:42 UTC (§3.2.v: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
 (**§3.2.v nueva: el cierre de cuentas EN PRODUCCIÓN** —`0080` y `edbc778`, sin
@@ -1236,8 +1236,8 @@ esta entrega**: la sonda de Zod 4 (`allowsEval`) deja un evento de CSP `script-s
 `/mantenimiento` no ejecuta JavaScript por diseño (D-239, como I-070). Detalle en `TEST_RESULTS`, «Publicación de D-244 y
 D-245».
 
-> **Revisión del dueño con su sesión, hecha** (23:14–23:18 UTC; 18:14–18:18 en Bogotá): avisó «Ya hice toda la revisión»
-> **sin informar de ningún problema**, y sus registros se leyeron enseguida, dentro de la hora. «Cierre de cuentas» y la
+> **Revisión del dueño con su sesión, conforme** (23:14–23:18 UTC; 18:14–18:18 en Bogotá): avisó «Ya hice toda la
+> revisión», sus registros se leyeron enseguida, dentro de la hora, y confirmó: **«Todo se vio bien, no noté nada raro»**. «Cierre de cuentas» y la
 > cuenta de un vendedor como personal, «Mi cierre de cuentas» como vendedor y el detalle de una boleta abierto desde «Mis
 > boletas», todo en 200; 0 errores, 4xx o 5xx. **«Cuentas con tu equipo» no se abrió**: ese recorrido queda probado
 > **solo en local**. La base, al terminar, **sin ningún movimiento contable**: el cierre con las mismas cifras y 0 filas de

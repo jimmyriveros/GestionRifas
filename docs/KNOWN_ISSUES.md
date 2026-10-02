@@ -1,6 +1,6 @@
 # PROBLEMAS CONOCIDOS Y RIESGOS
 
-**Actualizado:** 2026-10-01, 23:25 UTC — la revisión del dueño de D-244 y D-245, hecha y sin problemas informados.
+**Actualizado:** 2026-10-01, 23:25 UTC — la revisión del dueño de D-244 y D-245, **conforme** («Todo se vio bien, no noté nada raro»).
 **I-202, ficha nueva** para una agrupación de Vercel anterior y sin investigar: `PGRST303 «JWT issued at future»` en
 `/seller/tickets`, una vez desde la publicación. Antes, ese mismo día, 17:13 UTC — **D-244 y D-245 EN PRODUCCIÓN**
 (`a5d90f9`, `DEPLOYMENT` §3.2.w): **I-199**,
