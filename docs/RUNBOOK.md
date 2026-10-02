@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+**Actualizado:** 2026-10-02, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
 (**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
 sin pausa; C4 dice ahora `?lock_timeout`, porque la URL de `.env.local` no trae parámetros). Antes, 2026-09-30, por
 la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
@@ -1425,3 +1425,91 @@ ensayo con una foto de producción tomada en C0: la de P9 es de antes de cualqui
 * **No** se borra ninguna fila del cierre para corregir algo: se **anula**, con su motivo (BR-Z14).
 * **No** se «empieza desde hoy» ni se pone un saldo en cero: lo anterior se registra como ocurrió (BR-Z19).
 * **No** se reorganiza el equipo de un vendedor a cargo con hechos sin registrar —lo que recibió ni lo que pagó— (BR-Z21).
+
+---
+
+## 12. Actualizar el proyecto de Supabase para corregir I-202 — **PREPARADO, SIN AUTORIZAR** (2026-10-02, D-246)
+
+El rechazo esporádico `PGRST303 «JWT issued at future»` (I-202) es un defecto de PostgREST que el proyecto alojado ejecuta
+en **14.5**; la corrección llegó en **14.18** (2026-09-10, #5196). El incidente oficial
+[`6q5902p2xd9f`](https://status.supabase.com/incidents/6q5902p2xd9f) se cerró el 2026-09-29 diciendo que los proyectos
+afectados se corrigen **actualizando desde el dashboard**. Esta sección prepara esa actualización; **no se ejecuta sin
+la autorización expresa del dueño**, y la hace el dueño con su sesión: el agente no entra al dashboard y solo lee.
+
+### 12.0 Qué es y qué no es
+
+| Es | No es |
+|---|---|
+| Cambiar la versión de **los servicios alojados** —PostgREST, y con ellos la imagen del proyecto— | Ni nuestras migraciones (`0001`–`0080`, sin cambios) ni los paquetes npm (`supabase-js`, `@supabase/ssr`) |
+| Una operación del proveedor, con el proyecto **fuera de servicio** mientras dura | Un despliegue de Vercel: no hay código nuevo y no se toca el punto de reversión |
+| **De un solo sentido**: no tiene «deshacer» | Un «Restart project»: no es lo que indicó Supabase al cerrar el incidente, y mientras la versión siga en 14.5 el defecto vuelve tras cualquier rato sin peticiones |
+
+### 12.1 Condiciones previas (todas)
+
+1. **Que se ofrezca.** El dueño abre **Settings → Infrastructure** y anota lo que diga: versión actual, versión de
+   destino y, si la página las muestra, las versiones de los servicios. Si no se ofrece ninguna actualización, no hay
+   nada que autorizar: se envía el borrador de `build/i202/borrador-soporte-supabase.md`, revisado.
+2. **La autorización**, para el respaldo, la actualización y las comprobaciones, con la franja acordada.
+3. **Un respaldo lógico recién hecho** (§5.1, con su comprobación de `"auth".` = 0): el plan Free no tiene copias
+   automáticas (I-024) y la actualización no se deshace.
+4. **La franja**: sin actividad del negocio —de madrugada en Bogotá—, **fuera de las horas del programador** (en Bogotá,
+   22, 23, 0, 1, 7, 8, 10 y 11) y lejos de un recordatorio programado. Importa por **I-115**: mientras la API no responde,
+   quien abra o recargue una pantalla pierde la sesión **en todos sus dispositivos** y lee «Tu cuenta está inactiva». La
+   pausa de D-239 **no** lo evita, porque lo que se detiene es la propia API. Si antes se corrige I-115 (D-246, P2), ese
+   riesgo desaparece.
+5. **Nada más en curso**: ningún despliegue, migración ni pausa instalada.
+
+### 12.2 Antes, en solo lectura (agente)
+
+En una transacción `read only` (como `scripts/gate-db.ts`, `--production --project-ref zqwulwvkehjdbmshqytu`):
+
+```sql
+select application_name, min(backend_start)
+  from pg_stat_activity where application_name like 'PostgREST%' group by 1;   -- hoy: PostgREST 14.5
+select version(), pg_postmaster_start_time();
+select max(version) from supabase_migrations.schema_migrations;                -- hoy: 0080
+select jobid, schedule, active from cron.job order by jobid;                   -- se anota tal cual
+select max(created_at) from public.audit_logs;                                 -- nadie operando en la franja
+```
+
+Además: `GET /auth/v1/health` con la clave publicable (hoy **v2.197.0**), `npm run verify:remote` en verde y la lista
+de agrupaciones de `get_runtime_errors` de 7 días.
+
+### 12.3 La actualización (dueño)
+
+1. El respaldo de §5.1, guardado fuera del repositorio y fuera del equipo.
+2. En **Settings → Infrastructure**, la actualización que se ofrezca. Se anota la hora de inicio y de fin, y lo que diga
+   la página. La duración la da Supabase; aquí no se estima.
+3. Al terminar, el dueño avisa enseguida.
+
+### 12.4 Después, en solo lectura (agente) y con la sesión del dueño
+
+| Comprobación | Se espera |
+|---|---|
+| `application_name` de PostgREST | **14.18 o posterior** (o la versión corregida que indique Supabase). Si sigue en 14.5, **I-202 no está corregida**, aunque la página diga que terminó |
+| Postgres, migraciones y `cron.job` | Las migraciones, igual (`0080`); los trabajos del programador, los mismos y activos |
+| `/auth/v1/health`, `verify:remote`, `/login` | Responde; todo en verde; 200 |
+| `get_runtime_errors` desde la franja | Ninguna agrupación nueva |
+| El dueño, con su sesión de vendedor | Panel y «Mis boletas» se abren; **ningún** movimiento contable |
+
+### 12.5 Si algo falla
+
+* **El proyecto no vuelve o la página informa un error**: soporte de Supabase de inmediato, con la hora. Volver a
+  desplegar en Vercel no ayuda: el problema no es el código.
+* **Faltan datos o están mal**: la única salida es el respaldo (§5.2: primero en local; en el proyecto real, solo con
+  autorización expresa).
+* **`PGRST303` vuelve con PostgREST ≥ 14.18**: es evidencia nueva. Se anota la hora exacta y se leen los registros de
+  Supabase dentro del día que guardan (plan Free), antes de escribir a soporte.
+
+### 12.6 Seguimiento y cierre de I-202
+
+I-202 **no se cierra** porque deje de verse: se cierra con PostgREST ≥ 14.18 comprobado en el proyecto **y** una semana
+de `get_runtime_errors` sin la agrupación. Si la actualización no se ofrece o se retrasa, ver D-246 (P2 y P3).
+
+### 12.7 Lo que NO se hace nunca
+
+* **No** se actualiza sin respaldo, ni en una hora del programador, ni a la vez que un despliegue o una migración.
+* **No** se usa «Restart project» como sustituto.
+* **No** se toca la configuración de Auth ni la de los JWT: ni se desactiva la validación de `iat`, ni se alarga la vida
+  de los tokens, ni se cambian claves.
+* **No** se añaden reintentos generales en la aplicación para tapar el defecto.

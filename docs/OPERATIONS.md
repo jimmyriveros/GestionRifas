@@ -1,6 +1,7 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-10-01 (§4.e: el cierre de cuentas, **en producción**). Antes, 2026-09-30, por la noche (D-243:
+**Actualizado:** 2026-10-02 (D-246: **§6.a nueva**, reconocer una lentitud de **conexión** —esperas de 1, 3 o
+15 s antes de cargar— sin reiniciar ni revertir). Antes, 2026-10-01 (§4.e: el cierre de cuentas, **en producción**). Antes, 2026-09-30, por la noche (D-243:
 §4.e — en la rifa activa ya está confirmado que los vendedores no
 han entregado dinero al dueño y que no hubo premios pagados en los sorteos sin resultado). Antes, ese mismo día, al
 final (D-242: §4.e — el primer día se registra la historia real, sin empezar desde cero, y lo de un vendedor a cargo se
@@ -306,6 +307,24 @@ Cómo distinguirlo en treinta segundos, sin herramientas:
 
 Y recuerda que **activar Fluid Compute no cambia el despliegue que ya está en línea**: hay que volver
 a desplegar para que tome efecto.
+
+### 6.a Si tarda **antes** de que empiece a cargar (I-203)
+
+Si la pantalla se queda en blanco segundos antes de que aparezca nada —o Chrome enseña su página
+triste—, el problema puede estar en la **conexión** y no en la aplicación. Tiene una firma clara: las
+conexiones nuevas tardan **≈1, ≈3, ≈7 o ≈15 s** exactos, que son los reintentos de Windows cuando se
+pierde el paquete que abre la conexión. Reiniciar, desplegar o revertir no lo arregla.
+
+Para comprobarlo sin cambiar nada del equipo, repite unas diez veces, en PowerShell:
+
+```powershell
+curl.exe -s -o NUL -w "tcp=%{time_connect} tls=%{time_appconnect} primer_byte=%{time_starttransfer} total=%{time_total}`n" https://gestion-rifas.vercel.app/favicon.ico
+```
+
+y lo mismo con `https://www.cloudflare.com/favicon.ico`. Si `tcp` sale en 1, 3 o 15 s solo hacia
+Vercel, compáralo con otra red —los datos del teléfono—: si solo pasa en una, es esa red o su
+proveedor; si pasa en las dos, es el camino hacia Vercel. Los registros de Vercel **no** lo ven:
+anotan la petición cuando la conexión ya existe, y sin duración.
 
 ---
 

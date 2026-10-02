@@ -16386,3 +16386,58 @@ página elegidos entonces se construyen con la dirección pintada —sin la bús
 mostrando lo escrito. Está en cada lista (`apply`, `useListSort`, la paginación), es anterior a D-245 y se midió igual
 antes y después: se decide aparte. Y **I-198 sigue abierta**: nada demuestra que el incidente de producción fuera esta
 carrera ni un servidor lento.
+
+
+---
+
+## D-246 — La lentitud intermitente y I-202, diagnosticadas por separado: lo demostrado, lo propuesto y lo que decide el dueño
+
+**Fecha:** 2026-10-02 · **Estado:** **diagnóstico hecho; las propuestas, SIN APROBAR** · Sin migración · Sin código ·
+Producción solo leída · Abre **I-203** e **I-204** · Actualiza **I-202** e **I-115** · La publicación de D-244 y D-245
+sigue cerrada y conforme
+
+**Contexto.** El dueño notó que Rifas tardaba en abrir, y Codex midió conexiones de 15 s hacia Vercel antes de enviar
+nada (`build/login-lento/`). Aparte, Vercel agrupa de tarde en tarde `PGRST303 «JWT issued at future»` en
+`/seller/tickets.rsc` (I-202). El encargo: dos diagnósticos separados, sin atribuir nada a Supabase, a Vercel o al código
+sin demostrarlo, sin unir la lentitud con I-198 y sin tocar producción. Detalle medido en `TEST_RESULTS`, «Diagnóstico de
+la lentitud intermitente y de I-202».
+
+### Lo demostrado
+
+| Problema | Hecho | Evidencia |
+|---|---|---|
+| Lentitud (I-203) | Las esperas largas ocurren **al abrir la conexión** hacia Vercel: 1, 3 o 15 s exactos, los reintentos de SYN de Windows. TLS, servidor y descarga, normales | 15 de 15 conexiones a las 01:41; también hacia `vercel.com`; 0 de 12 hacia Cloudflare, Supabase, Google y GitHub |
+| Lentitud | Hay una segunda espera, ya conectado, de ~5 s en un estático, **también en `vercel.com`** | CSS de Codex, carga 3 del navegador, `vercel.com/favicon.ico` |
+| Lentitud | Vercel no ve ninguna de las dos: anota la petición cuando la conexión existe, sin duración | 7 filas para 7 peticiones, sin tiempos |
+| Formulario (I-204) | Antes de hidratar, «Ingresar» envía `GET /login?email=…&password=…` | Local, JavaScript desactivado, valores ficticios |
+| I-202 | El proyecto alojado ejecuta **PostgREST 14.5**; el defecto de la hora atrasada se corrige en **14.18** | `pg_stat_activity`; `CHANGELOG` de PostgREST; incidente `6q5902p2xd9f` |
+| I-202 | El defecto **natural** se reproduce en local con tokens reales: 1 de 4 consultas paralelas tras un rato sin peticiones | E0, 2 de 10 ciclos |
+| I-202 | En una navegación el vendedor ve «Algo salió mal»; en una carga de documento, o con «Reintentar» mientras dura, **pierde la sesión en todos sus dispositivos** y lee «Tu cuenta está inactiva» (I-115) | E2: A1, A2, B, D |
+| I-202 | Un `PGRST303` se produce **antes de ejecutar**: una escritura rechazada no cambia nada | W |
+
+**Sin demostrar** (y escrito como tal en sus fichas): dónde se pierden los paquetes de I-203; que la página triste de
+Chrome fuera una conexión agotada; cualquier relación con I-198 o I-190; que cada aparición de I-202 siguiera a una
+renovación de sesión —la base ya no guarda esas horas y no hay acceso a los registros de Supabase—; qué vio el vendedor
+en cada aparición; y que la actualización se ofrezca a este proyecto.
+
+### Las propuestas — **ninguna está aprobada**
+
+| | Propuesta | Decide | Coste y límites |
+|---|---|---|---|
+| **P1** | **Actualizar el proyecto de Supabase** a la versión con PostgREST ≥ 14.18 (`RUNBOOK` §12) | El dueño: autorización, franja y respaldo | Fuera de servicio mientras dura; de un solo sentido. Antes, el dueño confirma en Settings → Infrastructure que se ofrece |
+| **P2** | **Corregir I-115**: un fallo al **leer** la membresía —un `PGRST303`, un 5xx, la red— no es una cuenta inactiva. Que se lance y lo recoja la página de error, con «Reintentar»; que solo una membresía ausente o inactiva cierre la sesión. Si ese cierre debe seguir siendo de todos los dispositivos lo decide el dueño: es lo que I-174 dejó pendiente | El dueño, como tarea aparte con sus pruebas | Toca la guarda de todas las pantallas con sesión. Es lo que convierte el peor efecto —sacar a alguien de todos sus dispositivos con un mensaje falso— en «Algo salió mal» y «Reintentar». Sirve también ante cualquier otro corte (I-114) y durante la ventana de P1 |
+| **P3** | **Recuperación temporal, solo si P1 se retrasa**: repetir **una vez** una **lectura** que PostgREST rechace con `PGRST303` y el mensaje «JWT issued at future» | El dueño | **Cuándo:** solo ese código y ese mensaje, solo `GET`/`HEAD`, en el servidor. **Límite:** una repetición; si vuelve a fallar, la página de error. **Contabilidad:** nunca repite una escritura —ni `POST`, `PATCH`, `DELETE` ni RPC—; un abono rechazado así no se ejecutó (W), y si la persona lo reenvía es porque lo decide ella. No toca la validación de la sesión ni los permisos. Extiende el patrón de `features/catalog/read-retry.ts` (I-114) en vez de crear otro. Límite conocido: en la discusión pública de Supabase, una espera fija de 2 s no siempre bastó; en local, la consulta 50 ms después pasó |
+| **P4** | **Instrumentación mínima** para separar el tiempo de la aplicación del de Supabase: el proxy añade `Server-Timing: auth;dur=…` (con «renovó» o no), que el dueño ve en la pestaña Red de su navegador; y el cliente de servidor mide sus llamadas y escribe **una** línea en el registro de Vercel solo cuando una petición pasa de 1,5 s en Supabase o alguna llamada falla: ruta, número de llamadas, tiempo total y máximo, estados y si hubo renovación | El dueño | **Coste:** 2–3 h con pruebas; casi nada en ejecución; unas pocas líneas de registro. **Sin** identificadores, tokens, consultas ni telemetría externa. **Límites:** Vercel guarda una hora; no mide la red del navegador, que es lo que hace la prueba de redes |
+| **P5** | I-203: la **prueba de redes** (`prueba-redes.ps1`, red de casa y datos del teléfono) y, según el resultado, el borrador de soporte para el proveedor o para Vercel | El dueño, que es quien puede cambiar de red | Unos 6 minutos. Nada del equipo cambia |
+| **P6** | I-204: que el formulario de acceso no pueda enviarse por `GET` antes de hidratar | El dueño, como tarea aparte | Pequeño, con su prueba de regresión |
+
+**Alternativas descartadas.** Ampliar la tolerancia de reloj o desactivar la validación de `iat` (no es configuración
+nuestra y debilitaría la validación); alargar la vida del token (no corrige nada: falla con el token **recién**
+emitido); reintentos generales; usar «Restart project» como arreglo; reiniciar, desplegar o revertir por la lentitud
+(ocurre antes de que la petición llegue); atribuir la lentitud a Supabase por su incidente del este de EE. UU. —afecta
+a lo que sale de `iad1`, no a la conexión del navegador— o unirla con I-198 sin pruebas.
+
+**Consecuencia.** Nada cambia en el producto. I-202 queda abierta con la causa demostrada y la corrección del proveedor
+preparada; I-115 sube de importancia porque ya tiene un disparador real; I-203 e I-204, abiertas. Lo que falta para
+avanzar es del dueño y tiene plazo: los registros de Supabase de 2026-10-01 21:17–21:20 UTC se pierden hacia el
+2026-10-02 a las 21:18 UTC.

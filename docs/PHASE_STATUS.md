@@ -3,7 +3,26 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-01, 23:25 UTC (18:25 en Bogotá; publicado a las 17:02 UTC) — **D-244 y D-245 EN PRODUCCIÓN** (`a5d90f9`, `DEPLOYMENT`
+- **Actualizado:** 2026-10-02, 02:10 UTC (21:10 del 1 en Bogotá) — **La lentitud intermitente e I-202, diagnosticadas
+  por separado** (D-246): mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas; producción solo leída, sin
+  código, migración, despliegue ni cambio de configuración. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna nueva ni cambiada; lo servido sigue siendo `a5d90f9`.
+  **(2) Pruebas:** **producción, solo lectura** —versiones alojadas (PostgREST **14.5**, Auth v2.197.0, Postgres 17.6),
+  4 apariciones de I-202 en 7 días, conexiones hacia Vercel con 1–15 s de reintento (15 de 15 a las 01:41 UTC) y 0 de 12
+  hacia otros proveedores, registros de Vercel leídos dentro de la hora—; **local** —E1, E0 (el defecto natural, 2 de 10
+  ciclos), E2 con un build de producción (navegación → «Algo salió mal»; carga de documento o «Reintentar» → cierre de
+  sesión global) y W (una escritura rechazada no se ejecuta)—. Errores del propio diagnóstico, en `TEST_RESULTS`. Sin
+  `verify` ni `test:db`: no cambió el comportamiento.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-202**, causa demostrada y corrección del proveedor preparada sin autorizar
+  (`RUNBOOK` §12); **I-115**, con un disparador real y cierre global; **I-203**, nueva —la conexión hacia Vercel desde
+  la red del dueño—; **I-204**, nueva —la contraseña en la URL si se pulsa antes de hidratar—. Siguen I-198, I-200,
+  I-201, I-190 e I-193.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1.a y D-246. Lo pendiente es del dueño y tiene plazo: los registros
+  de Supabase de I-202 caducan hacia el 2026-10-02 a las 21:18 UTC.
+
+- Antes, 2026-10-01, 23:25 UTC (18:25 en Bogotá; publicado a las 17:02 UTC) — **D-244 y D-245 EN PRODUCCIÓN** (`a5d90f9`, `DEPLOYMENT`
   §3.2.w): mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas; publicado con la autorización del dueño, sin
   migración ni pausa. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** las de D-244 y D-245, ahora servidas: «Revisar cuenta» y «Cuentas con tu equipo» avisan en el

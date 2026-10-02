@@ -17606,3 +17606,99 @@ bien, no noté nada raro»**.
 | Comparar el navegador con el despliegue anterior | Protegido por el SSO de Vercel (§g) |
 | Repetir la E2E completa | Se ejecutó **una** completa válida, la de §a; no se relanzó para buscar verde. El primer intento no llegó a ejecutar ninguna prueba |
 | La pila de I-201 | No se reprodujo con trazas (§c) |
+
+---
+
+## Diagnóstico de la lentitud intermitente y de I-202 (2026-10-02, 01:17–02:05 UTC; producción en solo lectura, pruebas locales; D-246)
+
+Dos diagnósticos separados, sin cambiar el producto: ningún archivo de código, ninguna migración, ningún despliegue ni
+cambio de configuración, ninguna sesión iniciada en producción. **La publicación de D-244 y D-245 sigue cerrada y
+conforme**: nada de lo medido la cambia. Evidencia fuera de Git: `build/login-lento/medicion-2/` y `build/i202/`.
+
+### a. Punto de partida
+
+| Qué | Resultado |
+|---|---|
+| Git | `feature/detalle-boleta-admin`, 3 commits locales de documentación por delante del remoto; los tres archivos del usuario, sin tocar |
+| Lo servido (01:45 UTC) | `dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW` (`a5d90f9`): la huella `5c813f6adf4e` en 1 de los 15 fragmentos de `/login`; la de `edbc778`, en ninguno |
+| La medición de Codex (`build/login-lento/`, 2026-10-01 17:28–17:34 UTC) | Leída con sus archivos. Conexiones TCP de sus 10 muestras: 1,236 · 3,098 · 15,088 · 3,124 · 0,072 · 0,093 · 0,064 · 0,061 · 0,058 · 15,081 s |
+
+### b. Lentitud: dónde ocurre la espera (I-203)
+
+Tiempos de `curl` de Windows, una conexión nueva por petición y tiempos máximos (`--connect-timeout 20 --max-time 30`).
+Las fases se restan de los tiempos acumulados: TCP = conectar − DNS; TLS = TLS − conectar; espera = primer byte −
+envío; descarga = total − primer byte.
+
+| Qué | Resultado |
+|---|---|
+| Reintentos de conexión de este Windows (`netsh int tcp show global`, solo lectura) | RTO inicial **1.000 ms** y **4** reintentos de SYN: a **1, 3, 7 y 15 s** |
+| Codex, 10 conexiones | **5** necesitaron reintento: 1,24 · 3,10 · 3,12 · 15,09 · 15,08 s. Las otras, 0,06–0,09 s |
+| 01:41:05–01:42:18, 15 conexiones (`/login`, favicon, manifiesto, un JS y el CSS, ×3) | **15 de 15** con reintento: 5 en 1,06–1,28 s y 10 en 3,03–3,08 s. Ya conectadas: TLS 0,16–0,22 s; espera de `/login` (MISS) 0,22–0,80 s; estáticos (HIT) 0,09–0,39 s; descarga ≤ 2 ms |
+| 01:42:44–01:43:18, comparación de destinos (×3) | **Vercel**: `gestion-rifas` 0,36 · 1,12 · 3,07 s y `vercel.com` 0,08 · 0,05 · 3,13 s. **Otros, 0 de 12 con reintento**: Supabase (Cloudflare) 0,05–0,07; Google 0,03–0,05 (IPv6); GitHub 0,11–0,13; Cloudflare 0,03–0,05 (IPv6) |
+| 01:50:20–01:50:31 (la prueba de redes, validada con 2 rondas) | Vercel 1 de 6 (favicon de Rifas, 1,07 s). **`vercel.com/favicon.ico`: 4,87 s hasta el primer byte con la conexión hecha en 0,02 s** |
+| Chromium sin sesión, `/login`, 4 cargas (01:46) | Primer byte 3,02 · 0,67 · 3,31 · 0,62 s; **campo visible** 3,35 · 0,99 · 8,26 · 0,87 s; **formulario funciona** 3,41 · 1,19 · 8,36 · 1,00 s. Espera del servidor 83–413 ms. La tercera: TCP 3,04 s y los recursos llegaron **4,9 s después del HTML por la misma conexión** (17 recursos, 313 KB, ninguna conexión nueva) |
+| El equipo | Por **cable** (router doméstico). Adaptador **Fortinet SSL VPN** activo pero sin ruta por defecto: la ruta hacia `216.198.79.67` sale por la red local. Certificados de Vercel y Supabase emitidos por Google Trust Services: **sin interceptación TLS** |
+| `tracert` (ICMP) | Hacia Vercel, nada después del salto 3; hacia Cloudflare, 8 saltos y 18 ms (servido en Bogotá). Los caminos se separan dentro del proveedor. Contexto, no prueba |
+| Registros de Vercel de esa ventana (leídos a las 01:44) | 7 filas únicas para 4 `GET /login` y 3 `HEAD /`; cada petición dejó **una** de sus dos filas (proxy o función), nunca las dos; los estáticos no aparecen; **ninguna duración**. Cada registro lleva la hora en que la conexión ya existía (inicio local 01:41:30,8 → registro 01:41:34): Vercel no ve la espera del SYN |
+| Proveedores | Vercel: sin incidentes del 29/09 al 02/10. Supabase `w91bvbjhqf0f`: **resuelto el 2026-10-01 a las 20:23 UTC**; afecta a conexiones que salen del este de EE. UU. —las funciones de `iad1`—, no a la del navegador hacia Vercel |
+| Llamadas de autenticación antes de ver el formulario (código) | Sin cookies: **ninguna** —`getUser()` sin sesión no sale a la red—. Con una sesión guardada: el proxy (Auth; más una renovación si quedan menos de 90 s), la página (Auth otra vez) y la membresía (PostgREST), y redirige al panel. **Sin medir en producción**: no hay instrumentación |
+
+### c. El formulario antes de funcionar (I-204)
+
+| Qué | Resultado |
+|---|---|
+| El HTML servido | `<form class="space-y-4" noValidate="">`, sin `action` ni `method`; campos con `name="email"` y `name="password"` |
+| Local, build de producción, JavaScript desactivado, valores **ficticios** | Pulsar «Ingresar» lleva a **`/login?email=…&password=…`**: la contraseña en la dirección |
+| Producción, este equipo | 0,06–0,2 s entre «visible» y «funciona», también en las cargas lentas |
+
+### d. I-202: versiones alojadas y apariciones
+
+| Qué | Resultado |
+|---|---|
+| Auth (`/auth/v1/health`, clave publicable) | **GoTrue v2.197.0** |
+| PostgREST (`pg_stat_activity`, transacción de solo lectura; la raíz OpenAPI exige clave secreta y no se usó) | **`PostgREST 14.5`**, con su conexión de escucha abierta desde el **2026-08-28 16:52:36 UTC** |
+| Postgres | 17.6; servidor arrancado el 2026-08-02 23:25:54 UTC |
+| Local, para comparar | PostgREST **14.15** y GoTrue 2.194.0 (`supabase_rest_Rifas`, `supabase_auth_Rifas`) |
+| PostgREST, `CHANGELOG` oficial | 14.17 (2026-08-13): «JWT validation uses wrong current time due to a bug in auto-update» (#5159); **14.18 (2026-09-10): «Fix sporadic "PGRST303 JWT issued at future" errors» (#5196)** |
+| `get_runtime_errors`, 7 días, por ventanas | **4** apariciones, **2** usuarios: 2026-09-29 22:53:57 (`cac81e8`), 2026-09-30 18:37:51 y 20:59:15 (`5f84e13`), 2026-10-01 21:18:23 (`a5d90f9`); 0 entre el 25 y el 29/09 y 0 después de las 21:18:23. Más atrás no se puede leer |
+| La base (`build/i202/base-solo-lectura.mts`, solo lectura, sin identificadores) | Las tres últimas, de **la misma cuenta de vendedor**; tras cada una vendió o abonó: +35,7 s y +52,3 s; +102 s; +138, +159 y +256 s. `auth.sessions` y `auth.refresh_tokens` solo conservan filas desde el 2026-10-01 21:40:44; `auth.audit_log_entries`, vacía; `last_sign_in_at` solo guarda el último inicio (23:17:14, la revisión del dueño): **no se puede leer** si hubo renovación o un inicio de sesión nuevo en esas horas |
+| La API de gestión de Supabase | `supabase projects list`: **sin token de acceso**. Ni registros de Supabase ni elegibilidad de la actualización |
+
+### e. I-202 reproducido en local
+
+| Prueba | Resultado |
+|---|---|
+| **E1** — el token real de la cuenta de desarrollo, firmado otra vez con el secreto **público** de demostración y con `iat` adelantado | `iat` −10, 0, +15, +25 y **+29 s → 200**; **+31**, +35, +60, +120 y +600 s → **401** `{"code":"PGRST303",…,"message":"JWT issued at future"}`, con `proxy-status: PostgREST; error=PGRST303` y `WWW-Authenticate: Bearer error="invalid_token"`. **Auth acepta el mismo token** (200 en `/auth/v1/user`) |
+| **E0** — el defecto natural, con tokens **reales** recién emitidos: N s sin peticiones, inicio de sesión y 4 consultas en paralelo, más 2 en serie | 10 ciclos (35–300 s): **2 con rechazo**, tras **45 s** y **180 s**: en cada uno, **1 de las 4** paralelas (`raffles`, a 501 y 627 ms del `iat`); las otras tres y las dos siguientes (~50 ms después), 200 |
+| **W** — una escritura (`PATCH` de las notas de un cliente) con el token adelantado | **401 `PGRST303`** y la fila **igual** (notas y `updated_at`): se rechaza antes de ejecutar |
+| **E2** — build de producción del código de `a5d90f9` en un árbol aislado, contra la Supabase local a través de un proxy que responde lo mismo que PostgREST en E1 | Seis escenarios, en las filas siguientes |
+| S0, control | Panel → «Mis boletas»: la lista |
+| A1, navegación con el token adelantado (las 4 consultas rechazadas por PostgREST real) | **«Algo salió mal»** a pantalla completa; ningún cierre de sesión |
+| A2, el mismo token en una carga de documento | **`signOut()` global** (2 × `POST /auth/v1/logout`, sesiones del usuario **4 → 0**) y **`/login?error=inactive`**: «Tu cuenta está inactiva» |
+| B, solo las consultas de la página, 6 s | «Algo salió mal»; pasado el rechazo, **«Reintentar» recupera** la lista |
+| C, solo la membresía, 3 s, en una navegación | La lista se pinta: el layout no se vuelve a ejecutar al navegar |
+| D, todas, y «Reintentar» **mientras sigue** el rechazo | «Algo salió mal» → «Reintentar» → **`signOut()` global** (sesiones **13 → 0**) y «Tu cuenta está inactiva» |
+| El registro del servidor | `⨯ Error: {"code":"PGRST303","details":null,"hint":null,"message":"JWT issued at future"}` con digest `…@E394` —el objeto de PostgREST que lanza la página, envuelto por Next—: **la firma de la agrupación de producción**; y, si falla la membresía, `getActiveMembership: error consultando memberships` |
+
+### f. Errores encontrados durante el diagnóstico
+
+| Error | Corrección |
+|---|---|
+| La primera consulta de solo lectura falló en local: `public.audit_logs` no tiene `user_id` | Es `actor_profile_id`. Se vio **en local, antes de leer producción** |
+| `auth.sessions.refreshed_at` es `timestamp without time zone` | Se convierte con `at time zone 'UTC'` antes de compararla |
+| `next start` del árbol aislado escuchaba en todas las interfaces (anunció `10.212.134.2:3202`) | Detenido y vuelto a arrancar con `-H localhost` **antes** de los escenarios; los datos eran sintéticos |
+| `prueba-redes.ps1` mostraba mal las tildes en PowerShell 5.1 | Guardado en UTF-8 **con BOM** |
+| `Get-Date -AsUTC` no existe en Windows PowerShell 5.1 | Solo se perdieron dos etiquetas de hora en `tracert.txt` |
+| Un `heredoc` de Bash no pudo anexar esta sección | Se escribió con el editor y se anexó; es la trampa conocida de este equipo con `heredoc` |
+| E0 y E2 crearon y borraron sesiones de la cuenta de desarrollo local | Esperado: es local; nada del negocio cambió (W lo comprueba) |
+
+### g. Lo que NO se hizo
+
+| Qué | Por qué |
+|---|---|
+| Push, despliegue, migración, reinicio, actualizar el proyecto de Supabase, cambiar configuración | No autorizado. La actualización queda preparada en `RUNBOOK` §12 |
+| Leer los registros de Supabase y la página Infrastructure | Sin token de la API de gestión; el dashboard es del dueño. Pasos en `build/i202/consultas-registros-supabase.md` |
+| Iniciar sesión en producción o usar el Chrome del usuario | Un agente no inicia sesión; el navegador del usuario no se pidió |
+| Instrumentación nueva o telemetría externa | Solo propuesta (D-246) |
+| Repetir `verify`, `test:db` o la E2E | Ningún cambio de comportamiento: solo documentación |
+| Probar PostgREST 14.18 en local | Exigía descargar una imagen nueva; la corrección consta en el `CHANGELOG` oficial |
