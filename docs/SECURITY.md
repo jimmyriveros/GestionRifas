@@ -1,6 +1,7 @@
 # SEGURIDAD
 
-- **Versión:** 2.35 · **Estado:** implementado · **Actualizado:** 2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §4.27
+- **Versión:** 2.36 · **Estado:** implementado · **Actualizado:** 2026-10-02 (§3, «Formularios con credenciales»:
+  I-204, **solo en local** —D-247—). Antes, 2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §4.27
   y la nota de §4.19 del cierre de cuentas —`0080`— están publicadas, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, al
   final (§4.27, D-242: nadie opera en
   nombre de un vendedor a cargo desactivado —el personal tampoco, sin ampliar ningún permiso— y el pasado no se carga
@@ -225,6 +226,7 @@ diferido `memberships_require_active_owner` (`0016`, D-071). Ver `AUDIT_REPORT.m
 | Origen del rol | Tabla `memberships` consultada en el servidor. No se confía en `app_metadata` del JWT para autorizar (D-006) |
 | Usuario inactivo | El layout protegido y las políticas RLS verifican `is_active` en cada request; una sesión previa deja de servir de inmediato |
 | Contraseñas | Gestionadas por Supabase Auth; la aplicación nunca las almacena, registra ni transmite a terceros |
+| Formularios con credenciales | Los cuatro —ingresar, recuperar, definir y cambiar la contraseña— traen la protección **en el HTML del servidor**: `method="post"` y el botón desactivado hasta que React hidrata (`AuthSubmitButton`), que impide también el envío con Enter. Antes de I-204, pulsar antes de hidratar mandaba la contraseña en la dirección (`/login?email=…&password=…`). Ninguna credencial viaja en una URL (D-247) |
 | Alta de usuarios | Invitación por correo mediante `SERVICE_ROLE` solo en servidor; la persona define su contraseña desde el enlace |
 | Cierre de sesión | Invalida la sesión en el servidor y limpia cookies. `signOut()` va sin alcance, que en `auth-js` es **global**: cierra la sesión en **todos** los dispositivos de esa persona, también al rechazar una cuenta inactiva. Si debe cerrar solo este dispositivo es una decisión **pendiente del dueño** (D-236) |
 

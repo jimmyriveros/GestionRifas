@@ -422,6 +422,8 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Que aún no hay hora oficial | **Horario por confirmar** | Pendiente de scrape, sin schedule |
 | Estar sin internet | **Sin conexión** | Offline, desconectado, sin red |
 | La pausa mientras se publica una actualización que no es compatible con la anterior | **Estamos actualizando Rifas**; volver a intentarlo, **Reintentar** (D-239) | Mantenimiento, fuera de servicio, caído, «error del servidor», «sistema no disponible» |
+| Un formulario de acceso o de contraseña que todavía no funciona, mientras la página termina de cargar | **Preparando el formulario…**, en su propio botón (I-204, D-247) | Cargando, Espere, Inicializando |
+| Lo mismo, con JavaScript desactivado en el navegador | «Este formulario necesita **JavaScript** y tu navegador lo tiene desactivado. Actívalo o abre Rifas en otro navegador.» (D-247) | «Habilita los scripts», «Navegador no compatible», «Error» |
 | Código nuevo servido tras un despliegue | **Versión** | Build, actualización del sistema, parche |
 | Página pública con los números de un vendedor | **Catálogo** | Vitrina, tienda, landing, micrositio |
 | Su dirección, que el vendedor reparte | **Enlace** (público) | Link, URL, slug |
@@ -758,6 +760,14 @@ publicación no borra nada. Lo que **no** se dice: que se guardó algo durante l
 hora exacta de vuelta, que nadie puede prometer. Una acción a medias responde **«Estamos actualizando Rifas. Vuelve a
 intentarlo en unos minutos.»** y deja lo escrito en su sitio. Y nunca, de ningún modo, «Tu cuenta está inactiva»: era
 lo que decía la guarda ante un corte (I-115), y durante una pausa sería falso para todo el mundo a la vez.
+
+**Un formulario que todavía no funciona lo dice en su botón** (I-204, D-247). Los cuatro de acceso y de contraseña
+llegan con el botón desactivado hasta que la página termina de cargar, y mientras tanto dicen **«Preparando el
+formulario…»**: es la regla del «Ingresando…» de siempre, en el mismo sitio, así que nada se mueve cuando se activa. No
+se escribe «Cargando», que nombra lo que hace la máquina (D-155). Sin JavaScript el formulario nunca estará listo: el
+botón conserva su texto y un aviso dice lo único que sirve, activarlo o abrir otro navegador. **«JavaScript» es una
+palabra técnica y se escribe igual**, porque es el nombre del ajuste que la persona —o quien la ayude— tiene que buscar;
+cualquier rodeo la dejaría sin salida (§35.2.4: manda la prevención del error).
 
 **El aviso de versión nueva no da una orden, da permiso para esperar** (D-116). «Hay una nueva
 versión de Rifas · Actualiza cuando termines lo que estás haciendo. · [Actualizar]». La segunda frase
@@ -1888,6 +1898,7 @@ castigo donde solo había una espera.
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
+| «Preparando el formulario…» y el aviso sin JavaScript de los cuatro formularios de acceso y de contraseña | `src/features/auth/components/AuthSubmitButton.tsx` (D-247). Ningún formulario los escribe: los cuatro usan ese botón |
 | «Estamos actualizando Rifas», «Vuelve a entrar en unos minutos. Lo que ya registraste sigue guardado.» y «Reintentar», la pantalla de la pausa | `src/app/mantenimiento/page.tsx` (D-239) |
 | «Estamos actualizando Rifas. Vuelve a intentarlo en unos minutos.», lo que responde una acción durante la pausa | `src/lib/maintenance-pause.ts` (`MAINTENANCE_PAUSE_MESSAGE`, D-239). **Vive también en SQL**, en `supabase/maintenance/pausa.sql`, para quien llame a la API: una prueba unitaria compara las dos letra por letra |
 | «Algo salió mal» y «Ocurrió un error inesperado. Intenta de nuevo.», la página de error general | `src/app/error.tsx` (D-196) |

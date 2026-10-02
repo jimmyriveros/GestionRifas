@@ -7,8 +7,8 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { login } from '@/features/auth/actions'
+import { AuthSubmitButton } from '@/features/auth/components/AuthSubmitButton'
 import { loginSchema } from '@/features/auth/schemas'
-import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -48,7 +48,8 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {/* `method="post"`: antes de hidratar, nada de lo escrito puede ir en la URL (I-204). */}
+      <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {serverError ? (
           <p
             role="alert"
@@ -107,9 +108,9 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
           )}
         />
 
-        <Button type="submit" size="touch" className="w-full" disabled={isPending}>
-          {isPending ? 'Ingresando...' : 'Ingresar'}
-        </Button>
+        <AuthSubmitButton pending={isPending} pendingLabel="Ingresando..." className="w-full">
+          Ingresar
+        </AuthSubmitButton>
       </form>
     </Form>
   )

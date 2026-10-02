@@ -1,6 +1,7 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, **conforme** —«Todo se vio bien, no noté nada
+**Actualizado:** 2026-10-02 (**§3.3.e nueva**: I-204, corregida en local y **preparada para publicarse sola, sin
+autorizar**; D-247). Antes, 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, **conforme** —«Todo se vio bien, no noté nada
 raro»—, sin movimientos contables). Antes, ese mismo día, 17:13 UTC (**§3.2.w nueva: D-244 y D-245 EN PRODUCCIÓN** —`a5d90f9`, sin migración ni
 pausa; el punto de reversión pasa a `edbc778`—; §3.3.d y §4.1, al día). Antes, ese mismo
 día, 01:42 UTC (§3.2.v: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
@@ -1486,6 +1487,21 @@ El dueño autorizó **prepararlos para publicarlos juntos**; push, CI sobre `mai
 | Comprobado en local | `verify` ✅ **1.976/1.976** y build; `test:db` ✅ **1.572 + 1**; E2E completa **1.007/1.010** —un fallo por una edición mía durante la pasada, repetido 5/5, e I-148 e I-106, anteriores y medidos—; las del buscador y del cierre, en verde aparte; builds de producción **antes y después** (peticiones, desplazamientos y consola limpia en las cuatro listas y el catálogo público). Detalle en `TEST_RESULTS`, D-245 |
 | Al publicar, como en §3.2.s | P0 en solo lectura (servido `edbc778`, base en `0080`, sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador; avance rápido de `main`; READY, identificador servido (§6.1) y la comprobación en vivo de siempre, que ahora incluye que el fragmento de `instrumentation-client` se sirve y que las páginas públicas siguen sin errores de CSP |
 | La revisión del dueño, con su sesión | «Cierre de cuentas»: pulsar «Revisar cuenta» y ver «Abriendo cuenta…»; como vendedor con equipo, «Cuentas con tu equipo»; en cualquier lista, escribir en el buscador y abrir enseguida una fila. Avisar al terminar para leer los registros **dentro de la hora**. Si «Revisar cuenta» vuelve a quedarse quieta, la hora exacta y la pestaña Red (I-198, que sigue abierta) |
+
+#### 3.3.e I-204: los formularios de acceso sin credenciales en la URL — **PREPARADO, SIN AUTORIZAR** (D-247)
+
+El dueño autorizó corregirlo **en local**; push, CI sobre `main` y despliegue siguen **sin autorizar**. Es un commit
+propio y se puede publicar solo.
+
+| | |
+|---|---|
+| Qué publica | Sobre lo servido (`a5d90f9`): la documentación de D-244, D-245 y D-246 (solo documentos) y el commit de **D-247**: `AuthSubmitButton` y dos líneas en cada uno de los cuatro formularios de autenticación (`method="post"` y el botón), más sus pruebas y documentación |
+| Lo que no publica | **Ninguna migración** (siguen `0001`–`0080`); sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, el proxy, la CSP, `public/` ni `.env.example` |
+| Punto de reversión | **`dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW`** (`a5d90f9`), el servido hoy. **Compatible**: no hay nada en la base que cambie. *Instant Rollback* lo pulsa el dueño; después, «Undo Rollback» antes de volver a desplegar (§4.1) |
+| Comprobado en local | `verify` y `test:db` (este, sobre base recién sembrada: I-185 en una segunda pasada), la unitaria y la E2E nuevas —que fallan con el código anterior— en `next dev` y en un build de producción, y la E2E completa sobre el candidato: escritorio **773/773** y el móvil **246/246**, relanzado entero tras un corte del entorno. Detalle en `TEST_RESULTS`, «I-204» |
+| Al publicar, como en §3.3.d | P0 en solo lectura (servido `a5d90f9`, base en `0080`, sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador; avance rápido de `main`; READY e identificador servido (§6.1). En vivo, además de lo de siempre: el HTML de `/login` y `/forgot-password` trae `method="post"`, el botón `disabled` y el aviso dentro de `<noscript>`; y un navegador **sin JavaScript** no cambia la dirección al pulsar ni con Enter (valores ficticios) |
+| La revisión del dueño, con su sesión | Entrar como siempre y salir; recuperar la contraseña hasta ver «Si el correo está registrado…» sin seguir el enlace. Avisar al terminar para leer los registros **dentro de la hora** |
+| Riesgo que queda | Si el JavaScript no llega, el botón se queda en «Preparando el formulario…» y no se puede entrar: es lo correcto —antes se podía «entrar» mandando la contraseña por la URL—. Lo escrito antes de hidratar se sigue borrando al hidratar (ya pasaba) |
 
 ---
 

@@ -16441,3 +16441,39 @@ a lo que sale de `iad1`, no a la conexión del navegador— o unirla con I-198 s
 preparada; I-115 sube de importancia porque ya tiene un disparador real; I-203 e I-204, abiertas. Lo que falta para
 avanzar es del dueño y tiene plazo: los registros de Supabase de 2026-10-01 21:17–21:20 UTC se pierden hacia el
 2026-10-02 a las 21:18 UTC.
+
+
+---
+
+## D-247 — Los formularios de acceso y de contraseña no pueden mandar nada por la URL antes de hidratar (I-204)
+
+**Fecha:** 2026-10-02 · **Estado:** aceptada (autorizada por el dueño para corregirse en local) · **Sin migración** ·
+Solo interfaz · **Solo en local**: sin push ni despliegue · Cierra **I-204** en local
+
+**Contexto.** Los cuatro formularios —ingresar, recuperar, definir y cambiar la contraseña— eran `<form onSubmit
+noValidate>` sin `method`, con `name` en los campos. Antes de que React hidrate, pulsar «Ingresar» o Enter hacía el
+envío NATIVO por GET: `/login?email=…&password=…`, en la barra, el historial y los registros (I-204; I-066 ya lo sufrió
+con la cuenta de demostración). El dueño pidió que la protección existiera **desde el HTML inicial**, que no bastara con
+borrar la URL después ni con un manejador de JavaScript, y que el estado se explicara de forma accesible.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Nada en la URL aunque algo envíe el formulario de forma nativa | `method="post"` en los cuatro `<form>`, sin `action`: lo nativo iría a la misma página por POST. Medido: un POST nativo a `/login` devuelve la propia página (200), sin repetir ni registrar el valor |
+| No enviar antes de que exista el manejador | El botón llega **desactivado** en el HTML del servidor y se activa al hidratar (`useSyncExternalStore`, `false` en el servidor y `true` en el navegador). Un botón por defecto desactivado impide también el envío implícito con Enter |
+| Decir qué pasa | Mientras no está listo, el botón dice **«Preparando el formulario…»**: la regla del «Ingresando…» de siempre, dentro del botón, así que nada se mueve al activarse. Sin JavaScript nunca estará listo: el botón conserva su texto —la variante `noscript:` de Tailwind, `@media (scripting: none)`— y un `Notice` de tono `warning` dentro de `<noscript>` dice qué hacer |
+| Dónde | **Un** componente, `src/features/auth/components/AuthSubmitButton.tsx`, para los cuatro formularios: comparten regla y textos (Anexo B de la guía). Cada formulario cambia dos líneas: `method="post"` y el botón |
+
+**Medido** (`TEST_RESULTS`, «I-204»): `tests/unit/auth-forms-sin-hidratar.test.tsx`, 12 pruebas, **8 fallan** con el
+código anterior; `tests/e2e/credenciales-sin-hidratar.spec.ts`, 9 pruebas, **6 fallan** con el anterior —siempre en la
+fuga, en los cuatro formularios— y 9/9 con la corrección, en `next dev` y en un build de producción.
+
+**Alternativas descartadas.** Borrar la URL después (la contraseña ya habría salido); confiar en `onSubmit` (no existe
+antes de hidratar, que es el defecto); convertir los formularios en acciones de servidor con mejora progresiva (cambio
+mayor que rediseña el flujo); desactivar también los campos hasta hidratar (evitaría perder lo escrito, pero arriesga
+el autocompletado de contraseñas: queda como límite conocido); un aviso de texto debajo del botón (añade y quita una
+línea en cada carga, y la tarjeta centrada se movería).
+
+**Consecuencia.** I-204, resuelta en local. Lo escrito **antes** de hidratar se sigue borrando al hidratar —ya pasaba—,
+y los 5 formularios de página que no son de autenticación siguen sin `method` (I-204, fuera de este encargo).

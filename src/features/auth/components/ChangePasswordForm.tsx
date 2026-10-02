@@ -7,8 +7,8 @@ import { toast } from 'sonner'
 import type { z } from 'zod'
 
 import { changePassword } from '@/features/auth/actions'
+import { AuthSubmitButton } from '@/features/auth/components/AuthSubmitButton'
 import { changePasswordSchema } from '@/features/auth/schemas'
-import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -43,7 +43,13 @@ export function ChangePasswordForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-sm space-y-4" noValidate>
+      {/* `method="post"`: antes de hidratar, la contraseña no puede ir en la URL (I-204). */}
+      <form
+        method="post"
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="max-w-sm space-y-4"
+        noValidate
+      >
         <FormField
           control={form.control}
           name="password"
@@ -82,9 +88,13 @@ export function ChangePasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" size="touch" disabled={isPending} className="w-full sm:w-auto">
-          {isPending ? 'Guardando...' : 'Cambiar contraseña'}
-        </Button>
+        <AuthSubmitButton
+          pending={isPending}
+          pendingLabel="Guardando..."
+          className="w-full sm:w-auto"
+        >
+          Cambiar contraseña
+        </AuthSubmitButton>
       </form>
     </Form>
   )

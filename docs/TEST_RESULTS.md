@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC)** | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** (23:14–23:18 UTC), sin movimientos contables |
+| **Post-9 vigente (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02)** | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
+| Post-9 anterior (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC) | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** (23:14–23:18 UTC), sin movimientos contables |
 | Post-9 anterior (D-245: la búsqueda pendiente no cancela la navegación elegida —I-199 resuelta— y el aviso en «Cuentas con tu equipo»; I-200 nueva; solo en local, 2026-09-30 en Bogotá) | **1.976/1.976** en 98 archivos (+10, `navigation-start`) | **1.572 ✅ y 1 omitida**: sin cambio de esquema | **16 nuevas** —13 del buscador, que fallan **9** con el buscador anterior, y 3 del equipo, que fallan con la tarjeta anterior—; completa: ver la sección | ✅ | **Solo en local**; candidato para publicar con D-244, **sin autorizar** |
 | Post-9 anterior (D-244: «Revisar cuenta» avisa mientras se abre; I-198 e I-199, solo en local, 2026-09-30 en Bogotá) | **1.966/1.966** en 97 archivos, antes y después: el cambio es de interfaz | **1.572 ✅ y 1 omitida**, antes y después: sin cambio de esquema | **5 nuevas** (`cierre-navegacion` 4, `-movil` 1) y las **10 del cierre**: **15/15**; las 5 nuevas, **4 fallan con la lista anterior**. La completa no se repitió | ✅ | **Solo en local**; la causa del incidente, **sin demostrar** (I-198) |
 | Post-9 anterior (C0–C7: el cierre de cuentas EN PRODUCCIÓN, `0080` y `edbc778`, 2026-10-01, 00:49–01:07 UTC) | CI del PR (`36798406550`) y de `main` (`36799151910`) sobre `edbc778`: ✅ 2/2, **1.966/1.966** | En los dos CI: **1.572 ✅ y 1 omitida** en 64 archivos. Producción en `0080`; `verify:remote` **55 + 3 rojas a propósito** antes y **58/58** después; C5 **CONTINUAR**, 0 filas tocadas | **No se repitió**: la última completa es la de D-241, **986/989**, aparte de sus repeticiones | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** |
@@ -17702,3 +17703,61 @@ envío; descarga = total − primer byte.
 | Instrumentación nueva o telemetría externa | Solo propuesta (D-246) |
 | Repetir `verify`, `test:db` o la E2E | Ningún cambio de comportamiento: solo documentación |
 | Probar PostgREST 14.18 en local | Exigía descargar una imagen nueva; la corrección consta en el `CHANGELOG` oficial |
+
+---
+
+## I-204 — Los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar (2026-10-02, solo en local; D-247)
+
+Autorizado por el dueño para corregirse en local, con commit propio y listo para publicarse solo. Sin migración, sin
+push ni despliegue. Valores **ficticios** en todo envío antes de hidratar; la cuenta de desarrollo del seed solo para
+el uso normal después de cargar.
+
+### a. Base, antes de tocar nada
+
+| Comprobación | Resultado |
+|---|---|
+| `db:reset` + `seed:local` | ✅ |
+| `test:db` | ✅ **1.572 + 1 omitida**, 64 archivos, 232 s |
+| `verify` (1.ª vez) | ❌ en `typecheck`, por un archivo **mío** del diagnóstico de D-246: `build/i202/lanzar-app.ts` tipaba `env` como `Record<string, string \| undefined>`. `tsconfig` incluye `**/*.ts` y `build/` está fuera de Git, así que no se ve en `git status`. Corregido con `NodeJS.ProcessEnv`, como `build/demora-ficha/lanzar.ts` |
+| `verify` (2.ª vez) | ✅ `tsc`; lint con los **2 avisos de siempre**; **1.976/1.976** en 98 archivos; build |
+
+### b. El defecto, confirmado con el código anterior
+
+| Prueba | Resultado |
+|---|---|
+| Unitaria nueva, `tests/unit/auth-forms-sin-hidratar.test.tsx` | **8 fallos** de 12: sin `method="post"`, botón activo y sin aviso, en los cuatro formularios. Las 4 de «tras hidratar» ya pasaban |
+| E2E nueva, `tests/e2e/credenciales-sin-hidratar.spec.ts` (`next dev`) | **6 fallos** de 9, cada uno **en la fuga**: `/login?email&password` (×3: sin JavaScript, perdido y retrasado), `/forgot-password?email`, `/reset-password?password&confirmPassword` y `/account/password?password&confirmPassword`. Solo nombres de parámetros; el arnés abortó las peticiones. Los 3 usos normales pasan |
+
+### c. Con la corrección
+
+| Prueba | Resultado |
+|---|---|
+| Unitaria | ✅ **12/12** |
+| E2E en `next dev` | ✅ **9/9** |
+| E2E contra el código anterior, **con la prueba ya corregida** (los cambios guardados un momento en `git stash` y restaurados después, comprobado) | **6 fallos**, otra vez en la fuga: la prueba sigue distinguiendo |
+| E2E en un **build de producción** local (`build/i204-i115/lanzar-prod.ts`, solo `localhost`) | ✅ **9/9**, y de nuevo 9/9 tras el ajuste del margen (fila siguiente) |
+| Capturas a 1.280 y 360 px | «Preparando el formulario…» cabe en el botón; sin JavaScript el aviso quedaba **pegado al botón** —`<noscript>` es un elemento en línea y el `space-y-4` no le da margen—. Corregido con un bloque `mb-4` dentro del `<noscript>` y comprobado en la E2E (≥ 12 px) |
+| Un POST nativo a `/login` (lo que haría una extensión con `form.submit()`) | 200 con la propia página; el valor ficticio **no** aparece en la respuesta ni en el registro del servidor |
+
+### d. Lo que se encontró por el camino
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| La primera versión de la E2E no encontraba el aviso sin JavaScript aunque se veía | `getByText` de Playwright **no mira dentro de `<noscript>`**. Se localiza con `noscript > div`. Comprobado que `javaScriptEnabled: false` pinta `<noscript>` y activa `@media (scripting: none)` igual que desactivar JavaScript en los ajustes (`--blink-settings=scriptEnabled=false`) |
+| Lo escrito **antes** de hidratar se borra al hidratar | Anterior a esta corrección; antes, además, se podía enviar por la URL. Se deja como límite (D-247): desactivar también los campos arriesgaría el autocompletado de contraseñas |
+| `next dev` escribe en su terminal los argumentos de cada Server Action, contraseña incluida | Solo en desarrollo: el registro del build de producción, con varios inicios de sesión, tiene **0** líneas así. Aquí era la contraseña de desarrollo, ya versionada |
+| De los otros 12 formularios, 5 de página siguen sin `method` | Fuera de este encargo; anotado en I-204 |
+
+### e. Las baterías, con el código inmóvil
+
+Huella de `src/` y `tests/` (788 archivos, `build/i204-i115/huella-codigo.mjs`): **`90237779eab84b4a`** antes y
+después de cada batería. Ningún archivo de código cambió desde `verify` hasta el final de la E2E.
+
+| Batería | Resultado |
+|---|---|
+| `verify` | ✅ `tsc`; lint con los **2 avisos de siempre**; **1.988/1.988** en 99 archivos (+12, la unitaria nueva); build |
+| `test:db`, primera pasada | ❌ **1 fallo de 1.573**: `list-order.test.ts:359`, «Vendedores» —«expected 49 to be 25»—. Es **I-185**: la segunda pasada seguida sobre la misma base, porque la comprobación inicial (§a) ya había corrido una. 1.571 ✅ y 1 omitida |
+| `db:reset` + `seed:local` + `test:db` | ✅ **1.572 + 1 omitida**, 64 archivos, 210,7 s |
+| E2E completa: `db:reset` + `seed:local`, calentar, `db:reset` + `seed:local` y `playwright test` (03:19 UTC) | ⚠️ **Cortada por un fallo del entorno a las 04:05 UTC**: **848 ✅, 27 ❌ y 144 sin correr** de 1.019, en 46,0 min. **Escritorio, entero: 773/773 ✅**, con las 9 nuevas de I-204; `ventas-por-fecha:163` (I-090) pasó porque la pasada empezó después de las 19:00 en Bogotá (nota de D-226). **Móvil: 75 ✅ de 246** y después el corte |
+| Los 27 fallos de esa pasada, uno a uno | **1** antes del corte: `catalogo-publico-movil.spec.ts:103`, la dirección no llegó a `q=0` en 15 s —**I-106**, su firma de siempre—. **26** del corte: `configuracion-cobro-movil.spec.ts:120` con «Target crashed» y, desde ahí, 25 con «worker process exited unexpectedly» (código `3221226091`, `0xC0000409`) en 0 ms; las 144 restantes ya no corrieron. A la misma hora se detuvieron, con código 4, el servidor de desarrollo y la orden que lanzaba la E2E —que no llegó a escribir su última línea ni el informe JSON—: la sesión anterior del agente se cerró y paró sus procesos en segundo plano. **Esos 26 no son pruebas que fallaran**: ninguna llegó a ejecutar un paso |
+| El proyecto móvil entero, otra vez: `db:reset` + `seed:local`, calentar, `db:reset` + `seed:local` y `playwright test --project=movil` (13:38 UTC) | ✅ **246/246** en 13,3 min, con la huella igual antes y después. **I-106 pasó** esta vez (2,3 s), sobre la base recién sembrada. Solo se relanzó lo que no había terminado: el escritorio ya estaba entero, y repetir la completa sin cambio de comportamiento no aporta nada |

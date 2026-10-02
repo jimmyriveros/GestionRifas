@@ -1,6 +1,9 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.40 · **Actualizado:** 2026-09-30, al final (§4.14, D-242: **9** pruebas de base más, `Z10`..`Z13` —la
+- **Versión:** 2.41 · **Actualizado:** 2026-10-02 (§3, fila 1, y §5.3, D-247, **solo en local**: los cuatro formularios
+  de acceso y de contraseña no se pueden pulsar antes de hidratar —`loginAs` espera a «Ingresar»—, su E2E con valores
+  ficticios (9) y su unitaria (12), y dos trampas: `getByText` no mira dentro de `<noscript>`, y `javaScriptEnabled:
+  false` sí lo pinta). Antes, 2026-09-30, al final (§4.14, D-242: **9** pruebas de base más, `Z10`..`Z13` —la
   puesta en marcha con la historia real, las entregas mayores que el saldo, el vendedor a cargo desactivado y el premio
   anterior al historial—; 53 en total). Antes, ese mismo día (**§4.14 nueva**, D-241, **solo en local**: el cierre de cuentas con
   **44** pruebas de base —el ejemplo de Figma y la tabla de casos escritos a mano—, **4** de volumen con un cálculo
@@ -201,7 +204,7 @@ para poder ir directo a la prueba en vez de buscarla.
 
 | # | Prueba mínima | Regla | Dónde | Fase |
 |---|---------------|-------|-------|------|
-| 1 | Login y redirección por rol | BR-A01, BR-A02 | `e2e/security.spec.ts` | **7** |
+| 1 | Login y redirección por rol | BR-A01, BR-A02 | `e2e/security.spec.ts`; y que nada viaje en la URL antes de hidratar, en los cuatro formularios de acceso y de contraseña: `e2e/credenciales-sin-hidratar.spec.ts`, `unit/auth-forms-sin-hidratar.test.tsx` (D-247) | **7** · post-9 |
 | 2 | Bloqueo de usuarios inactivos | BR-A04, BR-A05 | `e2e/security.spec.ts` | **7** |
 | 3 | Aislamiento entre organizaciones | BR-O02, BR-O03 | `db/rls-isolation.test.ts` | 2 |
 | 4 | Aislamiento entre vendedores | BR-U07 | `db/rls-isolation.test.ts`, `db/seller-isolation.test.ts`, `db/audit-phase9.test.ts` (cobranza, **ambas direcciones**) | 2 · **9** |
@@ -1606,6 +1609,20 @@ await expect(async () => {
 Vive en `toggleCheckbox` (`tests/e2e/fixtures.ts`) y en `activarModoSeleccion`
 (`seleccion-movil.spec.ts`). Si escribes una prueba que pulsa lo primero al entrar a una pantalla,
 usa el mismo patrón.
+
+**Desde D-247 (I-204), los cuatro formularios de acceso y de contraseña no se pueden pulsar antes de
+hidratar**: su botón llega desactivado y dice «Preparando el formulario…». `loginAs` lo busca por su
+nombre, «Ingresar», así que espera solo a que esté listo: la carrera de I-066 ya no la puede ganar el
+arnés. Lo prueba `credenciales-sin-hidratar.spec.ts` —sin JavaScript, con él perdido o retrasado, clic y
+Enter—, con valores ficticios y abortando cualquier petición con `email=`, `password=` o
+`confirmPassword=` en la dirección. Dos trampas que salieron al escribirla:
+
+* `getByText` de Playwright **no mira dentro de `<noscript>`**: el aviso sin JavaScript existe y se ve,
+  pero no se encuentra por su texto. Se localiza con `noscript > div` y se comprueba con
+  `toContainText`.
+* `browser.newContext({ javaScriptEnabled: false })` **sí** pinta el contenido de `<noscript>` y activa
+  `@media (scripting: none)`, igual que desactivar JavaScript en los ajustes del navegador (comprobado con
+  Chromium lanzado con `--blink-settings=scriptEnabled=false`).
 
 **Y en el teléfono, `locator.tap()` en vez de `touchscreen.tap(x, y)`.** El primero desplaza el
 elemento a la vista y espera a que sea pulsable; el segundo toca unas coordenadas de pantalla y, en

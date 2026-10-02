@@ -6,8 +6,8 @@ import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 
 import { resetPassword } from '@/features/auth/actions'
+import { AuthSubmitButton } from '@/features/auth/components/AuthSubmitButton'
 import { resetPasswordSchema } from '@/features/auth/schemas'
-import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -41,7 +41,8 @@ export function ResetPasswordForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {/* `method="post"`: antes de hidratar, la contraseña no puede ir en la URL (I-204). */}
+      <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {serverError ? (
           <p
             role="alert"
@@ -88,9 +89,9 @@ export function ResetPasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" size="touch" className="w-full" disabled={isPending}>
-          {isPending ? 'Guardando...' : 'Guardar nueva contraseña'}
-        </Button>
+        <AuthSubmitButton pending={isPending} pendingLabel="Guardando..." className="w-full">
+          Guardar nueva contraseña
+        </AuthSubmitButton>
       </form>
     </Form>
   )

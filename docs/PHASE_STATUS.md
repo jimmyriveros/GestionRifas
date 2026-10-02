@@ -3,7 +3,22 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-02, 02:10 UTC (21:10 del 1 en Bogotá) — **La lentitud intermitente e I-202, diagnosticadas
+- **Actualizado:** 2026-10-02 (noche del 1 en Bogotá) — **I-204 corregida SOLO EN LOCAL** (D-247), autorizada por el
+  dueño y lista para publicarse sola; mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin push ni
+  despliegue. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** los formularios de ingresar, recuperar, definir y cambiar la contraseña ya no pueden mandar
+  nada por la URL antes de hidratar: `method="post"` y el botón desactivado desde el HTML del servidor, que dice
+  «Preparando el formulario…»; sin JavaScript, un aviso dice qué hacer.
+  **(2) Pruebas:** unitaria nueva 12/12 y E2E nueva 9/9 en `next dev` y en un build de producción, que fallan con el
+  código anterior (8 y 6). `verify`, `test:db` y la E2E completa, en `TEST_RESULTS`, «I-204».
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** de I-204, lo escrito antes de hidratar se sigue borrando al hidratar (ya pasaba) y
+  5 formularios de página que no son de autenticación siguen sin `method`; **I-115**, en curso; I-202 e I-203, como en
+  D-246.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1 y D-247.
+
+- Antes, 2026-10-02, 02:10 UTC (21:10 del 1 en Bogotá) — **La lentitud intermitente e I-202, diagnosticadas
   por separado** (D-246): mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas; producción solo leída, sin
   código, migración, despliegue ni cambio de configuración. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** ninguna nueva ni cambiada; lo servido sigue siendo `a5d90f9`.

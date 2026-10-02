@@ -6,8 +6,8 @@ import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 
 import { requestPasswordReset } from '@/features/auth/actions'
+import { AuthSubmitButton } from '@/features/auth/components/AuthSubmitButton'
 import { forgotPasswordSchema } from '@/features/auth/schemas'
-import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -46,7 +46,8 @@ export function ForgotPasswordForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {/* `method="post"`: antes de hidratar, el correo no puede ir en la URL (I-204). */}
+      <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <FormField
           control={form.control}
           name="email"
@@ -67,9 +68,9 @@ export function ForgotPasswordForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" size="touch" className="w-full" disabled={isPending}>
-          {isPending ? 'Enviando...' : 'Enviar enlace de recuperación'}
-        </Button>
+        <AuthSubmitButton pending={isPending} pendingLabel="Enviando..." className="w-full">
+          Enviar enlace de recuperación
+        </AuthSubmitButton>
       </form>
     </Form>
   )
