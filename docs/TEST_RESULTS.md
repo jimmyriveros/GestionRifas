@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02)** | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
+| **Post-9 vigente (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada)** | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, pendiente |
+| Post-9 anterior (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02) | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
 | Post-9 anterior (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02) | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
 | Post-9 anterior (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC) | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** (23:14–23:18 UTC), sin movimientos contables |
 | Post-9 anterior (D-245: la búsqueda pendiente no cancela la navegación elegida —I-199 resuelta— y el aviso en «Cuentas con tu equipo»; I-200 nueva; solo en local, 2026-09-30 en Bogotá) | **1.976/1.976** en 98 archivos (+10, `navigation-start`) | **1.572 ✅ y 1 omitida**: sin cambio de esquema | **16 nuevas** —13 del buscador, que fallan **9** con el buscador anterior, y 3 del equipo, que fallan con la tarjeta anterior—; completa: ver la sección | ✅ | **Solo en local**; candidato para publicar con D-244, **sin autorizar** |
@@ -17818,3 +17819,138 @@ Huella de `src/` y `tests/` (791 archivos): **`e8cf2e733dc99fe1`** antes y despu
 | ¿Un gancho de prueba puede dejar roto el PostgREST local si la pasada se corta? | Por eso va `in database postgres`: PostgreSQL borra los ajustes de una base al borrarla, así que `db:reset` se lo lleva con ella. Comprobado que PostgREST 14.15 lee ese ajuste por base: el gancho se cargó y respondió |
 | El servidor de desarrollo de la E2E completa murió a medias a los 30 minutos: lo lancé en segundo plano **sin plazo**, y ese es el límite por defecto | Detenidos la pasada y los procesos de `next dev` que quedaron; servidor nuevo con el plazo máximo (2 h); relanzado solo lo que no terminó, sobre base recién sembrada y calentada. La lección queda en la memoria del agente |
 | `markActivated` no se llama si la membresía no se pudo leer | Se deja así: con `PGRST303` también fallaría con el mismo token. Una cuenta que entrara así por primera vez queda marcada en el siguiente ingreso o cambio de contraseña (D-248) |
+
+---
+
+## Publicación de I-204 e I-115 — EN PRODUCCIÓN: `0490d69` (2026-10-02, 15:37–17:35 UTC; la revisión del dueño, pendiente)
+
+Autorización expresa del dueño para publicar juntas I-204 (D-247) e I-115 (D-248) según `DEPLOYMENT` §3.3.f, con el
+candidato `0490d69`, sin pedir permiso por paso mientras se cumplieran sus condiciones. **Sin migración y sin pausa.**
+Evidencia fuera de Git, en `build/publicacion-i204-i115/`. Ningún dato de cliente ni importe aquí. Se distinguen tres
+sitios: **local** (§a), **CI** (§c) y **producción** (§b, §d–§g).
+
+### a. El candidato y su validación, en local
+
+| Qué | Resultado |
+|---|---|
+| Candidato | **`0490d69040cddbdc90e5b4bc4d337f498764c01a`**: seis commits sobre lo servido, `a5d90f9` —cuatro solo de documentación (el registro de D-244 y D-245 y el diagnóstico de D-246), **D-247** y **D-248**— |
+| Lo que cambia | 28 archivos: 12 documentos, 10 de código —los cuatro formularios de autenticación y `AuthSubmitButton`, `membership-check`, `session`, `guards`, el inicio de sesión y las dos rutas de la API— y 6 de pruebas. **Ni una línea** en `supabase/`, `scripts/`, `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/`, `public/`, el proxy ni `.env.example` |
+| El código probado es el del candidato | `git diff 0490d69 -- src tests` vacío al cerrar las baterías, con la huella `e8cf2e733dc99fe1` antes y después de cada una (`TEST_RESULTS`, «I-115» §c) |
+| `verify` y `test:db` | **2.013/2.013** y **1.572 + 1 omitida** sobre base recién sembrada |
+| **E2E: NO fue una sola pasada completa** | Con ese mismo código: una primera pasada dio **535 ✅** hasta que el entorno la cortó a las 14:39 UTC —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: **3** caídas por sus 500 y **54** al detenerla; **432** sin correr—, y lo que no terminó se relanzó sobre base recién sembrada y calentada: escritorio **246/246** y móvil **246/246**. Entre las dos, **las 1.024 pruebas pasaron**, cada una con el código idéntico. Las nuevas de I-204 (9) e I-115 (5) están dentro |
+
+### b. P0, en solo lectura (15:37–15:43 UTC)
+
+| Qué | Resultado |
+|---|---|
+| Producción | `dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW` (`a5d90f9`), READY, candidato a reversión; `main` y la rama en el remoto, en `a5d90f9` |
+| En vivo, modo «antes» | **Todo en verde**: 43/43 rutas, 0 5xx, 7/7 cabeceras, CSP por *nonce* con un solo proyecto, 0 secretos en 952 KB, Next 16.3.6; `5c813f6adf4e` (`a5d90f9`) servido y `bcd4c51d90ca` (`0490d69`) ausente; `/login` y `/forgot-password` con el HTML de antes —sin `method`, botón activo, sin aviso— y ningún «Preparando el formulario» en el JavaScript; lo de D-244, D-245, D-234 y Color v2, servido |
+| La base | `0080` (80 migraciones), **sin** esquema `pausa` ni gancho en `authenticator`; `verify:remote` **58/58**; 2 recordatorios activos y ninguno en 3 h; el candado del sincronizador libre y ninguna corrida sin terminar |
+
+### c. CI
+
+| Dónde | Resultado |
+|---|---|
+| PR #12, run **`37029001220`** sobre `0490d69` | ✅ **2/2**: «Typecheck, lint, unitarias, build» (15:44:19–15:47:00 UTC), **2.013/2.013**; «Migraciones desde cero + pruebas de base de datos» (15:43:44–15:51:13), **1.572 ✅ y 1 omitida** |
+| Vista previa de Vercel | `dpl_Hmi2cZowPXq91LiGUf2VeU1SFqdz`, ERROR, **exactamente D-066**: `check:env` → «Faltan variables de entorno obligatorias» con las tres de Supabase |
+| `main`, tras el avance | Run **`37041230094`** (`push`) sobre `0490d69`: ✅ **2/2** (17:31:02–17:38:37 UTC), con las mismas cifras |
+
+### d. La franja, el avance y el despliegue
+
+| Qué | Resultado |
+|---|---|
+| La franja (`RUNBOOK` §9.0), en solo lectura | A las **17:00:10** y otra vez a las **17:30:43 UTC**: hora 17 —fuera de 3, 4, 5, 6, 12, 13, 15 y 16—, el candado del sincronizador **libre** (el turno de las 16 lo soltó a las 16:57:56), **0** corridas sin terminar, **0** recordatorios en 3 h (el siguiente, a las 21:15), la base en `0080` y sin pausa. Entre las dos lecturas el dueño retomó la conversación; se volvió a comprobar todo antes de empujar |
+| Avance de `main` | `publicar-main.sh`: comprobó la hora, `main` en `a5d90f9`, la rama en `0490d69` y el avance rápido; **`git push origin 0490d69…:refs/heads/main` a las 17:30:54 UTC**, sin `force`. GitHub marca el PR #12 fusionado a las 17:30:57, sin commit de fusión |
+| Despliegue | **`dpl_9vnY27T4Pi4QPr7hTbmwiJGk76Ni`**: creado 17:30:59, construyendo 17:31:00, **READY 17:31:42**; alias `gestion-rifas.vercel.app`, `gestion-rifas-jimmyriveros-projects.vercel.app` y `gestion-rifas-git-main-…`, sin error. El dominio sirve **`bcd4c51d90ca`** desde las **17:31:56**, 60 s después de empujar |
+| Punto de reversión | `dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW` (`a5d90f9`), `isRollbackCandidate`; `dpl_Gem4…`, ya no. Compatible con la base; **reintroduciría I-204 e I-115** (`DEPLOYMENT` §4.1) |
+
+### e. Verificación en vivo, sin sesión (17:32–17:35 UTC)
+
+| Qué | Resultado |
+|---|---|
+| `en-vivo.mjs despues` | ✅ **Todo en verde**: 43/43 rutas, 0 5xx; las seis pantallas con sesión probadas sin ella, a `/login`; 7/7 cabeceras, CSP por *nonce* con un solo proyecto; **`bcd4c51d90ca` servido** y `5c813f6adf4e` **ausente**; 0 secretos en 954 KB; Next 16.3.6 |
+| I-204 en el HTML inicial | `/login` y `/forgot-password`: `method="post"`, sin `action`, el botón `disabled` con «Preparando el formulario…» y su texto, y el aviso dentro de `<noscript>`. `AuthSubmitButton` en el JavaScript y `@media (scripting:none)` en la hoja de estilos. **Las cuatro huellas, ausentes en P0 y presentes ahora** |
+| I-204 en un Chromium sin extensiones (`formularios-en-vivo.mjs`), **sin escribir en ningún campo ni pulsar enviar** | Con JavaScript, el botón de `/login` se **habilita** y dice «Ingresar», y el de `/forgot-password`, «Enviar enlace de recuperación»; ni «Preparando…» ni el aviso a la vista; `method="post"`. Sin JavaScript, los dos siguen **desactivados** con su texto y el aviso **se ve**. `/login` → «¿Olvidaste tu contraseña?», navegación de cliente. **0** mensajes de consola y **0** errores de página; el evento de CSP de la sonda de Zod 4 (`script-src eval`), uno por página, como en la publicación anterior |
+| I-115 | Sin huella en el navegador: su código es de servidor. Lo demuestran el identificador servido, el CI y las pruebas locales. El fallo de membresía **no** se provocó en producción |
+| Lo de antes, igual | D-244 (la regla del tinte, una vez), D-245 (`instrumentation-client` y `navigation-start` en las cuatro páginas públicas), D-234 (5/5) y Color v2 (3/3) |
+| La base, después | `0080`, sin pausa ni gancho; `verify:remote` **58/58**; el cierre con las mismas cifras de P0 (0 entregas, 8 pagos de premios, 0 cierres) |
+| Registros de Vercel desde las 17:30 | **0** agrupaciones de errores; **0** líneas de error, aviso o fallo grave; **0** 5xx. Las peticiones son las de estas comprobaciones: 200 ×25, 307 ×19, 401 ×2 y 404 ×2 |
+
+### f. Lo que salió por el camino
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| **Al validar `en-vivo.mjs` contra un build local, ese build tenía la URL de PRODUCCIÓN.** Era el `.next` que deja `npm run verify`, construido con `.env.local`; arrancado con las variables locales, la ruta del catálogo llamó a la API de producción con la clave **local** | **8 peticiones**, todas **rechazadas** por producción («Invalid API key»): no leyeron ni escribieron nada. El servidor local se detuvo enseguida. Las validaciones siguientes, con un build hecho por `build/i204-i115/lanzar-prod.ts build`, que solo lleva `http://127.0.0.1:54321` (comprobado en `.next/server/chunks`). La lección, en la memoria del agente |
+| Bash interpretó las comillas invertidas de un `node -e` al documentar | Una fila de `DEPLOYMENT` §3.3.f perdió tres fragmentos de código; se vio y se corrigió con el editor antes del commit |
+| El evento de CSP `script-src eval` en `/login` y `/forgot-password` | La sonda de Zod 4 (`allowsEval`), ya registrada como ajena en la publicación anterior; `formularios-en-vivo.mjs` la cuenta aparte, a la vista |
+
+### g. La revisión del dueño, con su sesión
+
+**Pendiente.** Los pasos —cinco minutos, sin cambiar nada— están en `DEPLOYMENT` §3.3.f; sus registros se leen dentro
+de la hora después de su aviso.
+
+### h. Lo que NO se hizo
+
+| Qué | Por qué |
+|---|---|
+| Provocar un fallo de membresía en producción, enviar un formulario o escribir una credencial, ni ficticia | Lo prohíbe el encargo; el comportamiento está probado en local y la huella servida es el identificador |
+| Empujar los commits de documentación | Desplegarían otra versión y moverían el punto de reversión (§3.2.w) |
+| Actualizar Supabase, contratar Pro, añadir reintentos o instrumentación | Sin autorizar |
+
+---
+
+## I-202: PostgREST 14.18 probado en local — NO concluyente (2026-10-02, 15:44–17:03 UTC)
+
+Autorizado por el dueño: descargar de fuentes oficiales lo necesario para probar en local la corrección de PostgREST
+con datos sintéticos. **Es la prueba del error corregido, no un ensayo de la actualización completa del proyecto**: aquí
+no cambian ni Postgres, ni Auth, ni hay `pg_upgrade`; eso exigiría la imagen de Postgres de destino y una copia de los
+datos, y no se hizo. Producción no se tocó.
+
+| Qué | Cómo |
+|---|---|
+| La imagen | `public.ecr.aws/supabase/postgrest:v14.18`, la misma fuente que las del stack local; *digest* `sha256:c7cd7e265a85…`, 28 MB. La única descarga |
+| El montaje | Una 14.18 en su propio contenedor (`127.0.0.1:54330`) y, para el control, una 14.15 igual (`127.0.0.1:54331`, la imagen que ya tenía el stack), las dos con **la misma configuración** que la del stack —sus 7 variables `PGRST_`, copiadas con `docker inspect` sin imprimirlas— y en su red: la misma base, el mismo Auth (v2.194.0) y los datos sintéticos de la siembra |
+| El ensayo | El de D-246 (E0), emparejado: N segundos sin ninguna petición a ninguna → un inicio de sesión real en Auth (token nuevo) → las mismas 4 consultas en paralelo a todas a la vez, y 2 en serie a cada una (`build/i202/e0-emparejado.mts` y `e0-control.mts`) |
+
+| Tanda | Ciclos | 14.15 del stack (por Kong) | 14.15 directa | 14.18 directa |
+|---|---|---|---|---|
+| Primera (15:45–16:32), inactividad de 35 a 300 s, dos vueltas y dos más | 22 | **1** rechazo, en 1 ciclo: tras **60 s**, `/memberships` a 606 ms del `iat` | — | **0** |
+| Control (16:33–17:03), 60 s | 30 | 0 | 0 | 0 |
+| **Las dos** | **52** | **1** | 0 de 30 | **0** |
+
+Ningún otro estado que no fuera 200 o 401. **Conclusión: no concluyente.** La 14.18 no rechazó nunca, pero la 14.15
+tampoco casi nunca —1 de 52, cuando en D-246 fue 2 de 10—, y 1 frente a 0 no se distingue del azar. Lo que sí se sabe:
+el `CHANGELOG` oficial trae **dos** correcciones que la 14.5 de producción no tiene —#5159 en **14.17**, «la validación del
+JWT usa una hora equivocada por un fallo de `auto-update`», y #5196 en **14.18**, «los `PGRST303` esporádicos»—. Para que
+esta prueba sirva hace falta otro método: un disparador determinista, leído de esas dos correcciones, o cientos de ciclos
+por versión (`RUNBOOK` §12.6). Al terminar, los dos contenedores de prueba se retiraron; las imágenes se conservan.
+
+---
+
+## Opción A del respaldo, ensayada en local (2026-10-02, 17:35–17:47 UTC)
+
+El dueño pidió preparar la opción A —cifrado, cobertura de Auth y de lo demás, custodia de la frase, almacenamiento fuera
+del equipo, restauración de prueba y plazo— **sin extraer todavía nada de Auth de producción**. El procedimiento está en
+`RUNBOOK` §12.2.c; aquí, su ensayo con los datos **sintéticos** de la pila local (`build/respaldo-opcion-a/`, fuera de
+Git). Lo único de producción que se leyó: **los nombres** de las columnas de `auth.users`, `auth.identities` y
+`auth.mfa_factors` (`information_schema`), en solo lectura: **57 y 57, idénticas** a las de la pila local.
+
+| Paso | Resultado |
+|---|---|
+| 1. Origen | 9 cuentas, 9 identidades, 0 factores, 9 perfiles, 6 membresías, 50 clientes, 66 boletas y 8 pagos; 0 perfiles sin cuenta y 0 cuentas sin perfil; la huella de cuentas (identificador, hash y correo) y la de identidades |
+| 2. §5.1, cifrado | Los tres archivos de siempre, empaquetados y cifrados con `gpg --symmetric --cipher-algo AES256`; **0** nombres `"auth".` en `data.sql` |
+| 3. Las cuentas | `pg_dump --table auth.users --table auth.identities --table auth.mfa_factors` en la imagen de Postgres del stack, **por una tubería** hasta `gpg`: nunca en claro en el disco. Dentro: solo `users` e `identities` (`mfa_factors`, vacía); **0** líneas de sesiones, tokens de refresco, flujos, tokens de un uso o auditoría. Con **otra frase, no se descifra** |
+| 4. Una base nueva | `db:reset` sin siembra: todo a 0. De paso, un ajuste de `authenticator` **por base** (`pgrst.db_max_rows = 1000`, el mismo valor que ya tenía): **1 antes y 0 después** de `db:reset` —lo que dicen `TESTING` §4.15 y «I-115» sobre el gancho de su E2E— |
+| 5. `public` | Pausa local instalada y cerrada, y `restore-backup.ts`: **«RESTAURADO»** |
+| 6. Las cuentas | Descifradas por una tubería hasta `psql`, con los disparadores desactivados: sin un error |
+| 7. Comprobar | **Iguales al origen en todo lo contado**, también en las dos huellas. **Las 4 cuentas de la siembra entran con su contraseña de antes**; una cuenta nueva nace con su perfil (`on_auth_user_created`), su cambio de correo llega a `profiles` (`on_auth_user_email_updated`) y se borra |
+| 8. Al terminar | `db:reset` + `seed:local` (6 cuentas, 33 boletas, sin pausa); las copias cifradas del ensayo y su frase sintética, **borradas** |
+
+| Lo que salió por el camino | Qué se hizo |
+|---|---|
+| La primera vuelta se detuvo en el paso 4, **antes** de `db:reset`: `postgres` no puede fijar en un rol un parámetro inventado (`app.prueba_reset`, «permission denied») | La base estaba intacta; se usó un `pgrst.*` inocuo y se relanzó entera |
+| El comprobador de cuentas falló en Node 20: `supabase-js` necesita el transporte `ws` | Se le dio, como en `scripts/seed.ts`, y se corrió contra la copia restaurada antes de devolver la pila a su estado |
+| La guarda que impide escribir el ensayo dentro del repositorio miraba una carpeta que todavía no existía | Se crea antes de mirarla |
+
+**Lo que el ensayo NO cubre**: la frase de paso la escribió un archivo **sintético** (`--batch`); en producción la pide
+`gpg` en la terminal del dueño. Y las copias no salieron de este equipo: se borraron, que es el último paso del plazo.

@@ -1,6 +1,8 @@
 # SEGURIDAD
 
-- **Versión:** 2.37 · **Estado:** implementado · **Actualizado:** 2026-10-02, más tarde (§3, «Usuario inactivo»,
+- **Versión:** 2.38 · **Estado:** implementado · **Actualizado:** 2026-10-02, 17:45 UTC (**EN PRODUCCIÓN** con
+  `0490d69`: §3 —«Formularios con credenciales» y «Usuario inactivo»—, §5.0 y §5.3 están publicadas, `DEPLOYMENT`
+  §3.2.x). Antes, ese mismo día, más tarde (§3, «Usuario inactivo»,
   §5.0 y §5.3: un fallo al leer la membresía no cierra la sesión y las dos rutas responden 503 —I-115, D-248—, **solo
   en local**). Antes, ese mismo día (§3, «Formularios con credenciales»: I-204, **solo en local** —D-247—). Antes,
   2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §4.27

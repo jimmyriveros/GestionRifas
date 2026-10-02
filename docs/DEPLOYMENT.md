@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-02, más tarde (**§3.3.f nueva**: I-115, corregida en local encima de I-204 y **preparada, sin
+**Actualizado:** 2026-10-02, 17:40 UTC (**§3.2.x nueva: I-204 e I-115 EN PRODUCCIÓN** —`0490d69`, sin migración ni
+pausa; el punto de reversión pasa a `a5d90f9`, que reintroduciría los dos defectos—; §3.3.e, §3.3.f y §4.1, al día).
+Antes, ese mismo día, más tarde (**§3.3.f nueva**: I-115, corregida en local encima de I-204 y **preparada, sin
 autorizar**; D-248). Antes, ese mismo día (**§3.3.e nueva**: I-204, corregida en local y **preparada para publicarse
 sola, sin autorizar**; D-247). Antes, 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, **conforme** —«Todo se vio bien, no noté nada
 raro»—, sin movimientos contables). Antes, ese mismo día, 17:13 UTC (**§3.2.w nueva: D-244 y D-245 EN PRODUCCIÓN** —`a5d90f9`, sin migración ni
@@ -1248,6 +1250,49 @@ D-245».
 > **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
 > versión y moverían el punto de reversión.
 
+### 3.2.x Release de I-204 e I-115: credenciales fuera de la URL y un fallo de membresía que no cierra la sesión — 2026-10-02
+
+**Sin migración y sin pausa.** Autorización expresa del dueño para publicar juntas I-204 (D-247) e I-115 (D-248) según
+§3.3.f, con el candidato `0490d69`, sin pedir permiso por paso mientras se cumplieran sus condiciones. **No se detuvo**:
+ninguna condición falló. Supabase **no** se actualizó (sigue sin autorizar, `RUNBOOK` §12).
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`0490d69040cddbdc90e5b4bc4d337f498764c01a`**, el validado: el mismo SHA del PR #12 con el CI en verde. Ningún commit se añadió durante la publicación |
+| Commit anterior en producción | `a5d90f9350d99fc3f543b952f9930a50c38c7368` (§3.2.w) |
+| Integración | **Avance rápido** `a5d90f9..0490d69`, 6 commits —`7a6fe36`, `caf058d` y `3732343`, el registro de D-244 y D-245; `bdb00a1`, el diagnóstico de D-246; `097d8fa`, D-247; `0490d69`, D-248—, **sin fusión, sin `force` y sin la rama local `main`**: `git ls-remote` confirmó `a5d90f9` en `main` y `0490d69` en la rama justo antes, y `git push origin 0490d69…:refs/heads/main` a las **17:30:54 UTC**, con la franja libre. GitHub marca el PR #12 fusionado a las 17:30:57, sin commit de fusión |
+| Despliegue Vercel | **`dpl_9vnY27T4Pi4QPr7hTbmwiJGk76Ni`**: creado a las 17:30:59, **READY a las 17:31:42 UTC**, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`bcd4c51d90ca`** desde las 17:31:56. El único de producción que disparó el empuje |
+| Despliegue anterior (**punto de reversión**) | **`dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW`** (`a5d90f9`), con `isRollbackCandidate`; `dpl_Gem4…` dejó de serlo, como corresponde en Hobby. **Compatible con la base**, que no cambió; **pero volver a él reintroduce los dos defectos**: las credenciales podrían viajar otra vez en la URL antes de hidratar (I-204) y un fallo al leer la membresía volvería a cerrar la sesión en todos los dispositivos diciendo «Tu cuenta está inactiva» (I-115). *Instant Rollback* lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1) |
+| **Migraciones** | **NINGUNA.** `supabase/` y `scripts/` sin una línea de diferencia. Siguen **80** |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni `package-lock.json`, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni `.env.example`, ni `public/`, ni el proxy |
+| Huellas de esta entrega | Además del identificador de versión (§6.1): en el HTML inicial de `/login` y `/forgot-password`, `method="post"`, el botón `disabled` con «Preparando el formulario…» y el aviso en `<noscript>`; el texto de `AuthSubmitButton` en el JavaScript; y `@media (scripting:none)` en la hoja de estilos. Todas **ausentes antes** y **presentes después**. **I-115 no deja huella en el navegador** —su código es de servidor—: la prueba es el identificador, el CI y las pruebas locales; el fallo de membresía **no** se provocó en producción |
+| CI | En el PR, run **`37029001220`** sobre `0490d69`: ✅ **2/2** (15:43:44–15:51:13 UTC). En `main`, run **`37041230094`** (`push`): ✅ **2/2** (17:31:02–17:38:37 UTC). Los dos: **2.013/2.013** unitarias y **1.572 ✅ y 1 omitida** de base |
+
+**Validado antes, en local** (`TEST_RESULTS`, «I-204» e «I-115»): `verify`, `test:db` y las pruebas nuevas, que fallan
+con el código anterior. **La E2E no fue una sola pasada completa**: con el código idéntico al del candidato (huella
+`e8cf2e733dc99fe1`), una primera pasada dio **535** en verde hasta que el entorno la cortó —el servidor de desarrollo
+cumplió el plazo de una tarea en segundo plano: 3 caídas por sus 500, 54 al detenerla y 432 sin correr— y lo que no
+terminó se relanzó sobre base recién sembrada: escritorio **246/246** y móvil **246/246**. Entre las dos, las **1.024**
+pruebas pasaron. **P0, en solo lectura (15:37–15:43 UTC):** servido `5c813f6adf4e` (`a5d90f9`), base en `0080` sin
+pausa, `verify:remote` **58/58** y en vivo todo en verde, con las huellas de esta entrega ausentes. **La franja
+(`RUNBOOK` §9.0)**, en solo lectura a las 17:00:10 y otra vez a las **17:30:43 UTC**: hora 17, el candado libre —el turno
+de las 16 lo soltó a las 16:57:56—, ninguna corrida sin terminar y ningún recordatorio en 3 h.
+
+**Verificación en vivo (17:32–17:35 UTC):** `bcd4c51d90ca` servido y `5c813f6adf4e` **desaparecido**; 43/43 rutas, 0
+5xx, 7/7 cabeceras, CSP por *nonce* con un solo proyecto, 0 secretos en 954 KB, Next 16.3.6; las huellas de I-204, en su
+sitio, y lo de D-244, D-245, D-234 y Color v2, igual. **En un Chromium sin extensiones y sin escribir nada:** con
+JavaScript, el botón de `/login` se habilita y dice «Ingresar», y el de `/forgot-password`, «Enviar enlace de
+recuperación», sin «Preparando…» ni el aviso a la vista; sin JavaScript, los dos siguen desactivados y el aviso se ve; la
+navegación a «¿Olvidaste tu contraseña?» es de cliente; 0 mensajes de consola y, como antes, el evento de CSP de la sonda
+de Zod 4 (`script-src eval`), uno por página. `verify:remote` **58/58**; la base, igual. Registros desde las 17:30: **0**
+errores, avisos o 5xx. No se envió ningún formulario ni ninguna credencial, ni ficticia. Detalle en `TEST_RESULTS`,
+«Publicación de I-204 e I-115».
+
+> **Revisión del dueño con su sesión: pendiente.** Los pasos están en §3.3.f; sus registros se leen dentro de la hora
+> después de su aviso.
+> **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
+> versión y moverían el punto de reversión.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1489,7 +1534,10 @@ El dueño autorizó **prepararlos para publicarlos juntos**; push, CI sobre `mai
 | Al publicar, como en §3.2.s | P0 en solo lectura (servido `edbc778`, base en `0080`, sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador; avance rápido de `main`; READY, identificador servido (§6.1) y la comprobación en vivo de siempre, que ahora incluye que el fragmento de `instrumentation-client` se sirve y que las páginas públicas siguen sin errores de CSP |
 | La revisión del dueño, con su sesión | «Cierre de cuentas»: pulsar «Revisar cuenta» y ver «Abriendo cuenta…»; como vendedor con equipo, «Cuentas con tu equipo»; en cualquier lista, escribir en el buscador y abrir enseguida una fila. Avisar al terminar para leer los registros **dentro de la hora**. Si «Revisar cuenta» vuelve a quedarse quieta, la hora exacta y la pestaña Red (I-198, que sigue abierta) |
 
-#### 3.3.e I-204: los formularios de acceso sin credenciales en la URL — **PREPARADO, SIN AUTORIZAR** (D-247)
+#### 3.3.e I-204: los formularios de acceso sin credenciales en la URL — **EN PRODUCCIÓN desde el 2026-10-02, 17:31 UTC**, junto con §3.3.f (D-247; registro en §3.2.x)
+
+> **Publicado el 2026-10-02 con §3.3.f**, con la autorización expresa del dueño (§3.2.x). Lo de debajo es la preparación,
+> tal como quedó.
 
 El dueño autorizó corregirlo **en local**; push, CI sobre `main` y despliegue siguen **sin autorizar**. Es un commit
 propio y se puede publicar solo.
@@ -1504,7 +1552,10 @@ propio y se puede publicar solo.
 | La revisión del dueño, con su sesión | Entrar como siempre y salir; recuperar la contraseña hasta ver «Si el correo está registrado…» sin seguir el enlace. Avisar al terminar para leer los registros **dentro de la hora** |
 | Riesgo que queda | Si el JavaScript no llega, el botón se queda en «Preparando el formulario…» y no se puede entrar: es lo correcto —antes se podía «entrar» mandando la contraseña por la URL—. Lo escrito antes de hidratar se sigue borrando al hidratar (ya pasaba) |
 
-#### 3.3.f I-115: un fallo al leer la membresía no cierra la sesión — **PREPARADO, SIN AUTORIZAR** (D-248)
+#### 3.3.f I-115: un fallo al leer la membresía no cierra la sesión — **EN PRODUCCIÓN desde el 2026-10-02, 17:31 UTC**, junto con §3.3.e (D-248; registro en §3.2.x)
+
+> **Publicado el 2026-10-02**, con la autorización expresa del dueño (§3.2.x). Lo de debajo es la preparación, tal como
+> quedó, salvo la revisión del dueño, que dice ya los pasos concretos.
 
 El dueño autorizó corregirlo **en local**; push, CI sobre `main` y despliegue siguen **sin autorizar**. Va **encima** de
 §3.3.e en la misma rama: publicarlo publica también I-204, que sí se puede publicar antes y sola, hasta su commit.
@@ -1516,7 +1567,7 @@ El dueño autorizó corregirlo **en local**; push, CI sobre `main` y despliegue 
 | Punto de reversión | **`dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW`** (`a5d90f9`) si sale junto con I-204; si I-204 salió antes, su despliegue. **Compatible** en los dos casos: no hay nada en la base que cambie. *Instant Rollback* lo pulsa el dueño; después, «Undo Rollback» antes de volver a desplegar (§4.1) |
 | Comprobado en local | La unitaria y la E2E nuevas —que fallan con el código anterior: 15 de 25 y 4 de 5—, `verify` (**2.013/2.013**), `test:db` (**1.572 + 1**) y la E2E completa sobre el candidato: 535 en verde hasta un corte del entorno y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246**. Detalle en `TEST_RESULTS`, «I-115» |
 | Al publicar, como en §3.3.e | P0 en solo lectura (servido `a5d90f9` o el de I-204, base en `0080`, sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador; avance rápido de `main`; READY e identificador servido (§6.1). En vivo, lo de siempre: el fallo **no** se provoca en producción —exigiría tocar su configuración— |
-| La revisión del dueño, con su sesión | Entrar, abrir el panel y «Mis boletas», cambiar de pantalla y salir. Avisar al terminar para leer los registros **dentro de la hora** |
+| La revisión del dueño, con su sesión | Cinco minutos, sin cambiar nada: (1) abrir `/login` en su navegador de siempre —el botón puede decir «Preparando el formulario…» un instante y después «Ingresar»—; (2) entrar como siempre y mirar que la dirección del panel **no** lleva `?email=` ni `?password=`; (3) abrir «Boletas» (o «Mis boletas») y otra pantalla, y después la portada a secas: tiene que volver a su panel, nunca a «Tu cuenta está inactiva»; (4) abrir «Cambiar contraseña» y ver solo que el botón está activo, **sin** cambiarla; (5) salir. Avisar al terminar, con la hora, para leer los registros **dentro de la hora** |
 | Qué cambia en los registros | Un fallo de lectura ya no termina en `/login?error=inactive` con un `signOut`: deja el `console.error` de siempre y un `MembershipCheckError` («No pudimos comprobar tu acceso…») en la pantalla o en la acción. Es la **nueva firma de I-202** mientras no se actualice Supabase (`RUNBOOK` §12.6) |
 | Con la actualización de Supabase | Publicarlo **antes** de `RUNBOOK` §12 hace que la ventana de la actualización no saque a nadie de sus dispositivos: quien abra una pantalla mientras la API no responde verá «Algo salió mal» y «Reintentar» |
 | Riesgo que queda | Mientras dure un fallo de lectura nadie puede operar —es lo pedido—: la página de error se queda hasta que «Reintentar» encuentre el servicio. Si quien no responde es **Auth**, la guarda lo sigue tomando por «sin sesión» y manda a `/login`, sin cerrar nada, como antes |
@@ -1559,6 +1610,13 @@ nombra nada de la `0080`, que se queda en la base sin estorbar (`RUNBOOK` §11.4
 **Con D-244 y D-245, publicados el 2026-10-01** (§3.2.w), el despliegue anterior pasa a ser
 `dpl_Gem4RUcLh5xzACmp2vQZ29cX48wZ` (`edbc778`), candidato a *Instant Rollback*, y volver a él **sí basta**: la entrega
 no cambia la base, y `edbc778` es el código que estrenó la `0080`.
+
+**Con I-204 e I-115, publicados el 2026-10-02** (§3.2.x), el despliegue anterior pasa a ser
+`dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW` (`a5d90f9`), candidato a *Instant Rollback*. Volver a él es **compatible con la
+base** —la entrega no la cambia— **pero reintroduce los dos defectos**: antes de hidratar, «Ingresar» o Enter podrían
+volver a mandar el correo y la contraseña por la URL (I-204), y un fallo al leer la membresía —el `PGRST303` de I-202, un
+5xx, la red— volvería a cerrar la sesión en **todos** los dispositivos y a decir «Tu cuenta está inactiva» (I-115). Se
+vuelve solo si lo nuevo falla de una forma peor que esos dos defectos, y se dice así en el registro.
 
 ### 4.2 Base de datos
 

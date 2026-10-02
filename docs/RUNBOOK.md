@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-02, 15:25 UTC (§12.1, **§12.2.a y §12.2.b nuevas**, §12.3, §12.4 y §12.6: la actualización de Supabase, revisada antes de pedir la autorización —qué versión, qué cambia y qué puede afectarnos, qué cubre de verdad el respaldo y cómo se protegen las cuentas, y el cierre de I-202 con tres pruebas juntas—; **sigue sin autorizar**, y falta lo que solo ve el dueño). Antes, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+**Actualizado:** 2026-10-02, 17:45 UTC (**§12.2.c nueva**: la opción A del respaldo, preparada y ensayada en local sin extraer nada de producción; §12.6: la prueba 2, intentada en local con PostgREST 14.18 y no concluyente). Antes, 15:25 UTC (§12.1, **§12.2.a y §12.2.b nuevas**, §12.3, §12.4 y §12.6: la actualización de Supabase, revisada antes de pedir la autorización —qué versión, qué cambia y qué puede afectarnos, qué cubre de verdad el respaldo y cómo se protegen las cuentas, y el cierre de I-202 con tres pruebas juntas—; **sigue sin autorizar**, y falta lo que solo ve el dueño). Antes, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
 (**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
 sin pausa; C4 dice ahora `?lock_timeout`, porque la URL de `.env.local` no trae parámetros). Antes, 2026-09-30, por
 la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
@@ -1538,17 +1538,83 @@ completa del proyecto**, y se dice así:
   flujos), además del de §5.1: cifrado con una frase que solo guarda el dueño, fuera del repositorio y fuera de este
   equipo, y **destruido** al cerrar la verificación de §12.6. Permite restaurar las 7 cuentas con sus mismos
   identificadores y contraseñas. Es una **excepción** a la regla de §5.1 de no guardar `auth`, y por eso necesita su
-  decisión expresa.
+  decisión expresa. **Preparada y ensayada en local en §12.2.c**, sin extraer nada de producción.
 * **B — Pasar a Pro** antes de actualizar, que trae copias automáticas de todo el proyecto (I-024). Tiene coste.
 * **C — Asumir el riesgo** con el respaldo de §5.1: si hiciera falta restaurar, las 7 personas tendrían que volver a
   ser invitadas, y los perfiles, reconstruidos a mano para casar con las cuentas nuevas. Es la opción más barata y la de
   peor recuperación.
 
+### 12.2.c La opción A, preparada y ensayada en local — **SIN EJECUTAR en producción**
+
+El dueño pidió prepararla el 2026-10-02 **sin extraer todavía nada de Auth de producción**. Lo que sigue es el
+procedimiento concreto y sus límites; se ejecuta solo con su autorización expresa, y lo ejecuta **él**, en su terminal.
+
+| Pieza | Cómo |
+|---|---|
+| Qué cubre | Lo de §5.1 —roles, esquema y datos de `public`— **y las cuentas**: `auth.users`, `auth.identities` y `auth.mfa_factors`, solo datos, con la lista exacta de tablas (`pg_dump --table`), que no se amplía sola si Auth añade tablas. Se restauran con los disparadores desactivados (`session_replication_role = replica`), para que `on_auth_user_created` no cree perfiles repetidos |
+| Lo que deja fuera, a propósito | Sesiones, tokens de refresco, `mfa_amr_claims`, `flow_state`, `one_time_tokens` y el registro de auditoría de Auth: no hacen falta para entrar y son lo más delicado. Después de restaurar en otro proyecto, cada persona vuelve a entrar **con su misma contraseña**; no hay que invitar a nadie |
+| Los demás recursos | **Historial de migraciones**: lo da el repositorio (80, hasta `0080`), y en un proyecto nuevo se aplica con las migraciones. **`cron.job`**: lo crean `0052` y `0054`. **Vault**: no se respalda —está cifrado con la clave del proyecto y no sirve en otro—; sus 2 secretos se vuelven a crear con la URL del despachador y `PUSH_DISPATCH_SECRET` de Vercel. **La configuración de Auth** (URL del sitio, redirecciones, plantillas, SMTP y límites): el dueño la anota del panel, **sin** la contraseña del SMTP, y la nota viaja dentro del mismo paquete cifrado. **Claves de la API y de firma**: no cambian con la actualización; en un proyecto nuevo serían otras y habría que cambiarlas en Vercel. **Storage**: 0 buckets |
+| Cifrado | `gpg --symmetric --cipher-algo AES256` (GnuPG 2.4, el de Git para Windows), con frase de paso. El volcado de las cuentas va **por una tubería** de `pg_dump` a `gpg`: nunca existe en claro en el disco. Los tres archivos de §5.1 se empaquetan, se cifran igual y su copia en claro se borra al momento |
+| La frase de paso (custodia) | La genera el dueño con su gestor de contraseñas —24 caracteres aleatorios, o 6 palabras— y la guarda **solo ahí**; si quiere, también en papel, en un lugar cerrado. La escribe él cuando `gpg` la pide. **El agente nunca la ve**: no va al repositorio, ni a un chat, ni a un archivo. Sin ella el respaldo no sirve; con ella y el archivo, alguien podría atacar fuera de línea los hashes de las contraseñas: por eso el plazo es corto |
+| Dónde se guarda | **Fuera de este equipo**: una memoria USB o una carpeta **no compartida** del almacenamiento en la nube del dueño, con su `sha256` anotado para comprobar después que la copia no cambió. Ninguna copia en el repositorio ni en `build/` |
+| Quién lo hace | El dueño, en su terminal, con las órdenes de abajo. El agente prepara las órdenes y comprueba en solo lectura los recuentos de producción (§12.4); nunca ve el contenido |
+| Prueba de restauración | Antes de actualizar, en la pila **local** —nunca en el proyecto—: base nueva (`db:reset` sin siembra), `public` con `restore-backup.ts` (§5.2, con la pausa local instalada y cerrada) y después las cuentas; comprobar que los recuentos son los de producción, que no queda un perfil sin cuenta ni una cuenta sin perfil, que el dueño entra **en esa copia local** con su contraseña de siempre y que una cuenta nueva nace con su perfil; y al terminar, `db:reset` + `seed:local`, que borran la copia. Las columnas de Auth de producción y las de la pila local son **las mismas 57** (comparadas el 2026-10-02 en solo lectura, solo nombres); si un día difieren, la prueba se hace con la imagen de Auth de producción |
+| Cuánto se guarda | Desde el respaldo hasta cerrar §12.4 y la observación de 14 días de §12.6, **como mucho 15 días** después de la actualización. Después se borra del almacenamiento —también de la papelera—, se elimina la frase del gestor y se anota la fecha aquí. Si la actualización se retrasa más de 7 días, el respaldo se rehace justo antes |
+
+**Las órdenes** (en la terminal del dueño, desde `Rifas`, con `SUPABASE_DB_URL` cargada como en §5.1; `<DESTINO>` es la
+memoria USB o la carpeta de la nube, **fuera** del repositorio):
+
+```bash
+# 1. Lo de §5.1, a una carpeta temporal fuera del repositorio; se empaqueta, se cifra y se borra en claro.
+TMP=$(mktemp -d)
+npx supabase db dump -f "$TMP/roles.sql" --role-only --db-url "$SUPABASE_DB_URL"
+npx supabase db dump -f "$TMP/schema.sql" --db-url "$SUPABASE_DB_URL"
+npx supabase db dump -f "$TMP/data.sql" --schema public --data-only --db-url "$SUPABASE_DB_URL"
+grep -cE '"auth"[[:space:]]*\.' "$TMP/data.sql"   # debe imprimir 0
+cp "<NOTA-CONFIGURACION-AUTH>.txt" "$TMP/configuracion-auth.txt"
+tar -C "$TMP" -cf - . | gpg --symmetric --cipher-algo AES256 -o "<DESTINO>/respaldo-5-1-$(date -u +%Y%m%d).tar.gpg"
+rm -rf "$TMP"
+# 2. Las cuentas: del volcado al cifrado, sin pasar por el disco.
+{ echo "SET session_replication_role = replica;"
+  docker run --rm public.ecr.aws/supabase/postgres:17.6.1.156 pg_dump "$SUPABASE_DB_URL" --data-only \
+    --quote-all-identifier --role postgres --table auth.users --table auth.identities --table auth.mfa_factors \
+    --column-inserts --rows-per-insert 100000 | sed -E 's/^\\(un)?restrict .*$/-- &/'
+  echo "RESET ALL;"; } | gpg --symmetric --cipher-algo AES256 -o "<DESTINO>/cuentas-$(date -u +%Y%m%d).sql.gpg"
+# 3. La huella de los dos archivos, para comprobar las copias.
+sha256sum "<DESTINO>"/*.gpg
+```
+
+**Límites que siguen**:
+
+* Es **una foto**: lo de después —una cuenta nueva, un cambio de contraseña, una venta— no está. Restaurando en el mismo
+  proyecto, §10.7 lista lo escrito después.
+* Solo cubre lo que se puede rehacer: si el proyecto entero se perdiera, el proyecto nuevo tendría otras claves, otra
+  URL y Vault vacío, y Vercel tendría que cambiar sus variables.
+* La frase la pide `gpg` en la terminal del dueño; el ensayo usó una frase **sintética** en un archivo, que es lo único
+  que no se ensayó igual.
+* Es una **excepción** a la regla de §5.1 de no guardar `auth`, solo para esta actualización y con su plazo.
+
+**Ensayado en local** el 2026-10-02 con los datos sintéticos de la siembra (`build/respaldo-opcion-a/`, fuera de Git):
+
+| Paso | Resultado |
+|---|---|
+| El respaldo de §5.1, empaquetado y cifrado | ✅ 0 nombres `"auth".` en `data.sql` |
+| Las cuentas, del volcado al cifrado | ✅ Solo `auth.users` y `auth.identities` (`mfa_factors`, vacía); **0** líneas de sesiones, tokens de refresco, flujos o auditoría; con otra frase **no** se descifra |
+| Una base nueva | `db:reset` sin siembra: 0 cuentas y 0 filas en `public` |
+| Restaurar | `restore-backup.ts` (§5.2, con la pausa local instalada y cerrada) terminó en «RESTAURADO»; las cuentas, sin un error |
+| Comprobar | **Iguales** al origen en todo lo contado —cuentas, identidades, perfiles, membresías, clientes, boletas y pagos— y en la **huella** de cuentas e identidades (identificador, hash de la contraseña y correo); 0 perfiles sin cuenta y 0 cuentas sin perfil; **las 4 cuentas de la siembra entran con su contraseña de antes**; una cuenta nueva nace con su perfil y su cambio de correo llega a `profiles`, y se borra |
+| Al terminar | `db:reset` + `seed:local`; las copias cifradas del ensayo y su frase sintética, **borradas** |
+
+Dos cosas salieron por el camino, ninguna del procedimiento: `postgres` no puede fijar en un rol un parámetro inventado
+(`app.*`), y el comprobador de cuentas necesitaba el transporte `ws` en Node 20, como `scripts/seed.ts`. Detalle en
+`TEST_RESULTS`, «Opción A del respaldo, ensayada en local».
+
 ### 12.3 La actualización (dueño)
 
-1. El respaldo de §5.1 y, según la opción elegida en §12.2.b, el volcado cifrado de las cuentas o el plan Pro. Todo
-   fuera del repositorio y fuera de este equipo.
-2. La configuración de Auth del dashboard, anotada (§12.2.b).
+1. El respaldo de §5.1 y, según la opción elegida en §12.2.b, el volcado cifrado de las cuentas (§12.2.c, con su
+   prueba de restauración en local hecha **antes** de seguir) o el plan Pro. Todo fuera del repositorio y fuera de este
+   equipo.
+2. La configuración de Auth del dashboard, anotada (§12.2.b) y, con la opción A, dentro del paquete cifrado.
 3. En los ajustes del proyecto (§12.1), la actualización que se ofrezca. Se anota la hora de inicio y de fin, y lo que
    diga la página. La duración la da Supabase; aquí no se estima.
 4. Al terminar, el dueño avisa enseguida.
@@ -1584,6 +1650,15 @@ antes es baja —4 apariciones en 7 días, de 2 personas— y depende del uso. S
 | **1. La versión corregida** | `application_name` de PostgREST en `pg_stat_activity`, en solo lectura (§12.4) | ≥ 14.18 en el proyecto |
 | **2. El caso reproducido** | **En local**, el ensayo natural de D-246 (`build/i202/e0-natural.mts`, fuera de Git; el método está en `TEST_RESULTS`, D-246 §e: ratos sin peticiones, un inicio de sesión real y 4 consultas en paralelo) con la **misma** versión de PostgREST que quede en producción, frente a 14.15: ≥ 20 ciclos con cada una. Necesita descargar la imagen (§12.2.a). **En producción**, una prueba guiada del dueño: tras unos minutos sin uso, entra con su sesión de vendedor y abre «Mis boletas»; varias veces, en ratos distintos. El agente lee, **dentro del día**, los registros de Supabase (`build/i202/consultas-registros-supabase.md`) y la agrupación de Vercel | 0 rechazos con 14.18 en local, donde 14.15 los da; y ningún 401 `PGRST303` en la prueba guiada |
 | **3. El uso real** | La misma agrupación de `get_runtime_errors` a los 7 y a los 14 días, frente a la base de antes (4 en 7 días); y, mientras guarden un día, los 401 de `/rest/v1` en los registros de Supabase | Ninguna aparición nueva con uso normal del negocio en ese tiempo |
+
+> **La prueba 2, intentada el 2026-10-02 en local con la imagen oficial de 14.18 —y NO concluyente—** (`TEST_RESULTS`,
+> «I-202: PostgREST 14.18 probado en local»). Dos PostgREST 14.15 y una 14.18 sobre la misma base y el mismo Auth, con los
+> mismos ratos sin peticiones y el mismo token recién emitido: **52 ciclos**, y la 14.15 rechazó **1 vez**; la 14.18,
+> ninguna. Con un fallo tan raro en esta máquina —en D-246 salió 2 de 10—, 1 frente a 0 no se distingue del azar. **Es la
+> prueba del error corregido, no un ensayo de la actualización del proyecto**: ni Postgres, ni Auth, ni `pg_upgrade`
+> cambian en ella. Para que sirva hace falta **otro método**: un disparador determinista, leído de las dos correcciones
+> oficiales —#5159 en 14.17 y #5196 en 14.18—, o muchas más vueltas —cientos de ciclos por versión, varias horas—. Hasta
+> entonces, la prueba 2 descansa en la parte **guiada en producción** y la 3, en el uso real.
 
 Si una de las tres falla, I-202 sigue abierta y lo nuevo se anota con su hora. Si la actualización no se ofrece o se
 retrasa, ver D-246 (P2 y P3); P2 es ya D-248 (I-115), resuelta en local y sin publicar. **Con D-248 publicada, la firma

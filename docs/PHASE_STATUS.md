@@ -3,7 +3,23 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-02, 15:25 UTC — **La actualización de Supabase, revisada antes de pedir la autorización**
+- **Actualizado:** 2026-10-02, 17:45 UTC — **I-204 e I-115 EN PRODUCCIÓN** (`0490d69`, 17:31 UTC, sin migración ni
+  pausa; `DEPLOYMENT` §3.2.x), y la actualización de Supabase, más preparada **sin actualizar**. Mantenimiento posterior
+  a la Fase 9. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en producción, los formularios de acceso y de contraseña ya no pueden mandar nada por la URL
+  antes de hidratar (I-204), y un fallo al leer la membresía ya no cierra la sesión ni dice «Tu cuenta está inactiva»
+  (I-115).
+  **(2) Pruebas:** CI 2/2 en el PR (`37029001220`) y en `main` (`37041230094`) sobre `0490d69`: 2.013/2.013 y 1.572 + 1.
+  En vivo, todo en verde, con I-204 comprobado en el HTML inicial y en un Chromium sin escribir nada; `verify:remote`
+  58/58. En local, la E2E: las 1.024 pruebas en **dos** ejecuciones con el mismo código, no en una sola pasada.
+  PostgREST 14.18 en local: **no concluyente**. La opción A del respaldo: ensayada en local, en verde.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** la revisión del dueño, pendiente; I-202, hasta actualizar el proyecto —y la prueba 2
+  de `RUNBOOK` §12.6 necesita otro método—; I-203, aparte; el punto de reversión `a5d90f9` reintroduciría I-204 e I-115.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1, `DEPLOYMENT` §3.2.x y `RUNBOOK` §12.2.c y §12.6.
+
+- Antes, 2026-10-02, 15:25 UTC — **La actualización de Supabase, revisada antes de pedir la autorización**
   (`RUNBOOK` §12; solo documentación: nada se actualizó ni se autorizó). Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** ninguna nueva ni cambiada.
   **(2) Pruebas:** ninguna batería nueva, porque solo cambian documentos; el inventario de producción se leyó en solo

@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.52 · **Estado:** implementado · **Actualizado:** 2026-10-02 (§8.31: `MembershipCheckError`, un fallo
+- **Versión:** 1.53 · **Estado:** implementado · **Actualizado:** 2026-10-02, 17:45 UTC (**EN PRODUCCIÓN** con
+  `0490d69`: §8.31 y `MembershipCheckError` están publicados, `DEPLOYMENT` §3.2.x). Antes, ese mismo día (§8.31:
+  `MembershipCheckError`, un fallo
   al leer la membresía no cierra la sesión —I-115, D-248—, **solo en local**). Antes, 2026-10-01 (**EN PRODUCCIÓN** con
   `edbc778`: §8.32 y
   las cuatro rutas del cierre de cuentas están publicadas, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, más tarde (**§8.32
