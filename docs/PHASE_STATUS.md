@@ -3,7 +3,18 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-02, 15:15 UTC — **I-115 corregida SOLO EN LOCAL** (D-248), autorizada por el dueño y
+- **Actualizado:** 2026-10-02, 15:25 UTC — **La actualización de Supabase, revisada antes de pedir la autorización**
+  (`RUNBOOK` §12; solo documentación: nada se actualizó ni se autorizó). Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna nueva ni cambiada.
+  **(2) Pruebas:** ninguna batería nueva, porque solo cambian documentos; el inventario de producción se leyó en solo
+  lectura. Las baterías de I-204 e I-115, en sus entradas.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** I-202, hasta que se actualice el proyecto y pasen las tres pruebas de §12.6; I-203,
+  aparte; y falta del dueño qué versión ofrece el dashboard y cómo se protegen las cuentas (§12.2.b).
+  **(6) Qué revisar antes de continuar:** `RUNBOOK` §12 y `HANDOFF` §1.
+
+- Antes, 2026-10-02, 15:15 UTC — **I-115 corregida SOLO EN LOCAL** (D-248), autorizada por el dueño y
   encima de I-204; mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin push ni despliegue. Los seis
   puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** un fallo al leer la membresía —`PGRST303`, un 5xx, la red— ya no cierra la sesión ni dice

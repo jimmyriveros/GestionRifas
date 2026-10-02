@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-02, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+**Actualizado:** 2026-10-02, 15:25 UTC (§12.1, **§12.2.a y §12.2.b nuevas**, §12.3, §12.4 y §12.6: la actualización de Supabase, revisada antes de pedir la autorización —qué versión, qué cambia y qué puede afectarnos, qué cubre de verdad el respaldo y cómo se protegen las cuentas, y el cierre de I-202 con tres pruebas juntas—; **sigue sin autorizar**, y falta lo que solo ve el dueño). Antes, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
 (**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
 sin pausa; C4 dice ahora `?lock_timeout`, porque la URL de `.env.local` no trae parámetros). Antes, 2026-09-30, por
 la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
@@ -1446,17 +1446,31 @@ la autorización expresa del dueño**, y la hace el dueño con su sesión: el ag
 
 ### 12.1 Condiciones previas (todas)
 
-1. **Que se ofrezca.** El dueño abre **Settings → Infrastructure** y anota lo que diga: versión actual, versión de
-   destino y, si la página las muestra, las versiones de los servicios. Si no se ofrece ninguna actualización, no hay
-   nada que autorizar: se envía el borrador de `build/i202/borrador-soporte-supabase.md`, revisado.
+1. **Que se ofrezca, y a qué versión.** Es lo único que no se puede comprobar desde aquí: la CLI no tiene token de la
+   API de gestión. Dos caminos, los dos de **solo lectura**:
+   * El dueño abre los ajustes del proyecto en el dashboard —la guía de Supabase pone el botón en **Settings →
+     General**; versiones anteriores del panel lo tenían en **Infrastructure**— y anota: versión actual, versión de
+     destino, duración estimada y cualquier aviso o bloqueo que enseñe **antes** de confirmar.
+   * O un token con permisos de solo lectura (`project_admin_read` y `database_read`) para
+     `GET /v1/projects/zqwulwvkehjdbmshqytu/upgrade/eligibility`, que devuelve `eligible`, `current_app_version`,
+     `latest_app_version`, `target_upgrade_versions`, `duration_estimate_hours`, `objects_to_be_dropped`,
+     `unsupported_extensions`, `user_defined_objects_in_internal_schemas`, `validation_errors` y `warnings`. El token lo
+     crea y lo guarda el dueño; nunca va al repositorio.
+
+   **Que el destino traiga PostgREST ≥ 14.18.** Las dos imágenes publicadas esos días —**17.6.1.178** (28/09) y
+   **17.11.0.002** (29/09, el día del cierre del incidente)— fijan `postgrest_release: "14.18"` en `ansible/vars.yml` de
+   `supabase/postgres`. Si el destino es otra, se comprueba igual. Si no se ofrece ninguna actualización, no hay nada que
+   autorizar: se envía el borrador de `build/i202/borrador-soporte-supabase.md`, revisado.
 2. **La autorización**, para el respaldo, la actualización y las comprobaciones, con la franja acordada.
-3. **Un respaldo lógico recién hecho** (§5.1, con su comprobación de `"auth".` = 0): el plan Free no tiene copias
-   automáticas (I-024) y la actualización no se deshace.
+3. **El respaldo que el dueño elija en §12.2.b**: el habitual de §5.1 **no** recupera el proyecto entero —deja fuera las
+   cuentas de acceso, entre otras cosas— y la actualización no se deshace. El plan Free no tiene copias automáticas
+   (I-024).
 4. **La franja**: sin actividad del negocio —de madrugada en Bogotá—, **fuera de las horas del programador** (en Bogotá,
    22, 23, 0, 1, 7, 8, 10 y 11) y lejos de un recordatorio programado. Importa por **I-115**: mientras la API no responde,
    quien abra o recargue una pantalla pierde la sesión **en todos sus dispositivos** y lee «Tu cuenta está inactiva». La
-   pausa de D-239 **no** lo evita, porque lo que se detiene es la propia API. Si antes se corrige I-115 (D-246, P2), ese
-   riesgo desaparece.
+   pausa de D-239 **no** lo evita, porque lo que se detiene es la propia API. Si antes se **publica** la corrección de
+   I-115 —hecha en local, D-248, `DEPLOYMENT` §3.3.f, sin autorizar—, ese riesgo desaparece: quien abra una pantalla
+   verá «Algo salió mal» y «Reintentar», y conservará su sesión.
 5. **Nada más en curso**: ningún despliegue, migración ni pausa instalada.
 
 ### 12.2 Antes, en solo lectura (agente)
@@ -1475,12 +1489,69 @@ select max(created_at) from public.audit_logs;                                 -
 Además: `GET /auth/v1/health` con la clave publicable (hoy **v2.197.0**), `npm run verify:remote` en verde y la lista
 de agrupaciones de `get_runtime_errors` de 7 días.
 
+### 12.2.a Qué cambiaría y qué puede afectarnos (leído el 2026-10-02)
+
+El inventario de solo lectura (`build/i204-i115/inventario-actualizacion.mts`, solo recuentos y nombres) frente a lo que
+la guía de Supabase dice que bloquea o complica una actualización:
+
+| Comprobación | En producción | Qué significa |
+|---|---|---|
+| Tamaño de la base | **31 MB** | Supabase calcula la duración por el tamaño (≈100 Mbps de copia): segundos de datos; el resto es reiniciar servicios. La cifra exacta la da su estimación |
+| Extensiones | `pg_cron` 1.6.4, `pg_net` 0.20.4, `pg_stat_statements` 1.11, `pg_trgm` 1.6, `pgcrypto` 1.3, `supabase_vault` 0.3.1, `uuid-ossp` 1.1 | Ninguna de las obsoletas en PG 17 (`plcoffee`, `plls`, `plv8`, `timescaledb`, `pgjwt`). Qué versión trae la imagen de destino lo dirán sus avisos |
+| Tipos `reg*` en tablas | Solo `realtime.subscription` | Es un esquema de Supabase, no nuestro |
+| Ranuras de replicación lógica | Ninguna | — |
+| Roles propios | Ninguno | Nada que migrar de md5 |
+| `cron.job_run_details` | 22.432 filas, 4,5 MB | Lejos de «extremadamente grande». Limpiarla es opcional |
+| Objetos propios en esquemas internos | 2 vistas de `postgres` en `extensions` | Las de `pg_stat_statements`, como en cualquier proyecto |
+| PostgREST 14.5 → 14.18 | `CHANGELOG` oficial | **Solo correcciones y registros**, ningún cambio incompatible. Dos nos benefician: 14.6 deja de filtrar nombres de tablas en las pistas de error, y 14.11 recupera solo el canal `LISTEN` —el que usa la pausa de publicación para recargar su configuración— |
+| Postgres 17.6 → 17.6 (otra compilación) o 17.11 | Según el destino | Versión menor, mismo formato; el proceso es el mismo `pg_upgrade` en los dos casos |
+| Auth | v2.197.0 | Se despliega aparte de la imagen, que fija 2.190.0: se mira después de actualizar, sin suponer nada |
+| Lo nuestro que toca PostgREST | El gancho `pgrst.db_pre_request` de la pausa (D-239), `raise sqlstate 'PGRST'` y `request.jwt.claims` | Sin cambios entre 14.5 y 14.18. Se vuelve a probar con `pausa-publicacion.spec.ts` si se prueba la imagen en local |
+
+**Probarlo en local antes de pedir la autorización** exige descargar las imágenes de destino: PostgREST 14.18
+(`public.ecr.aws/supabase/postgrest:v14.18`, **≈ 6 MB** comprimidos) y, si se quiere también Postgres,
+`public.ecr.aws/supabase/postgres:17.11.0.002` (**≈ 351 MB**). Descargar necesita el permiso del dueño.
+
+### 12.2.b Lo que cubre el respaldo, y cómo quedan protegidas las cuentas
+
+La actualización es un `pg_upgrade` **en el sitio**: conserva todos los esquemas —`auth`, `cron`, `vault`,
+`supabase_migrations`— y, si falla, Supabase vuelve a levantar la base original. El respaldo es para lo que queda: que
+termine «bien» y algo esté mal, sin posibilidad de deshacerla. **El respaldo habitual de §5.1 no es una recuperación
+completa del proyecto**, y se dice así:
+
+| Recurso | En producción | ¿En el respaldo de §5.1? | Cómo se protege o se rehace |
+|---|---|---|---|
+| Datos del negocio (`public`) | — | **Sí** (`data.sql`) | §5.1 |
+| Estructura, extensiones y roles | — | **Sí** (`schema.sql`, `roles.sql`) | §5.1 |
+| **Cuentas de acceso** (`auth.users`, `auth.identities`) | **7** cuentas, 7 identidades por correo, 0 factores MFA | **No**, a propósito: llevan contraseñas cifradas y tokens | Ver las opciones de abajo. Sin ellas, restaurar `public` ni siquiera recupera los perfiles: `profiles.id` apunta a `auth.users.id` |
+| Sesiones abiertas | 3 | No | Si se pierden, cada persona vuelve a entrar con su contraseña |
+| Historial de migraciones (`supabase_migrations.schema_migrations`) | 80, hasta `0080` | No | Tras restaurar, marcarlas aplicadas (`supabase migration repair --status applied`) |
+| Trabajos programados (`cron.job`) | 3 | No (son datos de `cron`) | Los crean las migraciones `0052` y `0054` |
+| Secretos de Vault | 2, contados sin leerlos: los del despachador de avisos, que `0054` llama `push_dispatch_url` y `push_dispatch_secret` | No | Se vuelven a crear con `DEPLOYMENT` (despachador de avisos): la URL es la del dominio y el secreto vive en Vercel como `PUSH_DISPATCH_SECRET` |
+| Configuración de Auth (URL del sitio, redirecciones, plantillas, correo, límites) | En el dashboard | No | El dueño la anota antes de actualizar |
+| Claves de la API y de firma | Del proyecto | No | La actualización no las cambia; las del despliegue viven en Vercel |
+| Storage | 0 buckets | — | Nada que proteger |
+
+**Las cuentas**, tres opciones que decide el dueño:
+
+* **A — Un volcado temporal y cifrado que incluya `auth`** (usuarios e identidades; sin sesiones, tokens de refresco ni
+  flujos), además del de §5.1: cifrado con una frase que solo guarda el dueño, fuera del repositorio y fuera de este
+  equipo, y **destruido** al cerrar la verificación de §12.6. Permite restaurar las 7 cuentas con sus mismos
+  identificadores y contraseñas. Es una **excepción** a la regla de §5.1 de no guardar `auth`, y por eso necesita su
+  decisión expresa.
+* **B — Pasar a Pro** antes de actualizar, que trae copias automáticas de todo el proyecto (I-024). Tiene coste.
+* **C — Asumir el riesgo** con el respaldo de §5.1: si hiciera falta restaurar, las 7 personas tendrían que volver a
+  ser invitadas, y los perfiles, reconstruidos a mano para casar con las cuentas nuevas. Es la opción más barata y la de
+  peor recuperación.
+
 ### 12.3 La actualización (dueño)
 
-1. El respaldo de §5.1, guardado fuera del repositorio y fuera del equipo.
-2. En **Settings → Infrastructure**, la actualización que se ofrezca. Se anota la hora de inicio y de fin, y lo que diga
-   la página. La duración la da Supabase; aquí no se estima.
-3. Al terminar, el dueño avisa enseguida.
+1. El respaldo de §5.1 y, según la opción elegida en §12.2.b, el volcado cifrado de las cuentas o el plan Pro. Todo
+   fuera del repositorio y fuera de este equipo.
+2. La configuración de Auth del dashboard, anotada (§12.2.b).
+3. En los ajustes del proyecto (§12.1), la actualización que se ofrezca. Se anota la hora de inicio y de fin, y lo que
+   diga la página. La duración la da Supabase; aquí no se estima.
+4. Al terminar, el dueño avisa enseguida.
 
 ### 12.4 Después, en solo lectura (agente) y con la sesión del dueño
 
@@ -1488,6 +1559,8 @@ de agrupaciones de `get_runtime_errors` de 7 días.
 |---|---|
 | `application_name` de PostgREST | **14.18 o posterior** (o la versión corregida que indique Supabase). Si sigue en 14.5, **I-202 no está corregida**, aunque la página diga que terminó |
 | Postgres, migraciones y `cron.job` | Las migraciones, igual (`0080`); los trabajos del programador, los mismos y activos |
+| Extensiones y Vault | Las mismas extensiones (las versiones pueden subir: se anotan); 2 secretos en Vault, contados y sin leer su valor |
+| Cuentas | 7 en `auth.users`; nadie tuvo que volver a entrar salvo por el reinicio |
 | `/auth/v1/health`, `verify:remote`, `/login` | Responde; todo en verde; 200 |
 | `get_runtime_errors` desde la franja | Ninguna agrupación nueva |
 | El dueño, con su sesión de vendedor | Panel y «Mis boletas» se abren; **ningún** movimiento contable |
@@ -1503,8 +1576,19 @@ de agrupaciones de `get_runtime_errors` de 7 días.
 
 ### 12.6 Seguimiento y cierre de I-202
 
-I-202 **no se cierra** porque deje de verse: se cierra con PostgREST ≥ 14.18 comprobado en el proyecto **y** una semana
-de `get_runtime_errors` sin la agrupación. Si la actualización no se ofrece o se retrasa, ver D-246 (P2 y P3).
+I-202 **no se cierra** porque deje de verse. Una semana sin errores, por sí sola, no demuestra nada: la frecuencia de
+antes es baja —4 apariciones en 7 días, de 2 personas— y depende del uso. Se cierra con **las tres pruebas juntas**:
+
+| Prueba | Cómo | Qué la da por buena |
+|---|---|---|
+| **1. La versión corregida** | `application_name` de PostgREST en `pg_stat_activity`, en solo lectura (§12.4) | ≥ 14.18 en el proyecto |
+| **2. El caso reproducido** | **En local**, el ensayo natural de D-246 (`build/i202/e0-natural.mts`, fuera de Git; el método está en `TEST_RESULTS`, D-246 §e: ratos sin peticiones, un inicio de sesión real y 4 consultas en paralelo) con la **misma** versión de PostgREST que quede en producción, frente a 14.15: ≥ 20 ciclos con cada una. Necesita descargar la imagen (§12.2.a). **En producción**, una prueba guiada del dueño: tras unos minutos sin uso, entra con su sesión de vendedor y abre «Mis boletas»; varias veces, en ratos distintos. El agente lee, **dentro del día**, los registros de Supabase (`build/i202/consultas-registros-supabase.md`) y la agrupación de Vercel | 0 rechazos con 14.18 en local, donde 14.15 los da; y ningún 401 `PGRST303` en la prueba guiada |
+| **3. El uso real** | La misma agrupación de `get_runtime_errors` a los 7 y a los 14 días, frente a la base de antes (4 en 7 días); y, mientras guarden un día, los 401 de `/rest/v1` en los registros de Supabase | Ninguna aparición nueva con uso normal del negocio en ese tiempo |
+
+Si una de las tres falla, I-202 sigue abierta y lo nuevo se anota con su hora. Si la actualización no se ofrece o se
+retrasa, ver D-246 (P2 y P3); P2 es ya D-248 (I-115), resuelta en local y sin publicar. **Con D-248 publicada, la firma
+de I-202 en los registros cambia**: tras el `console.error` de `getActiveMembership` ya no viene `/login?error=inactive`,
+sino un `MembershipCheckError` («No pudimos comprobar tu acceso…»). La prueba 3 cuenta las dos.
 
 ### 12.7 Lo que NO se hace nunca
 
