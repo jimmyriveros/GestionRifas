@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { buildReportCsv, reportFilePrefix } from '@/features/reports/export'
 import { parseReportFilters, reportKeysForRole } from '@/features/reports/schemas'
+import { MEMBERSHIP_CHECK_MESSAGE, MembershipCheckError } from '@/lib/auth/membership-check'
 import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
 import { csvFilename, csvHeaders } from '@/lib/csv'
 import { todayBogota } from '@/lib/dates'
@@ -20,7 +21,8 @@ import { MAINTENANCE_PAUSE_MESSAGE, MaintenancePauseError } from '@/lib/maintena
  *
  * TRES CAPAS, COMO EN TODA OPERACION SENSIBLE
  *   1. Sesion valida y membresia ACTIVA: un usuario desactivado no descarga
- *      nada, ni siquiera con una sesion anterior (BR-A04).
+ *      nada, ni siquiera con una sesion anterior (BR-A04). Si la membresia no
+ *      se pudo leer, 503: un fallo no es una cuenta inactiva (D-239, D-248).
  *   2. Reporte permitido para su rol: un vendedor no puede pedir el reporte
  *      «Por vendedor», que compara a unos con otros.
  *   3. RLS: las vistas y funciones son `security_invoker`, de modo que el
@@ -41,6 +43,10 @@ export async function GET(request: NextRequest) {
     // D-239: la API en pausa de publicacion no es una cuenta inactiva.
     if (error instanceof MaintenancePauseError) {
       return NextResponse.json({ error: MAINTENANCE_PAUSE_MESSAGE }, { status: 503 })
+    }
+    // D-248: una membresia que no se pudo leer tampoco (I-115).
+    if (error instanceof MembershipCheckError) {
+      return NextResponse.json({ error: MEMBERSHIP_CHECK_MESSAGE }, { status: 503 })
     }
     throw error
   }

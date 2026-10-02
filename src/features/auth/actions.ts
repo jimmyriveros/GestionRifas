@@ -3,6 +3,8 @@
 import { redirect } from 'next/navigation'
 
 import { dashboardPathForRole, getActiveMembershipOrMaintenance } from '@/lib/auth/guards'
+import { MembershipCheckError } from '@/lib/auth/membership-check'
+import type { ActiveMembership } from '@/lib/auth/session'
 import { mapPgError } from '@/lib/errors'
 import { checkRateLimit, RATE_LIMITS, resetRateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
@@ -67,8 +69,17 @@ export async function login(input: unknown): Promise<ActionResult> {
   }
 
   // Con la API en pausa de publicacion (D-239) entra igual, con su sesion, y ve
-  // `/mantenimiento`: no es una cuenta inactiva y no se le cierra nada.
-  const membership = await getActiveMembershipOrMaintenance()
+  // `/mantenimiento`: no es una cuenta inactiva y no se le cierra nada. Si la
+  // membresia no se pudo LEER (D-248, I-115), tampoco: Auth acepto la contrasena,
+  // la sesion se queda, y la portada —o `next`— vuelve a comprobar el acceso.
+  let membership: ActiveMembership | null
+  try {
+    membership = await getActiveMembershipOrMaintenance()
+  } catch (error) {
+    if (!(error instanceof MembershipCheckError)) throw error
+    resetRateLimit(rateKey)
+    redirect(safeNextPath(next) ?? '/')
+  }
   if (!membership) {
     await supabase.auth.signOut()
     return { error: 'Tu cuenta está inactiva. Contacta a tu administrador.' }

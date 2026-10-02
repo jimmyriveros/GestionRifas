@@ -1,7 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-02 (**§3.3.e nueva**: I-204, corregida en local y **preparada para publicarse sola, sin
-autorizar**; D-247). Antes, 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, **conforme** —«Todo se vio bien, no noté nada
+**Actualizado:** 2026-10-02, más tarde (**§3.3.f nueva**: I-115, corregida en local encima de I-204 y **preparada, sin
+autorizar**; D-248). Antes, ese mismo día (**§3.3.e nueva**: I-204, corregida en local y **preparada para publicarse
+sola, sin autorizar**; D-247). Antes, 2026-10-01, 23:25 UTC (§3.2.w: la revisión del dueño, **conforme** —«Todo se vio bien, no noté nada
 raro»—, sin movimientos contables). Antes, ese mismo día, 17:13 UTC (**§3.2.w nueva: D-244 y D-245 EN PRODUCCIÓN** —`a5d90f9`, sin migración ni
 pausa; el punto de reversión pasa a `edbc778`—; §3.3.d y §4.1, al día). Antes, ese mismo
 día, 01:42 UTC (§3.2.v: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
@@ -1502,6 +1503,23 @@ propio y se puede publicar solo.
 | Al publicar, como en §3.3.d | P0 en solo lectura (servido `a5d90f9`, base en `0080`, sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador; avance rápido de `main`; READY e identificador servido (§6.1). En vivo, además de lo de siempre: el HTML de `/login` y `/forgot-password` trae `method="post"`, el botón `disabled` y el aviso dentro de `<noscript>`; y un navegador **sin JavaScript** no cambia la dirección al pulsar ni con Enter (valores ficticios) |
 | La revisión del dueño, con su sesión | Entrar como siempre y salir; recuperar la contraseña hasta ver «Si el correo está registrado…» sin seguir el enlace. Avisar al terminar para leer los registros **dentro de la hora** |
 | Riesgo que queda | Si el JavaScript no llega, el botón se queda en «Preparando el formulario…» y no se puede entrar: es lo correcto —antes se podía «entrar» mandando la contraseña por la URL—. Lo escrito antes de hidratar se sigue borrando al hidratar (ya pasaba) |
+
+#### 3.3.f I-115: un fallo al leer la membresía no cierra la sesión — **PREPARADO, SIN AUTORIZAR** (D-248)
+
+El dueño autorizó corregirlo **en local**; push, CI sobre `main` y despliegue siguen **sin autorizar**. Va **encima** de
+§3.3.e en la misma rama: publicarlo publica también I-204, que sí se puede publicar antes y sola, hasta su commit.
+
+| | |
+|---|---|
+| Qué publica | Sobre lo servido (`a5d90f9`): lo de §3.3.e —si no salió antes— y el commit de **D-248**: `src/lib/auth/membership-check.ts`, la lectura de la membresía (`session.ts`), las guardas (`guards.ts`), el inicio de sesión (`features/auth/actions.ts`) y las dos rutas de la API con sesión, más sus pruebas y documentación |
+| Lo que no publica | **Ninguna migración** (siguen `0001`–`0080`); sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, el proxy, la CSP, `public/` ni `.env.example`. El gancho de su E2E vive solo en la base local |
+| Punto de reversión | **`dpl_9VeXSZsyQw84TDvYHhxiA8jFoSPW`** (`a5d90f9`) si sale junto con I-204; si I-204 salió antes, su despliegue. **Compatible** en los dos casos: no hay nada en la base que cambie. *Instant Rollback* lo pulsa el dueño; después, «Undo Rollback» antes de volver a desplegar (§4.1) |
+| Comprobado en local | La unitaria y la E2E nuevas —que fallan con el código anterior: 15 de 25 y 4 de 5—, `verify` (**2.013/2.013**), `test:db` (**1.572 + 1**) y la E2E completa sobre el candidato: 535 en verde hasta un corte del entorno y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246**. Detalle en `TEST_RESULTS`, «I-115» |
+| Al publicar, como en §3.3.e | P0 en solo lectura (servido `a5d90f9` o el de I-204, base en `0080`, sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador; avance rápido de `main`; READY e identificador servido (§6.1). En vivo, lo de siempre: el fallo **no** se provoca en producción —exigiría tocar su configuración— |
+| La revisión del dueño, con su sesión | Entrar, abrir el panel y «Mis boletas», cambiar de pantalla y salir. Avisar al terminar para leer los registros **dentro de la hora** |
+| Qué cambia en los registros | Un fallo de lectura ya no termina en `/login?error=inactive` con un `signOut`: deja el `console.error` de siempre y un `MembershipCheckError` («No pudimos comprobar tu acceso…») en la pantalla o en la acción. Es la **nueva firma de I-202** mientras no se actualice Supabase (`RUNBOOK` §12.6) |
+| Con la actualización de Supabase | Publicarlo **antes** de `RUNBOOK` §12 hace que la ventana de la actualización no saque a nadie de sus dispositivos: quien abra una pantalla mientras la API no responde verá «Algo salió mal» y «Reintentar» |
+| Riesgo que queda | Mientras dure un fallo de lectura nadie puede operar —es lo pedido—: la página de error se queda hasta que «Reintentar» encuentre el servicio. Si quien no responde es **Auth**, la guarda lo sigue tomando por «sin sesión» y manda a `/login`, sin cerrar nada, como antes |
 
 ---
 

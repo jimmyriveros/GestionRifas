@@ -33,6 +33,7 @@ import {
   probeShowsClosed,
 } from '../../scripts/maintenance-pause'
 import { authorizeAction, requireActiveMembership } from '@/lib/auth/guards'
+import { MembershipCheckError } from '@/lib/auth/membership-check'
 import { getActiveMembership } from '@/lib/auth/session'
 import {
   isMaintenancePause,
@@ -244,13 +245,15 @@ describe('M-04: ninguna guarda toma la pausa por una cuenta inactiva (I-115)', (
     expect(signOut).not.toHaveBeenCalled()
   })
 
-  it('otro fallo de la lectura sigue su camino de siempre (I-115 no se toca aquí)', async () => {
+  it('otro fallo de la lectura no es la pausa: sube como MembershipCheckError y tampoco cierra nada (D-248)', async () => {
+    // Hasta D-248 este fallo llevaba a /login?error=inactive y llamaba a signOut (I-115).
     const { signOut } = clientAnswering({
       data: null,
       error: { code: 'PGRST000', message: 'caida', details: null, hint: null },
       status: 503,
     })
-    await expect(requireActiveMembership()).rejects.toThrow('REDIRECT:/login?error=inactive')
-    expect(signOut).toHaveBeenCalled()
+    await expect(requireActiveMembership()).rejects.toBeInstanceOf(MembershipCheckError)
+    expect(signOut).not.toHaveBeenCalled()
+    expect(redirect).not.toHaveBeenCalled()
   })
 })

@@ -3,7 +3,24 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-02 (noche del 1 en Bogotá) — **I-204 corregida SOLO EN LOCAL** (D-247), autorizada por el
+- **Actualizado:** 2026-10-02, 15:15 UTC — **I-115 corregida SOLO EN LOCAL** (D-248), autorizada por el dueño y
+  encima de I-204; mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin push ni despliegue. Los seis
+  puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** un fallo al leer la membresía —`PGRST303`, un 5xx, la red— ya no cierra la sesión ni dice
+  «Tu cuenta está inactiva»: las pantallas, la portada incluida, caen en la página de error con «Reintentar»; las
+  acciones dicen «No pudimos comprobar tu acceso…» sin hacer nada; el inicio de sesión conserva la sesión; las dos
+  rutas de la API responden 503. Una cuenta inactiva sigue saliendo de todos sus dispositivos.
+  **(2) Pruebas:** unitaria nueva 25 (15 fallan con el código anterior) y E2E nueva 5 con un `PGRST303` real de la
+  PostgREST local (4 fallan con el anterior). `verify` 2.013/2.013, `test:db` 1.572 + 1 y la E2E completa —535 hasta un corte del entorno; lo pendiente,
+  relanzado: 246/246 de escritorio y 246/246 del móvil—, en `TEST_RESULTS`, «I-115».
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** si quien no responde es Auth, la guarda lo sigue tomando por «sin sesión» y manda
+  a `/login`, sin cerrar nada; el alcance global del cierre legítimo, para el dueño (D-246); I-202 e I-203, como en
+  D-246, y la actualización de Supabase, preparada y sin autorizar (`RUNBOOK` §12).
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1, D-247 y D-248, y `DEPLOYMENT` §3.3.e y §3.3.f.
+
+- Antes, 2026-10-02 (noche del 1 en Bogotá) — **I-204 corregida SOLO EN LOCAL** (D-247), autorizada por el
   dueño y lista para publicarse sola; mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas, sin push ni
   despliegue. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** los formularios de ingresar, recuperar, definir y cambiar la contraseña ya no pueden mandar

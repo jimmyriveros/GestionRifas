@@ -4,6 +4,7 @@ import { cache } from 'react'
 
 import { createClient } from '@/lib/supabase/server'
 import type { AppRole } from '@/lib/constants'
+import { MembershipCheckError } from '@/lib/auth/membership-check'
 import { isMaintenancePause, MaintenancePauseError } from '@/lib/maintenance-pause'
 
 export type ActiveMembership = {
@@ -41,9 +42,11 @@ export const getAuthUser = cache(async () => {
  * Memoizado por request con `cache()`: layouts y paginas pueden llamarlo
  * varias veces sin repetir la consulta.
  *
- * Con la API en pausa de publicacion LANZA `MaintenancePauseError` (D-239): no
- * es una cuenta inactiva, y tomarla por una cerraria la sesion de todo el mundo
- * (I-115). Las guardas deciden que ve la persona.
+ * Con la API en pausa de publicacion LANZA `MaintenancePauseError` (D-239), y
+ * ante cualquier otro fallo de la lectura —el 401 `PGRST303` de I-202, un 5xx,
+ * la red— LANZA `MembershipCheckError` (D-248): ninguno es una cuenta inactiva,
+ * y tomarlos por una cerraria la sesion en todos los dispositivos (I-115). `null`
+ * queda solo para lo de arriba. Las guardas deciden que ve la persona.
  */
 export const getActiveMembership = cache(async (): Promise<ActiveMembership | null> => {
   const user = await getAuthUser()
@@ -68,7 +71,7 @@ export const getActiveMembership = cache(async (): Promise<ActiveMembership | nu
     // No se expone al usuario (docs/SECURITY.md T14); queda en el log del
     // servidor para poder distinguir un error real de una cuenta inactiva.
     console.error('getActiveMembership: error consultando memberships', error)
-    return null
+    throw new MembershipCheckError()
   }
   if (!data) return null
 

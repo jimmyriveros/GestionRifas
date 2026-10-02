@@ -1,7 +1,9 @@
 # SEGURIDAD
 
-- **Versión:** 2.36 · **Estado:** implementado · **Actualizado:** 2026-10-02 (§3, «Formularios con credenciales»:
-  I-204, **solo en local** —D-247—). Antes, 2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §4.27
+- **Versión:** 2.37 · **Estado:** implementado · **Actualizado:** 2026-10-02, más tarde (§3, «Usuario inactivo»,
+  §5.0 y §5.3: un fallo al leer la membresía no cierra la sesión y las dos rutas responden 503 —I-115, D-248—, **solo
+  en local**). Antes, ese mismo día (§3, «Formularios con credenciales»: I-204, **solo en local** —D-247—). Antes,
+  2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §4.27
   y la nota de §4.19 del cierre de cuentas —`0080`— están publicadas, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, al
   final (§4.27, D-242: nadie opera en
   nombre de un vendedor a cargo desactivado —el personal tampoco, sin ampliar ningún permiso— y el pasado no se carga
@@ -224,7 +226,7 @@ diferido `memberships_require_active_owner` (`0016`, D-071). Ver `AUDIT_REPORT.m
 | Refresco | En `src/proxy.ts` y `src/lib/supabase/proxy.ts` en cada request que pasa por el proxy. Lo que Supabase pide escribir —cookies renovadas o borradas, fragmentos incluidos, y `Cache-Control`, `Expires` y `Pragma`— va en la respuesta que deja pasar la petición **y en la redirección a `/login`** (I-174, D-236) |
 | Verificación de identidad en servidor | `supabase.auth.getUser()` (valida contra el servidor de Auth). **Nunca** `getSession()` para decisiones de autorización, porque su contenido proviene de la cookie y no está verificado |
 | Origen del rol | Tabla `memberships` consultada en el servidor. No se confía en `app_metadata` del JWT para autorizar (D-006) |
-| Usuario inactivo | El layout protegido y las políticas RLS verifican `is_active` en cada request; una sesión previa deja de servir de inmediato |
+| Usuario inactivo | El layout protegido y las políticas RLS verifican `is_active` en cada request; una sesión previa deja de servir de inmediato. Solo una membresía **ausente o inactiva** cierra la sesión: si la lectura falla —`PGRST303`, un 5xx, la red—, no se cierra nada ni se dice «inactiva»; la pantalla cae en la página de error con «Reintentar» y una acción no se hace (D-248, I-115) |
 | Contraseñas | Gestionadas por Supabase Auth; la aplicación nunca las almacena, registra ni transmite a terceros |
 | Formularios con credenciales | Los cuatro —ingresar, recuperar, definir y cambiar la contraseña— traen la protección **en el HTML del servidor**: `method="post"` y el botón desactivado hasta que React hidrata (`AuthSubmitButton`), que impide también el envío con Enter. Antes de I-204, pulsar antes de hidratar mandaba la contraseña en la dirección (`/login?email=…&password=…`). Ninguna credencial viaja en una URL (D-247) |
 | Alta de usuarios | Invitación por correo mediante `SERVICE_ROLE` solo en servidor; la persona define su contraseña desde el enlace |
@@ -1619,7 +1621,8 @@ donde nadie puede suponer una guarda implícita— y comprueba en sus primeras l
 
 1. **Sesión** (`getAuthUser`) → 401.
 2. **Membresía activa** (`getActiveMembership`) → 403. Un usuario desactivado no descarga nada, ni
-   siquiera con una sesión anterior (BR-A04).
+   siquiera con una sesión anterior (BR-A04). Si la membresía no se pudo leer —la pausa (D-239) u otro
+   fallo (D-248)—, **503** con un mensaje temporal: un fallo no es una cuenta inactiva.
 3. **Reporte permitido para su rol** → 403. Un vendedor no puede pedir el reporte que compara
    vendedores.
 4. **RLS**, que es la única capa que garantiza de verdad el aislamiento: las vistas y las funciones
@@ -1714,6 +1717,7 @@ de reportes (§5.0): no hereda ninguna guarda, así que la comprueba él.
 | Proxy | Sin sesión, redirige al login | 307 |
 | 1 | `getAuthUser` | 401 |
 | 2 | `getActiveMembership`: perfil, membresía y organización activos (BR-A04) | 403 |
+| 2 | La membresía no se pudo leer: la pausa (D-239) o cualquier otro fallo (D-248) | 503, con un mensaje temporal |
 | 3 | Rol `seller` | 403 |
 | 4 | `week`, **el único parámetro**: fecha real, lunes, semana ya terminada | 400 |
 | 5 | Rifa del catálogo de **su** membresía y seis resultados confirmados, **bajo RLS** | 409 |

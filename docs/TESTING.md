@@ -1,6 +1,9 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.41 · **Actualizado:** 2026-10-02 (§3, fila 1, y §5.3, D-247, **solo en local**: los cuatro formularios
+- **Versión:** 2.42 · **Actualizado:** 2026-10-02, más tarde (**§4.15 nueva** y §3, fila 2, D-248, **solo en local**:
+  un fallo al leer la membresía no es una cuenta inactiva —25 unitarias y 5 E2E con un `PGRST303` real de la PostgREST
+  local, provocado con un gancho solo para un perfil—). Antes, ese mismo día (§3, fila 1, y §5.3, D-247, **solo en
+  local**: los cuatro formularios
   de acceso y de contraseña no se pueden pulsar antes de hidratar —`loginAs` espera a «Ingresar»—, su E2E con valores
   ficticios (9) y su unitaria (12), y dos trampas: `getByText` no mira dentro de `<noscript>`, y `javaScriptEnabled:
   false` sí lo pinta). Antes, 2026-09-30, al final (§4.14, D-242: **9** pruebas de base más, `Z10`..`Z13` —la
@@ -205,7 +208,7 @@ para poder ir directo a la prueba en vez de buscarla.
 | # | Prueba mínima | Regla | Dónde | Fase |
 |---|---------------|-------|-------|------|
 | 1 | Login y redirección por rol | BR-A01, BR-A02 | `e2e/security.spec.ts`; y que nada viaje en la URL antes de hidratar, en los cuatro formularios de acceso y de contraseña: `e2e/credenciales-sin-hidratar.spec.ts`, `unit/auth-forms-sin-hidratar.test.tsx` (D-247) | **7** · post-9 |
-| 2 | Bloqueo de usuarios inactivos | BR-A04, BR-A05 | `e2e/security.spec.ts` | **7** |
+| 2 | Bloqueo de usuarios inactivos | BR-A04, BR-A05 | `e2e/security.spec.ts`; y que un fallo al **leer** la membresía no se tome por una cuenta inactiva —sin cerrar nada—, mientras la cuenta desactivada sigue saliendo de todos sus dispositivos: `e2e/membresia-sin-comprobar.spec.ts`, `unit/membership-check.test.ts` (D-248) | **7** · post-9 |
 | 3 | Aislamiento entre organizaciones | BR-O02, BR-O03 | `db/rls-isolation.test.ts` | 2 |
 | 4 | Aislamiento entre vendedores | BR-U07 | `db/rls-isolation.test.ts`, `db/seller-isolation.test.ts`, `db/audit-phase9.test.ts` (cobranza, **ambas direcciones**) | 2 · **9** |
 | 5 | Creación de rifas | BR-R04, BR-R07 | `e2e/owner-raffles.spec.ts` | 3 |
@@ -1496,6 +1499,21 @@ están en `TEST_RESULTS`, D-244.
 privilegios de producción, los cerrojos que retiene frente a una escritura concurrente y la comparación de la puerta en
 CONTINUAR. Necesitan una base sin la `0080`. El método está en `RUNBOOK` §11.3; los guiones, en `build/cierre-ui/`,
 ignorado por Git.
+
+### 4.15 Un fallo al leer la membresía no es una cuenta inactiva (D-248, I-115, sin migración)
+
+| Suite | Pruebas | Qué comprueba |
+|---|---|---|
+| `tests/unit/membership-check.test.ts` | **25** | La lectura LANZA `MembershipCheckError` ante `PGRST303`, un 503 y la red, y sigue devolviendo `null` para una membresía ausente o inactiva; una pantalla deja subir el error sin `signOut`; una acción, el inicio de sesión y las dos rutas de la API dicen «No pudimos comprobar tu acceso…»; la cuenta inactiva y la pausa, como antes. **15 fallan con el código anterior**; las 10 que pasan con los dos son lo que no debe cambiar |
+| `tests/unit/maintenance-pause.test.ts` | M-04, la última | Cambia a propósito: «otro fallo de la lectura» ya no lleva a `/login?error=inactive` con `signOut`, sino que sube como `MembershipCheckError` sin cerrar nada |
+| `tests/e2e/membresia-sin-comprobar.spec.ts` | **5**, en serie | Un 401 `PGRST303` **real** de PostgREST, provocado con un gancho `pgrst.db_pre_request` solo para un perfil y solo en `/memberships`: dos sesiones del mismo vendedor, la portada y una pantalla con «Algo salió mal» y sin cerrar ninguna, «Reintentar» al volver el servicio, una Server Action que no hace nada y conserva lo escrito, el inicio de sesión que conserva la sesión nueva, una ruta de la API con 503 y la cuenta desactivada que sigue saliendo de todos sus dispositivos. **4 fallan con el código anterior**; la de la cuenta desactivada pasa con los dos |
+
+⚠️ **`membresia-sin-comprobar.spec.ts` instala un gancho en la PostgREST local mientras corre**, como la pausa, pero
+solo hace fallar las lecturas de `memberships` del vendedor de la prueba —y las que lleven la cabecera de sondeo
+`x-prueba-i115`, con la que espera a que PostgREST lo cargue y lo suelte—. Va en la configuración de `authenticator`
+**para esta base** (`in database postgres`): si una pasada se corta con él puesto, `db:reset` se lo lleva con la base,
+o `alter role authenticator in database postgres reset pgrst.db_pre_request`, `notify pgrst, 'reload config'` y
+`drop schema prueba_i115 cascade`.
 
 ## 5. Pruebas unitarias clave
 

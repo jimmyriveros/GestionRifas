@@ -16477,3 +16477,45 @@ línea en cada carga, y la tarjeta centrada se movería).
 
 **Consecuencia.** I-204, resuelta en local. Lo escrito **antes** de hidratar se sigue borrando al hidratar —ya pasaba—,
 y los 5 formularios de página que no son de autenticación siguen sin `method` (I-204, fuera de este encargo).
+
+---
+
+## D-248 — Un fallo al leer la membresía no es una cuenta inactiva: nadie pierde la sesión (I-115)
+
+**Fecha:** 2026-10-02 · **Estado:** aceptada (autorizada por el dueño para corregirse en local; era la propuesta P2 de
+D-246) · **Sin migración** · **Solo en local**: sin push ni despliegue · Cierra **I-115** en local
+
+**Contexto.** `getActiveMembership` devolvía `null` también cuando la consulta de `memberships` FALLABA, y las guardas
+no distinguían ese fallo de una cuenta inactiva: `requireActiveMembership` llamaba a `signOut()` —global por defecto, así
+que en **todos** los dispositivos— y llevaba a «Tu cuenta está inactiva»; la portada, `authorizeAction` y el inicio de
+sesión decían lo mismo. D-239 solo apartó la pausa de publicación. D-246 midió el disparador real: el 401 `PGRST303` de
+I-202, en una carga de documento o al pulsar «Reintentar» mientras dura. El dueño pidió: ante `PGRST303`, errores del
+servicio o fallos de red, no cerrar sesiones ni decir «inactiva», conservar la sesión válida, no dejar acceder ni operar
+sin verificar la autorización, y un error recuperable con los mecanismos existentes; conservar la pausa, el bloqueo de
+las cuentas inactivas y el de las sesiones inválidas, y **no** cambiar el alcance del cierre legítimo.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Separar las dos cosas | `getActiveMembership` **lanza** `MembershipCheckError` (`src/lib/auth/membership-check.ts`) ante cualquier error de la lectura que no sea la pausa. `null` significa solo «no hay membresía activa» |
+| Pantallas | `requireActiveMembership` deja subir el error y lo recoge la página de error general —«Algo salió mal» y «Reintentar», que vuelve a pedir la pantalla (D-196)—: no se pinta nada sin haber comprobado el acceso, y no se cierra nada. Igual la portada (`/`, donde arranca la aplicación instalada), que antes mandaba a «Tu cuenta está inactiva», y el login abierto con una sesión |
+| Server Actions | `authorizeAction` —y con ella `authorizeCapability`— devuelve «No pudimos comprobar tu acceso. Vuelve a intentarlo en unos segundos.»: la acción no se hace y el formulario conserva lo escrito |
+| Inicio de sesión | Si Auth aceptó la contraseña pero la membresía no se pudo leer, **no** se cierra la sesión recién creada: se devuelve el cupo de intentos y se lleva a `next` o a la portada, que vuelven a comprobar. Si sigue fallando, la página de error, y «Reintentar» entra sin escribir otra vez la contraseña |
+| Las dos rutas de la API con sesión | 503 con el mismo mensaje, como la pausa |
+| Lo que NO cambia | La pausa (`MaintenancePauseError`, `/mantenimiento`); una cuenta ausente o inactiva, que sigue cerrando la sesión —global, como antes— y diciéndolo; una sesión inválida, que el proxy y `getAuthUser` siguen mandando a `/login`; el alcance del cierre legítimo |
+
+**Medido** (`TEST_RESULTS`, «I-115»): las pruebas unitarias nuevas fallan con el código anterior y pasan con el nuevo;
+la E2E provoca un 401 `PGRST303` **real** de PostgREST con el mismo gancho que la pausa (`pgrst.db_pre_request`), solo
+para un perfil y solo en `/memberships`, y comprueba dos sesiones del mismo vendedor, la recuperación sin volver a
+entrar, una Server Action, el inicio de sesión, una ruta de la API y la cuenta desactivada.
+
+**Alternativas descartadas.** Reintentar la lectura (el dueño no autorizó reintentos, y no arregla nada si el fallo
+dura); tratar el error en cada guarda por separado (son cinco sitios y se desalinearían); una pantalla propia para «no
+pudimos comprobar» (el encargo pidió los mecanismos existentes); cerrar la sesión solo en este dispositivo (cambia el
+alcance del cierre legítimo, que D-246 dejó para el dueño).
+
+**Consecuencia.** I-115, resuelta en local. **Límites que siguen:** si quien no responde es **Auth**, `getAuthUser` y el
+proxy lo siguen tomando por «sin sesión» y mandan a `/login` —sin cerrar nada—; es el camino de las sesiones inválidas,
+que el encargo pidió no tocar. Y si el fallo cae en el primer ingreso de alguien que definió su contraseña por otro
+camino, su cuenta queda marcada como activa en el siguiente ingreso o cambio de contraseña (`markActivated`, BR-E14).

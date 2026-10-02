@@ -4,6 +4,7 @@ import { WEEKLY_RESULTS_COPY } from '@/features/weekly-results/copy'
 import { renderWeeklyResultsPng } from '@/features/weekly-results/image/render'
 import { getWeeklyResults, getWeeklyResultsRaffle } from '@/features/weekly-results/queries'
 import { parseWeekParam, weeklyResultsFileName } from '@/features/weekly-results/week'
+import { MEMBERSHIP_CHECK_MESSAGE, MembershipCheckError } from '@/lib/auth/membership-check'
 import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
 import { todayBogota } from '@/lib/dates'
 import { MAINTENANCE_PAUSE_MESSAGE, MaintenancePauseError } from '@/lib/maintenance-pause'
@@ -17,7 +18,8 @@ import { MAINTENANCE_PAUSE_MESSAGE, MaintenancePauseError } from '@/lib/maintena
  * (D-060, `SECURITY` §5.0). Las comprobaciones van en este orden:
  *
  *   1. Sesión (401) y membresía ACTIVA (403): una cuenta desactivada no genera
- *      nada con una sesión anterior (BR-A04).
+ *      nada con una sesión anterior (BR-A04). Si la membresía no se pudo leer,
+ *      503: un fallo no es una cuenta inactiva (D-239, D-248).
  *   2. Rol vendedor (403): la imagen sale de la rifa del catálogo de un vendedor.
  *   3. `week`, el ÚNICO parámetro, validado: el lunes de una semana terminada
  *      (400). No se acepta ningún identificador de vendedor, de organización ni
@@ -52,6 +54,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     // D-239: la API en pausa de publicacion no es una cuenta inactiva.
     if (error instanceof MaintenancePauseError) return fail(503, MAINTENANCE_PAUSE_MESSAGE)
+    // D-248: una membresía que no se pudo leer tampoco (I-115).
+    if (error instanceof MembershipCheckError) return fail(503, MEMBERSHIP_CHECK_MESSAGE)
     throw error
   }
   if (!membership) return fail(403, COPY.inactive)

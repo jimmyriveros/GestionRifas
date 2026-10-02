@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { AppCapability } from '@/lib/auth/capabilities'
 import { hasCapability } from '@/lib/auth/capability-resolver'
 import type { AppRole } from '@/lib/constants'
+import { MEMBERSHIP_CHECK_MESSAGE, MembershipCheckError } from '@/lib/auth/membership-check'
 import { getActiveMembership, getAuthUser, type ActiveMembership } from '@/lib/auth/session'
 import {
   MAINTENANCE_PATH,
@@ -24,8 +25,9 @@ export function dashboardPathForRole(role: AppRole): '/seller/dashboard' | '/own
 
 /**
  * La membresia activa para una PANTALLA: con la API en pausa de publicacion lleva
- * a `/mantenimiento` y conserva la sesion (D-239). Cualquier otro fallo sigue su
- * camino de siempre.
+ * a `/mantenimiento` y conserva la sesion (D-239). Cualquier otro fallo de la
+ * lectura (`MembershipCheckError`, D-248) sube tal cual: lo recoge la pagina de
+ * error general, con «Reintentar», y no se cierra nada.
  */
 export async function getActiveMembershipOrMaintenance(): Promise<ActiveMembership | null> {
   try {
@@ -40,7 +42,8 @@ export async function getActiveMembershipOrMaintenance(): Promise<ActiveMembersh
  * Exige sesion + membresia activa. Si hay sesion pero el usuario/membresia/
  * organizacion estan inactivos, cierra la sesion (BR-A04: una sesion previa
  * no puede seguir operando) y redirige al login con un mensaje explicito.
- * Una pausa de publicacion NO es una cuenta inactiva (D-239).
+ * Ni una pausa de publicacion (D-239) ni un fallo al LEER la membresia (D-248,
+ * I-115) son una cuenta inactiva: ninguno de los dos cierra nada.
  */
 export async function requireActiveMembership() {
   const user = await getAuthUser()
@@ -95,6 +98,9 @@ export async function authorizeAction(
     // D-239: con la API en pausa, la accion no se hace y lo que la persona
     // escribio sigue en el formulario; nada de «cuenta inactiva».
     if (error instanceof MaintenancePauseError) return { error: MAINTENANCE_PAUSE_MESSAGE }
+    // D-248 (I-115): lo mismo si la membresia no se pudo leer. Sin comprobarla
+    // no se opera, pero la sesion sigue siendo valida y no se cierra.
+    if (error instanceof MembershipCheckError) return { error: MEMBERSHIP_CHECK_MESSAGE }
     throw error
   }
   if (!membership) {

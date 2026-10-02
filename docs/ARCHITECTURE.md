@@ -1,6 +1,8 @@
 # ARQUITECTURA
 
-- **Versión:** 1.51 · **Estado:** implementado · **Actualizado:** 2026-10-01 (**EN PRODUCCIÓN** con `edbc778`: §8.32 y
+- **Versión:** 1.52 · **Estado:** implementado · **Actualizado:** 2026-10-02 (§8.31: `MembershipCheckError`, un fallo
+  al leer la membresía no cierra la sesión —I-115, D-248—, **solo en local**). Antes, 2026-10-01 (**EN PRODUCCIÓN** con
+  `edbc778`: §8.32 y
   las cuatro rutas del cierre de cuentas están publicadas, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, más tarde (**§8.32
   nueva**: el cierre de
   cuentas —D-241, `0080`, **solo en local**—: la base calcula y la pantalla explica, cuatro rutas nuevas en §6 y el
@@ -2445,6 +2447,7 @@ lectura de la membresía, que ya es lo primero de cada pantalla y de cada acció
 |---|---|
 | `src/lib/maintenance-pause.ts` | El código (`RIFAS_PAUSA`), el estado (423), la ruta (`/mantenimiento`), el texto de una acción y `isMaintenancePause` —por el código, y un HEAD sin cuerpo por el estado—. `MaintenancePauseError` |
 | `getActiveMembership` (`lib/auth/session.ts`) | Con la pausa, **lanza** `MaintenancePauseError`: no devuelve «sin membresía», que las guardas tomarían por una cuenta inactiva (I-115) |
+| `MembershipCheckError` (`lib/auth/membership-check.ts`, D-248) | Cualquier OTRO fallo al leer la membresía —el 401 `PGRST303` de I-202, un 5xx, la red—: `getActiveMembership` lo **lanza**, y `null` queda solo para «sin membresía activa». Las pantallas lo dejan subir a la página de error general; `authorizeAction`, el inicio de sesión y las dos rutas de la API responden un fallo temporal. Nadie llama a `signOut()` por él (I-115) |
 | `getActiveMembershipOrMaintenance` (`lib/auth/guards.ts`) | Para PANTALLAS: redirige a `/mantenimiento`. La usan `requireActiveMembership` —y con ella todo el layout protegido—, la portada, el login y su acción |
 | `authorizeAction` | Para ACCIONES: devuelve el texto de la pausa, sin redirigir, para no perder lo escrito. Toda Server Action pasa por ella |
 | Las dos rutas de API con sesión | 503 con el texto |
@@ -2452,8 +2455,9 @@ lectura de la membresía, que ya es lo primero de cada pantalla y de cada acció
 | `/mantenimiento` | Prerenderizada, pública (`PUBLIC_PATHS`), sin consultas ni JavaScript: un enlace «Reintentar» a `/`, que vuelve a repartir por rol |
 
 Nada de esto cuesta una petición cuando no hay pausa: reacciona al error, no pregunta el estado. El catálogo público
-no se tocó —cae en su página de error de siempre— y el resto de I-115 tampoco: un corte de PostgREST que no es la pausa
-sigue su camino de antes. Es el mismo código en el puente (`cac81e8` + esto) y en la publicación.
+no se tocó —cae en su página de error de siempre— y desde D-248 el resto de I-115 tampoco cierra sesiones: un corte que
+no es la pausa lanza `MembershipCheckError` (fila de arriba). Es el mismo código en el puente (`cac81e8` + esto) y en la
+publicación.
 
 ### 8.32 Cierre de cuentas: la base calcula, la pantalla explica (D-241)
 

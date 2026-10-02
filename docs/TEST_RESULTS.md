@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02)** | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
+| **Post-9 vigente (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02)** | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
+| Post-9 anterior (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02) | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
 | Post-9 anterior (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC) | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** (23:14–23:18 UTC), sin movimientos contables |
 | Post-9 anterior (D-245: la búsqueda pendiente no cancela la navegación elegida —I-199 resuelta— y el aviso en «Cuentas con tu equipo»; I-200 nueva; solo en local, 2026-09-30 en Bogotá) | **1.976/1.976** en 98 archivos (+10, `navigation-start`) | **1.572 ✅ y 1 omitida**: sin cambio de esquema | **16 nuevas** —13 del buscador, que fallan **9** con el buscador anterior, y 3 del equipo, que fallan con la tarjeta anterior—; completa: ver la sección | ✅ | **Solo en local**; candidato para publicar con D-244, **sin autorizar** |
 | Post-9 anterior (D-244: «Revisar cuenta» avisa mientras se abre; I-198 e I-199, solo en local, 2026-09-30 en Bogotá) | **1.966/1.966** en 97 archivos, antes y después: el cambio es de interfaz | **1.572 ✅ y 1 omitida**, antes y después: sin cambio de esquema | **5 nuevas** (`cierre-navegacion` 4, `-movil` 1) y las **10 del cierre**: **15/15**; las 5 nuevas, **4 fallan con la lista anterior**. La completa no se repitió | ✅ | **Solo en local**; la causa del incidente, **sin demostrar** (I-198) |
@@ -17761,3 +17762,59 @@ después de cada batería. Ningún archivo de código cambió desde `verify` has
 | E2E completa: `db:reset` + `seed:local`, calentar, `db:reset` + `seed:local` y `playwright test` (03:19 UTC) | ⚠️ **Cortada por un fallo del entorno a las 04:05 UTC**: **848 ✅, 27 ❌ y 144 sin correr** de 1.019, en 46,0 min. **Escritorio, entero: 773/773 ✅**, con las 9 nuevas de I-204; `ventas-por-fecha:163` (I-090) pasó porque la pasada empezó después de las 19:00 en Bogotá (nota de D-226). **Móvil: 75 ✅ de 246** y después el corte |
 | Los 27 fallos de esa pasada, uno a uno | **1** antes del corte: `catalogo-publico-movil.spec.ts:103`, la dirección no llegó a `q=0` en 15 s —**I-106**, su firma de siempre—. **26** del corte: `configuracion-cobro-movil.spec.ts:120` con «Target crashed» y, desde ahí, 25 con «worker process exited unexpectedly» (código `3221226091`, `0xC0000409`) en 0 ms; las 144 restantes ya no corrieron. A la misma hora se detuvieron, con código 4, el servidor de desarrollo y la orden que lanzaba la E2E —que no llegó a escribir su última línea ni el informe JSON—: la sesión anterior del agente se cerró y paró sus procesos en segundo plano. **Esos 26 no son pruebas que fallaran**: ninguna llegó a ejecutar un paso |
 | El proyecto móvil entero, otra vez: `db:reset` + `seed:local`, calentar, `db:reset` + `seed:local` y `playwright test --project=movil` (13:38 UTC) | ✅ **246/246** en 13,3 min, con la huella igual antes y después. **I-106 pasó** esta vez (2,3 s), sobre la base recién sembrada. Solo se relanzó lo que no había terminado: el escritorio ya estaba entero, y repetir la completa sin cambio de comportamiento no aporta nada |
+
+---
+
+## I-115 — Un fallo al leer la membresía no es una cuenta inactiva (2026-10-02, solo en local; D-248)
+
+Autorizado por el dueño para corregirse en local, después de I-204 y en commit propio. Sin migración, sin push ni
+despliegue. El fallo se provocó solo en la base **local**; producción no se tocó.
+
+### a. El cambio
+
+| Pieza | Qué hace ahora |
+|---|---|
+| `src/lib/auth/membership-check.ts` (nuevo) | `MembershipCheckError` y su texto, «No pudimos comprobar tu acceso. Vuelve a intentarlo en unos segundos.» |
+| `getActiveMembership` | Ante un error de la lectura que no sea la pausa, **lanza** `MembershipCheckError` en vez de devolver `null` |
+| `requireActiveMembership` y la portada | Lo dejan subir a la página de error general («Algo salió mal», «Reintentar»); no hay `signOut` |
+| `authorizeAction` | Devuelve el texto temporal: la acción no se hace y el formulario conserva lo escrito |
+| `login` | Auth aceptó la contraseña: la sesión se queda, se devuelve el cupo de intentos y se lleva a `next` o a `/` |
+| Las dos rutas de la API con sesión | 503 con el texto temporal |
+| `tests/unit/maintenance-pause.test.ts` | La última de M-04 afirmaba lo de antes —`/login?error=inactive` con `signOut`— y se cambió a propósito |
+
+### b. Las pruebas nuevas, y el código anterior
+
+| Prueba | Con la corrección | Con el código anterior (las cinco piezas devueltas con `git stash` y restauradas después; huella igual) |
+|---|---|---|
+| `tests/unit/membership-check.test.ts` | ✅ **25/25** | **15 fallan**: la lectura, la pantalla, la acción, el inicio de sesión y las dos rutas, con `PGRST303`, 503 y la red. Las 10 que pasan con los dos son lo que no debe cambiar: la cuenta inactiva, sin membresía, la pausa y el texto |
+| `tests/unit/maintenance-pause.test.ts` | ✅ **32/32** | **1 falla**: la M-04 cambiada |
+| `tests/e2e/membresia-sin-comprobar.spec.ts` (escritorio) | ✅ **5/5**, dos veces (antes y después de la comprobación inversa) | **4 fallan**, cada una en su punto, corridas una a una porque van en serie: la portada lleva a «Tu cuenta está inactiva» en vez de «Algo salió mal» (línea 166); la Server Action no dice el texto temporal; el inicio de sesión no llega a la página de error; la ruta responde **403** y no 503. **La de la cuenta desactivada pasa con los dos** |
+
+**Cómo se provoca el fallo.** Un gancho `pgrst.db_pre_request` en la base local —el mismo mecanismo que la pausa,
+D-239— que responde `raise sqlstate 'PGRST'` con `PGRST303 «JWT issued at future»` y estado 401, **solo** para
+`request.path = '/memberships'` y el perfil del vendedor de la prueba, mientras una fila lo diga. Va en la
+configuración de `authenticator` **para esta base** (`in database postgres`), y una cabecera de sondeo, `x-prueba-i115`,
+permite esperar a que PostgREST lo cargue y lo suelte. **Comprobado:** el registro del servidor tiene los 401
+`PGRST303` de verdad —`getActiveMembership: error consultando memberships { code: 'PGRST303', … }`— y, al terminar,
+`authenticator` vuelve a tener solo sus tres ajustes de siempre y el esquema de prueba no existe.
+
+### c. Las baterías, con el código inmóvil
+
+Huella de `src/` y `tests/` (791 archivos): **`e8cf2e733dc99fe1`** antes y después de cada batería.
+
+| Batería | Resultado |
+|---|---|
+| `verify` | ✅ `tsc`; lint con los **2 avisos de siempre**; **2.013/2.013** en 100 archivos (+25); build |
+| `db:reset` + `seed:local` + `test:db` | ✅ **1.572 + 1 omitida**, 64 archivos, 222,1 s, sobre base recién sembrada (I-185 no se da) |
+| E2E completa, primera pasada: `db:reset` + `seed:local`, calentar, `db:reset` + `seed:local` y `playwright test` (14:11 UTC, 1.024 pruebas) | ⚠️ **Cortada por un fallo del entorno, mío**: **535 ✅** —las 5 nuevas de I-115 incluidas (#359–363) y todo lo que corrió después de ellas— hasta las 14:39 UTC. A esa hora el servidor de desarrollo cumplió el **límite de 30 minutos** de una tarea en segundo plano, porque lo lancé sin plazo: el proceso de `next dev` siguió vivo, pero sus procesos auxiliares no, y desde ahí toda página con segmento dinámico respondió **500** («Jest worker encountered 2 child process exceptions, exceeding retry limit», en su registro). **57 ❌**: `premios-loteria-fija.spec.ts:86` a 430, 768 y 1.280 px —agotaron la espera de 20 s con la página de premios en 500; a 375 y 390 px había pasado justo antes, en 3,3 s— y 54 con «worker process exited unexpectedly» (`3221225794`) en 0 ms al detener yo la pasada; **432 sin correr**. **Ninguno es una prueba que fallara con un servidor sano** |
+| Relanzado lo que no terminó, con un servidor nuevo con el plazo máximo (2 h): `db:reset` + `seed:local`, calentar, `db:reset` + `seed:local`; los **17 archivos de escritorio** desde `premios-loteria-fija` (246 pruebas) y el **proyecto móvil entero** (246) | ✅ **246/246** de escritorio en 13,9 min —`premios-loteria-fija:86` en los seis anchos, y `ventas-por-fecha:163` (I-090) en verde— y ✅ **246/246** del móvil en 13,2 min —`catalogo-publico-movil:103` (I-106) en verde—; la huella, igual antes y después, y ningún «Jest worker» en el registro del servidor. **Cada una de las 1.024 pruebas pasó con el código inmóvil y un servidor sano** |
+
+### d. Lo que se encontró por el camino
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| La primera vez que corrieron juntas las dos unitarias, Vitest no llegó a arrancar el proceso de `maintenance-pause.test.ts` («Timeout waiting for worker to respond»); `membership-check` dio 25/25 | Relanzada sola, **32/32**; juntas otra vez, **57/57**. Del entorno, no de las pruebas |
+| `git stash pop` devolvió las cinco piezas con CRLF, y la huella cambió aunque el contenido no | Comparadas sin los finales de línea: idénticas. Vueltas a LF con `prettier` y la huella, otra vez `e8cf2e733dc99fe1` |
+| ¿Un gancho de prueba puede dejar roto el PostgREST local si la pasada se corta? | Por eso va `in database postgres`: PostgreSQL borra los ajustes de una base al borrarla, así que `db:reset` se lo lleva con ella. Comprobado que PostgREST 14.15 lee ese ajuste por base: el gancho se cargó y respondió |
+| El servidor de desarrollo de la E2E completa murió a medias a los 30 minutos: lo lancé en segundo plano **sin plazo**, y ese es el límite por defecto | Detenidos la pasada y los procesos de `next dev` que quedaron; servidor nuevo con el plazo máximo (2 h); relanzado solo lo que no terminó, sobre base recién sembrada y calentada. La lección queda en la memoria del agente |
+| `markActivated` no se llama si la membresía no se pudo leer | Se deja así: con `PGRST303` también fallaría con el mismo token. Una cuenta que entrara así por primera vez queda marcada en el siguiente ingreso o cambio de contraseña (D-248) |
