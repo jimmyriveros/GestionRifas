@@ -16605,3 +16605,41 @@ producción para ensayarla (extrae datos de clientes: necesita su autorización)
 **Consecuencia.** El respaldo previo a una publicación y la restauración comprobada tienen ya una herramienta y un ensayo.
 **I-024 sigue abierta**: no hay respaldo periódico ni copia fuera del equipo, y las cuentas de acceso siguen fuera del
 respaldo a propósito; las tres decisiones están en `RUNBOOK` §5.3.
+
+---
+
+## D-251 — Una línea en el registro del servidor cuando Supabase es lenta o falla, y otra cuando arranca una instancia (I-190, I-198)
+
+**Fecha:** 2026-10-04 · **Estado:** aceptada (encargo de mantenimiento del dueño: implementar y probar en local la
+instrumentación mínima si faltaba; **su despliegue requiere autorización**) · **Sin migración** · Solo servidor ·
+**Solo en local** · Es la parte de los registros de la propuesta P4 de D-246
+
+**Contexto.** Los registros de Vercel de este plan no guardan cuánto tarda una petición. Por eso I-190 (la ficha de un
+vendedor que tardó) e I-198 (la lista quieta) siguen sin causa: no se puede saber si la espera fue la red de quien
+navega (I-203), una instancia recién creada o Supabase. Y las tres son posibles hoy: desde la red del dueño se pierden
+conexiones hacia Vercel (I-203, otra vez el 2026-10-04), `/login` tardó 2,1 s la primera vez y 0,22 s la segunda, y
+Supabase tiene abierto un incidente de latencia para lo que sale del este de EE. UU. (`w91bvbjhqf0f`), donde corren estas
+funciones.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Supabase lenta o fallando | Los dos clientes de Supabase **del servidor** —el de pantallas y acciones (`lib/supabase/server.ts`) y el del proxy de sesión (`lib/supabase/proxy.ts`)— reciben `global.fetch: timedFetch()` (`lib/supabase/timing.ts`). Escribe **una** línea, `[rifas:supabase] POST /rest/v1/rpc/search_tickets → 200 en 1513 ms`, solo si la llamada tarda **1 s o más**, responde **5xx** o **no responde**. Un 4xx no: ya lo recogen las agrupaciones de errores |
+| Arranque en frío | `instrumentation.ts` escribe al arrancar cada instancia `[rifas:instancia] nueva · región iad1 · versión …`. La primera petición de esa instancia es la que paga el arranque |
+| Lo que nunca escribe | Ni el host, ni la consulta —lleva filtros con nombres o teléfonos—, ni cabeceras —la clave y el token—, ni cuerpos. No llama a nada nuevo: envuelve la llamada que ya se hacía. No manda nada a ningún servicio: la línea va al registro de Vercel, que se lee como siempre (una hora) |
+| Lo que NO se añadió | La cabecera `Server-Timing` de P4, telemetría desde el navegador y un total por petición: con las dos líneas basta para separar red, arranque y Supabase, y lo demás añade superficie sin una pregunta concreta que responder |
+
+**Medido** (`TEST_RESULTS`, «D-251»): el envoltorio añade **0,14 µs** por llamada (frente a llamadas de 5–120 ms); 7
+pruebas unitarias; y de punta a punta, en un build de producción local con un proxy que retrasaba 1,5 s solo
+`search_tickets`: sin búsqueda, ninguna línea; con ella, exactamente una por llamada, sin el término buscado.
+
+**Alternativas descartadas.** Un servicio externo de trazas (telemetría nueva, y el encargo la excluye); medir en el
+navegador y enviarlo a un endpoint propio (una llamada más por pantalla); escribir una línea por **cada** llamada (ruido,
+y el registro de Vercel se lee de uno en uno); un umbral por petición en vez de por llamada (exigiría un almacén por
+petición y `after()`, más código para la misma respuesta).
+
+**Consecuencia.** Si el dueño nota una pantalla lenta y se mira el registro **dentro de la hora**: una línea
+`[rifas:supabase]` en ese minuto apunta a Supabase; una `[rifas:instancia] nueva`, a un arranque en frío; ninguna de
+las dos, con la conexión lenta en la prueba de redes, a la red (I-203). No demuestra nada por sí sola y no se ha
+publicado: hasta su despliegue, I-190 e I-198 siguen sin poder atribuirse.

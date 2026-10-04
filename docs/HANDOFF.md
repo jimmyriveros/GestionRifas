@@ -3045,6 +3045,10 @@ components/data/    DataTable · DataTablePagination · EmptyState
                     para una tarjeta (la flecha gira; el enlace cambia de fondo con
                     has-[[data-link-pending=true]]). Traen su role="status": no
                     copies el useLinkStatus en otra lista, usa estas
+lib/supabase/timing.ts  timedFetch: el fetch de los clientes de Supabase DEL SERVIDOR
+                    (server.ts y proxy.ts). Escribe una línea solo si una llamada es
+                    lenta o falla, sin host, consulta, cabeceras ni cuerpo (D-251). Un
+                    cliente de servidor nuevo lo recibe en global.fetch
 components/form/HydratedSubmitButton.tsx  el botón de ENVIAR de un formulario que
                     llega en el HTML del servidor: desactivado hasta hidratar, con
                     «Preparando el formulario…», y FormNoScriptNotice, el aviso sin

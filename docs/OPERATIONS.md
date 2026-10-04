@@ -1,6 +1,6 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-10-02 (D-246: **§6.a nueva**, reconocer una lentitud de **conexión** —esperas de 1, 3 o
+**Actualizado:** 2026-10-04 (D-251: **§6.b nueva**, qué dicen las dos líneas nuevas del registro del servidor, cuando se publique). Antes, 2026-10-02 (D-246: **§6.a nueva**, reconocer una lentitud de **conexión** —esperas de 1, 3 o
 15 s antes de cargar— sin reiniciar ni revertir). Antes, 2026-10-01 (§4.e: el cierre de cuentas, **en producción**). Antes, 2026-09-30, por la noche (D-243:
 §4.e — en la rifa activa ya está confirmado que los vendedores no
 han entregado dinero al dueño y que no hubo premios pagados en los sorteos sin resultado). Antes, ese mismo día, al
@@ -325,6 +325,19 @@ y lo mismo con `https://www.cloudflare.com/favicon.ico`. Si `tcp` sale en 1, 3 o
 Vercel, compáralo con otra red —los datos del teléfono—: si solo pasa en una, es esa red o su
 proveedor; si pasa en las dos, es el camino hacia Vercel. Los registros de Vercel **no** lo ven:
 anotan la petición cuando la conexión ya existe, y sin duración.
+
+### 6.b Si tarda **después** de conectar: el registro del servidor (D-251, cuando se publique)
+
+Con D-251 publicado, el registro de Vercel dice dos cosas que antes no decía, y solo cuando pasan:
+
+| Línea | Qué significa |
+|---|---|
+| `[rifas:instancia] nueva · región iad1 · versión …` | Arrancó una instancia: la primera petición que atendió pagó el **arranque en frío** |
+| `[rifas:supabase] GET /rest/v1/… → 200 en 1840 ms` | Esa llamada a **Supabase** tardó 1 s o más (o respondió 5xx, o no respondió) |
+
+Cómo leerlo: Vercel → el proyecto → **Logs**, el minuto de la queja, y buscar `[rifas:`. **Solo guarda una hora.**
+Ninguna de las dos líneas lleva datos de nadie: la ruta es la tabla o la función, sin la consulta. Si en ese minuto no
+hay ninguna de las dos, y la prueba de redes de §6.a da conexiones lentas, la espera estuvo en la red.
 
 ---
 

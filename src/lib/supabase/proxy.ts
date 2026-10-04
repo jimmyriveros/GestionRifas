@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import type { Database } from '@/types/database.types'
 
+import { timedFetch } from './timing'
+
 /**
  * Rutas que se sirven sin sesion.
  *
@@ -112,6 +114,8 @@ export async function updateSession(request: NextRequest, csp?: CspContext) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      // Una linea en el registro solo si la comprobacion de la sesion es lenta o falla (D-251).
+      global: { fetch: timedFetch() },
       cookies: {
         getAll() {
           return request.cookies.getAll()

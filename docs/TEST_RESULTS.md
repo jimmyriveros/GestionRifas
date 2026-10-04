@@ -18141,3 +18141,39 @@ reproducible—; el bucle que decide si sigue es el mismo para los seis pasos, y
 
 Ningún respaldo de producción, ninguna tarea programada, ningún cifrado ni copia fuera del equipo, y ninguna cuenta de
 acceso extraída: son decisiones del dueño (`RUNBOOK` §5.3).
+
+---
+
+## D-251: la línea del registro cuando Supabase es lenta, y la de la instancia nueva (2026-10-04, solo en local)
+
+Encargo de mantenimiento del dueño (2026-10-04): si faltaba instrumentación para separar la red, la aplicación y
+Supabase, implementar y probar en local la mínima —sin datos personales, sin telemetría externa, sin llamadas de más y
+con su coste medido—. Su despliegue requiere autorización. Producción, sin tocar.
+
+### a. Por qué hacía falta
+
+| Pregunta | Qué la responde hoy |
+|---|---|
+| ¿Se perdió la conexión hacia Vercel? (I-203) | La prueba de redes, desde el equipo: `build/i203/prueba-redes.ps1` |
+| ¿Fue un arranque en frío? | **Nada**: los registros de Vercel de este plan no guardan duraciones. `/login` tardó 2,1 s en responder ya conectado la primera vez y 0,22 s la segunda (`TEST_RESULTS`, «Inventario del mantenimiento») |
+| ¿Fue Supabase? | **Nada**, y hay un incidente abierto (`w91bvbjhqf0f`) que alarga lo que sale del este de EE. UU., donde corren estas funciones |
+
+### b. Medido
+
+| Comprobación | Resultado |
+|---|---|
+| `tests/unit/supabase-timing.test.ts` | **7/7**; con `session-proxy.test.ts`, 19/19 |
+| Coste del envoltorio (`coste-timing.mts`, 200.000 llamadas × 5 rondas) | **0,140–0,143 µs** por llamada (0,20 µs con él frente a 0,06 µs sin él). Una pantalla hace unas 10 llamadas de 5–120 ms |
+| De punta a punta: build de producción local (`build/i203/lanzar-prod-proxy.mjs`) detrás de un proxy que retrasa **1,5 s solo `search_tickets`** (`build/i203/proxy-demoras.mjs`) | «Mis boletas» sin buscar, 352 y 250 ms y **ninguna línea**; buscando «1234» y «5678», 1.635 y 1.622 ms y **una línea por llamada**: `[rifas:supabase] POST /rest/v1/rpc/search_tickets → 200 en 1513 ms`, sin host, consulta ni término buscado. Al arrancar, `[rifas:instancia] nueva · región local · versión 7924a0336a2f` |
+| La rama «sin respuesta» | Medida sin querer: en el primer intento el proxy de demoras se cayó, y el servidor escribió `[rifas:supabase] GET /auth/v1/user → sin respuesta tras 5 ms`, también sin nada más |
+| `npm run verify` | ✅ **2.049/2.049** en 103 archivos (+7); lint, 0 errores y los 2 avisos de siempre |
+| `npm run test:db` | ✅ **1.572 y 1 omitida** |
+| E2E de lo que pasa por el proxy de sesión —membresía sin comprobar (un `PGRST303` real), pausa de publicación (423), acceso, búsqueda, navegación, boletas y seguridad—, escritorio y teléfono, `next dev` calentado | ✅ **97/97** en 4,7 min, y **0** líneas `[rifas:supabase]` en toda la pasada: los 401 y los 423 son 4xx y no se registran, y ninguna llamada local pasó de 1 s. Al calentar 45 pantallas, tampoco ninguna |
+
+| Lo que salió por el camino | Qué se hizo |
+|---|---|
+| Git Bash convirtió la expresión `^/rest/v1/...` del proxy de demoras en una ruta de Windows | Se pasó una expresión sin barra inicial; y con `MSYS_NO_PATHCONV=1`, la ruta del registro en forma de Windows |
+
+### c. Lo que no se hizo
+
+Ni `Server-Timing`, ni telemetría desde el navegador, ni un total por petición (D-251, alternativas). Nada se publicó.
