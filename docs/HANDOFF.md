@@ -2797,6 +2797,8 @@ completo — contraseñas cifradas y tokens). La **segunda** va **sin** restring
 cómo restaurar (**solo en local**, nunca en el remoto sin mostrar el procedimiento exacto y recibir
 autorización explícita) en `docs/RUNBOOK.md` §5.
 
+**Desde el 2026-10-04 (D-250) el respaldo es una orden** —`npx tsx scripts/take-backup.ts <carpeta-nueva-fuera-del-repo> --production --project-ref <REF>`—, que hace las tres de arriba, las comprueba y deja un manifiesto con la huella de cada archivo; `restore-backup.ts` lo lee. Qué cubre y qué no: `RUNBOOK` §5.0.
+
 **Generar un respaldo antes de cualquier migración o acción destructiva sobre el proyecto real.**
 Antes de operar con dinero o clientes reales: actualizar a Pro o automatizar este procedimiento desde
 fuera de Supabase (`docs/RUNBOOK.md` §5.3).

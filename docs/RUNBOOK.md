@@ -1,6 +1,6 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-02, 17:45 UTC (**§12.2.c nueva**: la opción A del respaldo, preparada y ensayada en local sin extraer nada de producción; §12.6: la prueba 2, intentada en local con PostgREST 14.18 y no concluyente). Antes, 15:25 UTC (§12.1, **§12.2.a y §12.2.b nuevas**, §12.3, §12.4 y §12.6: la actualización de Supabase, revisada antes de pedir la autorización —qué versión, qué cambia y qué puede afectarnos, qué cubre de verdad el respaldo y cómo se protegen las cuentas, y el cierre de I-202 con tres pruebas juntas—; **sigue sin autorizar**, y falta lo que solo ve el dueño). Antes, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+**Actualizado:** 2026-10-04 (**§5.0 nueva**: qué protege cada copia y qué falta; **§5.1**, una orden —`scripts/take-backup.ts`, D-250— con manifiesto; **§5.2**, la restauración comprueba el manifiesto y las filas; **§5.3**, las decisiones del dueño; **§12.2.a.1**, I-202 contrastada otra vez con las fuentes oficiales). Antes, 2026-10-02, 17:45 UTC (**§12.2.c nueva**: la opción A del respaldo, preparada y ensayada en local sin extraer nada de producción; §12.6: la prueba 2, intentada en local con PostgREST 14.18 y no concluyente). Antes, 15:25 UTC (§12.1, **§12.2.a y §12.2.b nuevas**, §12.3, §12.4 y §12.6: la actualización de Supabase, revisada antes de pedir la autorización —qué versión, qué cambia y qué puede afectarnos, qué cubre de verdad el respaldo y cómo se protegen las cuentas, y el cierre de I-202 con tres pruebas juntas—; **sigue sin autorizar**, y falta lo que solo ve el dueño). Antes, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
 (**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
 sin pausa; C4 dice ahora `?lock_timeout`, porque la URL de `.env.local` no trae parámetros). Antes, 2026-09-30, por
 la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
@@ -96,10 +96,57 @@ regresión — algún código nuevo está formateando una fecha sin pasar por `f
 "backups automáticos de Supabase" en la documentación de fases previas a la 8 asumía por defecto una
 capacidad que este proyecto, en este plan, no tiene. Ver **I-024**.
 
+### 5.0 Qué protege cada copia y qué falta (I-024, revisado el 2026-10-04, D-250)
+
+Son cuatro cosas distintas, y ninguna sustituye a otra:
+
+| | Qué es | Hoy |
+|---|---|---|
+| **Respaldo previo a una publicación** | El de §5.1, justo antes de migrar o de una acción destructiva | `scripts/take-backup.ts` (D-250): **una orden** que se detiene ante el primer fallo, comprueba los tres archivos y deja un manifiesto. Contra producción, con la autorización de la publicación |
+| **Respaldo periódico** | El mismo, sin que nadie tenga que acordarse | **No existe.** El plan Free no tiene copias automáticas; cómo hacerlo lo decide el dueño (§5.3) |
+| **Copia fuera del equipo** | Un respaldo que sobrevive a perder este equipo | **Manual**: el dueño copia la carpeta a su almacenamiento. El manifiesto trae la huella SHA-256 de cada archivo para comprobar la copia, y `restore-backup.ts` se niega a cargar uno que ya no la tiene |
+| **Restauración comprobada** | Saber que un respaldo se devuelve y que la aplicación funciona con él | **Ensayada en local con datos sintéticos el 2026-10-04**: respaldo, incidente simulado, restauración, **0 filas distintas** y `test:db` en verde sobre la copia (`TEST_RESULTS`, D-250). Con datos reales, la última fue P3 (2026-09-30) |
+
+Lo que cubre el respaldo de §5.1, recurso por recurso:
+
+| Recurso | Dónde vive | ¿En §5.1? | Si no, cómo se rehace |
+|---|---|---|---|
+| Datos del negocio | `public` | ✅ `data.sql` | — |
+| Estructura, funciones, RLS y permisos | `public` y roles | ✅ `schema.sql` y `roles.sql`; lo que no traen lo repone `restauracion_despues.sql` (§5.2) | — |
+| Historial de migraciones | `supabase_migrations` | No | El repositorio, y `supabase migration repair` (§5.2) |
+| Cuentas de acceso | `auth.users`, `auth.identities` | **No, a propósito**: llevan contraseñas cifradas y tokens | La opción A cifrada (§12.2.c), el plan Pro, o volver a invitar a cada persona (§12.2.b) |
+| Sesiones | `auth.sessions` | No | Cada persona vuelve a entrar |
+| Trabajos programados | `cron.job` | No | Los crean `0052` y `0054` |
+| Secretos de Vault (2) | `vault` | No | `DEPLOYMENT`, despachador de avisos: el secreto vive en Vercel |
+| Configuración de Auth | Panel de Supabase | No | El dueño la anota antes de cualquier operación de riesgo |
+| Variables de entorno | Vercel | No | El dueño, desde Vercel |
+| Código | GitHub y Vercel | — | Redesplegar |
+| Archivos | Supabase Storage | — | **0 buckets**: nada que proteger |
+
+**Lo que cubriría el plan Pro, según la documentación oficial (leída el 2026-10-04):** copias diarias de la base durante
+7 días y, como complemento de pago, PITR (exige cómputo Small o mayor). Son copias físicas de la base entera, así que
+deberían llevar `auth` —la guía no lo dice expresamente: es una inferencia—. **No cubren** los archivos de Storage (solo
+sus metadatos), las contraseñas de roles propios (no hay), la configuración del panel ni lo que vive en Vercel. **Pro no
+es, por sí solo, una recuperación completa del servicio.**
+
 ### 5.1 Estrategia mientras el proyecto esté en el plan Free: respaldo lógico manual
 
 Un volcado (`dump`) con la Supabase CLI, guardado **fuera del repositorio Git y fuera de Supabase**.
 Verificado end-to-end en la Fase 8 (procedimiento y hallazgos abajo).
+
+**Desde el 2026-10-04 es una orden (D-250)**, que hace las tres de abajo y lo que antes había que acordarse de comprobar:
+
+```bash
+npx tsx scripts/take-backup.ts "<CARPETA-NUEVA-FUERA-DEL-REPO>" --production --project-ref <REF>
+```
+
+Se niega antes de conectar si la carpeta está dentro del repositorio o ya tiene archivos, o si `SUPABASE_DB_URL` no es
+el proyecto esperado; lee los recuentos de filas de cada tabla en solo lectura, hace los tres volcados de abajo, los
+comprueba con la misma regla que la restauración —ni vacíos, ni órdenes de `psql`, ni el esquema `auth` en
+`data.sql`— y vuelve a contar. Cada paso solo si el anterior terminó. Deja `manifiesto.json` con estado **COMPLETO** o
+**INCOMPLETO**, la huella SHA-256 y el tamaño de cada archivo, los recuentos —solo números— y si hubo escrituras durante
+el volcado. Termina en 0 si está completo y en 2 si se detuvo. Nunca imprime la cadena de conexión. Las órdenes manuales
+de abajo siguen valiendo, como referencia.
 
 **Antes de cualquier migración o acción destructiva sobre el proyecto remoto, generar un respaldo
 nuevo.** Reemplazar `<CARPETA-FUERA-DEL-REPO>` por una carpeta fuera de `Rifas/` (por ejemplo, una
@@ -185,7 +232,7 @@ nunca con `;`.
 |---|---|---|
 | 0 | `maintenance-pause.ts instalar` y `cerrar` (`RUNBOOK` §10.3) | Nadie escribe mientras se restaura; quien comprueba entra con `permitir` |
 | 1 | `gate-snapshot antes-de-restaurar`, el volcado de datos del estado actual (§5.1) y `gate-compare <foto del respaldo> <foto actual> --operation none` | La lista, fila por fila, de **todo lo escrito después del respaldo**: sin ella se pierde en silencio (§10.7) |
-| 2–4 | `npx tsx scripts/restore-backup.ts <carpeta-del-respaldo> --local` | **Una orden, cinco pasos, y cada uno solo si el anterior terminó**: vaciar `public` sin borrar el esquema —ni `pg_trgm`—, `roles.sql`, `schema.sql`, `data.sql` y lo que el respaldo no trae (los dos disparadores de `auth.users` y la ACL de `raffle_prize_transitions`). Termina en **0** con «RESTAURADO»; en **2**, dice en qué paso se detuvo y cuáles **no** se ejecutaron |
+| 2–4 | `npx tsx scripts/restore-backup.ts <carpeta-del-respaldo> --local` | **Si la carpeta trae `manifiesto.json`** (D-250), antes de conectar se niega a un respaldo INCOMPLETO o con un archivo que ya no tiene su huella, y al terminar compara las filas de cada tabla con las del manifiesto. **Una orden, cinco pasos, y cada uno solo si el anterior terminó**: vaciar `public` sin borrar el esquema —ni `pg_trgm`—, `roles.sql`, `schema.sql`, `data.sql` y lo que el respaldo no trae (los dos disparadores de `auth.users` y la ACL de `raffle_prize_transitions`). Termina en **0** con «RESTAURADO»; en **2**, dice en qué paso se detuvo y cuáles **no** se ejecutaron |
 | 5 | `npx supabase migration repair --status reverted <versiones> --local` (o `--db-url <DB>`) hasta que `migration list` diga lo mismo que la foto del respaldo | El historial no está en el respaldo: sigue diciendo lo que decía antes de restaurar |
 | 6 | `gate-snapshot restaurada`; `gate-compare <respaldo> <restaurada> --structure-only`; la comparación con destino y `--operation none`; y en el proyecto real, `npm run verify:remote` | Estructura: **solo** `raffle_prize_transitions_prizes_check`, la misma condición con otros paréntesis. Filas: **0** distintas |
 | 7 | Con un perfil permitido: entrar, leer por la API, crear una cuenta de prueba —tiene que nacerle el perfil— y cambiarle el correo; en local, además, `test:db` del código que corresponde a esa base | Recuperar las filas no basta: esto es lo que demuestra que la aplicación funciona |
@@ -246,6 +293,18 @@ maneje dinero o clientes reales, elegir una de estas dos (**I-024**, requisito a
 2. **Automatizar** este mismo procedimiento manual desde fuera de Supabase (por ejemplo, una tarea
    programada que corra los tres `db dump` de §5.1 con regularidad y copie los archivos a un
    almacenamiento durable, no solo al disco de un equipo).
+
+> **Revisado el 2026-10-04 (D-250).** La herramienta del respaldo existe y está ensayada (§5.0); lo que falta son tres
+> decisiones del dueño, y nada de eso se instala ni se ejecuta contra producción sin su autorización expresa:
+>
+> 1. **El respaldo periódico.** (a) **Pro**: copias diarias gestionadas, con `auth` según cómo se hacen; tiene coste
+>    mensual y no cubre Storage, el panel ni Vercel. (b) **Una tarea programada fuera de Supabase** que ejecute
+>    `take-backup.ts`: en el equipo del dueño —el Programador de tareas de Windows; depende de que el equipo esté
+>    encendido— o en GitHub Actions —no depende del equipo; exige guardar `SUPABASE_DB_URL` como secreto del
+>    repositorio—, y en los dos casos **cifrando el resultado con una clave pública** antes de que salga del equipo, porque
+>    lleva datos de clientes. (c) Seguir a mano antes de cada publicación, que es lo de hoy.
+> 2. **La copia fuera del equipo**: dónde —una memoria USB o una carpeta no compartida de su nube— y con qué cifrado.
+> 3. **Las cuentas de acceso**: la opción A, B o C de §12.2.b.
 
 Documentar el incidente cuando se use de verdad —qué se perdió, desde cuándo hasta cuándo, por qué se
 restauró— en `docs/KNOWN_ISSUES.md` o en un registro interno del negocio; esta guía no lo hace por ti.
@@ -1126,6 +1185,7 @@ produjo ninguna coincidencia) y el tramo del **10/08 al 24/08**, que sigue pendi
 | `scripts/earning-recovery-check.ts --production --project-ref <REF>` | En qué estado está la base —`0077`, `0078`, `0079` o incoherente— y si se puede volver a `0077` con el **guardia del propio script** | No |
 | `scripts/earning-recovery.ts <foto de P6> --production --project-ref <REF> --lock-timeout 5s` | **Volver a `0077`** (D-240): ejecuta `supabase/recovery/0079_a_0077.sql` tal cual —desde `0079` o desde `0078`, con su guardia— y devuelve a las funciones que recrea el permiso **exacto** de la foto de antes de migrar (I-192). Comprueba después todas las funciones de `public` contra la foto. `--solo-privilegios` repite solo los permisos | Sí: el script, en una transacción; los permisos, en otra |
 | `supabase/recovery/0079_a_0077.sql` | El script que ejecuta la orden anterior (D-238). No se lanza suelto: dejaría 7 funciones sin `service_role` | — |
+| `scripts/take-backup.ts <carpeta> --production --project-ref <REF>` | **Tomar el respaldo** de §5.1 en una orden, con manifiesto (D-250) | No: solo lee la base y escribe en la carpeta |
 | `scripts/restore-backup.ts <carpeta> --production --project-ref <REF>` | **Restaurar el respaldo**, deteniéndose ante el primer fallo (§5.2, D-240). Ejecuta `restauracion_vaciar_public.sql`, los tres archivos y `restauracion_despues.sql` | Sí |
 | `scripts/gate-snapshot.ts`, `gate-compare.ts`, `verify:remote` | Fotos, comparación fila por fila y de estructura, catálogo. Desde D-240 la foto guarda `hechos.ganancias`, y `gate-compare` comprueba con ellos los efectos de datos de `0078,0079` (`gate-data-effects.ts`) | No |
 

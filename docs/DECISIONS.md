@@ -16565,3 +16565,43 @@ hasta entonces. Y uno nuevo, medido y aceptado: en escritorio el botón mide 203
 formulario…» y vuelve a su ancho al hidratar, así que **«Cancelar» se desplaza 92–112 px una vez**, solo en una carga
 completa de la página (al llegar desde otra pantalla el formulario ya está hidratado). Reservar el ancho dejaría el
 botón más ancho para siempre, y cambiar el texto separaría estos formularios de los de acceso.
+
+---
+
+## D-250 — El respaldo lógico es una orden que se detiene ante el primer fallo y deja un manifiesto que la restauración comprueba (I-024)
+
+**Fecha:** 2026-10-04 · **Estado:** aceptada (encargo de mantenimiento del dueño: preparar y ensayar en local las mejoras
+de los respaldos, sin extraer nada de producción ni instalar tareas) · **Sin migración** · Solo herramientas ·
+**Solo en local**: ninguna orden se ejecutó contra producción
+
+**Contexto.** I-024: el proyecto está en el plan Free, sin copias automáticas. El respaldo de `RUNBOOK` §5.1 eran tres
+órdenes de la CLI escritas a mano, más una comprobación con `grep` que había que acordarse de hacer; nada decía después si
+un respaldo estaba completo ni si sus archivos eran los que se tomaron. La restauración (`restore-backup.ts`, D-240) ya
+se detenía ante el primer fallo, pero no podía saber si le daban un respaldo a medias o una copia alterada.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Una orden para tomar el respaldo | `scripts/take-backup.ts <carpeta> (--local \| --production --project-ref <ref>)`: los mismos tres volcados de §5.1, con la CLI del proyecto y sin pasar por una consola. Cada paso solo si el anterior terminó; código 0 si está COMPLETO, 2 si se detuvo |
+| Antes de conectar | Un solo destino y, en producción, el proyecto esperado en la cadena de conexión (`gate-db.ts`); una carpeta **nueva o vacía** y **fuera del repositorio** —un respaldo lleva datos de clientes—, o no se conecta ni se escribe nada |
+| La misma regla que la restauración | Los tres archivos se comprueban con `backupProblems` de `restore-backup.ts`: ni vacíos, ni órdenes de `psql`, ni el esquema `auth` en `data.sql`. Una sola regla para tomar y para devolver |
+| El manifiesto | `manifiesto.json`, escrito siempre: COMPLETO o INCOMPLETO —el paso en que se detuvo y los que no se ejecutaron—, la huella SHA-256 y el tamaño de cada archivo, los recuentos de filas de cada tabla de `public` leídos **en solo lectura** antes y después —solo números— y si hubo escrituras durante el volcado. Ningún dato personal ni ninguna credencial. Vive en `scripts/backup-manifest.ts`, que usan las dos herramientas |
+| La restauración, más estricta | Con manifiesto, `restore-backup.ts` se niega **antes de conectar** a un respaldo INCOMPLETO o con un archivo que ya no tiene su huella, y al terminar compara las filas de cada tabla con las del manifiesto; si no coinciden, termina en 2 y dice cuáles. Sin manifiesto —un respaldo anterior—, restaura como siempre y lo dice |
+| Lo que no se automatiza | Ni la tarea periódica, ni la copia fuera del equipo, ni el cifrado, ni las cuentas: son decisiones del dueño con costes y riesgos distintos (`RUNBOOK` §5.3). La orden no imprime nunca la cadena de conexión: de un fallo de la CLI enseña la cola de su salida sin ninguna dirección `postgres://` |
+
+**Medido** (`TEST_RESULTS`, «D-250»): 13 pruebas unitarias nuevas; en local, con la siembra sintética, el respaldo COMPLETO
+(35 tablas, 163 filas, 0 referencias a `auth`), las tres negativas de tomar —dentro del repositorio, carpeta con
+archivos y la base caída— y las dos de restaurar —INCOMPLETO y un byte cambiado—, todas detenidas; un incidente simulado
+después del respaldo, deshecho por la restauración con **0 filas distintas** frente a la foto de origen; y `test:db`
+**1.572 + 1** sobre la copia restaurada.
+
+**Alternativas descartadas.** Un guion de shell (no está `psql`, y en Windows la cadena de conexión se cuela en los
+errores); guardar el respaldo en `build/` (no se versiona, pero sigue en este equipo y en cualquier copia del proyecto);
+contar las filas leyendo `data.sql` (frágil con cadenas que llevan comas o paréntesis); cifrar dentro de la orden (la
+frase de paso o la clave son una decisión del dueño, y una frase en un archivo debilitaría el cifrado); ejecutarla contra
+producción para ensayarla (extrae datos de clientes: necesita su autorización).
+
+**Consecuencia.** El respaldo previo a una publicación y la restauración comprobada tienen ya una herramienta y un ensayo.
+**I-024 sigue abierta**: no hay respaldo periódico ni copia fuera del equipo, y las cuentas de acceso siguen fuera del
+respaldo a propósito; las tres decisiones están en `RUNBOOK` §5.3.

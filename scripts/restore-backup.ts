@@ -33,6 +33,12 @@
  * El historial de migraciones NO se toca aquí: se repara después con `supabase migration
  * repair`, y la estructura y las filas se comparan con la foto del respaldo (§5.2, 5 y 6).
  *
+ * EL MANIFIESTO (I-024). Un respaldo tomado con `take-backup.ts` trae `manifiesto.json`. Si
+ * está, la restauración se niega ANTES DE CONECTAR a un respaldo INCOMPLETO o con un archivo que
+ * ya no tiene su huella —una copia corrupta o cambiada—, y al terminar compara las filas de cada
+ * tabla de `public` con las que tenía al tomarse (solo números). Un respaldo anterior, sin
+ * manifiesto, se restaura como siempre, y se dice que no se pudo comprobar.
+ *
  * Nunca imprime la cadena de conexión ni el detalle de un error de datos —podría llevar el
  * contenido de una fila—: solo su código y su mensaje. Deja un informe en `build/gate/`.
  * Termina en 0 si los cinco pasos terminaron, en 2 si se detuvo —dice en cuál y qué pasos
@@ -44,12 +50,20 @@ import path from 'node:path'
 import { Client } from 'pg'
 
 import {
+  countDifferences,
+  manifestProblems,
+  readCounts,
+  readManifest,
+  type BackupFileName,
+} from './backup-manifest'
+import {
   connectionStringFor,
   fileStamp,
   GateArgsError,
   gateTarget,
   gateTargetLabel,
   parseArgs,
+  readOnly,
   runGateTool,
   writeGateFile,
   type GateTarget,
@@ -203,21 +217,35 @@ async function main(): Promise<void> {
   const { target, folder } = parseOptions(process.argv.slice(2))
 
   // ---- 0. Los archivos, antes de conectar
-  const read = (name: string) => {
+  const raw = (name: BackupFileName) => {
     const file = path.join(folder, name)
     if (!existsSync(file)) throw new GateArgsError(`En la carpeta del respaldo falta ${name}.`)
-    return readFileSync(file, 'utf8')
+    return readFileSync(file)
+  }
+  const bytes = {
+    'roles.sql': raw('roles.sql'),
+    'schema.sql': raw('schema.sql'),
+    'data.sql': raw('data.sql'),
   }
   const files: BackupFiles = {
-    roles: read('roles.sql'),
-    schema: read('schema.sql'),
-    data: read('data.sql'),
+    roles: bytes['roles.sql'].toString('utf8'),
+    schema: bytes['schema.sql'].toString('utf8'),
+    data: bytes['data.sql'].toString('utf8'),
   }
+  const manifest = readManifest(folder)
   const emptyPublic = readFileSync(EMPTY_PUBLIC_SQL, 'utf8')
   const afterRestore = readFileSync(AFTER_RESTORE_SQL, 'utf8')
 
   console.log(`Restauración de un respaldo · ${gateTargetLabel(target)}`)
-  const problems = backupProblems(files)
+  const problems = [
+    ...(manifest ? manifestProblems(manifest, bytes) : []),
+    ...backupProblems(files),
+  ]
+  if (manifest === null) {
+    console.log(
+      '  Sin manifiesto (un respaldo anterior a take-backup.ts): no se comprueban huellas ni filas.',
+    )
+  }
   if (problems.length > 0) {
     console.log(
       '  NO: el respaldo no se puede restaurar con esta herramienta. No se conectó ni se cambió nada.',
@@ -249,15 +277,27 @@ async function main(): Promise<void> {
 
   const failed = results.find((r) => !r.ok)
   const skipped = RESTORE_STEPS.slice(results.length)
+
+  // ---- 6. Las filas de cada tabla, contra las que tenía al tomarse (solo números)
+  let filas: { comprobadas: number; distintas: ReturnType<typeof countDifferences> } | null = null
+  if (!failed && manifest?.recuentos && manifest.escrituras_durante_el_volcado === false) {
+    const ahora = await readOnly(target, readCounts)
+    filas = {
+      comprobadas: Object.keys(manifest.recuentos.filas).length,
+      distintas: countDifferences(manifest.recuentos.filas, ahora.filas),
+    }
+  }
   const now = new Date().toISOString()
   const file = writeGateFile(
     `restauracion-${target.kind === 'local' ? 'local' : 'produccion'}-${fileStamp(now)}.json`,
     {
       destino: gateTargetLabel(target),
       ahora: now,
-      ok: !failed,
+      ok: !failed && (filas === null || filas.distintas.length === 0),
       pasos: results,
       pasos_no_ejecutados: skipped,
+      manifiesto: manifest === null ? null : { estado: manifest.estado, inicio: manifest.inicio },
+      filas,
     },
   )
 
@@ -271,6 +311,23 @@ async function main(): Promise<void> {
     )
   } else {
     console.log('  RESTAURADO: los cinco pasos terminaron sin errores.')
+    if (filas !== null) {
+      if (filas.distintas.length === 0) {
+        console.log(
+          `  Filas: las ${filas.comprobadas} tablas tienen las mismas que al tomar el respaldo.`,
+        )
+      } else {
+        console.log(
+          `  Filas: ${filas.distintas.length} tablas NO tienen las mismas que al tomar el respaldo:`,
+        )
+        for (const d of filas.distintas)
+          console.log(`    · ${d.tabla}: ${d.esperado ?? '—'} → ${d.ahora ?? '—'}`)
+      }
+    } else if (manifest?.escrituras_durante_el_volcado) {
+      console.log(
+        '  Filas: no se comparan; hubo escrituras mientras se tomaba el respaldo (lo dice su manifiesto).',
+      )
+    }
     console.log(
       '  Ahora: `supabase migration repair` hasta que el historial diga lo que la foto del respaldo,',
     )
@@ -279,7 +336,7 @@ async function main(): Promise<void> {
     )
   }
   console.log(`Informe: ${file}`)
-  process.exit(failed ? 2 : 0)
+  process.exit(failed || (filas !== null && filas.distintas.length > 0) ? 2 : 0)
 }
 
 // Solo al ejecutarlo, no al importarlo (las pruebas unitarias importan las funciones).

@@ -18085,3 +18085,59 @@ el cambio de respaldo en el árbol, sin publicar: es un superconjunto de este co
 
 Nada se publicó ni se empujó. La E2E completa no se repitió aquí: se hará una sola vez con todo el lote, con el código
 inmóvil, antes de proponerlo.
+
+---
+
+## D-250: el respaldo con manifiesto, ensayado en local con datos sintéticos (2026-10-04, 14:43–14:50 UTC)
+
+Encargo de mantenimiento del dueño (2026-10-04): revisar qué cubren las herramientas de respaldo y recuperación, preparar
+y ensayar **en local** las mejoras con datos **sintéticos**, y comprobar que se detienen ante errores. **Nada se ejecutó
+contra producción** ni se extrajo ninguna cuenta. Los archivos del ensayo, en el scratchpad de la sesión, fuera del
+repositorio.
+
+### a. Tomar el respaldo
+
+| Paso | Resultado |
+|---|---|
+| Base | `db:reset` + `seed:local`; foto de origen con `gate-snapshot` |
+| `take-backup.ts <carpeta> --local` | **COMPLETO**: recuentos 62 ms, `roles.sql` 1,8 s, `schema.sql` 3,0 s, `data.sql` 1,9 s, comprobación 4 ms, recuentos 50 ms. 35 tablas, 163 filas, migración `0080`, **sin escrituras durante el volcado** |
+| Lo que no debe llevar | **0** nombres `"auth".` en `data.sql` y **0** líneas con `encrypted_password`, `refresh_token` o `confirmation_token` |
+
+### b. Que se detenga ante errores
+
+| Caso | Resultado |
+|---|---|
+| Carpeta dentro del repositorio (`build/…`) | **2**, «No se conectó ni se escribió nada», y la carpeta no se creó |
+| Carpeta con archivos | **2**, lo mismo |
+| La base caída (`docker stop` del contenedor) | **2**: «FALLÓ recuentos antes · ECONNREFUSED» y «NO se ejecutaron: roles.sql, schema.sql, data.sql, comprobar archivos, recuentos después»; en la carpeta, **solo** el manifiesto, en estado **INCOMPLETO** |
+| Restaurar un respaldo cuyo manifiesto dice INCOMPLETO | **2**, antes de conectar; la base, igual (33 boletas, 6 clientes, 4 pagos antes y después) |
+| Restaurar con **un espacio añadido** a `data.sql` | **2**, antes de conectar: «data.sql no tiene la huella del manifiesto»; la base, igual |
+
+Un fallo a **mitad** de los volcados no se provocó —la CLI no ofrece cómo, y parar la base en ese instante no es
+reproducible—; el bucle que decide si sigue es el mismo para los seis pasos, y la base caída lo recorre desde el primero.
+
+### c. Restaurar de verdad y comprobar
+
+| Paso | Resultado |
+|---|---|
+| Un incidente simulado **después** del respaldo | Un cliente sintético de más y la rifa del seed renombrada: 7 clientes y «Rifa Navidad 2026 (alterada)» |
+| Pausa local instalada y cerrada | `cerrar` comprobó 423 para `anon` y `service_role` |
+| `restore-backup.ts <carpeta> --local` | **RESTAURADO** en 0,5 s de SQL —el error tolerado de siempre en `roles.sql`— y «**las 35 tablas tienen las mismas filas** que al tomar el respaldo». El cliente de más, fuera; la rifa, con su nombre; los 2 disparadores de `auth.users`, de vuelta |
+| `gate-compare` origen frente a restaurada | Filas: **ninguna tocada**. Estructura: solo `raffle_prize_transitions_prizes_check`, la diferencia conocida de §5.2 (la misma condición con otros paréntesis); por ella, sin operación declarada, la herramienta dice DETENER, como en cada restauración |
+| Pausa abierta y retirada; historial | `0001`–`0080` intacto: la restauración no toca `supabase_migrations` |
+| `test:db` **sobre la copia restaurada** | ✅ **1.572 y 1 omitida** en 64 archivos |
+| Al terminar | `db:reset` + `seed:local` |
+
+### d. Las pruebas del cambio
+
+| Batería | Resultado |
+|---|---|
+| `tests/unit/take-backup.test.ts` | **13/13** (R1..R5), con `restore-backup.test.ts` **14/14** |
+| `npm run verify` y `npm run test:db` | Los de D-249, con este cambio ya en el árbol: **2.042/2.042** y **1.572 + 1**; `tests/db/restore-backup.test.ts`, que lanza la herramienta de verdad sin manifiesto, en verde |
+
+**Nota sobre la sección de D-249:** dice «+12 de `take-backup`»; son **13** (2.013 + 16 + 13 = 2.042).
+
+### e. Lo que no se hizo
+
+Ningún respaldo de producción, ninguna tarea programada, ningún cifrado ni copia fuera del equipo, y ninguna cuenta de
+acceso extraída: son decisiones del dueño (`RUNBOOK` §5.3).
