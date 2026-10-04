@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada)** | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
+| **Post-9 vigente (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue)** | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g |
+| Post-9 anterior (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada) | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
 | Post-9 anterior (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02) | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
 | Post-9 anterior (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02) | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
 | Post-9 anterior (Publicación de D-244 y D-245: `a5d90f9` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-01, 13:45–17:13 UTC) | CI del PR (`36883743652`) y de `main` (`36896303913`) sobre `a5d90f9`: ✅ 2/2, **1.976/1.976** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Completa del candidato **1.009/1.010** en 55,8 min, con el código sin cambios durante la pasada: el único fallo, **I-090**, **aceptado por el dueño**; buscador y cierre **46/46**; I-148 e I-106 no reaparecieron. **I-201** nueva, registrada | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, **conforme** (23:14–23:18 UTC), sin movimientos contables |
@@ -94,7 +95,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 | Post-9 anterior (Etapa 4 del cobro, D-190, 2026-09-12) | **968 ✅** en 55 archivos (+25) | **942 ✅** en 42 archivos (+20) | **635/639**; los 4 son **I-090** (3) e **I-106** (1), conocidos y ajenos | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 3 del cobro, D-189, 2026-09-12) | **943 ✅** en 53 archivos (+10) | **922 ✅** en 41 archivos (+33) | **635/637**; los 2 son **I-090**, conocido y ajeno. Sobre servidor y base recién creados | ✅ | ✅ **Sin desplegar** — rama `feature/cuentas-y-recordatorios` |
 | Post-9 anterior (Etapa 2 del cobro, D-188, 2026-09-12) | **933 ✅** (+37) | **889 ✅** — no se tocó la base | **626/630**; los 4 son **I-090** (3) e **I-106** (1) | ✅ | ✅ Sin desplegar |
-| **Post-9 vigente (D-184, 2026-09-09)** | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **DESPLEGADO** (`9900635`, 2026-09-10) |
+| Post-9 anterior (D-184, 2026-09-09) | **896 ✅** en 50 archivos (+39) | **827 ✅** — no se tocó la base | **597/599** el 09-09 —los 2 son **I-090** e **I-106**, verdes en aislamiento— y **46/46** dirigidas el 09-10, con las **12 nuevas** de pegado real y de los cinco caminos de guardado | ✅ | ✅ **DESPLEGADO** (`9900635`, 2026-09-10) |
 | Post-9 anterior (D-182, D-183, 2026-09-09) | **857 ✅** en 49 archivos | — (no se tocó la base) | **escritorio 445** con los 2 de **I-090** · **móvil 130/130**. Doce combinaciones de ancho y tema sin desbordamiento; **I-107** cerrada de rebote | ✅ | ✅ **DESPLEGADO** (`523b4bc`) |
 | **Release a producción (2026-09-08, `dcfca8d`)** | — | **`0050` aplicada** al proyecto real, con sonda antes/después: **las 30 cifras de negocio idénticas** y `verify:remote` **17/17** | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `7a377cc6308c` servido en 1 de 15 fragmentos |
 | **Release a producción (2026-09-08, `b30e943`)** | — | **Sin migración**: cero diferencias en `supabase/`, sonda antes/después idéntica | — | ✅ CI 2/2 | ✅ **DESPLEGADO** — `fd3a1e1f16b1` servido en 1 de 15 fragmentos |
@@ -18285,3 +18286,26 @@ varias veces los 73 ms locales: es el punto para volver a medir, con producción
 | `npm run verify` | ✅ **2.055/2.055** en 103 archivos; lint, 0 errores y los 2 avisos de siempre |
 
 La huella de `settlements-volume.test.ts`, la misma antes y después de las dos baterías.
+
+---
+
+## Mantenimiento del 2026-10-04: la verificación final del candidato (`fc114e7`, solo en local)
+
+Con el código inmóvil en `fc114e7` —D-249 a D-252 y la medición de I-195 encima de lo publicado, `0490d69`—, sobre
+base recién sembrada y con `next dev` calentado (45 pantallas, ninguna por encima de 10 s). La huella del código, la
+misma al empezar y al terminar.
+
+| Batería | Resultado |
+|---|---|
+| `npm run verify` | ✅ **2.055/2.055** en 103 archivos; lint, 0 errores y los 2 avisos de siempre; build correcto |
+| `npm run test:db` | ✅ **1.573 y 1 omitida** en 64 archivos |
+| E2E completa, escritorio y móvil, **en una sola pasada** | **1.042/1.044** en 57,9 min |
+
+| Fallo | Clasificación |
+|---|---|
+| `ventas-por-fecha.spec.ts:163` (escritorio), «muestra inicialmente las ventas de HOY»: esperado < 26, recibido **55** | **I-090**, anterior: las ventas de hoy de `vendedor1` que acumulan las suites anteriores; cae en cada completa antes de las 19:00 de Bogotá. No toca nada de este lote |
+| `catalogo-publico-movil.spec.ts:103` (móvil): la dirección no llegó a `q=0` en 15 s | **I-106**, anterior: hoy, 1 de 5 con D-252 y 1 de 5 sin él (`TEST_RESULTS`, «D-252») |
+
+**Ningún fallo nuevo.** No se repitió ninguna de las dos para verla en verde. Las 20 E2E nuevas del mantenimiento
+—`formularios-pagina-sin-hidratar` 11, `busqueda-en-camino` 6, `busqueda-en-camino-movil` 1 y
+`catalogo-busqueda-en-camino` 2—, en verde dentro de esta pasada.

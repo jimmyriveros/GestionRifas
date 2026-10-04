@@ -3,7 +3,27 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-02, 18:45 UTC (13:45 en Bogotá; publicado a las 17:31 UTC) — **I-204 e I-115 EN
+- **Actualizado:** 2026-10-04 (Bogotá) — **Mantenimiento del dueño, SOLO EN LOCAL** (D-249 a D-252; sin migración,
+  push ni despliegue): el lote, preparado en `DEPLOYMENT` §3.3.g. Mantenimiento posterior a la Fase 9, sin fase ni
+  etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en local, los formularios de cliente, rifa y boleta ya no pueden mandar nada por la URL
+  antes de hidratar (D-249); el respaldo lógico es una orden con manifiesto que la restauración comprueba (D-250); el
+  registro del servidor anota las llamadas lentas o fallidas a Supabase y cada instancia nueva (D-251); un orden, un
+  filtro o una página elegidos con la búsqueda en camino la conservan (D-252). El cierre de cuentas no cambia.
+  **(2) Pruebas:** cada defecto, reproducido antes con el código anterior —D-249: 10 de 16 unitarias y 6 de 11 E2E;
+  D-252: 6 de 7 E2E y 1 de 2 en el catálogo— y corregido; builds de producción locales para formularios, registro y
+  navegación; `verify` **2.055/2.055** y `test:db` **1.573 + 1**, en verde; la E2E completa: **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`). I-195 medido: producción
+  19–20 ms; 5.000 boletas, 15 ms; 50.000, 73 ms; todas las cuentas cuadradas contra un cálculo aparte.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** I-202, hasta actualizar Supabase; I-203, con la prueba de los datos del teléfono
+  pendiente; I-190 e I-198, sin atribuir hasta publicar D-251; I-024, sin respaldo periódico ni copia fuera del equipo;
+  I-196 e I-197, límites con propuesta; I-194, aceptado; I-106, intermitente; I-021, I-066 e I-077, aplazadas por el
+  dueño.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1 y §1.a, `DEPLOYMENT` §3.3.g y `TEST_RESULTS`, «D-249» a «D-252»
+  e «I-195».
+
+- Antes, 2026-10-02, 18:45 UTC (13:45 en Bogotá; publicado a las 17:31 UTC) — **I-204 e I-115 EN
   PRODUCCIÓN** (`0490d69`, sin migración ni pausa; `DEPLOYMENT` §3.2.x), y la actualización de Supabase, más preparada **sin actualizar**. Mantenimiento posterior
   a la Fase 9. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en producción, los formularios de acceso y de contraseña ya no pueden mandar nada por la URL
@@ -1444,6 +1464,16 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   es condición previa a que entren vendedores reales
 
 ## Resumen de fases y mantenimiento
+
+> **Nota del 2026-10-04 (mantenimiento), sin reescribir las filas:** esta tabla se fue escribiendo por partes y
+> quedó atrás. **Todas las entregas que nombra están en producción**: lo servido es `0490d69`, que contiene cada uno
+> de sus commits, y la base tiene `0001`–`0080` (comprobado en solo lectura el 2026-10-04). En concreto, lo que las
+> filas todavía llaman «sin desplegar», «solo en local» o «espera autorización»: «Estado de cobro» y D-172 a D-174,
+> el abono a $0 (`0042`), las etapas de loterías, Bre-B y «Otros» (`0073`–`0074`), el historial de premios
+> (`0067`–`0072`), la configuración de ganancias (`0078`–`0079`), Color v2 y el cierre de cuentas (`0080`). La fila
+> «Bloqueada» tampoco aplica: I-140 se corrigió el 2026-09-19. Las incidencias que nombra (I-021, I-023, I-024,
+> I-030, I-037, I-046–I-052) siguen como dice `KNOWN_ISSUES`. **Hoy no hay ninguna fase en curso**; lo vigente está
+> en la entrada «Actualizado» de arriba y en `HANDOFF` §1.
 
 | Clasificación | Estado actual |
 |---|---|
