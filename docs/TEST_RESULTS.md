@@ -18020,3 +18020,68 @@ entre 54043 y 54642), que incluye el **54322** de la base local. Los contenedore
 reiniciar el servicio `winnat` como administrador, o reiniciar Windows: es una acción del sistema y se pidió al
 dueño. **Hasta entonces no se puede ejecutar nada que necesite la base local**: `test:db`, la E2E, ni los ensayos.
 Nada de la base local se perdió: el volumen sigue, y lo que se iba a hacer era resetearla igualmente.
+
+---
+
+## D-249: los formularios de página, sin nada en la URL antes de hidratar — el resto de I-204 (2026-10-04, solo en local)
+
+Encargo de mantenimiento del dueño (2026-10-04): comprobar en local, con datos **sintéticos**, si los cinco formularios de
+página que I-204 dejó anotados podían llevar datos personales a la dirección antes de que funcione el JavaScript, y
+corregirlo si se confirmaba. Producción, sin tocar.
+
+### a. Lo que había, medido antes de cambiar nada
+
+| Formulario | HTML del servidor (unitaria) | Navegador, código anterior (E2E) |
+|---|---|---|
+| Cliente, alta | Sin `method`; `name`, `phone`, `alias`, `email`, `notes`; botón activo | El clic pide `/seller/clients/new?name&phone&alias&email&notes` |
+| Cliente, edición | Igual, con los datos guardados ya escritos | El clic, **sin escribir nada**, pide `…/edit?name&phone&alias&email&notes` |
+| Rifa, alta y edición | Sin `method`; `name`, `description`, `ticketPrice`, `startDate`, `endDate` | `/owner/raffles/new?name&description&ticketPrice&startDate&endDate` |
+| Boleta | Sin `method`; `dailyNumber`, `weeklyNumber` | `/owner/tickets/new?dailyNumber&weeklyNumber` |
+| Lista general de tramos | **Ningún campo con nombre** | Nada que llevar |
+| Asignar boletas | No está: vive en un diálogo cerrado | Nada: no existe sin JavaScript |
+
+Solo se anotaron los **nombres** de los parámetros: el arnés aborta toda petición con uno de esos campos en la dirección,
+así que nada llegó al servidor.
+
+### b. Las pruebas, antes y después
+
+| Prueba | Código anterior | Con D-249 |
+|---|---|---|
+| `tests/unit/formularios-pagina-sin-hidratar.test.tsx` (16) | **10 fallan** (las de `method`, botón y aviso de los cinco casos); pasan las 5 de hidratar y la de la lista de tramos | **16/16** |
+| `tests/e2e/formularios-pagina-sin-hidratar.spec.ts` (11, escritorio) | **6 fallan**, todas por la fuga —los cuatro formularios sin JavaScript, el JavaScript perdido y el retrasado—; pasan las 5 que no tienen fuga posible o son de uso normal | **11/11** |
+| `tests/unit/auth-forms-sin-hidratar.test.tsx` (12) | — | **12/12**, y el HTML del servidor de los cuatro formularios de acceso, **idéntico byte a byte** antes y después de separar las piezas |
+
+### c. Lo visual, medido (`next dev`, cliente, rifa y boleta, a 320, 360 y 1280 px)
+
+| Estado | Resultado |
+|---|---|
+| Sin JavaScript | El aviso encima de los botones, a 20 px del botón; el botón, desactivado y con su texto |
+| JavaScript retenido | «Preparando el formulario…», desactivado; no se pinta el aviso |
+| Desborde horizontal | **0 px** en todos los anchos y estados |
+| Al hidratar | En el teléfono, cliente y rifa no se mueven (botones a todo el ancho). En escritorio, y en boleta también en el teléfono, el botón pasa de 203 px a 91–111 px y **«Cancelar» se desplaza 92–112 px a la izquierda, una vez**. Solo ocurre en una carga completa de la página: al llegar desde otra pantalla de la aplicación el formulario ya está hidratado |
+| Oscuro | Con la clase `dark` (el portal no la aplica solo, D-233): fondo `lab(2.75 0 0)`, el botón desactivado con su texto legible |
+
+### d. Sin regresiones, en desarrollo y en un build de producción
+
+| Batería | Resultado |
+|---|---|
+| Las 27 E2E que recorren estos formularios o el acceso (cliente, rifa, boleta, invitación, teléfono, alineación, cabecera, navegación, pausa, premios, importar…), escritorio y teléfono, en `next dev` con el servidor calentado | **250/250** en 13,5 min (208 de escritorio y 42 de teléfono); la huella de los cinco archivos de código, la misma antes y después |
+| Navegación interna a «Nuevo cliente» (3 vueltas, un observador del DOM instalado antes del clic) | El botón **nunca** dice «Preparando el formulario…»: llega hidratado. El salto de «Cancelar» solo existe en una carga completa |
+| Las dos E2E de formularios (20) contra un **build de producción** local (`build/i204-i115/lanzar-prod.ts`, Supabase local) | Primera vuelta **18/20**: con el JavaScript «retenido», Enter creaba un cliente sintético. **No era una fuga**: en producción `loginAs` registra el service worker, que sirve `/_next/static/…` desde su caché, y Playwright no intercepta lo que sirve un service worker; el formulario se hidrataba y Enter funcionaba como debe. La prueba ahora bloquea los service workers en ese bloque —una primera visita sin caché— y la segunda vuelta, con la base resembrada, dio **20/20** |
+| Un POST nativo a `/seller/clients/new` con datos sintéticos —lo que haría un envío sin JavaScript con `method="post"`—, build de producción | **200** con la propia página; no repite el valor; **0** clientes creados; el registro del servidor no lo contiene |
+| `npm run verify` | ✅ **2.042/2.042** en 102 archivos (+16 de este cambio y +12 de `take-backup`, que va en otro commit); lint, 0 errores y los 2 avisos de siempre (`useVirtualizer`); build correcto |
+| `npm run test:db` | ✅ **1.572 y 1 omitida** en 64 archivos, igual que antes |
+
+Las dos baterías corrieron con el código inmóvil (la huella de los 11 archivos cambiados, idéntica antes y después) y con
+el cambio de respaldo en el árbol, sin publicar: es un superconjunto de este commit, que no importa nada de `scripts/`.
+
+| Lo que salió por el camino | Qué se hizo |
+|---|---|
+| `npm run db:reset` falló al recrear la base local: Windows había reservado el rango de puertos 54243–54342, con el 54322 dentro | El dueño reinició el servicio `winnat` como administrador; después, `supabase stop` y `start`. Nada se perdió (`TEST_RESULTS`, «Inventario del mantenimiento») |
+| La primera E2E agotó los 180 s de arranque de Playwright compilando en frío | `dev:local` aparte, las pantallas calentadas con `build/aviso-busqueda-publicacion/calentar.mjs` y la prueba después: lo que ya documenta I-075 |
+| Al escribir esta sección, un `node -e "…"` en bash ejecutó las comillas invertidas y dejó huecos en el texto | La trampa de `HANDOFF` §9: ninguna de esas órdenes hizo nada (todas fallaron por nombre); la sección se rehízo desde un archivo |
+
+### e. Lo que no se hizo
+
+Nada se publicó ni se empujó. La E2E completa no se repitió aquí: se hará una sola vez con todo el lote, con el código
+inmóvil, antes de proponerlo.

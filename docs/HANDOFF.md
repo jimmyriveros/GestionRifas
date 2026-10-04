@@ -3043,6 +3043,12 @@ components/data/    DataTable · DataTablePagination · EmptyState
                     para una tarjeta (la flecha gira; el enlace cambia de fondo con
                     has-[[data-link-pending=true]]). Traen su role="status": no
                     copies el useLinkStatus en otra lista, usa estas
+components/form/HydratedSubmitButton.tsx  el botón de ENVIAR de un formulario que
+                    llega en el HTML del servidor: desactivado hasta hidratar, con
+                    «Preparando el formulario…», y FormNoScriptNotice, el aviso sin
+                    JavaScript (D-247, D-249). Todo formulario de PÁGINA nuevo lo usa,
+                    con method="post": sin eso, un envío antes de hidratar lleva sus
+                    campos a la URL (I-204). Los de diálogo no lo necesitan
 lib/navigation-history.ts  detecta si hay historial real en esta pestaña, para
                     BackButton. Contador de modulo, no sessionStorage (D-089)
 lib/navigation-start.ts  el aviso de que el router EMPIEZA a navegar (D-245): lo

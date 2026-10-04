@@ -423,7 +423,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Estar sin internet | **Sin conexión** | Offline, desconectado, sin red |
 | La pausa mientras se publica una actualización que no es compatible con la anterior | **Estamos actualizando Rifas**; volver a intentarlo, **Reintentar** (D-239) | Mantenimiento, fuera de servicio, caído, «error del servidor», «sistema no disponible» |
 | Que la aplicación no pudo comprobar si alguien tiene acceso —un corte, un rechazo pasajero del servicio— | **«No pudimos comprobar tu acceso»**; volver a intentarlo, **Reintentar** (I-115, D-248) | «Tu cuenta está inactiva», que es otra cosa; «Permiso denegado», «Sesión inválida», «Error de autenticación» |
-| Un formulario de acceso o de contraseña que todavía no funciona, mientras la página termina de cargar | **Preparando el formulario…**, en su propio botón (I-204, D-247) | Cargando, Espere, Inicializando |
+| Un formulario que todavía no funciona, mientras la página termina de cargar —los de acceso y de contraseña, y los de cliente, rifa y boleta— | **Preparando el formulario…**, en su propio botón (I-204, D-247, D-249) | Cargando, Espere, Inicializando |
 | Lo mismo, con JavaScript desactivado en el navegador | «Este formulario necesita **JavaScript** y tu navegador lo tiene desactivado. Actívalo o abre Rifas en otro navegador.» (D-247) | «Habilita los scripts», «Navegador no compatible», «Error» |
 | Código nuevo servido tras un despliegue | **Versión** | Build, actualización del sistema, parche |
 | Página pública con los números de un vendedor | **Catálogo** | Vitrina, tienda, landing, micrositio |
@@ -770,7 +770,9 @@ página de error general, con su «Reintentar». Las dos dicen qué pasó y cóm
 «permiso denegado» o «sesión inválida», que mandarían a la persona a pedir un acceso que ya tiene. «Tu cuenta está
 inactiva» queda solo para lo que de verdad lo es.
 
-**Un formulario que todavía no funciona lo dice en su botón** (I-204, D-247). Los cuatro de acceso y de contraseña
+**Un formulario que todavía no funciona lo dice en su botón** (I-204, D-247; y desde D-249, también los de cliente, rifa
+y boleta: ahí el aviso sin JavaScript va **encima** de la fila de botones, porque el botón la comparte con «Cancelar»).
+Los cuatro de acceso y de contraseña
 llegan con el botón desactivado hasta que la página termina de cargar, y mientras tanto dicen **«Preparando el
 formulario…»**: es la regla del «Ingresando…» de siempre, en el mismo sitio, así que nada se mueve cuando se activa. No
 se escribe «Cargando», que nombra lo que hace la máquina (D-155). Sin JavaScript el formulario nunca estará listo: el
@@ -1907,7 +1909,7 @@ castigo donde solo había una espera.
 | Ofrecimiento de instalar, y las instrucciones de iPhone | `src/features/pwa/copy.ts`, **todos juntos** — los leen la tarjeta del panel y la opción del menú de usuario (D-123) |
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
-| «Preparando el formulario…» y el aviso sin JavaScript de los cuatro formularios de acceso y de contraseña | `src/features/auth/components/AuthSubmitButton.tsx` (D-247). Ningún formulario los escribe: los cuatro usan ese botón |
+| «Preparando el formulario…» y el aviso sin JavaScript, en todo formulario que llega en el HTML del servidor | `src/components/form/HydratedSubmitButton.tsx` (`FORM_PREPARING_LABEL` y `FORM_NEEDS_JAVASCRIPT`; D-247, D-249). Ningún formulario los escribe: los de acceso y de contraseña los reciben de `AuthSubmitButton`, y los de cliente, rifa y boleta usan `HydratedSubmitButton` y `FormNoScriptNotice` |
 | «Estamos actualizando Rifas», «Vuelve a entrar en unos minutos. Lo que ya registraste sigue guardado.» y «Reintentar», la pantalla de la pausa | `src/app/mantenimiento/page.tsx` (D-239) |
 | «Estamos actualizando Rifas. Vuelve a intentarlo en unos minutos.», lo que responde una acción durante la pausa | `src/lib/maintenance-pause.ts` (`MAINTENANCE_PAUSE_MESSAGE`, D-239). **Vive también en SQL**, en `supabase/maintenance/pausa.sql`, para quien llame a la API: una prueba unitaria compara las dos letra por letra |
 | «No pudimos comprobar tu acceso. Vuelve a intentarlo en unos segundos.», lo que responde una acción o una ruta de la API cuando no se pudo leer la membresía | `src/lib/auth/membership-check.ts` (`MEMBERSHIP_CHECK_MESSAGE`, D-248). Las pantallas no lo escriben: caen en la página de error general |

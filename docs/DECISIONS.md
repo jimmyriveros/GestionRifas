@@ -16519,3 +16519,49 @@ alcance del cierre legítimo, que D-246 dejó para el dueño).
 proxy lo siguen tomando por «sin sesión» y mandan a `/login` —sin cerrar nada—; es el camino de las sesiones inválidas,
 que el encargo pidió no tocar. Y si el fallo cae en el primer ingreso de alguien que definió su contraseña por otro
 camino, su cuenta queda marcada como activa en el siguiente ingreso o cambio de contraseña (`markActivated`, BR-E14).
+
+---
+
+## D-249 — Los formularios de página tampoco pueden mandar nada por la URL antes de hidratar (el resto de I-204)
+
+**Fecha:** 2026-10-04 · **Estado:** aceptada (encargo de mantenimiento del dueño: investigar, corregir en local y probar)
+· **Sin migración** · Solo interfaz · **Solo en local**: sin push ni despliegue · Cierra en local lo que I-204 dejó
+fuera
+
+**Contexto.** D-247 protegió los cuatro formularios de acceso y de contraseña y dejó anotados «5 de página» sin
+comprobar: cliente, rifa, boleta, asignar boletas y la lista general de tramos. Comprobados uno por uno con datos
+sintéticos, en el HTML del servidor y en el navegador:
+
+| Formulario | Antes de hidratar | ¿Qué podía ir en la URL? |
+|---|---|---|
+| Cliente, alta y edición (`/seller/clients/new`, `…/edit`) | `<form>` sin `method`, botón activo | **Nombre, teléfono, alias, correo y notas de un cliente**; en la edición, sin escribir nada: los campos ya traen lo guardado |
+| Rifa, alta y edición (`/owner/raffles/new`, `…/edit`) | Igual | Nombre, descripción, precio y fechas de la rifa |
+| Boleta (`/owner/tickets/new`) | Igual | Los dos números |
+| Lista general de tramos (`/owner/settings/earnings`) | Igual, pero **sin ningún campo con nombre** | Nada: un envío nativo recargaría la página sin datos |
+| Asignar boletas | Vive dentro de un diálogo cerrado | Nada: no está en el HTML del servidor; abrirlo exige JavaScript |
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Lo mismo que D-247, donde hace falta | Cliente, rifa y boleta llevan `method="post"` y el botón de enviar **desactivado hasta hidratar**, con «Preparando el formulario…» mientras tanto y el aviso para quien no tiene JavaScript |
+| Dos piezas, no una | `src/components/form/HydratedSubmitButton.tsx` exporta el botón (`HydratedSubmitButton`) y el aviso (`FormNoScriptNotice`) **por separado**: en estos formularios el botón comparte fila con «Cancelar», y el aviso pegado al botón quedaría a su lado en escritorio. Va encima de la fila |
+| Un solo sitio para la regla y los textos | `AuthSubmitButton` pasa a componer las dos piezas, con la misma API: los cuatro formularios de acceso no cambian y su HTML del servidor sale **idéntico byte a byte** (comparado antes y después) |
+| Lo que no se toca | La lista general de tramos (sin campos con nombre) y el diálogo de asignar (no existe antes de hidratar): no hay nada que proteger, y una prueba lo vigila por si cambia |
+
+**Medido** (`TEST_RESULTS`, «D-249»): `tests/unit/formularios-pagina-sin-hidratar.test.tsx`, 16 pruebas, **10 fallan con
+el código anterior**; `tests/e2e/formularios-pagina-sin-hidratar.spec.ts`, 11 pruebas —sin JavaScript, con él perdido o
+retrasado, clic y Enter, y el uso normal después—, **6 fallan con el código anterior**, todas en la fuga, y 11/11 con la
+corrección. Sin desborde a 320, 360 ni 1280 px.
+
+**Alternativas descartadas.** Copiar `AuthSubmitButton` en cada formulario (dos fuentes para la misma regla y los mismos
+textos); importarlo desde `features/auth` en clientes, rifas y boletas (un componente de autenticación en formularios
+que no lo son, y con el aviso pegado al botón); proteger también la lista de tramos y el diálogo de asignar (no tienen
+nada que enviar a la URL); desactivar los campos hasta hidratar (lo descartó D-247 por el autocompletado).
+
+**Consecuencia.** Ningún formulario de la aplicación puede llevar lo escrito a la URL antes de hidratar. Los límites de
+D-247 siguen: lo escrito antes de hidratar se borra al hidratar, y «Cancelar», que navega con JavaScript, no hace nada
+hasta entonces. Y uno nuevo, medido y aceptado: en escritorio el botón mide 203 px mientras dice «Preparando el
+formulario…» y vuelve a su ancho al hidratar, así que **«Cancelar» se desplaza 92–112 px una vez**, solo en una carga
+completa de la página (al llegar desde otra pantalla el formulario ya está hidratado). Reservar el ancho dejaría el
+botón más ancho para siempre, y cambiar el texto separaría estos formularios de los de acceso.

@@ -7,6 +7,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { Notice } from '@/components/feedback/Notice'
+import { FormNoScriptNotice, HydratedSubmitButton } from '@/components/form/HydratedSubmitButton'
 import { MoneyInput } from '@/components/form/MoneyInput'
 import { Button } from '@/components/ui/button'
 import {
@@ -104,7 +105,14 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-2xl space-y-5" noValidate>
+      {/* `method="post"` y el botón de abajo: antes de hidratar, nada de lo escrito puede ir en la
+          URL (I-204, D-249). */}
+      <form
+        method="post"
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="max-w-2xl space-y-5"
+        noValidate
+      >
         {serverError ? (
           <p
             role="alert"
@@ -234,6 +242,8 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
           )}
         />
 
+        <FormNoScriptNotice className="mb-5" />
+
         {/*
           En el telefono las dos acciones ocupan el ancho y miden 44 px, igual
           que en el formulario de cliente: enviar no puede depender de acertar
@@ -241,15 +251,14 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
           tamaño de siempre, uno al lado del otro.
         */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button type="submit" size="touch" disabled={isPending} className="w-full sm:w-auto">
-            {isPending
-              ? isEdit
-                ? 'Guardando...'
-                : 'Creando...'
-              : isEdit
-                ? 'Guardar cambios'
-                : 'Crear rifa'}
-          </Button>
+          <HydratedSubmitButton
+            size="touch"
+            className="w-full sm:w-auto"
+            pending={isPending}
+            pendingLabel={isEdit ? 'Guardando...' : 'Creando...'}
+          >
+            {isEdit ? 'Guardar cambios' : 'Crear rifa'}
+          </HydratedSubmitButton>
           <Button
             type="button"
             variant="outline"

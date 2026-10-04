@@ -211,14 +211,14 @@ para poder ir directo a la prueba en vez de buscarla.
 | 2 | Bloqueo de usuarios inactivos | BR-A04, BR-A05 | `e2e/security.spec.ts`; y que un fallo al **leer** la membresía no se tome por una cuenta inactiva —sin cerrar nada—, mientras la cuenta desactivada sigue saliendo de todos sus dispositivos: `e2e/membresia-sin-comprobar.spec.ts`, `unit/membership-check.test.ts` (D-248) | **7** · post-9 |
 | 3 | Aislamiento entre organizaciones | BR-O02, BR-O03 | `db/rls-isolation.test.ts` | 2 |
 | 4 | Aislamiento entre vendedores | BR-U07 | `db/rls-isolation.test.ts`, `db/seller-isolation.test.ts`, `db/audit-phase9.test.ts` (cobranza, **ambas direcciones**) | 2 · **9** |
-| 5 | Creación de rifas | BR-R04, BR-R07 | `e2e/owner-raffles.spec.ts` | 3 |
+| 5 | Creación de rifas | BR-R04, BR-R07 | `e2e/owner-raffles.spec.ts`; y que nada viaje en la URL antes de hidratar: `e2e/formularios-pagina-sin-hidratar.spec.ts` (D-249) | 3 · post-9 |
 | 6 | Creación masiva de boletas | BR-N10 | `e2e/owner-bulk.spec.ts` | 3 |
 | 7 | Límite de cuatro dígitos | BR-N02 | `unit/schemas.test.ts`, `db/tickets-numbering.test.ts` | 2 |
 | 8 | Conservación de ceros iniciales | BR-N03 | `db/tickets-numbering.test.ts` | 2 |
 | 9 | Detección de combinaciones duplicadas | BR-N04 | `db/tickets-numbering.test.ts` | 2 |
 | 10 | Duplicados entre vendedores | BR-N05 | `db/tickets-numbering.test.ts` | 2 |
 | 11 | Asignación de boleta | BR-I07, BR-P03 | `e2e/seller-tickets.spec.ts`, `db/rpc.test.ts` | 4 |
-| 12 | Creación de cliente | BR-C02 | `e2e/seller-clients.spec.ts` | 4 |
+| 12 | Creación de cliente | BR-C02 | `e2e/seller-clients.spec.ts`; y que los datos del cliente no viajen en la URL antes de hidratar, al crear y al editar: `e2e/formularios-pagina-sin-hidratar.spec.ts`, `unit/formularios-pagina-sin-hidratar.test.tsx` (D-249) | 4 · post-9 |
 | 13 | Registro de abono | BR-F02, BR-F06 | `e2e/payments.spec.ts`, `db/payments-phase5.test.ts` | 5 |
 | 14 | Cambio a estado Abonada | BR-F07 | `db/payments.test.ts` | 5 |
 | 15 | Cambio a estado Pagada | BR-F07 | `db/payments.test.ts` | 5 |
@@ -1633,7 +1633,10 @@ hidratar**: su botón llega desactivado y dice «Preparando el formulario…». 
 nombre, «Ingresar», así que espera solo a que esté listo: la carrera de I-066 ya no la puede ganar el
 arnés. Lo prueba `credenciales-sin-hidratar.spec.ts` —sin JavaScript, con él perdido o retrasado, clic y
 Enter—, con valores ficticios y abortando cualquier petición con `email=`, `password=` o
-`confirmPassword=` en la dirección. Dos trampas que salieron al escribirla:
+`confirmPassword=` en la dirección. **Desde D-249, lo mismo en los formularios de página** —cliente, rifa y boleta—:
+`formularios-pagina-sin-hidratar.spec.ts` aborta cualquier petición con uno de sus campos (`name=`, `phone=`,
+`email=`…) en la dirección, y comprueba que la lista de tramos y el diálogo de asignar no tienen nada que enviar. Dos
+trampas que salieron al escribir la primera:
 
 * `getByText` de Playwright **no mira dentro de `<noscript>`**: el aviso sin JavaScript existe y se ve,
   pero no se encuentra por su texto. Se localiza con `noscript > div` y se comprueba con

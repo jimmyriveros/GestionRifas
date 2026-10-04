@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { FormNoScriptNotice, HydratedSubmitButton } from '@/components/form/HydratedSubmitButton'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { useClientCreated } from '@/features/whatsapp/components/ClientCreatedProvider'
@@ -93,7 +94,14 @@ export function ClientForm({ client, whatsappSettings }: ClientFormProps) {
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl space-y-5" noValidate>
+        {/* `method="post"` y el botón de abajo: antes de hidratar, los datos del cliente no
+            pueden ir en la URL (I-204, D-249). */}
+        <form
+          method="post"
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="max-w-xl space-y-5"
+          noValidate
+        >
           {serverError ? (
             <p
               role="alert"
@@ -105,6 +113,8 @@ export function ClientForm({ client, whatsappSettings }: ClientFormProps) {
 
           <ClientFormFields form={form} disabled={isPending} />
 
+          <FormNoScriptNotice className="mb-5" />
+
           {/*
           En el telefono las dos acciones ocupan el ancho y miden 44 px, para
           que enviar el formulario no dependa de acertar un boton pequeño al
@@ -112,15 +122,14 @@ export function ClientForm({ client, whatsappSettings }: ClientFormProps) {
           al lado del otro. No hay barra fija: nada en el producto la usa.
         */}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <Button type="submit" size="touch" disabled={isPending} className="w-full sm:w-auto">
-              {isPending
-                ? client
-                  ? 'Guardando...'
-                  : 'Creando...'
-                : client
-                  ? 'Guardar cambios'
-                  : 'Crear cliente'}
-            </Button>
+            <HydratedSubmitButton
+              size="touch"
+              className="w-full sm:w-auto"
+              pending={isPending}
+              pendingLabel={client ? 'Guardando...' : 'Creando...'}
+            >
+              {client ? 'Guardar cambios' : 'Crear cliente'}
+            </HydratedSubmitButton>
             <Button
               type="button"
               variant="outline"

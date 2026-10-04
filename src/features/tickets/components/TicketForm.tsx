@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { FormNoScriptNotice, HydratedSubmitButton } from '@/components/form/HydratedSubmitButton'
 import { TicketNumberInput } from '@/components/form/TicketNumberInput'
 import { Button } from '@/components/ui/button'
 import {
@@ -71,7 +72,14 @@ export function TicketForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl space-y-5" noValidate>
+      {/* `method="post"` y el botón de abajo: antes de hidratar, nada de lo escrito puede ir en la
+          URL (I-204, D-249). */}
+      <form
+        method="post"
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="max-w-xl space-y-5"
+        noValidate
+      >
         {serverError ? (
           <p
             role="alert"
@@ -178,10 +186,12 @@ export function TicketForm({
           no puede repetirse dentro de la misma rifa, ni siquiera entre vendedores.
         </p>
 
+        <FormNoScriptNotice className="mb-5" />
+
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={isPending}>
-            {isPending ? 'Creando...' : 'Crear boleta'}
-          </Button>
+          <HydratedSubmitButton pending={isPending} pendingLabel="Creando...">
+            Crear boleta
+          </HydratedSubmitButton>
           <Button
             type="button"
             variant="outline"
