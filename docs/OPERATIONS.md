@@ -1,6 +1,6 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-10-04 (D-251: **§6.b nueva**, qué dicen las dos líneas nuevas del registro del servidor, cuando se publique). Antes, 2026-10-02 (D-246: **§6.a nueva**, reconocer una lentitud de **conexión** —esperas de 1, 3 o
+**Actualizado:** 2026-10-04, tarde (revisión del dueño: **§6.a y §6.b**, sus lecturas como hipótesis con su siguiente comprobación; §6.b dice qué **no** escribe D-251; la prueba de redes, con un límite total). Antes, ese mismo día (D-251: **§6.b nueva**, qué dicen las dos líneas nuevas del registro del servidor, cuando se publique). Antes, 2026-10-02 (D-246: **§6.a nueva**, reconocer una lentitud de **conexión** —esperas de 1, 3 o
 15 s antes de cargar— sin reiniciar ni revertir). Antes, 2026-10-01 (§4.e: el cierre de cuentas, **en producción**). Antes, 2026-09-30, por la noche (D-243:
 §4.e — en la rifa activa ya está confirmado que los vendedores no
 han entregado dinero al dueño y que no hubo premios pagados en los sorteos sin resultado). Antes, ese mismo día, al
@@ -311,33 +311,69 @@ a desplegar para que tome efecto.
 ### 6.a Si tarda **antes** de que empiece a cargar (I-203)
 
 Si la pantalla se queda en blanco segundos antes de que aparezca nada —o Chrome enseña su página
-triste—, el problema puede estar en la **conexión** y no en la aplicación. Tiene una firma clara: las
-conexiones nuevas tardan **≈1, ≈3, ≈7 o ≈15 s** exactos, que son los reintentos de Windows cuando se
-pierde el paquete que abre la conexión. Reiniciar, desplegar o revertir no lo arregla.
+triste—, la espera puede estar en la **conexión** y no en la aplicación. Desde el equipo del dueño se ha
+medido que algunas conexiones **nuevas** hacia Vercel tardan ≈1, ≈3, ≈7 o ≈15 s en abrirse y las
+**reutilizadas** no (D-246, I-203). Esos tiempos coinciden con los reintentos de Windows para abrir una
+conexión, pero **un tiempo, solo, no demuestra la causa**: es compatible con un paquete perdido y
+reenviado, con una espera en algún equipo del camino o con algo del propio equipo. Reiniciar, desplegar
+o revertir no lo cambia: pasa antes de que la petición llegue a la aplicación.
 
-Para comprobarlo sin cambiar nada del equipo, repite unas diez veces, en PowerShell:
+**Cómo medirlo sin cambiar nada del equipo:** `build/i203/prueba-redes.ps1` (fuera de Git). Separa DNS,
+conexión, TLS y espera, en conexiones nuevas y en una reutilizada, hacia Rifas, otro sitio de Vercel y
+Cloudflare, y anota el adaptador y la puerta de enlace local de cada ejecución. Dura **como máximo 4
+minutos** (`-LimiteSegundos`, más unos segundos de resumen); si se agotan, deja de pedir, conserva lo
+medido y lo marca: la última fila del CSV dice `(fin);incompleta`, y una ejecución cortada a mano no
+tiene fila de fin. Para una comprobación rápida a mano, unas diez veces, en PowerShell:
 
 ```powershell
 curl.exe -s -o NUL -w "tcp=%{time_connect} tls=%{time_appconnect} primer_byte=%{time_starttransfer} total=%{time_total}`n" https://gestion-rifas.vercel.app/favicon.ico
 ```
 
-y lo mismo con `https://www.cloudflare.com/favicon.ico`. Si `tcp` sale en 1, 3 o 15 s solo hacia
-Vercel, compáralo con otra red —los datos del teléfono—: si solo pasa en una, es esa red o su
-proveedor; si pasa en las dos, es el camino hacia Vercel. Los registros de Vercel **no** lo ven:
-anotan la petición cuando la conexión ya existe, y sin duración.
+y lo mismo con `https://www.cloudflare.com/favicon.ico`.
+
+**La comparación entre redes la hace el dueño.** El cambio de red —de la de casa a los datos del
+teléfono— lo hace él, y las dos ejecuciones se coordinan: el agente **no** ejecuta las dos dando por hecho
+que la red cambió, y antes de comparar mira en el CSV que el adaptador o la puerta de enlace cambiaron de
+verdad. Lo que sale se lee como **hipótesis**, nunca como conclusión:
+
+| Lo que se ve | Hipótesis que deja abierta | Siguiente comprobación |
+|---|---|---|
+| Las conexiones nuevas a Rifas tardan con la red de casa y no con los datos del teléfono | Algo del camino entre la red de casa y Vercel: el router, el proveedor, una ruta | Repetir las dos en otra franja; si se repite, decidir con el dueño si se consulta al proveedor |
+| Tardan en las dos redes, también hacia Cloudflare | Algo del propio equipo, o algo común a las dos redes | Medir desde otro dispositivo; no se cambia ninguna configuración del equipo sin el dueño |
+| Tardan en las dos redes, pero solo hacia Vercel (Rifas y `vercel.com`) | La ruta hacia Vercel desde esta zona, o su borde | Mirar qué centro respondió (`centro`), repetir en otra franja y contrastar con el estado de Vercel |
+| Las nuevas tardan y las reutilizadas no | La espera está al **abrir** conexiones, no en el servidor ni en la descarga | Las filas de arriba |
+| Solo `rifas-login` tarda, y en la **espera**, no al conectar | El servidor: un arranque en frío o una llamada lenta | El registro del servidor, dentro de la hora (§6.b) |
+| Nada tarda en ninguna | Que la lentitud sea intermitente y no coincidiera con la prueba | Repetir cuando vuelva a pasar, apuntando la hora |
+
+Lo que **demostraría** una pérdida de paquetes es verlos: una captura en el equipo del dueño (por
+ejemplo, con `pktmon`, la herramienta de Windows), que necesita permisos de administrador y solo se hace
+si el dueño lo autoriza. Los registros de Vercel **no** ven nada de esto: anotan la petición cuando la
+conexión ya existe, y sin duración.
 
 ### 6.b Si tarda **después** de conectar: el registro del servidor (D-251, cuando se publique)
 
-Con D-251 publicado, el registro de Vercel dice dos cosas que antes no decía, y solo cuando pasan:
+Con D-251 publicado, el registro de Vercel escribe dos líneas que antes no escribía, y **solo** cuando pasan:
 
-| Línea | Qué significa |
-|---|---|
-| `[rifas:instancia] nueva · región iad1 · versión …` | Arrancó una instancia: la primera petición que atendió pagó el **arranque en frío** |
-| `[rifas:supabase] GET /rest/v1/… → 200 en 1840 ms` | Esa llamada a **Supabase** tardó 1 s o más (o respondió 5xx, o no respondió) |
+| Línea | Qué dice | Qué no dice |
+|---|---|---|
+| `[rifas:instancia] nueva · región iad1 · versión …` | Arrancó una instancia; la primera petición que atendió pagó ese arranque | Cuánto tardó esa petición |
+| `[rifas:supabase] GET /rest/v1/… → 200 en 1840 ms` | Esa llamada a Supabase tardó **1 s o más** —medida desde la función, con la red entre Vercel y Supabase dentro—, o respondió **5xx**, o **no respondió** | Que la causa fuera Supabase y no el camino; nada de las llamadas que tardan menos |
 
-Cómo leerlo: Vercel → el proyecto → **Logs**, el minuto de la queja, y buscar `[rifas:`. **Solo guarda una hora.**
-Ninguna de las dos líneas lleva datos de nadie: la ruta es la tabla o la función, sin la consulta. Si en ese minuto no
-hay ninguna de las dos, y la prueba de redes de §6.a da conexiones lentas, la espera estuvo en la red.
+**Lo que NO escribe:** ningún 4xx —ni el 401 `PGRST303` de I-202, que es rápido, ni el 423 de la pausa,
+ni un 404— ni una llamada que falle rápido. **No captura todos los errores.** Los que la aplicación escribe
+o lanza salen en las agrupaciones de errores de Vercel (`get_runtime_errors`); un 4xx que la aplicación
+trata sin escribir nada no queda en ningún registro suyo. **I-202 se sigue con otras señales, que ya
+existen**: esa agrupación y los 401 de `/rest/v1` en los registros de Supabase (`RUNBOOK` §12.6).
+
+Cómo leerlo: Vercel → el proyecto → **Logs**, el minuto de la queja, y buscar `[rifas:`. **Solo guarda una
+hora.** Ninguna de las dos líneas lleva datos de nadie: la ruta es la tabla o la función, sin la consulta.
+Lo que sugiere cada caso es una **hipótesis**:
+
+| En ese minuto | Hipótesis | Siguiente comprobación |
+|---|---|---|
+| Una o varias `[rifas:supabase]` | Supabase, o el camino entre Vercel y Supabase, tardó | El estado de Supabase, si se repite a la misma hora y, mientras guarden un día, sus registros |
+| Una `[rifas:instancia] nueva` justo antes | Esa petición pagó un arranque en frío | Si se repite tras ratos sin uso |
+| Ninguna de las dos | La espera estuvo fuera de lo que este registro mide: el navegador, la conexión, o llamadas que tardaron menos de 1 s cada una | La prueba de redes (§6.a) y la pestaña Red del navegador, con la hora |
 
 ---
 

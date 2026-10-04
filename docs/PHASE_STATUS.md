@@ -8,7 +8,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en local, los formularios de cliente, rifa y boleta ya no pueden mandar nada por la URL
   antes de hidratar (D-249); el respaldo lógico es una orden con manifiesto que la restauración comprueba (D-250); el
-  registro del servidor anota las llamadas lentas o fallidas a Supabase y cada instancia nueva (D-251); un orden, un
+  registro del servidor anota las llamadas a Supabase de 1 s o más, con 5xx o sin respuesta —ningún 4xx—, y cada
+  instancia nueva (D-251); un orden, un
   filtro o una página elegidos con la búsqueda en camino la conservan (D-252). El cierre de cuentas no cambia.
   **(2) Pruebas:** cada defecto, reproducido antes con el código anterior —D-249: 10 de 16 unitarias y 6 de 11 E2E;
   D-252: 6 de 7 E2E y 1 de 2 en el catálogo— y corregido; builds de producción locales para formularios, registro y
@@ -17,11 +18,13 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
   **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
   **(4) Variables de entorno:** ninguna nueva.
   **(5) Problemas que permanecen:** I-202, hasta actualizar Supabase; I-203, con la prueba de los datos del teléfono
-  pendiente; I-190 e I-198, sin atribuir hasta publicar D-251; I-024, sin respaldo periódico ni copia fuera del equipo;
+  pendiente; I-190 e I-198, sin atribuir hasta publicar D-251; **I-202, viva**: 7 apariciones en 7 días, 2 ya con D-248
+  publicado y una en el portal del personal; I-024, sin respaldo periódico ni copia fuera del equipo;
   I-196 e I-197, límites con propuesta; I-194, aceptado; I-106, intermitente; I-021, I-066 e I-077, aplazadas por el
   dueño.
-  **(6) Qué revisar antes de continuar:** `HANDOFF` §1 y §1.a, `DEPLOYMENT` §3.3.g y `TEST_RESULTS`, «D-249» a «D-252»
-  e «I-195».
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1 y §1.a, `DEPLOYMENT` §3.3.g, `RUNBOOK` §12.6, `OPERATIONS` §6.a
+  y §6.b, y `TEST_RESULTS`, «D-249» a «D-252», «I-195» y «Ajustes previos a la publicación». **Ajustes previos a la
+  publicación (misma tarde):** solo documentos y el guion de redes; el código, igual que `fc114e7`.
 
 - Antes, 2026-10-02, 18:45 UTC (13:45 en Bogotá; publicado a las 17:31 UTC) — **I-204 e I-115 EN
   PRODUCCIÓN** (`0490d69`, sin migración ni pausa; `DEPLOYMENT` §3.2.x), y la actualización de Supabase, más preparada **sin actualizar**. Mantenimiento posterior

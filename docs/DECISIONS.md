@@ -16442,6 +16442,13 @@ preparada; I-115 sube de importancia porque ya tiene un disparador real; I-203 e
 avanzar es del dueño y tiene plazo: los registros de Supabase de 2026-10-01 21:17–21:20 UTC se pierden hacia el
 2026-10-02 a las 21:18 UTC.
 
+> **Precisión del 2026-10-04 (revisión del dueño, antes de autorizar la publicación):** que las conexiones nuevas
+> tarden ≈1, 3, 7 o 15 s es **compatible** con los reintentos de Windows al abrir una conexión cuando se pierde un
+> paquete, pero **no lo demuestra**: una conexión que tarda puede deberse a otras cosas del camino o del propio equipo.
+> Donde esta decisión dice «SYN perdidos» o «se pierden los paquetes», léase como **hipótesis**. Demostrarlo exigiría
+> ver los paquetes —una captura en el equipo del dueño, que no se ha hecho ni se hace sin su autorización—. Las
+> hipótesis, con su siguiente comprobación: `OPERATIONS` §6.a.
+
 
 ---
 
@@ -16643,6 +16650,23 @@ petición y `after()`, más código para la misma respuesta).
 `[rifas:supabase]` en ese minuto apunta a Supabase; una `[rifas:instancia] nueva`, a un arranque en frío; ninguna de
 las dos, con la conexión lenta en la prueba de redes, a la red (I-203). No demuestra nada por sí sola y no se ha
 publicado: hasta su despliegue, I-190 e I-198 siguen sin poder atribuirse.
+
+> **Alcance, precisado el 2026-10-04 (revisión del dueño, antes de autorizar la publicación).** La línea
+> `[rifas:supabase]` sale **solo** con una llamada de **1 s o más**, una respuesta **5xx** o **ninguna respuesta**.
+> **No escribe ningún 4xx** —ni el 401 `PGRST303` de I-202, que es rápido, ni el 423 de la pausa, ni un 404— ni una
+> llamada que falle rápido: **no captura todos los errores**. La frase de la tabla «Un 4xx no: ya lo recogen las
+> agrupaciones de errores» era demasiado amplia: las agrupaciones de Vercel recogen lo que la aplicación **escribe o
+> lanza**, y un 4xx que la aplicación trata sin escribir nada no queda en ningún registro suyo. **Para I-202 la señal ya
+> existe y no hace falta instrumentar más** (`RUNBOOK` §12.6): la agrupación de `get_runtime_errors`
+> `Error: {"code":"PGRST303",…}` (digest `364289065@E394`); la línea `getActiveMembership: error consultando
+> memberships` con `code: 'PGRST303'`, y el `MembershipCheckError` que la sigue, cuando el rechazo cae en la lectura
+> de la membresía (D-248); y los 401 de `/rest/v1` en los registros de Supabase, que guardan un día. **Comprobado:** en
+> local, las dos E2E del día que provocan un `PGRST303` real dejan esa línea 6 veces y **ninguna** `[rifas:supabase]`
+> de un 4xx, y la prueba unitaria ya lo fija («un 4xx rápido, no»); en producción, la agrupación se lee y da la base de
+> antes (`TEST_RESULTS`, «Ajustes previos a la publicación»). **Y la «Consecuencia» de arriba son hipótesis**: una
+> línea `[rifas:supabase]` dice que esa llamada tardó medida desde la función —con la red entre Vercel y Supabase
+> dentro—, no que la causa fuera Supabase; y que no haya ninguna no demuestra que la espera estuviera en la red de quien
+> navega. Cómo leerlas, con la siguiente comprobación: `OPERATIONS` §6.b.
 
 ---
 

@@ -13,7 +13,7 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue)** | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g |
+| **Post-9 vigente (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue)** | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
 | Post-9 anterior (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada) | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
 | Post-9 anterior (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02) | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
 | Post-9 anterior (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02) | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
@@ -18309,3 +18309,48 @@ misma al empezar y al terminar.
 **Ningún fallo nuevo.** No se repitió ninguna de las dos para verla en verde. Las 20 E2E nuevas del mantenimiento
 —`formularios-pagina-sin-hidratar` 11, `busqueda-en-camino` 6, `busqueda-en-camino-movil` 1 y
 `catalogo-busqueda-en-camino` 2—, en verde dentro de esta pasada.
+
+---
+
+## Ajustes previos a la publicación: el alcance de D-251, la señal de I-202 y la prueba de redes (2026-10-04, tarde, solo en local)
+
+Revisión del dueño antes de autorizar la publicación del lote (`DEPLOYMENT` §3.3.g). **Ningún cambio de código**: el
+código del candidato es el de `fc114e7`, sobre el que corrieron `verify`, `test:db` y la E2E completa —**1.042/1.044**,
+con I-090 e I-106, tal como ocurrió—. **No se repitió ninguna batería**: no había código nuevo que probar.
+
+### a. D-251 no registra un 401 rápido; la señal de I-202 ya existe
+
+| Comprobación | Resultado |
+|---|---|
+| Qué escribe D-251 (`timing.ts` y su prueba unitaria) | Solo una llamada de 1 s o más, un 5xx o ninguna respuesta. La prueba ya lo fija —«un 5xx escribe aunque sea rápido; un 4xx rápido, no»—, con un 401 de 12 ms: el caso de `PGRST303` |
+| Los registros del servidor de dos pasadas ya hechas hoy, sin repetirlas | La E2E de D-251 (97 pruebas) y la completa (1.044) provocan cada una **6** `PGRST303` reales: los 6 dejan `getActiveMembership: error consultando memberships` con `code: 'PGRST303'`, 5 de ellos además el `⨯ Error [MembershipCheckError]`, y **ninguno** una línea `[rifas:supabase]`. Las 15 `[rifas:supabase]` de la completa son llamadas de 1,0–1,7 s con 200 o 206, con la máquina cargada |
+| La agrupación de producción (`get_runtime_errors`, solo lectura, hacia las 20:10 UTC) | `Error: {"code":"PGRST303",…}`, digest `364289065@E394`: **7** en 7 días, de **4** usuarios, en `/seller/tickets.rsc` y `/owner/tickets` —el 2026-10-02 eran 4, de 2—. **1**, el 2026-10-02 a las 11:01 UTC, antes de D-248; **2**, de 2 usuarios, después —la última, el 2026-10-03 a las 03:49:32 UTC, sobre `dpl_9vnY…`—. Ninguna agrupación de `MembershipCheckError`. Detalle en `build/i202/senal-i202-2026-10-04.md` |
+
+Lo que esto cambia, solo en documentos: la decisión D-251, `OPERATIONS` §6.b, `SECURITY`, `DEPLOYMENT` §3.3.g, el relevo y
+`PHASE_STATUS` dicen ahora qué **no** escribe —ningún 4xx, y no captura todos los errores—, y `RUNBOOK` §12.6 nombra la
+señal de I-202 con su base de antes, que caduca a los 7 días. El comentario de `timing.ts` empieza diciendo «lenta o
+falla»; su cuerpo ya lo define con precisión y **no se tocó**, para que el candidato siga siendo el código probado.
+
+### b. La prueba de redes: un límite total, y sus resultados como hipótesis
+
+| Comprobación | Resultado |
+|---|---|
+| La duración posible de la versión anterior | Con los plazos de cada petición —30 s cada conexión nueva, 60 s la reutilizada y 2 s de pausa—, una ronda podía llegar a **182 s** y las 10, a **~30 min**; decía «nunca más de ~4 minutos». Y eran 70 peticiones, no «unas 60» |
+| Lo nuevo | Un límite total, `-LimiteSegundos` (240 por defecto): cada petición, con su plazo recortado a lo que quede; las tres de la conexión reutilizada se reparten lo que quede, porque curl aplica `--max-time` a cada una. Si se agota, deja de pedir, conserva lo medido y termina en `(fin);incompleta`; una completa, en `(fin);completa`; una cortada a mano, sin fila de fin. Anota el adaptador y la puerta de enlace **local** de cada ejecución. El resumen ya no llama «paquete perdido» a una conexión lenta |
+| Análisis de PowerShell 5.1 | **0** errores |
+| Prueba con destinos LOCALES, sin tocar producción ni la red: una copia que solo cambia el bloque de destinos —comprobado con `diff`— contra un servidor local con una ruta que tarda 3 s | Con un límite de 8 s: **8,1 s** de reloj en total, arranque de PowerShell incluido; la primera petición, medida; la segunda, **cortada por el límite total** —se marca así, no como una medida de la red—, y `(fin);incompleta (límite de 8 s)`. Sin llegar al límite: 2 rondas en 7,1 s, un puerto cerrado como «sin respuesta» y `(fin);completa` |
+| La versión instalada | `build/i203/prueba-redes.ps1`, UTF-8 con BOM, SHA-256 `08C4ADF3EB0D13B87A22ECE3D548EDA6BB96F9E033591F2E1B857F6464E1E964` |
+
+**No se ejecutó la comparación de redes**: el cambio de red lo hace el dueño y las dos ejecuciones se coordinan con él.
+Sus conclusiones están ahora escritas como **hipótesis con su siguiente comprobación** (`OPERATIONS` §6.a, `KNOWN_ISSUES`
+I-203): una conexión lenta no demuestra por sí sola una pérdida de paquetes. La propia prueba local lo ilustra: el puerto
+cerrado, en la misma máquina, tardó **2,0 s** en dar el error, sin ninguna red de por medio.
+
+### c. El candidato
+
+| Comprobación | Resultado |
+|---|---|
+| `git diff --stat fc114e7 -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public`, antes del commit de estos ajustes | **Vacío** |
+
+Encima de `fc114e7` solo hay documentos (`d8456ee` y el commit de estos ajustes); el guion de redes vive en `build/`,
+fuera de Git y fuera de lo que se publica.

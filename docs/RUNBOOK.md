@@ -1739,7 +1739,7 @@ antes es baja —4 apariciones en 7 días, de 2 personas— y depende del uso. S
 |---|---|---|
 | **1. La versión corregida** | `application_name` de PostgREST en `pg_stat_activity`, en solo lectura (§12.4) | ≥ 14.18 en el proyecto |
 | **2. El caso reproducido** | **En local**, el ensayo natural de D-246 (`build/i202/e0-natural.mts`, fuera de Git; el método está en `TEST_RESULTS`, D-246 §e: ratos sin peticiones, un inicio de sesión real y 4 consultas en paralelo) con la **misma** versión de PostgREST que quede en producción, frente a 14.15: ≥ 20 ciclos con cada una. Necesita descargar la imagen (§12.2.a). **En producción**, una prueba guiada del dueño: tras unos minutos sin uso, entra con su sesión de vendedor y abre «Mis boletas»; varias veces, en ratos distintos. El agente lee, **dentro del día**, los registros de Supabase (`build/i202/consultas-registros-supabase.md`) y la agrupación de Vercel | 0 rechazos con 14.18 en local, donde 14.15 los da; y ningún 401 `PGRST303` en la prueba guiada |
-| **3. El uso real** | La misma agrupación de `get_runtime_errors` a los 7 y a los 14 días, frente a la base de antes (4 en 7 días); y, mientras guarden un día, los 401 de `/rest/v1` en los registros de Supabase | Ninguna aparición nueva con uso normal del negocio en ese tiempo |
+| **3. El uso real** | La misma agrupación de `get_runtime_errors` a los 7 y a los 14 días, frente a la base de antes (la más reciente, debajo de esta tabla); y, mientras guarden un día, los 401 de `/rest/v1` en los registros de Supabase | Ninguna aparición nueva con uso normal del negocio en ese tiempo |
 
 > **La prueba 2, intentada el 2026-10-02 en local con la imagen oficial de 14.18 —y NO concluyente—** (`TEST_RESULTS`,
 > «I-202: PostgREST 14.18 probado en local»). Dos PostgREST 14.15 y una 14.18 sobre la misma base y el mismo Auth, con los
@@ -1749,6 +1749,17 @@ antes es baja —4 apariciones en 7 días, de 2 personas— y depende del uso. S
 > cambian en ella. Para que sirva hace falta **otro método**: un disparador determinista, leído de las dos correcciones
 > oficiales —#5159 en 14.17 y #5196 en 14.18—, o muchas más vueltas —cientos de ciclos por versión, varias horas—. Hasta
 > entonces, la prueba 2 descansa en la parte **guiada en producción** y la 3, en el uso real.
+
+**Qué señal sirve, antes y después (precisado el 2026-10-04).** El registro de D-251 **no**: escribe llamadas de 1 s
+o más, 5xx y sin respuesta, y el `PGRST303` es un 401 rápido. Las señales son las de la tabla, y ya existen: la
+agrupación de `get_runtime_errors` —`Error: {"code":"PGRST303",…,"message":"JWT issued at future"}`, digest
+`364289065@E394`; y, si el rechazo cae en la lectura de la membresía, la línea `getActiveMembership: error
+consultando memberships` con `code: 'PGRST303'` y el `MembershipCheckError` que la sigue (D-248)—, y los 401 de
+`/rest/v1` en los registros de Supabase, que guardan un día. **Base de antes, leída el 2026-10-04 en solo lectura**
+(`build/i202/senal-i202-2026-10-04.md`): en 7 días, **7** apariciones de **4** usuarios, en `/seller/tickets.rsc` y
+también en **`/owner/tickets`**; **2**, de 2 usuarios, ya con D-248 publicado (`dpl_9vnY…`), la última el
+2026-10-03 a las 03:49:32 UTC; ninguna agrupación de `MembershipCheckError`. La herramienta mira como mucho 7 días:
+esta base **caduca**, así que se vuelve a leer justo antes de actualizar y se anota con su fecha.
 
 Si una de las tres falla, I-202 sigue abierta y lo nuevo se anota con su hora. Si la actualización no se ofrece o se
 retrasa, ver D-246 (P2 y P3); P2 es ya D-248 (I-115), resuelta en local y sin publicar. **Con D-248 publicada, la firma
