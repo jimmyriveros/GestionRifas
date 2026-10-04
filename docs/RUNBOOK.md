@@ -1512,12 +1512,42 @@ la guía de Supabase dice que bloquea o complica una actualización:
 (`public.ecr.aws/supabase/postgrest:v14.18`, **≈ 6 MB** comprimidos) y, si se quiere también Postgres,
 `public.ecr.aws/supabase/postgres:17.11.0.002` (**≈ 351 MB**). Descargar necesita el permiso del dueño.
 
+### 12.2.a.1 Contrastado otra vez con las fuentes oficiales (2026-10-04)
+
+Antes de pedir la autorización se volvió a leer lo publicado, sin ningún token ni acceso al dashboard. En producción, en
+solo lectura el mismo día: **PostgREST 14.5** (conexión abierta desde el 2026-08-28), Postgres 17.6, `0080`, 3 trabajos
+programados activos y sin pausa instalada: **nada se ha actualizado**.
+
+| Pregunta | Lo que dicen las fuentes | Fuente |
+|---|---|---|
+| ¿Dónde está la corrección? | En **PostgREST 14.18** (2026-09-10), #5196: el reloj se lee en cada comprobación en vez de en una caché que algunos hilos veían atrasada. La primera tentativa (#5159, en 14.17) no bastó. También está en 16.3 y 16.4. **No existe 14.19** ni se ha informado el error después de 14.18 | `CHANGELOG` y etiquetas de `PostgREST/postgrest` |
+| ¿Qué imagen la trae? | Las imágenes 17.6.1.178, 17.11.0.002 y la más nueva, **17.11.0.003** (2026-10-02), fijan PostgREST **14.18** y Auth 2.190.0 en su `ansible/vars.yml`. Cuál se ofrece a este proyecto solo lo ve el dueño (`target_upgrade_versions`) | `supabase/postgres` |
+| ¿Hay parche automático? | **No.** El incidente `6q5902p2xd9f` se cerró el 2026-09-29 diciendo que los afectados pueden actualizar desde el dashboard; no hay ninguna nota posterior. «Restart project» no sirve: en agosto Supabase probó 14.17 en toda la flota y lo retiró | `status.supabase.com` |
+| ¿Dónde está el botón? | **Settings → General**, «Upgrade project». Las versiones de los servicios solo se ven ahí si el proyecto puede actualizarse. La guía no limita el botón por plan; que este proyecto Free pueda usarlo **no está confirmado** | Guía «Upgrading» de Supabase |
+| ¿Cómo es la operación? | Supabase **crea una instancia nueva, copia los datos y ejecuta `pg_upgrade`**: no es estrictamente «en el sitio». Si falla, vuelve la base original; si termina, **no hay vuelta atrás documentada**. La duración la estima el dashboard por el tamaño de la base (≈100 Mbps de copia) y el número de objetos | Guía «Upgrading» |
+| ¿Qué se conserva? | La base entera viaja con `pg_upgrade` —`auth` incluido—. Los guiones oficiales de la actualización vuelven a crear `pg_cron` y reponen `cron.job`, y migran los secretos de Vault con su clave. La guía no lo enumera: es lo que hacen los guiones publicados | `supabase/postgres`, `pg_upgrade_scripts` |
+| ¿Cómo se comprueba después? | `select distinct application_name from pg_stat_activity where usename = 'authenticator'` debe decir **`PostgREST 14.18`** o posterior: es el método que documenta PostgREST, y el de §12.4. La API de gestión da versiones de **imagen**, no la de PostgREST | `docs.postgrest.org` (connection pool) |
+| Notas de Postgres 17.11 | Reconstruir índices `ltree` y `btree_gist` con NaN (este proyecto no usa ninguna de las dos extensiones), una corrección de PGP en `pgcrypto`, y que los estimadores de selectividad propios exigen superusuario (no tenemos) | Guía «Upgrading» |
+
+**Un incidente distinto, todavía abierto, que no corrige esta actualización:** «Intermittent latency in Eastern US»
+(`w91bvbjhqf0f`), desde el 2026-09-29 a las 16:26 UTC, en **vigilancia** —no resuelto— a la fecha: latencia en la puerta
+de la API de Supabase para clientes del este de EE. UU., **servidores y funciones incluidos, sea cual sea la región del
+proyecto**, sobre todo en horas pico de oficina (EDT). Las funciones de Vercel de Rifas corren en `iad1`, así que puede
+alargar la espera del servidor; no la conexión del navegador (I-203). Ver I-190 e I-198.
+
 ### 12.2.b Lo que cubre el respaldo, y cómo quedan protegidas las cuentas
 
 La actualización es un `pg_upgrade` **en el sitio**: conserva todos los esquemas —`auth`, `cron`, `vault`,
 `supabase_migrations`— y, si falla, Supabase vuelve a levantar la base original. El respaldo es para lo que queda: que
 termine «bien» y algo esté mal, sin posibilidad de deshacerla. **El respaldo habitual de §5.1 no es una recuperación
 completa del proyecto**, y se dice así:
+
+> **Precisado el 2026-10-04 (§12.2.a.1).** No es estrictamente «en el sitio»: Supabase crea una instancia nueva, copia
+> los datos y ejecuta `pg_upgrade`. Lo demás se mantiene —se conservan los esquemas, la base original vuelve si falla y
+> no hay vuelta atrás si termina—. Y el plan **Pro** no es por sí solo una recuperación completa: sus copias diarias son
+> de la base entera, pero **excluyen los archivos de Storage** —este proyecto tiene 0— y las contraseñas de roles
+> propios —no tiene—, y la configuración de Auth del panel, las variables de Vercel y el código siguen viviendo fuera de
+> la base.
 
 | Recurso | En producción | ¿En el respaldo de §5.1? | Cómo se protege o se rehace |
 |---|---|---|---|

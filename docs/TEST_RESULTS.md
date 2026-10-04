@@ -17995,3 +17995,28 @@ Git). Lo único de producción que se leyó: **los nombres** de las columnas de 
 
 **Lo que el ensayo NO cubre**: la frase de paso la escribió un archivo **sintético** (`--batch`); en producción la pide
 `gpg` en la terminal del dueño. Y las copias no salieron de este equipo: se borraron, que es el último paso del plazo.
+
+---
+
+## Inventario del mantenimiento: producción en solo lectura y el entorno local (2026-10-04, 13:00–13:35 UTC)
+
+Encargo del dueño del 2026-10-04: verificar el inventario vigente antes de corregir nada. **Nada se escribió en
+producción**: GET sin sesión y transacciones `repeatable read read only` (`scripts/gate-db.ts`, proyecto esperado
+comprobado en la cadena de conexión), solo metadatos, recuentos y tiempos; ningún dato de una persona.
+
+| Comprobación | Resultado |
+|---|---|
+| Qué se sirve | El identificador `bcd4c51d90ca` (`0490d69`) en 1 de 15 fragmentos del JavaScript de `/login`; ni el de `a5d90f9` ni el de la cabeza local. `/login` trae `method="post"` y «Preparando el formulario…»: **I-204, I-115 e I-199 siguen publicadas** |
+| La base | 80 migraciones, la última `0080`; **PostgREST 14.5** (conexión de escucha desde el 2026-08-28 16:52 UTC); Postgres 17.6; sin esquema `pausa`; 3 trabajos de `cron`, los 3 activos. **I-202 sigue sin corregir** |
+| Registros antiguos | Los commits de D-202, D-203, D-208, D-212 y D-236 a D-240 están en `origin/main`, antecesor de lo servido, y sus migraciones (`0058`–`0079`) en la base: 21 fichas de `KNOWN_ISSUES` que decían «solo en local» o «sin publicar» lo aclaran ahora |
+| Volumen del cierre (I-195) | La rifa activa: 1.322 boletas, 1.070 vendidas y 350 pagadas; 4 vendedores (1 integrante). `settlement_account_rows`: **123 ms la primera llamada** de la conexión y **19,0–20,6 ms** las seis siguientes (`settlement_seller_figures` 12,2–13,6 ms; `settlement_award_rows` 10,2–10,7 ms), todo en `shared hit` |
+| Red (I-203) | `build/i203/prueba-redes.ps1 -Rondas 2` desde este equipo, 13:28–13:29 UTC: conexiones **nuevas** al estático de Rifas, 3 de 4 ≥ 0,9 s —una de **15,6 s**— y una que **no se abrió en 20 s**; `vercel.com` 1 de 2; Cloudflare 0 de 2; por una conexión **reutilizada**, 0 de 4 (0,09–0,13 s). `/login`, ya conectado: 2,10 s la primera vez y 0,22 s la segunda. Todo desde el centro `iad1` de Vercel |
+| Incidente de Supabase | «Intermittent latency in Eastern US» (`w91bvbjhqf0f`): **en vigilancia, no resuelto**; la última nota, del 2026-10-02 a las 21:06 UTC, dice que algunos usuarios siguen afectados en horas pico |
+
+**El entorno local, bloqueado desde las 13:00 UTC.** `npm run db:reset` falló al recrear el contenedor de la base:
+Windows reservó el rango de puertos **54243–54342** (reserva dinámica de Hyper-V/WinNAT; hay seis bloques de 100
+entre 54043 y 54642), que incluye el **54322** de la base local. Los contenedores que ya estaban arriba —la API en
+54321— siguieron, pero la base no puede volver a arrancar (`ports are not available … bind`). Liberarlo exige
+reiniciar el servicio `winnat` como administrador, o reiniciar Windows: es una acción del sistema y se pidió al
+dueño. **Hasta entonces no se puede ejecutar nada que necesite la base local**: `test:db`, la E2E, ni los ensayos.
+Nada de la base local se perdió: el volumen sigue, y lo que se iba a hacer era resetearla igualmente.
