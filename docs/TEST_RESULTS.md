@@ -18215,3 +18215,73 @@ Con el código inmóvil: la huella de los 13 archivos cambiados, la misma en cad
 
 No se tocó `useUrlSearch` ni su corrección de I-199. El periodo del panel y el selector de cliente del abono no la
 necesitan (D-252). Nada se publicó.
+
+---
+
+## I-195: el cierre de cuentas, medido con volumen y en producción (2026-10-04, mantenimiento; sin cambiar el producto)
+
+Encargo de mantenimiento del dueño: «mide antes de optimizar», con volúmenes representativos, comprobando la exactitud,
+sin cachés y sin un segundo motor de cálculo. **No se optimizó nada.** La medición instrumentada es una copia de
+`settlements-volume.test.ts` en `build/i195/` (fuera de Git): la misma carga y el mismo cuadre, más el tiempo en la base
+con y sin JIT, antes y después de `ANALYZE`, y el plan interno de cada pieza con `auto_explain` (cargado solo en esa
+sesión, con el superusuario **local**).
+
+### a. Producción (solo lectura: recuentos y tiempos; nada personal)
+
+| Medida | Resultado |
+|---|---|
+| Volumen de la rifa activa | 1.322 boletas (1.070 vendidas, 350 pagadas), 4 vendedores (1 integrante), 0 entregas, 0 cierres |
+| `settlement_account_rows`, 6 veces seguidas, en la base | **19–20 ms**; la primera llamada, en frío, 123 ms |
+| Sus piezas | Las cifras por vendedor, 12 ms; los premios, 10 ms |
+
+### b. Local, la carga de D-241: 100 vendedores, 5.000 boletas, 200 premios y 180 entregas
+
+| Situación | En la base | Por PostgREST | Cuadre |
+|---|---|---|---|
+| Base reposada, después de la batería de la mañana | 16 ms (con JIT o sin él, igual) | 19–20 ms | **100/100** cuentas |
+| **Dentro de la batería**: la primera suite después de `db:reset` y `seed:local` | **82–86 ms** | **86–90 ms** | **100/100** |
+| Lo mismo, después de `ANALYZE` de las 15 tablas que lee el cierre | **14,6 ms** | 17–19 ms | — |
+| Con el JIT forzado (umbrales a 0) | 14,5–14,7 ms | — | — |
+| `settlements-volume.test.ts` de esa misma batería, que corrió **justo después** de la medición —ya con estadísticas— | — | **16 ms** (esta mañana, en la misma posición y sin estadísticas, 87–90 ms) | 100/100 |
+
+**La causa de los 85–90 ms, aislada.** D-241 los atribuyó a «la base recién cargada por las suites anteriores» y no
+aisló la causa. **No era eso**: el orden por defecto de Vitest pone esta suite **la primera** de la batería —es la más
+lenta—, así que mide nada más sembrar, cuando **ninguna tabla tiene estadísticas** (`pg_stat_user_tables`: «nunca»
+analizadas). Sin ellas, el planificador encadena *Nested Loop Left Join* que descartan miles de filas —la última unión
+pasa de 41 a 160 ms con la sobrecarga de `auto_explain`—; con ellas usa *Hash Left Join* y la misma pieza termina en
+22 ms. El JIT no interviene: no aparece en ningún plan y forzarlo no cambia el tiempo. **Producción no está en ese
+caso**: sus tablas tienen estadísticas, y una carga grande las pone al día en el siguiente ciclo de `autovacuum`.
+
+### c. Local, ×10: 1.000 vendedores, 50.000 boletas, 2.000 premios y 1.800 entregas
+
+| Medida | Resultado |
+|---|---|
+| Cuadre | **1.000/1.000** cuentas, cifra por cifra, contra el cálculo aparte |
+| `settlement_account_rows` en la base | **73 ms**, con estadísticas o sin estadísticas nuevas (`tickets` se había analizado solo 17 s antes) y con JIT o sin él |
+| Por PostgREST | **82–98 ms** las cuentas; **48–58 ms** los premios; `admin_list_sellers` 7–8 ms y `commission_summary` 4 ms, de referencia |
+| Cómo crece | Diez veces más datos, unas cinco veces más tiempo; sin saltos |
+
+**Una observación de la carga, no de la lectura:** las 50.000 boletas —insertarlas, venderlas y pagarlas— tardaron
+219 s, y solo la inserción, en **una sola sentencia**, ~170 s, cuando con 5.000 los tres pasos tardan ~7 s:
+`tickets_set_internal_code` actualiza la fila de la rifa por cada boleta y, dentro de una transacción, cada
+actualización recorre las versiones anteriores de esa fila, así que el coste crece con el cuadrado. Dentro de los
+límites del producto —la creación masiva y el importador admiten hasta 1.000 boletas por vez (`BULK_TICKET_MAX`)— no se
+nota; no se abre incidencia.
+
+### d. Conclusión
+
+El cierre recalcula la rifa entera en cada lectura, como decidió D-241, y **eso no es un problema hoy ni a diez veces
+el volumen de la carga de prueba**. No se introduce ninguna caché ni ningún cálculo paralelo. Lo único que cambia es la
+prueba: `settlements-volume.test.ts` mide ahora **también** después de `ANALYZE` (V2-03), que es la cifra comparable con
+producción, y su cabecera explica por qué V2-01 sale alta en la batería. Producción es más lenta que la máquina local
+—19–20 ms con 1.322 boletas frente a 15 ms con 5.000—, así que una rifa de decenas de miles de boletas tardaría allí
+varias veces los 73 ms locales: es el punto para volver a medir, con producción delante, antes de tocar nada.
+
+### e. La prueba cambiada, verificada
+
+| Batería | Resultado |
+|---|---|
+| `npm run test:db`, sobre base recién sembrada | ✅ **1.573 y 1 omitida** en 64 archivos (+1, V2-03). Su informe: V2-01 **86–89 ms** —la base sin estadísticas— y V2-03 **20–22 ms**; `settlement_account_rows` en la base, 84,8 ms y 23,9 ms |
+| `npm run verify` | ✅ **2.055/2.055** en 103 archivos; lint, 0 errores y los 2 avisos de siempre |
+
+La huella de `settlements-volume.test.ts`, la misma antes y después de las dos baterías.

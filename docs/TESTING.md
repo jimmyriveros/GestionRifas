@@ -1468,11 +1468,16 @@ se copia de la función que la calcula.
 | Vendedor a cargo desactivado | Z12-01..03 | Él no registra nada y el personal tampoco por él —ningún permiso ampliado—; reorganizar sin registrar atribuye la entrega al vendedor a cargo nuevo y deja al anterior a su favor; reactivarlo para que registre, desactivarlo y reorganizar después conserva quién recibió; lo que **pagó** él de un premio de su integrante lo registra el personal también con él desactivado y, registrado antes, se queda con él; sin registrar, después de reorganizar ya no se le puede atribuir (I-196, BR-Z21) |
 | Premio anterior al historial | Z13-01 | Un premio de un sorteo anterior al 9 de agosto no aparece, no se puede registrar como pagado y la cuenta se cierra sin saberlo (I-194, BR-Z20) |
 
-`tests/db/settlements-volume.test.ts` — **4** (`V1`, `V2`): 100 vendedores, 5.000 boletas y 200 premios en una
+`tests/db/settlements-volume.test.ts` — **5** (`V1`, `V2`): 100 vendedores, 5.000 boletas y 200 premios en una
 organización propia, que se borra al terminar. **V1** compara las 100 cuentas, cifra por cifra, con un cálculo hecho
 aparte en la prueba, y el listado con la suma de las cuentas; **V2** mide las lecturas por PostgREST con la sesión real
-frente a `admin_list_sellers` y `commission_summary`, y el plan de `settlement_account_rows`. Escribe el informe en
-`build/cierre-volumen/informe.md`, fuera de Git.
+frente a `admin_list_sellers` y `commission_summary`, y el plan de `settlement_account_rows`; **V2-03** las vuelve a
+medir después de `ANALYZE`. Escribe el informe en `build/cierre-volumen/informe.md`, fuera de Git.
+
+**Qué cifra mirar (I-195).** En la batería esta suite corre **la primera** —es la más lenta y Vitest ordena así—, nada
+más sembrar la base, cuando ninguna tabla tiene estadísticas: el planificador elige bucles anidados y las lecturas del
+cierre salen en ~88 ms. Producción siempre tiene estadísticas, así que la cifra comparable con ella es la de **V2-03**
+(~16 ms). La de V2-01 no es una regresión: es la base recién creada.
 
 **Unitarias:** `tests/unit/settlements.test.ts` (**18**) —las siete etiquetas, la capacidad, las frases de un premio y
 quién puede registrarlo o anularlo según quien mira, lo que llega del navegador (pesos enteros, fechas, pagador), los

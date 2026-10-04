@@ -14,6 +14,12 @@
  *      (`admin_list_sellers` y `commission_summary`). El informe va a
  *      `build/cierre-volumen/`, fuera de Git; la prueba solo pone un techo que
  *      delataria un recorrido cuadratico.
+ *   3. LAS MISMAS LECTURAS CON ESTADISTICAS AL DIA (V2-03, I-195). En la
+ *      bateria esta suite corre la PRIMERA —es la mas lenta y Vitest ordena
+ *      asi—, nada mas sembrar la base, cuando ninguna tabla tiene estadisticas:
+ *      el planificador elige bucles anidados y las lecturas del cierre pasan de
+ *      ~16 a ~88 ms (medido el 2026-10-04). Produccion siempre las tiene, asi
+ *      que la cifra comparable con ella es la de despues de `ANALYZE`.
  *
  * LOS DATOS DE PARTIDA SE ESCRIBEN CON SQL: esto mide la lectura, no la venta.
  * Las boletas nacen vendidas y pagadas, la comision la calcula el motor de
@@ -461,56 +467,82 @@ describe('V1 — cada cuenta cuadra con un calculo hecho aparte', () => {
   })
 })
 
+/** Las lecturas del cierre y las dos de referencia, 20 veces cada una; devuelve las medianas del cierre. */
+async function medirLecturas(titulo: string): Promise<number[]> {
+  const medir = async (nombre: string, llamada: () => PromiseLike<{ error: unknown }>) => {
+    const tiempos: number[] = []
+    for (let i = 0; i < 20; i += 1) {
+      const t0 = performance.now()
+      const { error } = await llamada()
+      tiempos.push(performance.now() - t0)
+      if (error) throw new Error(`${nombre}: ${JSON.stringify(error)}`)
+    }
+    tiempos.sort((a, b) => a - b)
+    informe.push(
+      `- ${nombre}: mediana ${tiempos[10]!.toFixed(1)} ms · p95 ${tiempos[18]!.toFixed(1)} ms · máx ${tiempos[19]!.toFixed(1)} ms`,
+    )
+    return tiempos[10]!
+  }
+  informe.push('', `## PostgREST, ${titulo}, 20 llamadas cada una`, '')
+  const base = await medir('BASE admin_list_sellers (página 1)', () =>
+    dueno.rpc('admin_list_sellers', { p_raffle_id: raffle }),
+  )
+  await medir('BASE commission_summary (jefe)', () =>
+    jefe0.rpc('commission_summary', { p_raffle_id: raffle }),
+  )
+  const cierre = [
+    await medir('staff_settlement_overview', () =>
+      dueno.rpc('staff_settlement_overview', { p_raffle_id: raffle }),
+    ),
+    await medir('staff_settlement_accounts (página 1)', () =>
+      dueno.rpc('staff_settlement_accounts', { p_raffle_id: raffle }),
+    ),
+    await medir('staff_settlement_account (un jefe)', () =>
+      dueno.rpc('staff_settlement_account', { p_raffle_id: raffle, p_seller_id: jefes[0]! }),
+    ),
+    await medir('staff_settlement_prizes (un jefe)', () =>
+      dueno.rpc('staff_settlement_prizes', { p_raffle_id: raffle, p_seller_id: jefes[0]! }),
+    ),
+    await medir('staff_settlement_transfers (un jefe)', () =>
+      dueno.rpc('staff_settlement_transfers', { p_raffle_id: raffle, p_seller_id: jefes[0]! }),
+    ),
+    await medir('seller_settlement_account (jefe)', () =>
+      jefe0.rpc('seller_settlement_account', { p_raffle_id: raffle }),
+    ),
+    await medir('seller_settlement_team (jefe)', () =>
+      jefe0.rpc('seller_settlement_team', { p_raffle_id: raffle }),
+    ),
+    await medir('seller_settlement_prizes (jefe)', () =>
+      jefe0.rpc('seller_settlement_prizes', { p_raffle_id: raffle }),
+    ),
+  ]
+  informe.push('', `Base admin_list_sellers: ${base.toFixed(1)} ms.`)
+  return cierre
+}
+
+/** Las tablas que leen las lecturas del cierre (I-195). */
+const TABLAS_DEL_CIERRE = [
+  'tickets',
+  'clients',
+  'seller_commissions',
+  'settlement_transfers',
+  'settlement_prize_payments',
+  'settlement_closings',
+  'lottery_ticket_matches',
+  'lottery_ticket_match_prizes',
+  'lottery_results',
+  'lottery_draw_schedules',
+  'declared_prize_awards',
+  'raffle_prize_versions',
+  'raffle_prize_reward_options',
+  'raffles',
+  'memberships',
+  'profiles',
+]
+
 describe('V2 — tiempos frente a lecturas que ya existen', () => {
   it('V2-01: las lecturas del cierre, por PostgREST y con la sesion real', async () => {
-    const medir = async (nombre: string, llamada: () => PromiseLike<{ error: unknown }>) => {
-      const tiempos: number[] = []
-      for (let i = 0; i < 20; i += 1) {
-        const t0 = performance.now()
-        const { error } = await llamada()
-        tiempos.push(performance.now() - t0)
-        if (error) throw new Error(`${nombre}: ${JSON.stringify(error)}`)
-      }
-      tiempos.sort((a, b) => a - b)
-      informe.push(
-        `- ${nombre}: mediana ${tiempos[10]!.toFixed(1)} ms · p95 ${tiempos[18]!.toFixed(1)} ms · máx ${tiempos[19]!.toFixed(1)} ms`,
-      )
-      return tiempos[10]!
-    }
-    informe.push('', '## PostgREST, 20 llamadas cada una', '')
-    const base = await medir('BASE admin_list_sellers (página 1)', () =>
-      dueno.rpc('admin_list_sellers', { p_raffle_id: raffle }),
-    )
-    await medir('BASE commission_summary (jefe)', () =>
-      jefe0.rpc('commission_summary', { p_raffle_id: raffle }),
-    )
-    const cierre = [
-      await medir('staff_settlement_overview', () =>
-        dueno.rpc('staff_settlement_overview', { p_raffle_id: raffle }),
-      ),
-      await medir('staff_settlement_accounts (página 1)', () =>
-        dueno.rpc('staff_settlement_accounts', { p_raffle_id: raffle }),
-      ),
-      await medir('staff_settlement_account (un jefe)', () =>
-        dueno.rpc('staff_settlement_account', { p_raffle_id: raffle, p_seller_id: jefes[0]! }),
-      ),
-      await medir('staff_settlement_prizes (un jefe)', () =>
-        dueno.rpc('staff_settlement_prizes', { p_raffle_id: raffle, p_seller_id: jefes[0]! }),
-      ),
-      await medir('staff_settlement_transfers (un jefe)', () =>
-        dueno.rpc('staff_settlement_transfers', { p_raffle_id: raffle, p_seller_id: jefes[0]! }),
-      ),
-      await medir('seller_settlement_account (jefe)', () =>
-        jefe0.rpc('seller_settlement_account', { p_raffle_id: raffle }),
-      ),
-      await medir('seller_settlement_team (jefe)', () =>
-        jefe0.rpc('seller_settlement_team', { p_raffle_id: raffle }),
-      ),
-      await medir('seller_settlement_prizes (jefe)', () =>
-        jefe0.rpc('seller_settlement_prizes', { p_raffle_id: raffle }),
-      ),
-    ]
-    informe.push('', `Base admin_list_sellers: ${base.toFixed(1)} ms.`)
+    const cierre = await medirLecturas('como llega la base')
     // Un techo generoso: lo que delata es un recorrido que crece con el cuadrado.
     for (const mediana of cierre) expect(mediana).toBeLessThan(1500)
   }, 180_000)
@@ -525,4 +557,19 @@ describe('V2 — tiempos frente a lecturas que ya existen', () => {
     informe.push('', '## settlement_account_rows (100 cuentas)', '', '```', ...plan, '```')
     expect(total).toBeDefined()
   })
+
+  it('V2-03: las mismas lecturas con estadisticas al dia, que es el caso de produccion', async () => {
+    for (const tabla of TABLAS_DEL_CIERRE) await db.query(`analyze public.${tabla}`)
+    const cierre = await medirLecturas('con estadísticas al día (después de ANALYZE)')
+    for (const mediana of cierre) expect(mediana).toBeLessThan(1500)
+    const { rows } = await db.query(
+      `explain (analyze, format text) select * from settlement_account_rows($1, $2)`,
+      [org, raffle],
+    )
+    const total = rows
+      .map((r) => r['QUERY PLAN'] as string)
+      .find((l) => l.startsWith('Execution Time'))
+    informe.push('', `settlement_account_rows después de ANALYZE: ${total}`)
+    expect(total).toBeDefined()
+  }, 180_000)
 })
