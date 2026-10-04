@@ -18,6 +18,7 @@ import {
   CLIENT_SORT_OPTIONS,
   describeClientSort,
 } from '../sort-options'
+import { searchParamsToBuildOn } from '@/lib/navigation-start'
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 const ALL = 'all'
@@ -36,7 +37,8 @@ export function ClientFilters() {
   const search = useUrlSearch({ minChars: SEARCH_MIN_CHARS.people })
 
   function apply(changes: Record<string, string | null>) {
-    const params = new URLSearchParams(searchParams.toString())
+    // Sobre la última dirección pedida, no la pintada: una búsqueda en camino se queda (I-200).
+    const params = searchParamsToBuildOn(pathname, searchParams)
     for (const [key, value] of Object.entries(changes)) {
       if (value === null || value === '' || value === ALL) params.delete(key)
       else params.set(key, value)

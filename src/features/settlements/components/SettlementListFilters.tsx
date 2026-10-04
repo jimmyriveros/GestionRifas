@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { SearchInput } from '@/features/search/components/SearchInput'
 import { useUrlSearch } from '@/features/search/use-url-search'
+import { searchParamsToBuildOn } from '@/lib/navigation-start'
 import { SEARCH_MIN_CHARS } from '@/lib/search'
 
 import { SETTLEMENT_COPY } from '../copy'
@@ -44,7 +45,8 @@ export function SettlementListFilters() {
     : 'all'
 
   function apply(changes: Record<string, string | null>) {
-    const params = new URLSearchParams(searchParams.toString())
+    // Sobre la última dirección pedida, no la pintada: una búsqueda en camino se queda (I-200).
+    const params = searchParamsToBuildOn(pathname, searchParams)
     for (const [key, value] of Object.entries(changes)) {
       if (value === null || value === '' || value === 'all') params.delete(key)
       else params.set(key, value)

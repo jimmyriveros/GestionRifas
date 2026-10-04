@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
 
 import { nextListSort, type ListSort } from '@/lib/list-sort'
+import { searchParamsToBuildOn } from '@/lib/navigation-start'
 
 /**
  * La ordenacion vive en la URL, como los filtros y la pagina.
@@ -61,7 +62,8 @@ export function useListSort(
   }
 
   function setSort(next: ListSort | null) {
-    const params = new URLSearchParams(searchParams.toString())
+    // Sobre la última dirección pedida, no la pintada: una búsqueda en camino se queda (I-200).
+    const params = searchParamsToBuildOn(pathname, searchParams)
 
     if (next === null) {
       params.delete('sort')

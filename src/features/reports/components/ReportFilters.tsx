@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/constants'
+import { searchParamsToBuildOn } from '@/lib/navigation-start'
 
 import { REPORT_FILTER_FIELDS, type ReportKey } from '../schemas'
 
@@ -108,7 +109,9 @@ export function ReportFilters({
   if (!anyVisible) return null
 
   function apply(changes: Record<string, string | null>) {
-    const params = new URLSearchParams(searchParams.toString())
+    // Sobre la última dirección pedida, no la pintada: dos filtros elegidos seguidos se quedan
+    // los dos (I-200).
+    const params = searchParamsToBuildOn(pathname, searchParams)
     for (const [key, value] of Object.entries(changes)) {
       if (value === null || value === '' || value === ALL) params.delete(key)
       else params.set(key, value)

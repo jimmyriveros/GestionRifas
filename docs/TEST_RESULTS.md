@@ -18177,3 +18177,41 @@ con su coste medido—. Su despliegue requiere autorización. Producción, sin t
 ### c. Lo que no se hizo
 
 Ni `Server-Timing`, ni telemetría desde el navegador, ni un total por petición (D-251, alternativas). Nada se publicó.
+
+---
+
+## D-252: un orden, un filtro o una página con la búsqueda en camino la conservan — I-200 (2026-10-04, solo en local)
+
+Encargo de mantenimiento del dueño (2026-10-04): reproducir y corregir I-200 conservando la URL como estado, lo publicado
+de I-199, la búsqueda automática, Enter, limpiar, los mínimos, el historial, la pestaña nueva y el uso con ratón,
+teclado y teléfono, sin arreglos por pantalla, sin peticiones de más y sin saltos.
+
+### a. La causa, medida antes de tocar nada
+
+| Medida | Resultado |
+|---|---|
+| ¿Cambia `window.location` con la búsqueda en camino? Sonda en «Mis boletas», la búsqueda retenida 3 s | **No**: `location.search` siguió vacío durante los 3 s, en `next dev` y en un **build de producción**. Next la cambia al llegar la pantalla, y eso decide el diseño |
+| Las pruebas nuevas contra el código anterior | `busqueda-en-camino.spec.ts` y su versión del teléfono: **6 de 7 fallan**, con la dirección final sin `q`: `?sort=clientName` (4), `?sort=sellerName` y `?archived=1`; pasa la de control (una búsqueda sola, una navegación). `catalogo-busqueda-en-camino.spec.ts`: **1 de 2**, en `?page=2` |
+
+### b. Con la corrección
+
+| Batería | Resultado |
+|---|---|
+| `tests/unit/navigation-start.test.ts` | **16/16** (+6 de `searchParamsToBuildOn`: nada en camino, en camino, encadenada, ya llegada aunque redirija, otra pantalla / Atrás / otro origen, y que devuelve una copia) |
+| Las 9 E2E de I-200, en `next dev` | **9/9**, cada carrera en **dos** navegaciones —la búsqueda y lo elegido— y ninguna con lo elegido sin `q`; con ratón, teclado y dedo; Atrás deja la lista de antes de buscar y Adelante vuelve a las dos; una búsqueda sola sigue siendo una navegación; en el catálogo, sin nada en camino «Siguiente» va exactamente a su enlace |
+| Las mismas 9, contra un **build de producción** local | **9/9** |
+| Regresión: los 33 archivos E2E que buscan, ordenan, filtran o paginan —los 3 nuevos incluidos; listas de los dos portales, reportes, ventas por fecha, premios ganados, cierre, catálogo, historial de abonos, selección, Atrás—, escritorio y teléfono, `next dev` calentado | **386/387** en 19 min. El fallo, `catalogo-publico-movil.spec.ts:103` (no llegó a `?q=0`), es **I-106**: con 5 repeticiones de esa prueba sola falla **1 de 5 con la corrección y 1 de 5 sin ella** (el mismo servidor y la misma base), y su archivo solo, 1 de 15 |
+| `npm run verify` | ✅ **2.055/2.055** en 103 archivos (+6) |
+| `npm run test:db` | ✅ **1.572 y 1 omitida** |
+
+Con el código inmóvil: la huella de los 13 archivos cambiados, la misma en cada batería.
+
+| Lo que salió por el camino | Qué se hizo |
+|---|---|
+| I-106 falló también con su archivo solo, que su ficha daba por bueno («pasa 15/15») | Medida su tasa con y sin el cambio, igual; la ficha lo dice ahora |
+| En un build de producción el service worker puede servir peticiones sin pasar por `page.route` | Las tres pruebas de I-200 bloquean los service workers, como la de D-249 |
+
+### c. Lo que no se hizo
+
+No se tocó `useUrlSearch` ni su corrección de I-199. El periodo del panel y el selector de cliente del abono no la
+necesitan (D-252). Nada se publicó.

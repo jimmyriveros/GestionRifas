@@ -6,6 +6,7 @@ import { useEffect, useRef, useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { LIST_ITEM_LABELS, type ListItemKind } from '@/lib/constants'
+import { searchParamsToBuildOn } from '@/lib/navigation-start'
 
 type DataTablePaginationProps = {
   /** Total de filas que cumplen el filtro, no las de esta pagina. */
@@ -121,7 +122,8 @@ export function DataTablePagination({
 
   function goTo(nextPage: number) {
     pressedRef.current = nextPage < page ? 'previous' : 'next'
-    const params = new URLSearchParams(searchParams.toString())
+    // Sobre la última dirección pedida, no la pintada: una búsqueda en camino se queda (I-200).
+    const params = searchParamsToBuildOn(pathname, searchParams)
     if (nextPage <= 1) {
       params.delete('page')
     } else {

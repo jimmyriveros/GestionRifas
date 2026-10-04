@@ -4,6 +4,7 @@ import { onRouterTransitionStart } from '@/instrumentation-client'
 import {
   leavesPage,
   notifyNavigationStart,
+  searchParamsToBuildOn,
   subscribeNavigationStart,
   type NavigationStartType,
 } from '@/lib/navigation-start'
@@ -109,5 +110,73 @@ describe('leavesPage', () => {
 
   it('compara la ruta normalizada: con o sin codificar es la misma pantalla', () => {
     expect(leavesPage(url('/catalogo/jos%C3%A9?page=2'), 'push', '/catalogo/josé')).toBe(false)
+  })
+})
+
+/**
+ * I-200 (D-252): la dirección sobre la que se construye un orden, un filtro o una página.
+ *
+ * Next no cambia `window.location` hasta que la pantalla nueva llega (medido en el navegador), así que aquí «llegó»
+ * se simula moviendo la dirección con `history.pushState`, como lo haría el router al terminar.
+ */
+describe('searchParamsToBuildOn', () => {
+  const pintada = (search: string) => new URLSearchParams(search)
+
+  afterEach(() => {
+    window.history.replaceState(null, '', '/')
+    notifyNavigationStart(`${ORIGEN}/`, 'traverse') // olvida lo pedido
+  })
+
+  it('sin nada en camino, parte de lo pintado', () => {
+    window.history.replaceState(null, '', '/seller/tickets?sort=clientName')
+    notifyNavigationStart(`${ORIGEN}/`, 'traverse')
+    expect(searchParamsToBuildOn('/seller/tickets', pintada('sort=clientName')).toString()).toBe(
+      'sort=clientName',
+    )
+  })
+
+  it('con una búsqueda de esta pantalla en camino, parte de ella: lo elegido no la pisa', () => {
+    window.history.replaceState(null, '', '/seller/tickets')
+    notifyNavigationStart('/seller/tickets?q=03', 'replace')
+    const base = searchParamsToBuildOn('/seller/tickets', pintada(''))
+    base.set('sort', 'clientName')
+    expect(base.toString()).toBe('q=03&sort=clientName')
+  })
+
+  it('encadena: lo elegido mientras lo anterior sigue en camino parte de lo último pedido', () => {
+    window.history.replaceState(null, '', '/seller/clients')
+    notifyNavigationStart('/seller/clients?q=An', 'replace')
+    notifyNavigationStart('/seller/clients?q=An&archived=1', 'push')
+    expect(searchParamsToBuildOn('/seller/clients', pintada('')).toString()).toBe('q=An&archived=1')
+  })
+
+  it('cuando llegó —la dirección ya cambió—, vuelve a lo pintado, aunque el servidor haya redirigido a otra', () => {
+    window.history.replaceState(null, '', '/seller/tickets')
+    notifyNavigationStart('/seller/tickets?q=03', 'replace')
+    window.history.pushState(null, '', '/seller/tickets?q=03&page=1')
+    expect(searchParamsToBuildOn('/seller/tickets', pintada('q=03&page=1')).toString()).toBe(
+      'q=03&page=1',
+    )
+  })
+
+  it('lo que va a otra pantalla, Atrás/Adelante u otro origen no cuentan: lo pintado', () => {
+    window.history.replaceState(null, '', '/seller/tickets?q=1')
+    notifyNavigationStart('/seller/tickets/t1', 'push')
+    expect(searchParamsToBuildOn('/seller/tickets', pintada('q=1')).toString()).toBe('q=1')
+
+    notifyNavigationStart('/seller/tickets?q=9', 'traverse')
+    expect(searchParamsToBuildOn('/seller/tickets', pintada('q=1')).toString()).toBe('q=1')
+
+    notifyNavigationStart('https://wa.me/573001234567?text=hola', 'push')
+    expect(searchParamsToBuildOn('/seller/tickets', pintada('q=1')).toString()).toBe('q=1')
+  })
+
+  it('devuelve una copia: tocarla no cambia lo pedido ni lo pintado', () => {
+    window.history.replaceState(null, '', '/seller/tickets')
+    notifyNavigationStart('/seller/tickets?q=03', 'replace')
+    const pintado = pintada('')
+    searchParamsToBuildOn('/seller/tickets', pintado).set('page', '2')
+    expect(searchParamsToBuildOn('/seller/tickets', pintado).toString()).toBe('q=03')
+    expect(pintado.toString()).toBe('')
   })
 })

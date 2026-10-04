@@ -35,6 +35,7 @@ import {
   TICKET_PAYMENT_STATUS_LABELS,
   TICKET_PAYMENT_STATUS_VALUES,
 } from '@/lib/constants'
+import { searchParamsToBuildOn } from '@/lib/navigation-start'
 import { normalizeSearchTerm, SEARCH_MIN_CHARS } from '@/lib/search'
 
 import { adminPaymentStateSchema } from '../schemas'
@@ -147,7 +148,8 @@ export function TicketFilters({
     : (paymentParam ?? ALL)
 
   function apply(changes: Record<string, string | null>) {
-    const params = new URLSearchParams(searchParams.toString())
+    // Sobre la última dirección pedida, no la pintada: una búsqueda en camino se queda (I-200).
+    const params = searchParamsToBuildOn(pathname, searchParams)
     for (const [key, value] of Object.entries(changes)) {
       if (value === null || value === '' || value === ALL) {
         params.delete(key)

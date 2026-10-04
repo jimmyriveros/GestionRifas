@@ -1,7 +1,8 @@
-import Link from 'next/link'
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+
+import { CatalogPageLink } from './CatalogPageLink'
 
 /**
  * Paginacion de la reja publica (BR-K11).
@@ -53,10 +54,10 @@ export function CatalogPagination({
             size="touch"
             className="border-border-glass bg-surface-glass-default hover:bg-surface-glass-strong"
           >
-            <Link href={pageHref(page - 1, search)} prefetch={false}>
+            <CatalogPageLink page={page - 1} href={pageHref(page - 1, search)} prefetch={false}>
               <ChevronLeftIcon className="size-4" aria-hidden />
               Anterior
-            </Link>
+            </CatalogPageLink>
           </Button>
         ) : null}
       </div>
@@ -74,10 +75,10 @@ export function CatalogPagination({
             size="touch"
             className="border-border-glass bg-surface-glass-default hover:bg-surface-glass-strong"
           >
-            <Link href={pageHref(page + 1, search)} prefetch={false}>
+            <CatalogPageLink page={page + 1} href={pageHref(page + 1, search)} prefetch={false}>
               Siguiente
               <ChevronRightIcon className="size-4" aria-hidden />
-            </Link>
+            </CatalogPageLink>
           </Button>
         ) : null}
       </div>

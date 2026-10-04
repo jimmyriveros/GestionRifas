@@ -16643,3 +16643,42 @@ petición y `after()`, más código para la misma respuesta).
 `[rifas:supabase]` en ese minuto apunta a Supabase; una `[rifas:instancia] nueva`, a un arranque en frío; ninguna de
 las dos, con la conexión lenta en la prueba de redes, a la red (I-203). No demuestra nada por sí sola y no se ha
 publicado: hasta su despliegue, I-190 e I-198 siguen sin poder atribuirse.
+
+---
+
+## D-252 — Un orden, un filtro o una página se construyen sobre la última dirección pedida, no sobre la pintada (I-200)
+
+**Fecha:** 2026-10-04 · **Estado:** aceptada (encargo de mantenimiento del dueño: corregir I-200 conservando lo de
+I-199) · **Sin migración** · Solo interfaz · **Solo en local**: sin push ni despliegue · Cierra **I-200** en local
+
+**Contexto.** I-200 es I-199 al revés: con la búsqueda **ya en camino** —salió tras la pausa de 350 ms, pero su
+pantalla no llegó—, lo que se elegía entonces se construía con `useSearchParams()`, la dirección **pintada**, que todavía
+no lleva `q`, y como navegación más reciente la sustituía. La lista quedaba sin buscar y el campo seguía diciendo lo
+escrito. Estaba en cada pieza que arma una dirección, no en el buscador; por eso D-245 no lo tocaba.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Saber qué está en camino | `lib/navigation-start.ts`, que ya recibe cada inicio de navegación (`onRouterTransitionStart`, D-245), guarda **la última pedida** y la dirección del navegador desde la que salió. Atrás y Adelante no se guardan |
+| Saber que ya llegó | Next no cambia `window.location` hasta que la pantalla nueva llega —**medido**: con una búsqueda retenida 3 s, `location.search` siguió vacío todo el rato—. Mientras la dirección siga siendo aquella de la que salió, está en camino; en cuanto cambia, llegó, aunque el servidor haya redirigido a otra |
+| Una sola función | `searchParamsToBuildOn(pathname, pintada)`: los parámetros de la última pedida si es de esta misma pantalla y sigue en camino; si no, los pintados. Se llama **al pulsar**, no al pintar |
+| Quién la usa | `useListSort` (cabeceras y el control del teléfono), `DataTablePagination`, los `apply` de `TicketFilters`, `ClientFilters` y `SettlementListFilters` —las listas con buscador— y `ReportFilters`, donde dos filtros elegidos seguidos se pisaban por la misma causa |
+| El catálogo público | Su paginación son **enlaces** a propósito (funcionan sin JavaScript) y su dirección sale al pintar. `CatalogPageLink` conserva el `href` y usa `onNavigate` de `next/link`, que solo actúa en la navegación de la aplicación: si hay una búsqueda de esa pantalla en camino, va a esa página **de la búsqueda**; si no, a donde dice el enlace. Otra pestaña y sin JavaScript, igual que antes |
+| Lo que no se toca | `useUrlSearch` y su corrección de I-199 (D-245), la búsqueda automática, Enter, limpiar, los mínimos, `replace` para buscar y `push` para lo demás, el historial. El periodo del panel (se desactiva mientras navega) y el selector de cliente del abono (la segunda elección debe sustituir a la primera) |
+
+**Medido** (`TEST_RESULTS`, «D-252»): `busqueda-en-camino.spec.ts` y su versión del teléfono —ratón, teclado y dedo; «Mis
+boletas», «Boletas» del personal y «Mis clientes»— **6 de 7 fallan** con el código anterior, con la dirección final sin `q`
+(`?sort=clientName`, `?sort=sellerName`, `?archived=1`), y **7/7** con la corrección, en **una** navegación más —la
+búsqueda y lo elegido, nada más—; la del catálogo, **1 de 2** antes (`?page=2`) y **2/2** después; 6 pruebas unitarias
+nuevas de la función.
+
+**Alternativas descartadas.** Que el buscador vuelva a aplicar la búsqueda cuando otra navegación la pisa (una petición
+de más y la lista sin filtrar un instante); construir la dirección al pintar (la búsqueda en camino aún no está en
+ningún sitio que se pinte); arreglar cada lista por separado (es lo que pedía evitar el encargo); convertir los enlaces
+del catálogo en botones (perdería el funcionamiento sin JavaScript y la pestaña nueva).
+
+**Consecuencia.** Lo elegido con la búsqueda en camino se queda con ella, en una sola navegación. Si lo elegido es una
+página y la búsqueda deja menos, sale «Esa página no existe» con su enlace a la primera (I-158), que es lo coherente con
+lo que dice el campo. Las direcciones que se pintan como enlace fuera del catálogo —`ReportNav`— no tienen buscador en
+su pantalla.

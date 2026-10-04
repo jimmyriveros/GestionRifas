@@ -26,10 +26,47 @@ export function subscribeNavigationStart(listener: Listener): () => void {
   }
 }
 
+/**
+ * La última navegación pedida y la dirección del navegador desde la que salió (I-200, D-252).
+ *
+ * Next no cambia `window.location` hasta que la pantalla nueva llega —medido con una búsqueda
+ * retenida 3 s—, así que mientras la dirección siga siendo `from`, esa navegación está EN
+ * CAMINO. Atrás y Adelante no se guardan: van a una entrada del historial, no a una dirección
+ * construida aquí.
+ */
+let latest: { url: URL; from: string } | null = null
+
 export function notifyNavigationStart(href: string, type: NavigationStartType): void {
-  if (listeners.size === 0) return
   const url = new URL(href, window.location.href)
+  latest = type === 'traverse' ? null : { url, from: window.location.href }
   for (const listener of [...listeners]) listener(url, type)
+}
+
+/**
+ * Los parámetros sobre los que se construye una dirección nueva de la pantalla `pathname`: un
+ * orden, un filtro o una página (I-200, D-252).
+ *
+ * Los de la última navegación pedida si es de esta misma pantalla y todavía no ha llegado; si
+ * no, los pintados. Antes se partía siempre de los pintados, y con una búsqueda en camino —que
+ * aún no está en la dirección pintada— lo elegido se construía sin ella y, como navegación más
+ * reciente, la sustituía: la lista quedaba sin buscar y el campo seguía diciendo lo escrito.
+ *
+ * Se llama al pulsar, no al pintar: lo que importa es la dirección de ESE momento.
+ */
+export function searchParamsToBuildOn(
+  pathname: string,
+  painted: { toString(): string },
+): URLSearchParams {
+  const pending = latest
+  if (
+    pending &&
+    pending.from === window.location.href &&
+    pending.url.origin === window.location.origin &&
+    pending.url.pathname === pathname
+  ) {
+    return new URLSearchParams(pending.url.search)
+  }
+  return new URLSearchParams(painted.toString())
 }
 
 /**

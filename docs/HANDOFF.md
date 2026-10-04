@@ -3062,7 +3062,12 @@ lib/navigation-start.ts  el aviso de que el router EMPIEZA a navegar (D-245): lo
                     sincrono y antes de pedir el destino. leavesPage dice si sale de la
                     pantalla. Si algo tiene que actuar ANTES de que llegue la pantalla
                     nueva, se suscribe aqui: usePathname y el desmontaje llegan tarde.
-                    instrumentation-client corre en TODAS las paginas: no le añadas nada
+                    instrumentation-client corre en TODAS las paginas: no le añadas nada.
+                    searchParamsToBuildOn (D-252): los parámetros sobre los que se arma
+                    un orden, un filtro o una página AL PULSAR. Nunca
+                    new URLSearchParams(searchParams.toString()): con una búsqueda en
+                    camino, eso la pisa (I-200). Un enlace que se pinta, como la
+                    paginación del catálogo, lo hace con onNavigate (CatalogPageLink)
 components/layout/  AppShell · CompactHeader (cabecera contextual, D-150): el cruce
                     lo decide IntersectionObserver; el CTA se marca con
                     CompactActionSlot y se mueve con un portal. NavLinks (lateral,
