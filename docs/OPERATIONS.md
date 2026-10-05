@@ -1,6 +1,7 @@
 # MANUAL DE OPERACIÓN
 
-**Actualizado:** 2026-10-04, tarde (revisión del dueño: **§6.a y §6.b**, sus lecturas como hipótesis con su siguiente comprobación; §6.b dice qué **no** escribe D-251; la prueba de redes, con un límite total). Antes, ese mismo día (D-251: **§6.b nueva**, qué dicen las dos líneas nuevas del registro del servidor, cuando se publique). Antes, 2026-10-02 (D-246: **§6.a nueva**, reconocer una lentitud de **conexión** —esperas de 1, 3 o
+**Actualizado:** 2026-10-05 (§6.b: D-251, **publicado**; la región de una instancia y cómo leer sus líneas con el
+conector de Vercel). Antes, 2026-10-04, tarde (revisión del dueño: **§6.a y §6.b**, sus lecturas como hipótesis con su siguiente comprobación; §6.b dice qué **no** escribe D-251; la prueba de redes, con un límite total). Antes, ese mismo día (D-251: **§6.b nueva**, qué dicen las dos líneas nuevas del registro del servidor, cuando se publique). Antes, 2026-10-02 (D-246: **§6.a nueva**, reconocer una lentitud de **conexión** —esperas de 1, 3 o
 15 s antes de cargar— sin reiniciar ni revertir). Antes, 2026-10-01 (§4.e: el cierre de cuentas, **en producción**). Antes, 2026-09-30, por la noche (D-243:
 §4.e — en la rifa activa ya está confirmado que los vendedores no
 han entregado dinero al dueño y que no hubo premios pagados en los sorteos sin resultado). Antes, ese mismo día, al
@@ -350,13 +351,14 @@ ejemplo, con `pktmon`, la herramienta de Windows), que necesita permisos de admi
 si el dueño lo autoriza. Los registros de Vercel **no** ven nada de esto: anotan la petición cuando la
 conexión ya existe, y sin duración.
 
-### 6.b Si tarda **después** de conectar: el registro del servidor (D-251, cuando se publique)
+### 6.b Si tarda **después** de conectar: el registro del servidor (D-251, publicado el 2026-10-05)
 
-Con D-251 publicado, el registro de Vercel escribe dos líneas que antes no escribía, y **solo** cuando pasan:
+Desde el 2026-10-05 (D-251, `783b08f`), el registro de Vercel escribe dos líneas que antes no escribía, y **solo**
+cuando pasan:
 
 | Línea | Qué dice | Qué no dice |
 |---|---|---|
-| `[rifas:instancia] nueva · región iad1 · versión …` | Arrancó una instancia; la primera petición que atendió pagó ese arranque | Cuánto tardó esa petición |
+| `[rifas:instancia] nueva · región iad1 · versión …` | Arrancó una instancia; la primera petición que atendió pagó ese arranque. La región suele ser `iad1`: el 2026-10-05, 10 de 11, y la otra, `sin1`, con un `GET /` sin sesión | Cuánto tardó esa petición, ni qué pieza arrancó: una sola petición puede traer dos líneas |
 | `[rifas:supabase] GET /rest/v1/… → 200 en 1840 ms` | Esa llamada a Supabase tardó **1 s o más** —medida desde la función, con la red entre Vercel y Supabase dentro—, o respondió **5xx**, o **no respondió** | Que la causa fuera Supabase y no el camino; nada de las llamadas que tardan menos |
 
 **Lo que NO escribe:** ningún 4xx —ni el 401 `PGRST303` de I-202, que es rápido, ni el 423 de la pausa,
@@ -366,7 +368,10 @@ trata sin escribir nada no queda en ningún registro suyo. **I-202 se sigue con 
 existen**: esa agrupación y los 401 de `/rest/v1` en los registros de Supabase (`RUNBOOK` §12.6).
 
 Cómo leerlo: Vercel → el proyecto → **Logs**, el minuto de la queja, y buscar `[rifas:`. **Solo guarda una
-hora.** Ninguna de las dos líneas lleva datos de nadie: la ruta es la tabla o la función, sin la consulta.
+hora.** Ninguna de las dos líneas lleva datos de nadie: la ruta es la tabla o la función, sin la consulta. Con el
+conector de Vercel, `get_runtime_logs` con `query` devolvió peticiones sin ese texto y, en ventanas largas, se agotó: se
+agrupa por `level` —`[rifas:supabase]` sale como `warning` y `[rifas:instancia]`, como `info`— y se lee por tramos de
+pocos minutos.
 Lo que sugiere cada caso es una **hipótesis**:
 
 | En ese minuto | Hipótesis | Siguiente comprobación |

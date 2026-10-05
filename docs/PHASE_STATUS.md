@@ -3,7 +3,28 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-04 (Bogotá) — **Mantenimiento del dueño, SOLO EN LOCAL** (D-249 a D-252; sin migración,
+- **Actualizado:** 2026-10-05, 15:00 UTC (10:00 en Bogotá; publicado a las 14:02 UTC) — **El lote D-249 a D-252 EN
+  PRODUCCIÓN** (`783b08f`, sin migración ni pausa; `DEPLOYMENT` §3.2.y). Mantenimiento posterior a la Fase 9, sin fase
+  ni etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en producción, los formularios de cliente, rifa y boleta ya no pueden mandar nada por la URL
+  antes de hidratar (D-249); el registro del servidor anota cada instancia nueva y las llamadas a Supabase de 1 s o
+  más, con 5xx o sin respuesta —ningún 4xx— (D-251); un orden, un filtro o una página elegidos con la búsqueda en
+  camino la conservan (D-252). D-250 es una orden de operación: no cambia nada servido.
+  **(2) Pruebas:** CI 2/2 en el PR (`37240712501`) y en `main` (`37321312703`) sobre `783b08f`: 2.055/2.055 y 1.573 + 1.
+  En local, sobre `fc114e7` —el mismo código—: la E2E completa, 1.042/1.044, con I-090 e I-106 aceptadas por el dueño.
+  En vivo, todo en verde antes y después; `verify:remote` 58/58 antes y después. **La revisión del dueño: «todo ok».**
+  En sus registros, un 500 de I-202 (`PGRST303`, `/seller/tickets`, 14:45:11) y la misma ruta en 200 a los 7 s; ninguna
+  línea `[rifas:supabase]`. La víspera, la publicación se detuvo porque este equipo no conectaba con Vercel.
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** I-202, viva —8 en 7 días, de 5 usuarios, una ya con este despliegue—, hasta
+  actualizar Supabase; I-203, con la comparación de redes pendiente y dos horas sin conexión a Vercel desde este
+  equipo la noche anterior; I-190 e I-198, con D-251 servido y sin repetirse todavía; I-024; I-196 e I-197, límites
+  con propuesta; I-194, aceptado; I-090 e I-106, intermitentes; I-021, I-066 e I-077, aplazadas por el dueño.
+  **(6) Qué revisar antes de continuar:** `HANDOFF` §1 y §1.a, `DEPLOYMENT` §3.2.y y §4.1, `OPERATIONS` §6.b,
+  `RUNBOOK` §12.6 y `TEST_RESULTS`, «Publicación del lote D-249 a D-252».
+
+- Antes, 2026-10-04 (Bogotá) — **Mantenimiento del dueño, SOLO EN LOCAL** (D-249 a D-252; sin migración,
   push ni despliegue): el lote, preparado en `DEPLOYMENT` §3.3.g. Mantenimiento posterior a la Fase 9, sin fase ni
   etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en local, los formularios de cliente, rifa y boleta ya no pueden mandar nada por la URL

@@ -1,6 +1,9 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-02, 18:45 UTC (§3.2.x: **la revisión del dueño, hecha** —su único comentario, que el clic en
+**Actualizado:** 2026-10-05, 15:00 UTC (**§3.2.y nueva: el lote D-249 a D-252 EN PRODUCCIÓN** —`783b08f`, sin
+migración ni pausa; la revisión del dueño, «todo ok»; el punto de reversión pasa a `0490d69`, que reintroduciría I-200
+y la fuga de los tres formularios—; §3.3.g y §4.1, al día). Antes, 2026-10-04 (**§3.3.g nueva**: el lote, preparado en
+local y sin autorizar). Antes, 2026-10-02, 18:45 UTC (§3.2.x: **la revisión del dueño, hecha** —su único comentario, que el clic en
 «Mis boletas» tarda; los registros, sin errores, nada de esta entrega toca esa pantalla, y la red hacia Vercel, con
 I-203 activo—). Antes, ese mismo día, 17:40 UTC (**§3.2.x nueva: I-204 e I-115 EN PRODUCCIÓN** —`0490d69`, sin
 migración ni pausa; el punto de reversión pasa a `a5d90f9`, que reintroduciría los dos defectos—; §3.3.e, §3.3.f y
@@ -1306,6 +1309,55 @@ errores, avisos o 5xx. No se envió ningún formulario ni ninguna credencial, ni
 > **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
 > versión y moverían el punto de reversión.
 
+### 3.2.y Release del lote del mantenimiento del 2026-10-04: D-249 a D-252 — 2026-10-05
+
+**Sin migración y sin pausa.** Autorización expresa del dueño para publicar el candidato `783b08f` según §3.3.g —las
+comprobaciones previas, el push de la rama, el PR, la integración en `main`, el despliegue y la verificación—, con sus
+condiciones: el código idéntico al probado en `fc114e7`, el CI 2/2 sobre el SHA exacto, **I-090 e I-106** como las dos
+únicas excepciones E2E aceptadas, la franja del procedimiento, avance rápido sin `force` ni fusión y ningún cambio en el
+candidato durante la publicación. **Se detuvo una vez, por la red:** el 2026-10-04 a las 22:31 UTC, tras la P0, este
+equipo dejó de conectar con Vercel; la rama, el PR y su CI siguieron —GitHub sí respondía—, pero `main` no se avanzó
+sin poder comprobar después lo servido. Se reanudó el 2026-10-05 a las 13:49 UTC (I-203). Supabase **no** se actualizó.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`783b08fe4b9a87110ad0786bffdaef9afea60e60`**, el autorizado: el mismo SHA del PR #13 con el CI en verde. Ningún commit se añadió durante la publicación. Su código es **idéntico** al de `fc114e7`: `git diff --stat fc114e7 783b08f -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public`, **vacío** a las 13:49 UTC; las 9 diferencias completas son documentos |
+| Commit anterior en producción | `0490d69040cddbdc90e5b4bc4d337f498764c01a` (§3.2.x) |
+| Integración | La rama, empujada sin `force` (`0490d69..783b08f`) el 2026-10-04 a las 22:37 UTC, y el **PR #13** hacia `main`. **Avance rápido** de `main`, 11 commits, **sin fusión, sin `force` y sin la rama local `main`**: `git ls-remote` confirmó `0490d69` en `main` y `783b08f` en la rama, y `git push origin 783b08f…:refs/heads/main` a las **14:00:56 UTC** del 2026-10-05, con la franja libre. GitHub marca el PR #13 fusionado a las 14:01:00, sin commit de fusión |
+| Despliegue Vercel | **`dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd`**: creado a las 14:01:04, **READY a las 14:02:21 UTC**, en `iad1`, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`cb4c9bb027e0`** desde las 14:02:26. El único de producción que disparó el empuje |
+| Despliegue anterior (**punto de reversión**) | **`dpl_9vnY27T4Pi4QPr7hTbmwiJGk76Ni`** (`0490d69`), con `isRollbackCandidate`; `dpl_9VeX…` dejó de serlo, como corresponde en Hobby. **Compatible con la base**, que no cambió; **pero volver a él reintroduce** I-200 y la fuga de los formularios de cliente, rifa y boleta antes de hidratar, y quita las líneas nuevas del registro. *Instant Rollback* lo pulsa el dueño, y después «Undo Rollback» antes de volver a desplegar (§4.1) |
+| **Migraciones** | **NINGUNA.** Siguen **80** (`0001`–`0080`) antes, después del despliegue y después de la revisión del dueño |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni el *lock*, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni `public/`, ni `.env.example`, ni el proxy. Ninguna variable nueva |
+| Huellas de esta entrega | Además del identificador (§6.1): `HydratedSubmitButton` en el JavaScript de `/login` (D-249) y `searchParamsToBuildOn` en el de `/login`, `/offline`, `/mantenimiento` y la página 404 del catálogo (D-252). **Ausentes antes** —a las 13:50 y a las 14:00— y **presentes después**. D-250 no cambia nada servido; D-251 se ve en el registro |
+| CI | En el PR, run **`37240712501`** sobre `783b08f`: ✅ **2/2** (2026-10-04, 22:37–22:45 UTC). En `main`, run **`37321312703`** (`push`): ✅ **2/2** (14:01:05–14:08:32 UTC). Los dos: **2.055/2.055** unitarias y **1.573 ✅ y 1 omitida** de base. La vista previa del PR, en rojo **por D-066 exactamente**: `check:env` sin las tres variables de Supabase |
+
+**Validado antes, en local** (`TEST_RESULTS`, «D-249» a «D-252» e «I-195»): `verify` **2.055/2.055**, `test:db` **1.573 +
+1** y la E2E completa, **1.042/1.044** en una sola pasada sobre `fc114e7`; sus dos fallos, I-090 e I-106, anteriores y
+aceptados por el dueño para esta publicación. **P0, en solo lectura:** el 2026-10-04 a las 22:31 UTC —Git, la base en
+`0080` sin pausa, `verify:remote` **58/58** y el punto de reversión; la comprobación en vivo ya no conectó— y entera el
+2026-10-05 a las 13:50–13:51: servido `bcd4c51d90ca` (`0490d69`), las huellas nuevas ausentes y la base igual que la
+víspera. **La franja (`RUNBOOK` §9.0):** a las 13:49 era la hora 13, del programador, y se esperó; a las **14:00:27**,
+hora 14, el candado libre —el turno de las 13 lo tocó a las 13:33:55, sin trabajo—, ninguna corrida sin terminar,
+ninguna petición de la API en curso y el próximo recordatorio el 2026-10-09 a las 21:15.
+
+**Verificación en vivo (14:02:43 UTC):** `cb4c9bb027e0` servido y `bcd4c51d90ca` **desaparecido**; 43/43 rutas, 0 5xx,
+7/7 cabeceras, CSP por *nonce* con un solo proyecto, 0 secretos en 954 KB, Next 16.3.6; las huellas de D-249 y D-252, en
+su sitio, y lo de I-204, D-244, D-245, D-234 y Color v2, igual. `verify:remote` **58/58**; la base, en `0080` y sin pausa.
+Los formularios de D-249 piden sesión, así que su HTML no se comprueba desde fuera. No se envió ningún formulario ni
+ninguna credencial. Detalle en `TEST_RESULTS`, «Publicación del lote D-249 a D-252».
+
+> **Revisión del dueño con su sesión, hecha** (14:45–14:46 UTC; 09:45 en Bogotá). Su aviso, a las 14:47: «Acabo de
+> hacer la revisión y todo ok».
+
+| Qué | Resultado |
+|---|---|
+| Registros del despliegue nuevo, leídos dentro de la hora | De 14:01 a 14:49 UTC, **109** peticiones: 66 × 200, 38 × 307, 2 × 401 y 2 × 404 —las cuatro, sondas de la verificación— y **1 × 500**. Entre las 14:03 y las 14:45:11, ninguna. **11** líneas `[rifas:instancia]`, todas con `cb4c9bb027e0` —10 en `iad1` y 1 en `sin1`, con un `GET /` sin sesión a las 14:47:45—, y **ninguna** `[rifas:supabase]` |
+| El único 500 | `GET /seller/tickets` a las **14:45:11**: `PGRST303 «JWT issued at future»`, digest `364289065@E394` —**I-202**, la agrupación que existe desde el 2026-08-06; no es de esta entrega—. Cae en la ventana de la revisión, y los registros no dicen de quién es. **7 s después** la misma ruta respondió 200 y todo lo siguiente también: ninguna sesión se cerró (D-248). Como estaba documentado, D-251 no lo escribe |
+| Decisión | **Nada que hacer sobre la publicación**: no hay motivo de reversión, y volver a `0490d69` no corregiría I-202, que sigue abierta hasta actualizar Supabase (`RUNBOOK` §12.6) |
+
+> **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
+> versión y moverían el punto de reversión.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1586,11 +1638,14 @@ El dueño autorizó corregirlo **en local**; push, CI sobre `main` y despliegue 
 | Con la actualización de Supabase | Publicarlo **antes** de `RUNBOOK` §12 hace que la ventana de la actualización no saque a nadie de sus dispositivos: quien abra una pantalla mientras la API no responde verá «Algo salió mal» y «Reintentar» |
 | Riesgo que queda | Mientras dure un fallo de lectura nadie puede operar —es lo pedido—: la página de error se queda hasta que «Reintentar» encuentre el servicio. Si quien no responde es **Auth**, la guarda lo sigue tomando por «sin sesión» y manda a `/login`, sin cerrar nada, como antes |
 
-#### 3.3.g El lote del mantenimiento del 2026-10-04: D-249, D-251 y D-252, con D-250 y la medición de I-195 — **PREPARADO, SIN PUBLICAR**
+#### 3.3.g El lote del mantenimiento del 2026-10-04: D-249, D-251 y D-252, con D-250 y la medición de I-195 — **EN PRODUCCIÓN desde el 2026-10-05, 14:02 UTC** (registro en §3.2.y)
 
 El dueño autorizó corregir, probar y documentar **en local**; push, CI sobre `main`, despliegue y cualquier cambio en
 Supabase siguen **sin autorizar**. La actualización de Supabase (`RUNBOOK` §12) **no** va en este lote: es otra
 ventana, con otra autorización y otra recuperación.
+
+> **Publicado el 2026-10-05, 14:02 UTC**, con la autorización expresa del dueño (§3.2.y). Lo de abajo se conserva tal
+> como se preparó.
 
 | | |
 |---|---|
@@ -1650,6 +1705,12 @@ base** —la entrega no la cambia— **pero reintroduce los dos defectos**: ante
 volver a mandar el correo y la contraseña por la URL (I-204), y un fallo al leer la membresía —el `PGRST303` de I-202, un
 5xx, la red— volvería a cerrar la sesión en **todos** los dispositivos y a decir «Tu cuenta está inactiva» (I-115). Se
 vuelve solo si lo nuevo falla de una forma peor que esos dos defectos, y se dice así en el registro.
+
+**Con D-249 a D-252, publicados el 2026-10-05** (§3.2.y), el despliegue anterior pasa a ser
+`dpl_9vnY27T4Pi4QPr7hTbmwiJGk76Ni` (`0490d69`), candidato a *Instant Rollback*. Volver a él es **compatible con la
+base** —la entrega no la cambia— **pero reintroduce** I-200 y la fuga de los formularios de cliente, rifa y boleta antes
+de hidratar (D-249), y quita las líneas `[rifas:…]` del registro (D-251). I-204 e I-115 no vuelven: `0490d69` ya trae
+sus correcciones. Se vuelve solo si lo nuevo falla de una forma peor que eso.
 
 ### 4.2 Base de datos
 

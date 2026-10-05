@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue)** | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
+| **Post-9 vigente (Publicación del lote D-249 a D-252: `783b08f` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-05, 14:02 UTC; detenida la víspera por la red)** | CI del PR (`37240712501`) y de `main` (`37321312703`) sobre `783b08f`: ✅ 2/2, **2.055/2.055** | En los dos CI: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, sobre `fc114e7` —el mismo código—: **1.042/1.044** en una sola pasada; I-090 e I-106, aceptadas por el dueño para esta publicación | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, «todo ok»; en sus registros, un 500 de **I-202** a las 14:45:11 y la misma ruta en 200 a los 7 s |
+| Post-9 anterior (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue) | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
 | Post-9 anterior (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada) | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
 | Post-9 anterior (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02) | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
 | Post-9 anterior (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02) | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
@@ -18354,3 +18355,67 @@ cerrado, en la misma máquina, tardó **2,0 s** en dar el error, sin ninguna red
 
 Encima de `fc114e7` solo hay documentos (`d8456ee` y el commit de estos ajustes); el guion de redes vive en `build/`,
 fuera de Git y fuera de lo que se publica.
+
+## Publicación del lote D-249 a D-252 — EN PRODUCCIÓN: `783b08f` (2026-10-04, 22:31 UTC – 2026-10-05, 14:51 UTC; la revisión del dueño, a las 14:45)
+
+Autorización expresa del dueño para publicar `783b08f` según `DEPLOYMENT` §3.3.g; el registro, en §3.2.y. Todo lo que se
+leyó de producción, en solo lectura; ningún formulario enviado y ninguna credencial escrita, ni ficticia.
+
+### a. El 2026-10-04: P0, la rama, el PR y el CI; la comprobación en vivo no conectó
+
+| Paso (UTC) | Resultado |
+|---|---|
+| P0, 22:31 | `main` y la rama remota en `0490d69`; avance rápido posible; el código del candidato, igual que `fc114e7`. Base en `0080`, sin pausa, el candado libre, 0 corridas sin terminar, el próximo recordatorio el 2026-10-09. `verify:remote` **58/58**. `dpl_9vnY…`, READY, con los alias y candidato a reversión |
+| En vivo, «antes», 22:31:33 | **No conectó** (`ConnectTimeoutError`). Desde entonces, ninguna conexión de este equipo hacia Vercel se abrió —sus dos direcciones y `vercel.com`: unos 40 intentos y, de 22:47:55 a 00:30:06, **91 seguidos**, uno por minuto—, mientras Cloudflare respondía y Vercel no tenía incidentes abiertos. Volvió a las **00:31:06** (200 en 0,05 s), cuando la sesión ya había terminado. Sin atribuir: es un dato para I-203 |
+| Rama y PR, 22:37 | Empujada sin `force` (`0490d69..783b08f`) y **PR #13** hacia `main`: GitHub sí respondía |
+| Vista previa de Vercel | `dpl_AncSyF88Cfx7U4cGQp8TKprsXcti`, en rojo **por D-066 exactamente**: `check:env` sin `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` ni `SUPABASE_SERVICE_ROLE_KEY` |
+| CI del PR | Run `37240712501` sobre `783b08f`: ✅ **2/2** (22:37–22:45): **2.055/2.055** unitarias y **1.573 ✅ y 1 omitida** de base |
+| Decisión | **No avanzar `main`**: sin conexión no se habría podido comprobar lo servido, que la autorización exige |
+
+### b. El 2026-10-05: las comprobaciones previas, otra vez
+
+| Comprobación (UTC) | Resultado |
+|---|---|
+| Conexión, 13:49 | Vercel: 5 de 5 en 200, la conexión en 0,02–0,04 s. Supabase: 3 de 3 —401 sin clave, lo esperado— en 0,02–0,06 s |
+| Git, 13:49 y 14:00 | `main` remoto en `0490d69` y la rama en `783b08f`. `git diff --stat fc114e7 783b08f -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public`, **vacío**; las 9 diferencias completas son documentos |
+| CI, 13:49 | Las dos comprobaciones de GitHub Actions, en verde sobre `783b08f`; la de Vercel, el rojo de D-066 de la víspera |
+| Producción, 13:50 y 14:00 | `dpl_9vnY…`, el de producción más reciente, READY, con `gestion-rifas.vercel.app` y candidato a reversión. En vivo, «antes», **todo en verde las dos veces**: `bcd4c51d90ca` servido, `cb4c9bb027e0` ausente, D-249 y D-252 ausentes, 43/43 rutas, 0 5xx |
+| Base, 13:51 y 14:00:27 | `0080`, 80 migraciones, sin esquema de pausa ni gancho; cierre: 0 entregas, 8 pagos de premios y 0 cierres, como la víspera; el candado libre —el turno de las 13 lo tocó a las 13:33:55—; 0 corridas sin terminar; 0 peticiones de la API en curso |
+| `verify:remote`, 13:51 | **58/58** |
+| Errores de ejecución, 24 h | Ninguno |
+| La franja | A las 13:49, la hora 13, del programador: se esperó a las 14:00 (`RUNBOOK` §9.0). A las 14:00:27, hora 14, con todo lo de arriba en orden y el próximo recordatorio a más de 100 h |
+
+### c. La publicación
+
+| Paso (UTC) | Resultado |
+|---|---|
+| Avance rápido, 14:00:56 | `git push origin 783b08f…:refs/heads/main`: `0490d69..783b08f`, sin `force`. GitHub marca el PR #13 fusionado a las 14:01:00, sin commit de fusión |
+| Despliegue | `dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd`: creado a las 14:01:04, **READY a las 14:02:21**, `iad1`, alias `gestion-rifas.vercel.app` sin error |
+| Identificador servido | **`cb4c9bb027e0`** desde las **14:02:26**, 87 s después de empezar a esperar (`build/p4-10/esperar-version.mjs`) |
+| En vivo, «después», 14:02:43 | **Todo en verde**: `cb4c9bb027e0` servido y `bcd4c51d90ca` ausente; D-249 —`HydratedSubmitButton` en el JavaScript de `/login`— y D-252 —`searchParamsToBuildOn` en las cuatro páginas públicas—, servidos; I-204, D-244, D-245, D-234 y Color v2, igual; 43/43 rutas, 0 5xx, 7/7 cabeceras, CSP con un solo proyecto, 0 secretos en 954 KB, Next 16.3.6 |
+| `verify:remote`, 14:03 | **58/58** |
+| Base, 14:03:06 | `0080` y sin pausa: **ninguna migración** |
+| Punto de reversión | `dpl_9vnY…` (`0490d69`), con `isRollbackCandidate`; `dpl_9VeX…`, ya no |
+| Registros, 14:01–14:03 | Las peticiones de la verificación, con sus dos primeras `[rifas:instancia] nueva · región iad1 · versión cb4c9bb027e0`; 0 errores, avisos o 5xx; 0 errores de ejecución en la última hora |
+| CI de `main` | Run `37321312703` (`push`): ✅ **2/2** —verificación, 14:01:05–14:03:20, **2.055/2.055**; base de datos, 14:01:05–14:08:32, **1.573 ✅ y 1 omitida**— |
+
+### d. La revisión del dueño y sus registros
+
+El dueño hizo la revisión con su sesión —«Nuevo cliente» sin guardar y, en «Mis boletas», buscar y ordenar— y avisó a
+las 14:47: «Acabo de hacer la revisión y todo ok». Registros del despliegue nuevo, leídos de 14:47 a 14:50, dentro de la
+hora:
+
+| Qué | Resultado |
+|---|---|
+| Peticiones, 14:01–14:49 | **109**: 66 × 200, 38 × 307, 2 × 401 y 2 × 404 —las cuatro, sondas de la verificación a las 14:02— y **1 × 500**. Entre las 14:03 y las 14:45:11, **ninguna** |
+| Niveles | **11** `info`, todas `[rifas:instancia] nueva … versión cb4c9bb027e0`: 10 en `iad1` —dos en cada una de las dos primeras peticiones de las 14:45:11— y **1 en `sin1`**, con un `GET /` sin sesión a las 14:47:45, de origen desconocido. **1** `error`. **0** `warning`: ninguna `[rifas:supabase]`, así que ninguna llamada a Supabase de 1 s o más, con 5xx o sin respuesta en ese tramo |
+| El 500 | `GET /seller/tickets` a las **14:45:11**: `PGRST303 «JWT issued at future»`, digest `364289065@E394` —**I-202**—, en el mismo segundo que un `GET /seller/dashboard` en 200. **7 s después**, `GET /seller/tickets` en 200, y todo lo siguiente en 200: la sesión siguió (D-248). Los registros no dicen de quién es |
+| `get_runtime_errors`, 7 días | `PGRST303`: **8**, de **5** usuarios —el 2026-10-04 eran 7 de 4—, en `/seller/tickets.rsc`, `/owner/tickets` y ahora `/seller/tickets`. `Invalid Refresh Token`: 18, de 5 usuarios, la última el 2026-10-03 en `dpl_9vnY…`; **ninguna** en el despliegue nuevo |
+| Lo compatible con los pasos | `/seller/clients/new`, cinco peticiones de 14:45:32 a 14:45:43, y `/seller/tickets`, de 14:45:51 a 14:46:23, todo 200 |
+| Base tras la revisión, 14:50:53 | `0080`, sin pausa; cierre: 0 entregas, 8 pagos de premios y 0 cierres, como antes |
+
+**Lo que no se puede afirmar:** quién hizo cada petición, ni qué vio quien recibió el 500: con D-248, una pantalla
+muestra «Algo salió mal» con «Reintentar» (`KNOWN_ISSUES`, I-202).
+
+**Lo que esto no cambia:** I-202 sigue abierta hasta actualizar Supabase (`RUNBOOK` §12.6); I-203, I-190 e I-198,
+abiertas: publicar D-251 no las cierra. Los dos fallos E2E aceptados, I-090 e I-106, siguen como estaban.
