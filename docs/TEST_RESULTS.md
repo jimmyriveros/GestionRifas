@@ -18540,3 +18540,83 @@ fueron elegidos. Pide el prompt para que **Claude continúe**; Codex registra la
 No se ejecutó un respaldo ni una restauración, no se confirmó la actualización y no se repitieron las lecturas de
 las 16:56 UTC. Permanecen pendientes la frase/prueba, la ruta de la memoria, las capturas de Auth, E y W1–W6.
 Se actualizaron `RUNBOOK` §12.2.c/§12.3 y `HANDOFF` §1.a; revisión documental y `git diff --check`, sin baterías.
+
+---
+
+## I-202: la actualización de Supabase, EJECUTADA — 17.11.0.002, PostgREST 14.18 (2026-10-05, 17:28–20:23 UTC)
+
+Con la autorización del dueño: opción A con datos reales (E y W2), copia en USB, la franja de esa misma sesión y el
+botón pulsado por él tras las puertas. El agente leyó la base en transacciones de solo lectura, ejecutó las órdenes del
+respaldo con la frase escrita por el dueño en la ventana de Windows —nunca la vio— y no leyó el contenido de ningún
+respaldo. Herramientas y salidas, en `build/i202/` (fuera de Git): `respaldo-a.sh`, `ensayo-restauracion.sh`,
+`ventana.mts`, `w5.sh`, `w5-investigar.mts` y `vigilar-api.mjs`, con sus registros.
+
+### a. V0: el destino, la frase y la configuración de Auth
+
+| Qué | Resultado |
+|---|---|
+| Destino | **17.11.0.002**, confirmado por el dueño (entrada anterior). Su `ansible/vars.yml` fija PostgREST **14.18** y Auth 2.190.0, y trae `pg_net` 0.20.4, `pg_cron` 1.6.4 y Vault 0.3.1, los instalados |
+| USB | `E:` («Generic Flash Disk», exFAT, 59,6 GB), única unidad extraíble; carpeta nueva `E:\Rifas-respaldos\2026-10-05`, elegida con el dueño |
+| La ventana de la frase | Probada con una frase **de prueba**: `pinentry` de Git para Windows, cifra y descifra; `gpg-agent` recargado después |
+| Configuración de Auth | Leída en el Chrome del dueño, sin cambiar nada ni abrir claves: 13 capturas y una nota (`00-configuracion-auth.md`), que viajan **dentro** del paquete cifrado. Dos observaciones, sin cambiar nada: «Redirect URLs» solo tiene `http://localhost:3000/` (I-023) y «Allow new users to sign up» está activado con el correo de Supabase a 2 por hora (I-206) |
+| Columnas de las cuentas | Producción y pila local, **57 y 57**, las mismas (`columnas-auth.mts`) |
+
+### b. E: el ensayo con datos reales
+
+| Paso | Resultado |
+|---|---|
+| Respaldo (17:51–18:02) | `take-backup.ts` **COMPLETO** (`schema.sql` 55 s, `data.sql` 37 s); paquete cifrado de 1.259.939 bytes con `respaldo/` —`data.sql` 5.991.811, `schema.sql` 834.930, `roles.sql` 370 y el manifiesto— y la configuración de Auth; cuentas: **7** usuarios y **7** identidades, **0** líneas de sesiones, tokens, flujos o auditoría. El dueño tardó en ver la ventana de la frase: la orden esperó en el paso 2 sin fallar |
+| Error encontrado y corregido | Desactivar los trabajos con `update cron.job …` falla en la pila local —«permission denied for table job»— **antes** de restaurar nada; se hace con `cron.alter_job(jobid, active := false)`. Corregido en la orden y en `RUNBOOK` §12.2.c.1 |
+| Restauración local | Huellas del USB, OK; `db:reset` sin siembra; `restore-backup.ts` → **RESTAURADO**, las **35** tablas con las filas del manifiesto (el `42501` de `log_min_messages`, el tolerado de siempre); cuentas cargadas sin errores |
+| Comprobaciones | `ventana.mts --local`: 80 migraciones, 7 usuarios, 7 identidades, 0 factores, 7 perfiles, **0** perfiles sin cuenta y **0** cuentas sin perfil, los 2 disparadores de `auth.users`; los dos trabajos, desactivados. `comprobar-cuenta-nueva.mts`: una cuenta de prueba nace con su perfil, su correo llega a `profiles` y se borra. **El dueño entró en la copia con su contraseña y vio sus datos** |
+| Limpieza | `db:reset` + `seed:local` (6 cuentas, 33 boletas, sin pausa); `gpg-agent` recargado |
+
+### c. W1 a W3, y la última comprobación
+
+| Paso | Resultado |
+|---|---|
+| W1 (18:17 UTC) | PostgREST 14.5, Auth v2.197.0, `0080`, sin pausa; **0** acciones de personas en 15 min y **0** peticiones en curso; Vault 2/2; cuentas 7/7/0; 10 ajustes de rol. Vercel: ningún despliegue en curso (la vista previa en rojo es la de D-066); dos peticiones a las 17:57:28–32 (`/` y `/seller/dashboard`) y ninguna después. Supabase: solo `w91bvbjhqf0f`. `verify:remote` **58/58**. I-202: 3 + 4 + 1 = **8** en 7 días |
+| W2 (18:19–18:21) | **COMPLETO**; el mismo contenido y el mismo tamaño de `data.sql` que en E; 7 y 7 cuentas, 0 líneas sensibles; huellas en `sha256-ventana-20261005T1819Z.txt`, comprobadas con `sha256sum -c`. Los archivos de E, **borrados** del USB |
+| W3 (18:22:10) | `gate-snapshot antes-actualizacion` en 12 s |
+| Justo antes (18:22:34) | 0 acciones en 15 min, 0 peticiones en curso; Vercel, 0 peticiones desde las 17:58 |
+| Entre W3 y el botón | El dueño pulsó a las **19:05 UTC** (14:05 en Bogotá). Vercel no registra ninguna petición entre las 18:22 y las 19:05: nada quedó fuera de W2 |
+
+### d. W4: la caída, medida desde fuera
+
+`vigilar-api.mjs`, cada 15 s y sin sesión: `/auth/v1/health` y una lectura anónima de `/rest/v1/` (401 = PostgREST
+responde).
+
+| Hora (UTC) | Auth | API de datos |
+|---|---|---|
+| Hasta 19:06:02 | 200, v2.197.0 | 401 |
+| 19:06:17 | 503 | 503 |
+| 19:12:04 | 200, v2.197.0 | sin respuesta en 10 s |
+| 19:12:29 | 504 | sin respuesta |
+| 19:12:54 | 200 | 401 |
+| 19:13:25 | 504 | 401 |
+| **Desde 19:14:06** | **200, v2.197.0** | **401** — 273 vueltas seguidas hasta las 20:23:15, ninguna distinta |
+
+**Medido:** la API, sin servicio de **19:06:17 a 19:12:54** (≈ 6 min 37 s); Auth, estable a las 19:14:06 (≈ 8 min). La
+base siguió viva tras cerrarse la API: `pg_cron` corrió cada minuto **hasta las 19:10** y desde las **19:12**; la
+instancia nueva arrancó a las 19:11:54 y solo faltó la corrida de las 19:11, sin recordatorios que vencieran. El panel
+dijo «Upgrade completed!». La estimación era «hasta 1 hora».
+
+### e. W5: después
+
+| Qué | Resultado |
+|---|---|
+| La corrección | **PostgREST 14.18** (conexión desde 19:11:54); **Postgres 17.11**; Auth **v2.197.0**, la misma |
+| Datos | `gate-compare` W3 → después: **0 filas tocadas** |
+| Estructura | `--structure-only`: `tablas ~1` y `restricciones ~1`, las dos en `raffle_prize_transitions`; por eso `--operation none` dijo **DETENER**, sin ningún otro motivo. **Investigado, equivalente**: (1) `raffle_prize_transitions_prizes_check` es la misma condición con otros paréntesis —`((a AND b) AND c)` → `(a AND b AND c)`—, la diferencia que §5.2 ya conocía de un volcado y restauración; (2) la tabla pasó de una ACL explícita `{postgres=arwdDxtm/postgres}` a `null`, y su ACL por defecto es exactamente esa: `postgres`, todos los privilegios; `anon`, `authenticated`, `service_role` y `authenticator`, ninguno, antes y después; 0 ACL por columna; RLS activada y forzada |
+| Permisos y funciones | `verify:remote` **58/58**; los ajustes de los 10 roles, con la misma huella; las extensiones, las mismas versiones |
+| Trabajos programados | Los 3, activos, de `postgres` en `postgres`; corridas cada minuto desde las 19:12, todas `succeeded` |
+| Secretos, cuentas y archivos | Vault 2/2 se descifran; 7 usuarios, 7 identidades, 0 factores, **las mismas 4 sesiones**, 7 perfiles, 0 huérfanos, los 2 disparadores; Storage 0 |
+| La aplicación | `get_runtime_errors` desde las 19:00: **ninguno**; `/login` 200 y el catálogo público consulta la base (404 con un enlace inventado) |
+
+### f. Lo que queda
+
+**W6**, la revisión del dueño con su sesión, pendiente al cerrar esta entrada. **I-202 no se cierra**: falta el
+seguimiento de `RUNBOOK` §12.6 —la misma lectura por tramos a los 7 días (2026-10-12) y a los 14 (2026-10-19)—. **La
+copia del USB** (W2) se borra como mucho el **2026-10-20**, junto con la frase del gestor. Dos registros nuevos:
+**I-205**, la restauración de §5.2 materializa una ACL que producción ya no tiene; e **I-206**, el alta pública de Auth
+abierta. Lo que no se hizo: restaurar en el proyecto alojado, cambiar la configuración de Auth, desplegar, empujar.

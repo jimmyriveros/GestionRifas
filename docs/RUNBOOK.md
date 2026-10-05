@@ -1,6 +1,9 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-05, 17:03 UTC (**§12.2.c y §12.3: el dueño autoriza la opción A con datos reales y elige
+**Actualizado:** 2026-10-05, 20:30 UTC (**§12 EJECUTADA**: el proyecto pasó a 17.11.0.002 con PostgREST 14.18 a las
+19:11:54 UTC, con la API sin servicio de 19:06:17 a 19:12:54; **§12.8 nueva**, el resultado y lo aprendido;
+§12.2.c.1, `cron.alter_job` en vez de `update cron.job`; **§5.2**, la diferencia esperada nueva de I-205). Antes,
+2026-10-05, 17:03 UTC (**§12.2.c y §12.3: el dueño autoriza la opción A con datos reales y elige
 USB**; falta la ruta de la memoria, la frase y su prueba, las capturas de Auth y el ensayo. Continúa Claude a pedido
 del dueño; nada extraído ni actualizado). Antes, 2026-10-05, 16:58 UTC (**§12.3: el dueño elige la franja actual**; comprobación previa en solo
 lectura a las 16:56 UTC, sin actividad de personas ni solicitudes en curso y `verify:remote` 58/58; Docker preparado;
@@ -250,6 +253,13 @@ nunca con `;`.
 | 6 | `gate-snapshot restaurada`; `gate-compare <respaldo> <restaurada> --structure-only`; la comparación con destino y `--operation none`; y en el proyecto real, `npm run verify:remote` | Estructura: **solo** `raffle_prize_transitions_prizes_check`, la misma condición con otros paréntesis. Filas: **0** distintas |
 | 7 | Con un perfil permitido: entrar, leer por la API, crear una cuenta de prueba —tiene que nacerle el perfil— y cambiarle el correo; en local, además, `test:db` del código que corresponde a esa base | Recuperar las filas no basta: esto es lo que demuestra que la aplicación funciona |
 | 8 | Conciliar lo del paso 1 (§10.7) y `maintenance-pause.ts abrir` con la migración y el commit que son pareja | — |
+
+> **Desde el 2026-10-05 (I-205), el paso 6 cambia de diferencia esperada.** La actualización de Supabase dejó
+> `raffle_prize_transitions` con la ACL `null` —la misma por defecto— y su restricción con los AND aplanados. Contra
+> una foto de producción **posterior** a esa fecha, lo esperable es `tablas ~1 raffle_prize_transitions`: la ACL que
+> materializa `restauracion_despues.sql` frente a `null`. Permisos efectivos iguales. La restricción, en cambio,
+> debería dejar de diferir. Si aparece cualquier otra cosa, detiene. Qué hacer con ese paso de
+> `restauracion_despues.sql` está por decidir (I-205).
 
 **Por qué no `DROP SCHEMA public CASCADE`, que era el procedimiento hasta D-239.** Borra lo mismo, pero se lleva
 también lo que el respaldo no trae y el rol `postgres` **no puede** volver a crear en el proyecto alojado: el dueño del
@@ -1501,7 +1511,7 @@ ensayo con una foto de producción tomada en C0: la de P9 es de antes de cualqui
 
 ---
 
-## 12. Actualizar el proyecto de Supabase para corregir I-202 — **RESPALDO AUTORIZADO; CONFIRMACIÓN DE LA ACTUALIZACIÓN PENDIENTE DE COMPROBACIONES** (2026-10-02, D-246; revisado el 2026-10-05)
+## 12. Actualizar el proyecto de Supabase para corregir I-202 — **EJECUTADA el 2026-10-05: 17.11.0.002, PostgREST 14.18 desde las 19:11:54 UTC; I-202, en seguimiento** (2026-10-02, D-246; resultado en §12.8)
 
 El rechazo esporádico `PGRST303 «JWT issued at future»` (I-202) es un defecto de PostgREST que el proyecto alojado ejecuta
 en **14.5**; la corrección llegó en **14.18** (2026-09-10, #5196). El incidente oficial
@@ -1844,7 +1854,8 @@ de prueba:
 
 ```bash
 npx supabase start && npm run db:reset              # base nueva, SIN siembra
-docker exec supabase_db_Rifas psql -U postgres -d postgres -qc "update cron.job set active = false where jobname in ('payment-reminders-due', 'push-dispatch-wake')"
+# postgres no puede escribir en cron.job («permission denied for table job», visto el 2026-10-05): cron.alter_job
+docker exec supabase_db_Rifas psql -U postgres -d postgres -qc "select cron.alter_job(jobid, active := false) from cron.job where jobname in ('payment-reminders-due', 'push-dispatch-wake')"
 TMP=$(mktemp -d) && gpg --decrypt "$DESTINO/respaldo-public-$SELLO.tar.gpg" | tar -C "$TMP" -xf -
 npx tsx scripts/maintenance-pause.ts instalar --local && npx tsx scripts/maintenance-pause.ts cerrar --local && npx tsx scripts/restore-backup.ts "$TMP/respaldo" --local
 gpg --decrypt "$DESTINO/cuentas-$SELLO.sql.gpg" | docker exec -i supabase_db_Rifas psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q
@@ -2073,3 +2084,35 @@ sino un `MembershipCheckError` («No pudimos comprobar tu acceso…»). La prueb
 * **No** se empuja nada a GitHub ese día: un empuje a `main` es un despliegue.
 * **No** se ejecuta `build/respaldo-opcion-a/comprobar-cuentas.mts` sobre una copia con datos reales, ni se cierra la
   sesión de nadie para probar: la prueba guiada entra desde una ventana privada (§12.6).
+
+### 12.8 La ejecución del 2026-10-05
+
+Con la autorización del dueño, en la franja que él eligió —esa misma sesión, a mediodía en Bogotá, con la actividad
+comprobada antes de cada paso—, siguiendo §12.3 de V0 a W5. Detalle en `TEST_RESULTS`, «I-202: la actualización de
+Supabase, EJECUTADA».
+
+| Paso | Hora (UTC) | Resultado |
+|---|---|---|
+| V0 | 17:28–17:46 | Destino **17.11.0.002** (PostgREST 14.18); USB `E:\Rifas-respaldos\2026-10-05`; la ventana de la frase, probada; 13 capturas y una nota de Auth |
+| E | 17:51–18:16 | Respaldo COMPLETO; restauración local «RESTAURADO», 35 tablas iguales al manifiesto, 7/7/7 cuentas, 0 huérfanos, la cuenta de prueba con su perfil; **el dueño entró en su copia**; la copia, borrada |
+| W1 | 18:17 | Todas las puertas en verde; `verify:remote` 58/58; I-202, 8 en 7 días |
+| W2 y W3 | 18:19–18:22 | Respaldo COMPLETO y comprobado en el USB; los archivos de E, borrados; foto W3 |
+| W4 | **19:05** | Botón pulsado por el dueño. API sin servicio de **19:06:17 a 19:12:54**; Auth estable a las 19:14:06; «Upgrade completed!» |
+| W5 | 19:13–19:16 | **PostgREST 14.18**, Postgres 17.11, Auth v2.197.0; 0 filas tocadas; `verify:remote` 58/58; Vault 2/2; cuentas y sesiones intactas; `cron` en marcha. Dos diferencias de estructura **equivalentes** (I-205) |
+| W6 | — | La revisión del dueño con su sesión: ver `HANDOFF` §1.a |
+
+**Lo aprendido para la próxima vez:**
+
+* **La caída real fue de 6–8 minutos** frente a la estimación «hasta 1 hora». La API cerró unos 4 minutos **antes** de
+  que se detuviera la base: `pg_cron` siguió corriendo hasta las 19:10 y solo faltó una corrida.
+* **Tras `pg_upgrade`, `--operation none` dice DETENER por dos representaciones**, no por un cambio. La ACL explícita
+  de `raffle_prize_transitions` pasa a `null`, que es la misma por defecto, y su restricción se escribe con los AND
+  aplanados (I-205). Se comprueba con los privilegios efectivos, como en `build/i202/w5-investigar.mts`; cualquier otra
+  diferencia sí detiene.
+* **En la pila local, `cron.job` no se escribe con `update`**: se usa `cron.alter_job` (§12.2.c.1, corregido).
+* **La ventana de la frase puede quedar detrás de otras**: la orden espera sin fallar, pero conviene avisar de que
+  aparecerá, y lanzarla en segundo plano.
+
+**Lo que queda:** W6; el seguimiento de I-202 de §12.6, por los mismos tramos, el **2026-10-12** y el **2026-10-19**;
+borrar la copia del USB (W2) y la frase del gestor **como mucho el 2026-10-20**, anotando aquí la fecha; e I-205 e
+I-206, para decidir aparte.
