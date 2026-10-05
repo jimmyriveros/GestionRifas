@@ -2099,7 +2099,7 @@ Supabase, EJECUTADA».
 | W2 y W3 | 18:19–18:22 | Respaldo COMPLETO y comprobado en el USB; los archivos de E, borrados; foto W3 |
 | W4 | **19:05** | Botón pulsado por el dueño. API sin servicio de **19:06:17 a 19:12:54**; Auth estable a las 19:14:06; «Upgrade completed!» |
 | W5 | 19:13–19:16 | **PostgREST 14.18**, Postgres 17.11, Auth v2.197.0; 0 filas tocadas; `verify:remote` 58/58; Vault 2/2; cuentas y sesiones intactas; `cron` en marcha. Dos diferencias de estructura **equivalentes** (I-205) |
-| W6 | — | La revisión del dueño con su sesión: ver `HANDOFF` §1.a |
+| W6 | hacia las 23:30 | **Conforme**: el dueño abrió el panel y «Mis boletas» **sin volver a entrar**. En la última hora, 109 × 200 y ningún 4xx ni 5xx; escrituras normales; `cron`, 534 corridas sin fallos; **ningún `PGRST303`** desde la actualización (pronto para concluir: §12.6) |
 
 **Lo aprendido para la próxima vez:**
 
@@ -2113,6 +2113,6 @@ Supabase, EJECUTADA».
 * **La ventana de la frase puede quedar detrás de otras**: la orden espera sin fallar, pero conviene avisar de que
   aparecerá, y lanzarla en segundo plano.
 
-**Lo que queda:** W6; el seguimiento de I-202 de §12.6, por los mismos tramos, el **2026-10-12** y el **2026-10-19**;
+**Lo que queda:** el seguimiento de I-202 de §12.6, por los mismos tramos, el **2026-10-12** y el **2026-10-19**;
 borrar la copia del USB (W2) y la frase del gestor **como mucho el 2026-10-20**, anotando aquí la fecha; e I-205 e
 I-206, para decidir aparte.

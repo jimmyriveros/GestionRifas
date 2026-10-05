@@ -6,7 +6,8 @@ las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican 
 - **Actualizado:** 2026-10-05, 20:30 UTC (15:30 en Bogotá) — **Supabase, ACTUALIZADO para corregir I-202**: el proyecto
   pasó a la imagen **17.11.0.002** —**PostgREST 14.18**, Postgres 17.11; Auth sigue en v2.197.0— a las 19:11:54 UTC,
   con la API sin servicio de 19:06:17 a 19:12:54. Antes, respaldo cifrado de datos y cuentas en USB, restauración
-  comprobada en local y foto de la base; después, 0 filas tocadas y `verify:remote` 58/58. Sin código, migración ni
+  comprobada en local y foto de la base; después, 0 filas tocadas y `verify:remote` 58/58, y la revisión del dueño,
+  conforme, sin volver a entrar. Sin código, migración ni
   despliegue: el producto es el mismo (`783b08f`, `0080`). I-202 queda en seguimiento a los 7 y 14 días; I-205 e
   I-206, nuevas, para decidir (`RUNBOOK` §12.8; `TEST_RESULTS`, «I-202: la actualización de Supabase, EJECUTADA»).
 - **Antes:** 2026-10-05, 15:00 UTC (10:00 en Bogotá; publicado a las 14:02 UTC) — **El lote D-249 a D-252 EN

@@ -18543,7 +18543,7 @@ Se actualizaron `RUNBOOK` §12.2.c/§12.3 y `HANDOFF` §1.a; revisión documenta
 
 ---
 
-## I-202: la actualización de Supabase, EJECUTADA — 17.11.0.002, PostgREST 14.18 (2026-10-05, 17:28–20:23 UTC)
+## I-202: la actualización de Supabase, EJECUTADA — 17.11.0.002, PostgREST 14.18 (2026-10-05, 17:28–23:38 UTC)
 
 Con la autorización del dueño: opción A con datos reales (E y W2), copia en USB, la franja de esa misma sesión y el
 botón pulsado por él tras las puertas. El agente leyó la base en transacciones de solo lectura, ejecutó las órdenes del
@@ -18613,9 +18613,22 @@ dijo «Upgrade completed!». La estimación era «hasta 1 hora».
 | Secretos, cuentas y archivos | Vault 2/2 se descifran; 7 usuarios, 7 identidades, 0 factores, **las mismas 4 sesiones**, 7 perfiles, 0 huérfanos, los 2 disparadores; Storage 0 |
 | La aplicación | `get_runtime_errors` desde las 19:00: **ninguno**; `/login` 200 y el catálogo público consulta la base (404 con un enlace inventado) |
 
-### f. Lo que queda
+### f. W6: la revisión del dueño, conforme
 
-**W6**, la revisión del dueño con su sesión, pendiente al cerrar esta entrada. **I-202 no se cierra**: falta el
+El dueño abrió el panel y «Mis boletas» con su sesión de siempre: **«todo bien sin volver a entrar»** —su sesión
+sobrevivió a la caída—. Leído enseguida, a las 23:37 UTC:
+
+| Qué | Resultado |
+|---|---|
+| Vercel, la última hora (22:37–23:37) | 109 × 200 y 3 × 307, y **ningún** 4xx ni 5xx; 11 líneas `info` (instancias nuevas) y **ninguna** `warning`: ninguna llamada a Supabase de 1 s o más, con 5xx o sin respuesta (D-251). Además de la revisión, uso normal del portal de vendedor: boletas, clientes, pagos, reportes y sus formularios |
+| Errores desde las 19:00 | **Ninguno**: tampoco un `PGRST303` desde la actualización. Es pronto; lo deciden las lecturas de los 7 y 14 días |
+| La base | PostgREST **14.18** y Postgres 17.11 desde las 19:11:54; Auth v2.197.0; `0080`; Vault 2/2; cuentas 7/7/0, 4 sesiones y 0 huérfanos |
+| Escrituras desde la actualización | En la bitácora, de personas: una venta asignada a un cliente, una asignación en lote y una edición de boleta —la última, a las 22:52:45—; 0 pagos. No se atribuyen a nadie: los registros no dicen de quién son |
+| `cron` desde las 19:12 | **534** corridas, **0** fallos |
+
+### g. Lo que queda
+
+**I-202 no se cierra**: falta el
 seguimiento de `RUNBOOK` §12.6 —la misma lectura por tramos a los 7 días (2026-10-12) y a los 14 (2026-10-19)—. **La
 copia del USB** (W2) se borra como mucho el **2026-10-20**, junto con la frase del gestor. Dos registros nuevos:
 **I-205**, la restauración de §5.2 materializa una ACL que producción ya no tiene; e **I-206**, el alta pública de Auth
