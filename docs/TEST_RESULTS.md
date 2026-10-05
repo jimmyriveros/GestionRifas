@@ -18504,3 +18504,26 @@ la autorización para el respaldo real y su ensayo E. La actualización no está
 
 **Verificación local:** revisión del diff y `git diff --check`; sin `verify`, `test:db` ni E2E, porque solo se
 registró evidencia. No se leyó de nuevo producción, no se extrajeron datos y no se arrancó Docker.
+
+---
+
+## I-202: franja actual elegida por el dueño y comprobaciones previas (2026-10-05, 16:56–16:58 UTC)
+
+El dueño elige **ahora**, porque nadie usa el proyecto; sustituye la propuesta de madrugada. Todavía no autoriza
+el respaldo real ni indica su destino. No se confirma la actualización.
+
+| Comprobación | Resultado |
+|---|---|
+| `npx tsx build/i202/ventana.mts previa-ahora --production --project-ref zqwulwvkehjdbmshqytu` | Exit 0; solo lectura, a las 11:56 de Bogotá: 0 acciones de personas en 15 min, 0 solicitudes en curso y 0 recordatorios en 3 h. PostgREST 14.5, Auth 200/v2.197.0, Postgres 17.6, 80 migraciones/0080, sin pausa; 3 cron activos y sin fallos en 15 min; 2 secretos de Vault descifrables; cuentas 7/7/0, perfiles 7 y 0 huérfanos; Storage vacío. Informe fuera de Git: `build/i202/ventana-previa-ahora-2026-10-05T16-56-35-012Z.json` |
+| `npm run verify:remote` | Exit 0, **58/58** |
+| [Estado de Supabase](https://status.supabase.com/) | Sin incidentes nuevos el 5 de octubre; Auth, Database, Dashboard y Management API operativos. Persiste el incidente previo de latencia del API Gateway en el este de EE. UU.; no se da por resuelto |
+| Docker | La primera consulta falló porque el daemon estaba apagado. La ruta habitual de Program Files no existe; se localizó la instalación por usuario mediante el comando de Docker y el registro. Se inició `C:/Users/USER/AppData/Local/Programs/DockerDesktop/Docker Desktop.exe` con ventana oculta. Una consulta inmediata aún falló durante el arranque; después: servidor **29.8.1**, imagen **17.6.1.156** ya descargada y once contenedores Supabase existentes arrancados automáticamente |
+| GnuPG | **2.4.7**, disponible; no se probó ni se solicitó aún una frase |
+
+**Límite de la lectura:** actividad nula es una observación puntual, no una garantía hasta terminar. A las 11:56
+todavía es la hora de un cron de Vercel; desde las 12:00 queda fuera de los turnos hasta las 22:00. W1 se repite
+después del respaldo/ensayo y antes del botón. No se comprobaron despliegues con Vercel: no hay conector ni CLI
+disponibles en esta sesión. No se extrajeron datos, se restauró, se hizo `db:reset` ni se cambió producción.
+
+**Documentación:** `RUNBOOK` §12.3 y `HANDOFF` §1.a; revisión del diff y `git diff --check`. Sin baterías locales:
+no cambió código ni esquema.

@@ -1,6 +1,8 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-05, 16:47 UTC (**§12.1: el dueño confirmó la oferta del panel**, de 17.6.1.155 a
+**Actualizado:** 2026-10-05, 16:58 UTC (**§12.3: el dueño elige la franja actual**; comprobación previa en solo
+lectura a las 16:56 UTC, sin actividad de personas ni solicitudes en curso y `verify:remote` 58/58; Docker preparado;
+el respaldo real y su ensayo siguen pendientes). Antes, 2026-10-05, 16:47 UTC (**§12.1: el dueño confirmó la oferta del panel**, de 17.6.1.155 a
 17.11.0.002, hasta 1 h y sin avisos adicionales al seleccionar el destino; pendientes el resto de V0 y el respaldo;
 la actualización sigue sin autorizar). Antes, 2026-10-05, 16:15 UTC (**§12, revisada antes de pedir la autorización; sigue sin autorizar**: §12.2.a.2
 nueva —versiones, imágenes, guía y estado de Supabase leídos ese día; la guía termina la operación con un
@@ -1885,6 +1887,17 @@ avisaría al volver si el atraso no pasa de 2 h (BR-S11).
 |---|---|---|---|
 | **A, recomendada** | **2:00–3:30** de una madrugada entre semana | 07:00–08:30 | 0 acciones y 0 pagos en 28 días; ningún turno del sincronizador entre las 2:00 y las 6:59. La limpieza de las 3:17 no estorba: si coincide con la caída, ese día no corre |
 | B | 4:00–5:30 | 09:00–10:30 | 3 y 5 acciones en 28 días. Termina antes de las 6:00: el sábado a esa hora ya hay movimiento (41 acciones) |
+
+> **Franja elegida por el dueño, 2026-10-05:** «La franja puede hacerse ya mismo, no se está utilizando en este
+> momento el proyecto». Se prepara la intervención en esta sesión, en lugar de las franjas propuestas A/B. La
+> lectura de las **11:56 de Bogotá** confirmó **0** acciones de personas en 15 min, **0** solicitudes de la API en
+> curso y ningún recordatorio que venza en 3 h; `verify:remote`, **58/58**. El sincronizador de Vercel aún puede
+> ejecutarse en la hora 11 (Hobby); desde las 12:00 queda fuera de sus horas hasta las 22:00. La actividad y las
+> demás condiciones de W1 se comprueban de nuevo justo antes de actualizar, después del respaldo y el ensayo.
+> **Elegir la franja no autoriza extraer cuentas y datos reales.** Siguen pendientes la autorización de la opción
+> A, la custodia y el resto de V0. E se hará en esta sesión antes de W4, sin omitir su restauración local ni su
+> limpieza; hasta que eso pase, el botón de confirmación espera. Docker y la imagen 17.6.1.156 ya están disponibles;
+> el detalle de la preparación y las lecturas está en `TEST_RESULTS`, «I-202: franja actual elegida…».
 
 **Cuánto dura** (estimaciones; **nada medido en este proyecto**): V0, 15 min, días antes; E, unos 45 min la tarde
 anterior; en la franja, W1–W3 unos 25 min, W4 lo que estime el panel —referencia oficial, «around 15 minutes» para bases
