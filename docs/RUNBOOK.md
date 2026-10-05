@@ -1,6 +1,8 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-05, 16:15 UTC (**§12, revisada antes de pedir la autorización; sigue sin autorizar**: §12.2.a.2
+**Actualizado:** 2026-10-05, 16:47 UTC (**§12.1: el dueño confirmó la oferta del panel**, de 17.6.1.155 a
+17.11.0.002, hasta 1 h y sin avisos adicionales al seleccionar el destino; pendientes el resto de V0 y el respaldo;
+la actualización sigue sin autorizar). Antes, 2026-10-05, 16:15 UTC (**§12, revisada antes de pedir la autorización; sigue sin autorizar**: §12.2.a.2
 nueva —versiones, imágenes, guía y estado de Supabase leídos ese día; la guía termina la operación con un
 `pg_basebackup` y dice que un proyecto Free pasa a la última versión menor si se restaura tras pausarlo—; §12.1.4, qué
 ve quien entra durante la caída ahora que D-248 está publicado; §12.2.b y §12.2.c, la opción A sobre `take-backup.ts`,
@@ -1536,6 +1538,18 @@ la autorización expresa del dueño**, y la hace el dueño con su sesión: el ag
    > en **Settings → General** («Upgrade project»); qué anota allí y qué tiene que ver para seguir está en §12.3 (V0 y
    > la puerta). El borrador de soporte se actualizó con las cifras de ese día y **no se envía sin la autorización del
    > dueño**.
+
+   > **Panel confirmado por el dueño, 2026-10-05.** Las capturas `Screenshot 2026-10-05 114007.png` y
+   > `Screenshot 2026-10-05 114012.png` muestran imagen actual **17.6.1.155**, destinos **17.6.1.164 — Preview** y
+   > **17.11.0.002**, caída de **hasta 1 hora**, imposibilidad de volver a la imagen anterior y ajuste del disco
+   > asignado de **2 GB**. Después de las capturas, el dueño seleccionó **17.11.0.002** y comunicó que solo aparece
+   > el botón de confirmación, sin avisos adicionales. Ese destino fija PostgREST **14.18** en su
+   > [configuración oficial](https://github.com/supabase/postgres/blob/17.11.0.002/ansible/vars.yml).
+   > El ajuste del disco es el documentado en
+   > [Disk sizing](https://supabase.com/docs/guides/platform/upgrading#disk-sizing): se dimensiona según la base,
+   > sin anunciar eliminación de datos; el panel no muestra la capacidad final. **La parte del panel de V0 está
+   > comprobada; esto no autoriza confirmar la actualización ni extraer datos.** Quedan la custodia y la prueba
+   > de la frase, el destino de la copia, Docker y las capturas de configuración de Auth de §12.3.
 2. **La autorización**, para el respaldo, la actualización y las comprobaciones, con la franja acordada.
 3. **El respaldo que el dueño elija en §12.2.b**: el habitual de §5.1 **no** recupera el proyecto entero —deja fuera las
    cuentas de acceso, entre otras cosas— y la actualización no se deshace. El plan Free no tiene copias automáticas

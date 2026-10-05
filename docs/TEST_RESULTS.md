@@ -18478,3 +18478,29 @@ Ni panel ni token de Supabase; ningún respaldo ni extracción; ningún secreto 
 arrancar; ninguna prueba con sesión; nada enviado a soporte; ningún despliegue ni empuje. Se sobrescribieron dos
 borradores propios de `build/i202/` —el de soporte y el de las consultas de registros—; su versión anterior se guardó
 con el sufijo `-2026-10-02`.
+
+---
+
+## I-202: parte del panel de V0 confirmada por el dueño (2026-10-05, 16:47 UTC; solo documentación)
+
+**Evidencia del dueño:** `Screenshot 2026-10-05 114007.png` y `Screenshot 2026-10-05 114012.png`, tomadas
+aproximadamente a las 11:40 de Bogotá. Imagen actual **17.6.1.155**; destinos **17.6.1.164 — Preview** y
+**17.11.0.002**; caída de hasta **1 hora**, sin posibilidad de volver a la versión anterior y ajuste del disco de
+**2 GB**. Las capturas todavía tienen Preview seleccionada. Después, el dueño comunica que seleccionó
+**17.11.0.002** y que solo aparece el botón de confirmación, sin avisos adicionales. Esta última observación es su
+confirmación escrita, no una captura nueva ni una lectura del agente en el panel.
+
+**Fuentes públicas contrastadas:** la
+[configuración de 17.11.0.002](https://github.com/supabase/postgres/blob/17.11.0.002/ansible/vars.yml) fija
+`postgrest_release: "14.18"`; el
+[changelog de 14.18](https://github.com/PostgREST/postgrest/blob/v14.18/CHANGELOG.md) incluye la corrección de
+`PGRST303 JWT issued at future`; la
+[guía de ajuste del disco](https://supabase.com/docs/guides/platform/upgrading#disk-sizing) explica que la capacidad
+se dimensiona según la base. El aviso no anuncia eliminación de datos; la capacidad final no se ve en las capturas.
+
+**Resultado:** la oferta del panel cumple el destino y el límite de duración previstos en `RUNBOOK` §12.3. Sigue
+pendiente el resto de V0 —custodia, frase y prueba, destino de copia, Docker y capturas de configuración de Auth— y
+la autorización para el respaldo real y su ensayo E. La actualización no está confirmada ni autorizada.
+
+**Verificación local:** revisión del diff y `git diff --check`; sin `verify`, `test:db` ni E2E, porque solo se
+registró evidencia. No se leyó de nuevo producción, no se extrajeron datos y no se arrancó Docker.
