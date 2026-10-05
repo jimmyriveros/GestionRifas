@@ -18419,3 +18419,62 @@ muestra «Algo salió mal» con «Reintentar» (`KNOWN_ISSUES`, I-202).
 
 **Lo que esto no cambia:** I-202 sigue abierta hasta actualizar Supabase (`RUNBOOK` §12.6); I-203, I-190 e I-198,
 abiertas: publicar D-251 no las cierra. Los dos fallos E2E aceptados, I-090 e I-106, siguen como estaban.
+
+---
+
+## I-202: preparación final de la actualización de Supabase — solo lectura y fuentes públicas (2026-10-05, 15:41–16:15 UTC)
+
+Encargo del dueño: completar la preparación sin actualizar, reiniciar ni pausar nada, sin extraer cuentas ni secretos y
+sin escribir en producción. **Nada se escribió**: transacciones `repeatable read read only` de `scripts/gate-db.ts` con
+el proyecto esperado comprobado en la cadena de conexión, un GET sin sesión a `/auth/v1/health`, el conector de Vercel
+y fuentes públicas. Solo versiones, recuentos, nombres y horas. Herramientas y salidas en `build/i202/`, fuera de Git;
+el procedimiento resultante, en `RUNBOOK` §12.
+
+### a. Producción
+
+| Comprobación | Resultado |
+|---|---|
+| Lo servido | `dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd` (`783b08f`) sigue siendo el último despliegue de producción |
+| Versiones | **PostgREST 14.5** (la conexión de escucha, abierta desde el 2026-08-28 16:52:36 UTC), Postgres 17.6 (arrancado el 2026-08-02 23:25:54), Auth **v2.197.0**; `0080`; sin esquema `pausa` ni gancho. **Nada se ha actualizado** |
+| Extensiones | `pg_cron` 1.6.4, `pg_net` 0.20.4, `pg_stat_statements` 1.11, `pg_trgm` 1.6, `pgcrypto` 1.3, `supabase_vault` 0.3.1, `uuid-ossp` 1.1; cada una, la versión por defecto de su imagen |
+| Lo que bloquea una actualización | Ninguno: 31 MB; tipos `reg*` solo en `realtime.subscription`; 0 ranuras; 0 roles propios; 2 vistas de `postgres` en `extensions` (las de `pg_stat_statements`); `cron.job_run_details`, 21.064 filas y 4,6 MB |
+| Avisos de 17.11 | 0 operadores con estimador de selectividad propio; ni `ltree`, ni `btree_gist`, ni `pg_graphql`; 0 funciones de `public` con cifrado PGP |
+| `cron` | 3 trabajos, de `postgres` en `postgres`, activos; 1.440 corridas en 24 h y 0 fallos |
+| Vault | 2 secretos; **los 2 se descifran** dentro de la base (un recuento, sin leer su valor) |
+| Cuentas | 7 usuarios, 7 identidades por correo, 0 factores, **4 sesiones**, 4 personas entraron en 7 días; 7 perfiles, 0 perfiles sin cuenta y 0 cuentas sin perfil; los 2 disparadores de `auth.users`, habilitados |
+| Permisos para la opción A, por metadatos | `auth.users`, `auth.identities` y `auth.mfa_factors`: RLS **activada**, sin políticas, dueño `supabase_auth_admin`; 35, 9 y 13 columnas, con `users.confirmed_at` e `identities.email` generadas. `postgres`: no superusuario, **`BYPASSRLS`**, miembro de `pg_read_all_data` y de `supabase_privileged_role`; `SELECT`, `INSERT`, `UPDATE` y `DELETE` en las tres; supautils le deja fijar `session_replication_role` |
+| Storage | 0 buckets, 0 objetos |
+| Actividad, 28 días, por hora de Bogotá | Acciones de personas en la bitácora: 0 h 23 · 1 h 43 · **2 h 0 · 3 h 0** · 4 h 3 · 5 h 5 · 6 h 71 · 7 h 156 · … · 12 h 300 (la máxima). Pagos: **0 entre las 2:00 y las 4:59**. De madrugada, por día: el sábado a las 6, 41 |
+| Recordatorios | 2 activos: viernes 16:15 y sábado 18:50 (Bogotá); ninguno vence en 3 h |
+| I-202 en Vercel | **8** en los 7 días hasta las 15:42 UTC, leídos **por tramos** —3, 4 y 1—: la consulta de 7 días seguidos se agotó dos veces («timed out»). La última, 2026-10-05 14:45:11, `/seller/tickets`, en `dpl_DVrz…`. Ninguna agrupación de `MembershipCheckError`. `Invalid Refresh Token`, 0 en las últimas 24 h |
+
+### b. Fuentes públicas
+
+| Pregunta | Resultado |
+|---|---|
+| Imágenes de `supabase/postgres` | Ninguna estable nueva desde 17.11.0.003 (2026-10-02); después, solo `pr-…`. 17.6.1.178, 17.11.0.002, 17.11.0.003 y `develop` fijan **PostgREST 14.18** y **Auth 2.190.0**; `pg_net` 0.20.4, `pg_cron` 1.6.4 y Vault 0.3.1, las instaladas |
+| PostgREST | Ninguna 14.x posterior a 14.18 (la 16 va por 16.4). Entre 14.17 y 14.18: «fix: sporadic JWT issued at future failures» (#5233, la copia de #5208, que cierra #5196) y la hora de los registros tras ratos sin uso. Ninguna incidencia abierta posterior sobre `PGRST303` |
+| Guía «Upgrading» | «Upgrade project» en **General settings**; la operación crea una instancia, copia, `pg_upgrade` y, si sale bien, un **`pg_basebackup`** antes de devolver el proyecto; si falla, vuelve la base original. «Free projects will move to the latest minor version when their paused project is restored». Para bases pequeñas, respaldo lógico con `pg_dump`. Cuatro avisos de 17.11 (ninguno aplica, a.) |
+| Duración | La guía no da cifras. «Smaller databases typically complete in around 15 minutes»: aviso de la actualización **mayor** 14→17 (changelog, 2026-05-12), mismo proceso. Nada medido en este proyecto |
+| API de gestión | `GET /v1/projects/{ref}/upgrade/eligibility` (Beta; `projects:read`; `project_admin_read` y `database_read`): cuatro tipos de aviso posibles —`pg_graphql_introspection_change`, `ltree_reindex_required`, `operator_estimator_gate`, `btree_gist_nan_reindex`—. `…/upgrade/status`: progreso de `0_requested` a `10_completed_post_physical_backup`, y nueve errores posibles. **En este equipo no hay token** |
+| Códigos durante la caída | No documentados: la página de códigos solo explica 402, 540 (pausado), 544 (tiempo agotado) y 546 |
+| Estado | `6q5902p2xd9f`, resuelto el 2026-09-29 («upgrade from the dashboard»). `w91bvbjhqf0f`, abierto («identified», API Gateway), última nota 2026-10-02 21:06. Programado: la página de estado cambia de plataforma el 2026-10-07, 15:00–17:00 UTC |
+| Logs Explorer | Documentación vigente: ClickHouse, `from logs where source = 'edge_logs'`, `log_attributes['request.path']` y `['response.status_code']`, rango de 24 h como mucho. Las consultas de `build/i202/` usan esa forma; **nunca se han ejecutado** en este proyecto |
+
+### c. El código y las herramientas, en este equipo
+
+| Qué | Resultado |
+|---|---|
+| Qué ve quien entra durante una caída | `@supabase/auth-js` 2.109: ante un fallo de red o un 500–504 o 520–530 la sesión **se conserva**; con otro código y el token vencido, `_callRefreshToken` **borra la sesión de ese dispositivo**. El proxy toma la falta de usuario como «sin sesión» y lleva a `/login` aplicando solo lo que Supabase pidió escribir (D-236); `/login` con una sesión válida redirige al panel. Entrar durante la caída: «Ocurrió un error. Intenta de nuevo.» |
+| «Cerrar sesión» | `logout` llama a `signOut()` con el alcance por defecto, **global**: la prueba guiada entra desde una ventana privada (`RUNBOOK` §12.6) |
+| Lo local del respaldo | Docker Desktop **apagado** (no se arrancó). La CLI 2.111.0 trae `supabase/postgres:17.6.1.156` —la imagen de la orden de las cuentas—, PostgREST 14.15 y Auth 2.194.0. GnuPG 2.4.7 con `pinentry` de Windows. Ningún rango reservado sobre 54321–54327. `restore-backup.ts` no comprueba el destino del manifiesto: uno de producción se restaura en local y compara sus filas |
+| `build/i202/ventana.mts` (nueva) | La lectura de la ventana, antes y después; probada contra producción: la línea base de arriba, más los ajustes por rol y por base de `pg_db_role_setting` —10 roles, por nombre y con una huella de sus valores, que no se imprimen—, que `gate-snapshot` no guarda y la actualización podría restablecer |
+| Las fotos de puerta | `gate-snapshot` en **13 s**; dos fotos seguidas: `gate-compare --structure-only` → `{}`, y `--operation none` → **CONTINUAR**, 0 filas tocadas |
+| `build/i202/comprobar-cuenta-nueva.mts` (nueva) | Para la prueba de restauración con datos reales: solo crea, comprueba y borra una cuenta de prueba en la pila local. Compila (`tsc` estricto); **no se ejecutó**: la pila local está apagada |
+
+### d. Lo que no se hizo
+
+Ni panel ni token de Supabase; ningún respaldo ni extracción; ningún secreto leído; Docker y la pila local, sin
+arrancar; ninguna prueba con sesión; nada enviado a soporte; ningún despliegue ni empuje. Se sobrescribieron dos
+borradores propios de `build/i202/` —el de soporte y el de las consultas de registros—; su versión anterior se guardó
+con el sufijo `-2026-10-02`.

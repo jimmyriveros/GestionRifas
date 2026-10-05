@@ -1,6 +1,13 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-04 (**§5.0 nueva**: qué protege cada copia y qué falta; **§5.1**, una orden —`scripts/take-backup.ts`, D-250— con manifiesto; **§5.2**, la restauración comprueba el manifiesto y las filas; **§5.3**, las decisiones del dueño; **§12.2.a.1**, I-202 contrastada otra vez con las fuentes oficiales). Antes, 2026-10-02, 17:45 UTC (**§12.2.c nueva**: la opción A del respaldo, preparada y ensayada en local sin extraer nada de producción; §12.6: la prueba 2, intentada en local con PostgREST 14.18 y no concluyente). Antes, 15:25 UTC (§12.1, **§12.2.a y §12.2.b nuevas**, §12.3, §12.4 y §12.6: la actualización de Supabase, revisada antes de pedir la autorización —qué versión, qué cambia y qué puede afectarnos, qué cubre de verdad el respaldo y cómo se protegen las cuentas, y el cierre de I-202 con tres pruebas juntas—; **sigue sin autorizar**, y falta lo que solo ve el dueño). Antes, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
+**Actualizado:** 2026-10-05, 16:15 UTC (**§12, revisada antes de pedir la autorización; sigue sin autorizar**: §12.2.a.2
+nueva —versiones, imágenes, guía y estado de Supabase leídos ese día; la guía termina la operación con un
+`pg_basebackup` y dice que un proyecto Free pasa a la última versión menor si se restaura tras pausarlo—; §12.1.4, qué
+ve quien entra durante la caída ahora que D-248 está publicado; §12.2.b y §12.2.c, la opción A sobre `take-backup.ts`,
+lo comprobado en el proyecto alojado sin extraer nada y la prueba de restauración con datos reales; **§12.3 a §12.5,
+la intervención completa**: franja medida con la bitácora, quién hace cada paso, puertas para seguir o detenerse y las
+comprobaciones de después con las fotos de puerta; §12.6, la base de I-202 —8 en 7 días— y la prueba guiada nocturna).
+Antes, 2026-10-04 (**§5.0 nueva**: qué protege cada copia y qué falta; **§5.1**, una orden —`scripts/take-backup.ts`, D-250— con manifiesto; **§5.2**, la restauración comprueba el manifiesto y las filas; **§5.3**, las decisiones del dueño; **§12.2.a.1**, I-202 contrastada otra vez con las fuentes oficiales). Antes, 2026-10-02, 17:45 UTC (**§12.2.c nueva**: la opción A del respaldo, preparada y ensayada en local sin extraer nada de producción; §12.6: la prueba 2, intentada en local con PostgREST 14.18 y no concluyente). Antes, 15:25 UTC (§12.1, **§12.2.a y §12.2.b nuevas**, §12.3, §12.4 y §12.6: la actualización de Supabase, revisada antes de pedir la autorización —qué versión, qué cambia y qué puede afectarnos, qué cubre de verdad el respaldo y cómo se protegen las cuentas, y el cierre de I-202 con tres pruebas juntas—; **sigue sin autorizar**, y falta lo que solo ve el dueño). Antes, 02:10 UTC (**§12 nueva**, D-246: actualizar el proyecto de Supabase para corregir I-202 —PostgREST 14.5 alojado; la corrección es de 14.18—, **preparada y sin autorizar**; la hace el dueño con su sesión). Antes, 2026-10-01, 01:42 UTC (§11, C7: la revisión del dueño, conforme). Antes, ese mismo día, 01:07 UTC
 (**§11 ejecutada**: el cierre de cuentas EN PRODUCCIÓN —`0080` y `edbc778`—,
 sin pausa; C4 dice ahora `?lock_timeout`, porque la URL de `.env.local` no trae parámetros). Antes, 2026-09-30, por
 la noche (**§11**, D-243: el candidato, preparado en local; §11.2 dice lo que el dueño
@@ -1488,7 +1495,7 @@ ensayo con una foto de producción tomada en C0: la de P9 es de antes de cualqui
 
 ---
 
-## 12. Actualizar el proyecto de Supabase para corregir I-202 — **PREPARADO, SIN AUTORIZAR** (2026-10-02, D-246)
+## 12. Actualizar el proyecto de Supabase para corregir I-202 — **PREPARADO Y REVISADO, SIN AUTORIZAR** (2026-10-02, D-246; revisado el 2026-10-05)
 
 El rechazo esporádico `PGRST303 «JWT issued at future»` (I-202) es un defecto de PostgREST que el proyecto alojado ejecuta
 en **14.5**; la corrección llegó en **14.18** (2026-09-10, #5196). El incidente oficial
@@ -1503,6 +1510,8 @@ la autorización expresa del dueño**, y la hace el dueño con su sesión: el ag
 | Cambiar la versión de **los servicios alojados** —PostgREST, y con ellos la imagen del proyecto— | Ni nuestras migraciones (`0001`–`0080`, sin cambios) ni los paquetes npm (`supabase-js`, `@supabase/ssr`) |
 | Una operación del proveedor, con el proyecto **fuera de servicio** mientras dura | Un despliegue de Vercel: no hay código nuevo y no se toca el punto de reversión |
 | **De un solo sentido**: no tiene «deshacer» | Un «Restart project»: no es lo que indicó Supabase al cerrar el incidente, y mientras la versión siga en 14.5 el defecto vuelve tras cualquier rato sin peticiones |
+| La acción **«Upgrade project»** de Settings → General | **«Pausar y restaurar»**: la guía dice que un proyecto Free pasa a la última versión menor cuando se restaura tras pausarlo (§12.2.a.2). Es otra operación, más larga, **sin preparar y sin autorizar**; solo se estudiaría si el panel no ofrece la actualización y soporte no da otra salida |
+| Hecho en el plan actual (Free) | Un cambio de plan: pasar a Pro no es necesario si el panel ofrece la actualización, y no está autorizado |
 
 ### 12.1 Condiciones previas (todas)
 
@@ -1521,6 +1530,12 @@ la autorización expresa del dueño**, y la hace el dueño con su sesión: el ag
    **17.11.0.002** (29/09, el día del cierre del incidente)— fijan `postgrest_release: "14.18"` en `ansible/vars.yml` de
    `supabase/postgres`. Si el destino es otra, se comprueba igual. Si no se ofrece ninguna actualización, no hay nada que
    autorizar: se envía el borrador de `build/i202/borrador-soporte-supabase.md`, revisado.
+
+   > **Comprobado otra vez el 2026-10-05.** En este equipo sigue sin haber token de la API de gestión (ni
+   > `~/.supabase/access-token` ni la variable): la versión ofrecida solo la lee el dueño. La guía vigente pone la acción
+   > en **Settings → General** («Upgrade project»); qué anota allí y qué tiene que ver para seguir está en §12.3 (V0 y
+   > la puerta). El borrador de soporte se actualizó con las cifras de ese día y **no se envía sin la autorización del
+   > dueño**.
 2. **La autorización**, para el respaldo, la actualización y las comprobaciones, con la franja acordada.
 3. **El respaldo que el dueño elija en §12.2.b**: el habitual de §5.1 **no** recupera el proyecto entero —deja fuera las
    cuentas de acceso, entre otras cosas— y la actualización no se deshace. El plan Free no tiene copias automáticas
@@ -1531,6 +1546,21 @@ la autorización expresa del dueño**, y la hace el dueño con su sesión: el ag
    pausa de D-239 **no** lo evita, porque lo que se detiene es la propia API. Si antes se **publica** la corrección de
    I-115 —hecha en local, D-248, `DEPLOYMENT` §3.3.f, sin autorizar—, ese riesgo desaparece: quien abra una pantalla
    verá «Algo salió mal» y «Reintentar», y conservará su sesión.
+
+   > **Actualizado el 2026-10-05.** D-248 está **publicado desde el 2026-10-02**: el cierre de sesión en todos los
+   > dispositivos ya no ocurre. Lo que verá quien entre durante la caída, leído en el código (`lib/supabase/proxy.ts`,
+   > `lib/auth/session.ts` y `@supabase/auth-js` 2.109):
+   >
+   > | Situación | Qué pasa |
+   > |---|---|
+   > | Abre o recarga una pantalla con Auth caído | El proxy no puede comprobar la sesión y lo lleva a `/login` **sin borrar nada**. Al volver el servicio, recargar `/login` lo devuelve a su panel sin escribir la contraseña |
+   > | Su token venció y Auth responde con un fallo de red o un 500–504 o 520–530 | `auth-js` **conserva** la sesión (son los códigos que trata como pasajeros) |
+   > | Su token venció y Auth responde con **otro** código | `auth-js` **borra la sesión de ese dispositivo** —no de todos— y tendrá que volver a entrar. Qué código devuelve la API durante una actualización **no está documentado** (la guía solo explica 540, pausado, y 544, tiempo agotado) |
+   > | Intenta entrar | «Ocurrió un error. Intenta de nuevo.» |
+   > | Responde Auth pero no la base | «Algo salió mal» y «Reintentar» (D-248); una acción, «No pudimos comprobar tu acceso…», sin guardar nada |
+   >
+   > La pausa de D-239 sigue sin servir aquí: lo que se detiene es la propia API. Por eso la franja tiene que ser una en
+   > la que nadie use la aplicación; la propuesta, medida con la bitácora, está en §12.3.
 5. **Nada más en curso**: ningún despliegue, migración ni pausa instalada.
 
 ### 12.2 Antes, en solo lectura (agente)
@@ -1548,6 +1578,14 @@ select max(created_at) from public.audit_logs;                                 -
 
 Además: `GET /auth/v1/health` con la clave publicable (hoy **v2.197.0**), `npm run verify:remote` en verde y la lista
 de agrupaciones de `get_runtime_errors` de 7 días.
+
+> **Desde el 2026-10-05 lo hace una orden**, `npx tsx build/i202/ventana.mts <etiqueta> --production --project-ref
+> zqwulwvkehjdbmshqytu` (fuera de Git; guarda su JSON en `build/i202/`): estas consultas y `/auth/v1/health`, más cada
+> trabajo de `cron` con su dueño, su base y sus corridas de los últimos 15 minutos, el Vault —cuántos secretos **se
+> descifran**, sin leerlos—, los ajustes de cada rol (nombres y una huella, sin valores), las cuentas y los perfiles
+> huérfanos, los disparadores de `auth.users`, Storage, la actividad de personas y los recordatorios que vencen. Si
+> `build/` se perdiera, sus consultas son las de este apartado y las de §12.4. `get_runtime_errors` de 7 días se lee
+> **por tramos** (§12.6).
 
 ### 12.2.a Qué cambiaría y qué puede afectarnos (leído el 2026-10-02)
 
@@ -1595,6 +1633,27 @@ de la API de Supabase para clientes del este de EE. UU., **servidores y funcione
 proyecto**, sobre todo en horas pico de oficina (EDT). Las funciones de Vercel de Rifas corren en `iad1`, así que puede
 alargar la espera del servidor; no la conexión del navegador (I-203). Ver I-190 e I-198.
 
+### 12.2.a.2 Contrastado el 2026-10-05, antes de pedir la autorización
+
+Producción solo leída (`build/i202/ventana.mts` y `preparacion-2026-10-05.mts`, fuera de Git: una transacción
+`repeatable read read only` con el proyecto esperado comprobado) y fuentes públicas. Detalle en `TEST_RESULTS`,
+«I-202: preparación final de la actualización de Supabase».
+
+| Pregunta | Lo leído | Fuente |
+|---|---|---|
+| ¿Sigue sin actualizar? | **Sí**: PostgREST **14.5** (la misma conexión desde el 2026-08-28 16:52:36 UTC), Postgres 17.6 (arrancado el 2026-08-02), Auth **v2.197.0**, `0080`, sin pausa | `pg_stat_activity`, `/auth/v1/health` |
+| ¿Hay una imagen más nueva? | **No** desde 17.11.0.003 (2026-10-02): después solo hay compilaciones de prueba (`pr-…`). 17.6.1.178, 17.11.0.002, 17.11.0.003 y la rama `develop` fijan **PostgREST 14.18** y **Auth 2.190.0** | `supabase/postgres`: publicaciones y `ansible/vars.yml` |
+| ¿Cambian nuestras extensiones? | **No**: esas imágenes traen `pg_net` 0.20.4, `pg_cron` 1.6.4 y Vault 0.3.1, las mismas instaladas. Tras actualizar, la estructura no debería cambiar en nada: **cualquier** diferencia es una señal (§12.4) | `nix/ext/versions.json` de cada imagen |
+| ¿Hay un PostgREST posterior? | **No** en la rama 14: entre 14.17 y 14.18 entran «fix: sporadic JWT issued at future failures» (#5233, la copia en la rama 14 de #5208, que cierra #5196) y la hora de los registros tras ratos sin uso. Ninguna incidencia abierta de `PGRST303` posterior | `PostgREST/postgrest` |
+| ¿Qué añade la guía vigente? | (1) Al terminar bien, Supabase toma un **`pg_basebackup`** y solo entonces devuelve el proyecto: es parte de la caída. (2) «Free projects will move to the latest minor version when their paused project is restored»: otra vía, no un sustituto (§12.0). (3) Para bases pequeñas recomienda un respaldo lógico con `pg_dump`, que es §12.2.c. (4) Cuatro avisos al pasar a 17.11 | Guía «Upgrading» |
+| ¿Nos afectan los avisos de 17.11? | **No**: 0 operadores con estimador de selectividad propio; ni `ltree`, ni `btree_gist`, ni `pg_graphql` instalados; 0 funciones de `public` con cifrado PGP | Catálogo, solo lectura |
+| ¿Qué enseña el panel antes de confirmar? | Lo que da la elegibilidad de la API de gestión (`GET /v1/projects/{ref}/upgrade/eligibility`, en Beta; permisos `project_admin_read` y `database_read`): versión actual y de destino, `duration_estimate_hours`, objetos que se eliminarían, extensiones sin soporte, objetos propios en esquemas internos y **cuatro tipos de aviso** —`pg_graphql_introspection_change`, `ltree_reindex_required`, `operator_estimator_gate` y `btree_gist_nan_reindex`—, ninguno aplicable aquí. El estado de la operación avanza de `0_requested` a `10_completed_post_physical_backup` (`…/upgrade/status`) | Especificación pública de la API de gestión |
+| ¿Cuánto dura? | **Sin medir en este proyecto.** La guía no da cifras: copia a ≈ 100 Mbps (31 MB, segundos), más arrancar la instancia nueva, `pg_upgrade` y el `pg_basebackup`. La única cifra oficial, «around 15 minutes» para bases pequeñas, es del aviso de la actualización **mayor** 14→17 (2026-05-12), con el mismo proceso. Manda la estimación del panel | Changelog de Supabase |
+| ¿Qué devuelve la API durante la caída? | **No está documentado**: la página de códigos solo explica 540 (pausado), 544 (tiempo agotado) y 546. Qué cambia para una sesión, en §12.1.4 | «HTTP status codes» |
+| ¿Puede leer la opción A las cuentas en el alojado? | **Sí, por metadatos y sin leer una fila**: `auth.users`, `auth.identities` y `auth.mfa_factors` tienen RLS activada y ninguna política, y `postgres` —no es superusuario— tiene **`BYPASSRLS`** y `SELECT`. Para restaurar, tiene `INSERT`, `UPDATE` y `DELETE` en las tres y puede fijar `session_replication_role` (es miembro de `supabase_privileged_role`, y supautils lo permite) | `pg_roles`, `has_table_privilege`, `pg_settings` |
+| ¿Sobrevive el Vault? | Hoy hay **2** secretos y **los 2 se descifran** dentro de la base (un recuento, sin leer su valor). Después tiene que dar lo mismo: si la clave no viajara, el recuento bajaría | `vault.decrypted_secrets` |
+| Estado de Supabase | `6q5902p2xd9f`, resuelto el 2026-09-29 («upgrade from the dashboard»). `w91bvbjhqf0f`, latencia en el este de EE. UU. (API Gateway), **abierto** en «identified», sin nota desde el 2026-10-02 21:06 UTC: afecta a horas pico de oficina en EE. UU., no a la madrugada de §12.3. Programado: la página de estado cambia de plataforma el **2026-10-07, 15:00–17:00 UTC**; la dirección se mantiene | `status.supabase.com` |
+
 ### 12.2.b Lo que cubre el respaldo, y cómo quedan protegidas las cuentas
 
 La actualización es un `pg_upgrade` **en el sitio**: conserva todos los esquemas —`auth`, `cron`, `vault`,
@@ -1614,7 +1673,7 @@ completa del proyecto**, y se dice así:
 | Datos del negocio (`public`) | — | **Sí** (`data.sql`) | §5.1 |
 | Estructura, extensiones y roles | — | **Sí** (`schema.sql`, `roles.sql`) | §5.1 |
 | **Cuentas de acceso** (`auth.users`, `auth.identities`) | **7** cuentas, 7 identidades por correo, 0 factores MFA | **No**, a propósito: llevan contraseñas cifradas y tokens | Ver las opciones de abajo. Sin ellas, restaurar `public` ni siquiera recupera los perfiles: `profiles.id` apunta a `auth.users.id` |
-| Sesiones abiertas | 3 | No | Si se pierden, cada persona vuelve a entrar con su contraseña |
+| Sesiones abiertas | 3 (el 2026-10-05, **4**, de las 4 personas que entraron en 7 días) | No | Si se pierden, cada persona vuelve a entrar con su contraseña |
 | Historial de migraciones (`supabase_migrations.schema_migrations`) | 80, hasta `0080` | No | Tras restaurar, marcarlas aplicadas (`supabase migration repair --status applied`) |
 | Trabajos programados (`cron.job`) | 3 | No (son datos de `cron`) | Los crean las migraciones `0052` y `0054` |
 | Secretos de Vault | 2, contados sin leerlos: los del despachador de avisos, que `0054` llama `push_dispatch_url` y `push_dispatch_secret` | No | Se vuelven a crear con `DEPLOYMENT` (despachador de avisos): la URL es la del dominio y el secreto vive en Vercel como `PUSH_DISPATCH_SECRET` |
@@ -1634,6 +1693,13 @@ completa del proyecto**, y se dice así:
   ser invitadas, y los perfiles, reconstruidos a mano para casar con las cuentas nuevas. Es la opción más barata y la de
   peor recuperación.
 
+> **La recomendación, revisada el 2026-10-05: A.** Es la única que recupera las 7 cuentas con sus mismas contraseñas sin
+> invitar a nadie y sin cambiar de plan; su procedimiento está ensayado en local y su permiso de lectura, comprobado en el
+> alojado (§12.2.a.2). B tiene coste, es un cambio de plan —no autorizado— y su copia diaria puede llegar con horas de
+> retraso respecto a la ventana; C deja sin salida a las cuentas. **Lo que ninguna cubre**: la configuración de Auth del
+> panel, las variables de Vercel y el código viven fuera de la base (§12.2.c los aparta), y una restauración **en el
+> proyecto alojado** no se ha ensayado nunca: todo ensayo fue en local.
+
 ### 12.2.c La opción A, preparada y ensayada en local — **SIN EJECUTAR en producción**
 
 El dueño pidió prepararla el 2026-10-02 **sin extraer todavía nada de Auth de producción**. Lo que sigue es el
@@ -1652,7 +1718,8 @@ procedimiento concreto y sus límites; se ejecuta solo con su autorización expr
 | Cuánto se guarda | Desde el respaldo hasta cerrar §12.4 y la observación de 14 días de §12.6, **como mucho 15 días** después de la actualización. Después se borra del almacenamiento —también de la papelera—, se elimina la frase del gestor y se anota la fecha aquí. Si la actualización se retrasa más de 7 días, el respaldo se rehace justo antes |
 
 **Las órdenes** (en la terminal del dueño, desde `Rifas`, con `SUPABASE_DB_URL` cargada como en §5.1; `<DESTINO>` es la
-memoria USB o la carpeta de la nube, **fuera** del repositorio):
+memoria USB o la carpeta de la nube, **fuera** del repositorio). *Son las ensayadas el 2026-10-02; desde el 2026-10-05
+las sustituyen las de §12.2.c.1, que toman `public` con `take-backup.ts` (D-250) y su manifiesto:*
 
 ```bash
 # 1. Lo de §5.1, a una carpeta temporal fuera del repositorio; se empaqueta, se cifra y se borra en claro.
@@ -1699,15 +1766,132 @@ Dos cosas salieron por el camino, ninguna del procedimiento: `postgres` no puede
 (`app.*`), y el comprobador de cuentas necesitaba el transporte `ws` en Node 20, como `scripts/seed.ts`. Detalle en
 `TEST_RESULTS`, «Opción A del respaldo, ensayada en local».
 
-### 12.3 La actualización (dueño)
+#### 12.2.c.1 Las órdenes vigentes (2026-10-05) — **sin ejecutar con datos reales**
 
-1. El respaldo de §5.1 y, según la opción elegida en §12.2.b, el volcado cifrado de las cuentas (§12.2.c, con su
-   prueba de restauración en local hecha **antes** de seguir) o el plan Pro. Todo fuera del repositorio y fuera de este
-   equipo.
-2. La configuración de Auth del dashboard, anotada (§12.2.b) y, con la opción A, dentro del paquete cifrado.
-3. En los ajustes del proyecto (§12.1), la actualización que se ofrezca. Se anota la hora de inicio y de fin, y lo que
-   diga la página. La duración la da Supabase; aquí no se estima.
-4. Al terminar, el dueño avisa enseguida.
+Lo que cambia respecto a las de arriba: `public` lo toma **`take-backup.ts`** (D-250), que se detiene ante el primer
+fallo, comprueba los tres archivos con la regla de la restauración y deja `manifiesto.json` —huellas y filas por tabla,
+ningún dato de nadie— **dentro** del paquete cifrado; `restore-backup.ts` lo comprueba antes de cargar y al terminar.
+Las cuentas, igual que el 2026-10-02. Se añaden la comprobación sin escribir nada en claro y la prueba de restauración.
+
+| Antes de empezar | Cómo se comprueba |
+|---|---|
+| Docker Desktop abierto | `docker version` responde también el servidor. La imagen del volcado de cuentas, `public.ecr.aws/supabase/postgres:17.6.1.156`, es la que usa la CLI 2.111.0 del proyecto para la pila local, así que **debería** estar ya descargada (el 2026-10-05 no se pudo listar: Docker estaba apagado). `docker images` lo confirma en V0; si no estuviera, descargarla (≈ 350 MB) necesita permiso y se hace antes, nunca en la franja |
+| La frase, probada | Con una frase **de prueba**, no la de verdad: `echo prueba \| gpg --symmetric --cipher-algo AES256 -o "$HOME/prueba-gpg.gpg" && gpg --decrypt "$HOME/prueba-gpg.gpg" && rm "$HOME/prueba-gpg.gpg"` tiene que pedirla en una **ventana de Windows** (el `pinentry` de Git para Windows) e imprimir `prueba`. Es lo único que el ensayo no hizo igual |
+| El destino | La memoria USB o la carpeta privada de la nube, conectada, **fuera** del repositorio |
+| La pila local, para la prueba | Ningún rango reservado por Windows sobre 54321–54327: `netsh interface ipv4 show excludedportrange protocol=tcp` (si lo hay, se reinicia `winnat` como administrador; ver `TEST_RESULTS`, 2026-10-04) |
+
+**El respaldo** (terminal del dueño, Git Bash, desde `Rifas`; cada paso solo si el anterior terminó bien):
+
+```bash
+set -o pipefail
+export SUPABASE_DB_URL=...            # la línea de §5.1 que la lee de .env.local, sin dotenv
+DESTINO="<DESTINO>"; SELLO=$(date -u +%Y%m%dT%H%MZ); TMP=$(mktemp -d)
+# 1. public, con su manifiesto. Tiene que terminar en COMPLETO; si no: rm -rf "$TMP" y se avisa al agente.
+npx tsx scripts/take-backup.ts "$TMP/respaldo" --production --project-ref zqwulwvkehjdbmshqytu
+# 2. Las capturas de la configuración de Auth (§12.3, V0) junto al respaldo, y todo cifrado; después, nada en claro.
+mkdir "$TMP/configuracion-auth" && cp <CAPTURAS> "$TMP/configuracion-auth/"
+tar -C "$TMP" -cf - respaldo configuracion-auth | gpg --symmetric --cipher-algo AES256 -o "$DESTINO/respaldo-public-$SELLO.tar.gpg" && rm -rf "$TMP"
+# 3. Las cuentas: del volcado al cifrado, sin pasar por el disco.
+{ echo "SET session_replication_role = replica;"
+  docker run --rm public.ecr.aws/supabase/postgres:17.6.1.156 pg_dump "$SUPABASE_DB_URL" --data-only \
+    --quote-all-identifier --role postgres --table auth.users --table auth.identities --table auth.mfa_factors \
+    --column-inserts --rows-per-insert 100000 | sed -E 's/^\\(un)?restrict .*$/-- &/'
+  echo "RESET ALL;"; } | gpg --symmetric --cipher-algo AES256 -o "$DESTINO/cuentas-$SELLO.sql.gpg"
+# 4. Comprobar sin escribir nada en claro, anotar la huella y que gpg olvide la frase.
+gpg --decrypt "$DESTINO/respaldo-public-$SELLO.tar.gpg" | tar -tvf -
+gpg --decrypt "$DESTINO/cuentas-$SELLO.sql.gpg" | grep -oE '^INSERT INTO "auth"\."[a-z_]+"' | sort | uniq -c
+gpg --decrypt "$DESTINO/cuentas-$SELLO.sql.gpg" | grep -cE '"auth"\."(sessions|refresh_tokens|flow_state|one_time_tokens|audit_log_entries|mfa_amr_claims)"'
+(cd "$DESTINO" && sha256sum "respaldo-public-$SELLO.tar.gpg" "cuentas-$SELLO.sql.gpg" | tee "sha256-$SELLO.txt")
+gpgconf --reload gpg-agent
+```
+
+Lo que se espera: el paso 1 dice **COMPLETO** con sus recuentos; la lista del paquete trae `respaldo/roles.sql`,
+`schema.sql`, `data.sql`, `manifiesto.json` y las capturas; el volcado de cuentas, un `INSERT` en `"auth"."users"` y otro
+en `"auth"."identities"` (`mfa_factors` está vacía) y **0** líneas de sesiones, tokens, flujos o auditoría. Un volcado
+de cuentas que falle deja un archivo cifrado casi vacío: por eso el paso 4 no se salta. **Un límite que sigue:**
+`public` pasa en claro unos segundos por la carpeta temporal del usuario y se borra con `rm`, sin borrado seguro —como
+el respaldo de siempre de §5.1—; las cuentas no existen nunca en claro en el disco.
+
+**La prueba de restauración**, con datos reales y **solo en la pila local** (nunca contra el proyecto). La hace el dueño
+en su terminal —es quien escribe la frase—; el agente solo cuenta, con `ventana.mts --local`, y crea y borra una cuenta
+de prueba:
+
+```bash
+npx supabase start && npm run db:reset              # base nueva, SIN siembra
+docker exec supabase_db_Rifas psql -U postgres -d postgres -qc "update cron.job set active = false where jobname in ('payment-reminders-due', 'push-dispatch-wake')"
+TMP=$(mktemp -d) && gpg --decrypt "$DESTINO/respaldo-public-$SELLO.tar.gpg" | tar -C "$TMP" -xf -
+npx tsx scripts/maintenance-pause.ts instalar --local && npx tsx scripts/maintenance-pause.ts cerrar --local && npx tsx scripts/restore-backup.ts "$TMP/respaldo" --local
+gpg --decrypt "$DESTINO/cuentas-$SELLO.sql.gpg" | docker exec -i supabase_db_Rifas psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q
+docker exec supabase_db_Rifas psql -U postgres -d postgres -qc "update pausa.estado set cerrada = false, permitidos = '{}' where id = 1" && npx tsx scripts/maintenance-pause.ts retirar --local
+rm -rf "$TMP"
+```
+
+| Comprobación | Quién | Se espera |
+|---|---|---|
+| `restore-backup.ts` | Dueño | «RESTAURADO» y las filas de cada tabla iguales a las del manifiesto |
+| `npx tsx build/i202/ventana.mts copia-local --local` | Agente | 7 usuarios, 7 identidades, 0 factores, 7 perfiles, 0 huérfanos y los 2 disparadores de `auth.users` |
+| `npx tsx build/i202/comprobar-cuenta-nueva.mts` | Agente | Una cuenta **de prueba** nace con su perfil, su correo nuevo llega a `profiles` y se borra. **Nunca** `build/respaldo-opcion-a/comprobar-cuentas.mts` sobre una copia real: probaría la contraseña de la siembra contra cuentas que usan vendedores reales |
+| `npm run dev:local` y entrar en `http://localhost:3000` | Dueño, con **su** contraseña | Su panel, con sus datos |
+| Al terminar: `npm run db:reset && npm run seed:local` | Dueño o agente | La copia real desaparece de la pila local |
+
+**Qué está ensayado y qué no** (2026-10-05):
+
+| Pieza | Estado |
+|---|---|
+| `take-backup.ts`, su manifiesto y `restore-backup.ts` comprobándolo | Ensayado en local con datos sintéticos (D-250) |
+| Cifrar con `gpg`, volcar las cuentas por una tubería, restaurarlas sin disparadores y entrar con la contraseña de antes | Ensayado en local con datos sintéticos y la frase en un archivo (2026-10-02) |
+| Que `postgres` pueda leer las cuentas en el alojado pese a su RLS | **Comprobado por metadatos**, sin leer una fila (§12.2.a.2) |
+| La frase escrita a mano en el diálogo de Windows | **Sin probar**: 2 minutos con datos de prueba (arriba) |
+| `docker run … pg_dump` contra el *pooler* de producción, y todo lo anterior con datos reales | **Sin probar**: es el paso E de §12.3 |
+| La copia fuera del equipo, su huella y su borrado al terminar el plazo | **Sin hacer**: el destino lo decide el dueño |
+| Restaurar en el proyecto alojado | **Nunca ensayado**. Solo con autorización expresa (§5.2) |
+
+### 12.3 La intervención — propuesta del 2026-10-05, **sin autorizar**
+
+*Sustituye a la lista de cuatro pasos del 2026-10-02, que cabe entera en W2 y W4.*
+
+**Quién.** El **dueño** hace todo lo que toca el panel de Supabase, la frase de paso y las copias, y lo que necesita su
+sesión. El **agente** solo lee —la base en transacciones de solo lectura, Vercel con su conector, las fuentes
+públicas—, prepara las órdenes y anota; nunca ve la frase ni el contenido de un respaldo. **Nada más ese día**: ningún
+despliegue, migración, pausa ni empuje a `main`.
+
+**La franja, medida** con la bitácora de los 28 días anteriores al 2026-10-05 (acciones de personas por hora de Bogotá)
+y el programador. Los turnos del sincronizador de Vercel pueden caer en cualquier minuto de su hora (plan Hobby):
+
+| Hora de Bogotá | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| Acciones de personas | 23 | 43 | **0** | **0** | 3 | 5 | 71 | 156 |
+| Pagos registrados | 9 | 33 | **0** | **0** | 0 | 5 | 4 | 4 |
+| Programador | Sincronizador | Sincronizador | — | Limpieza de `cron` (3:17) | — | — | — | Sincronizador |
+
+Los 2 recordatorios activos suenan los viernes a las 16:15 y los sábados a las 18:50; uno que cayera en la caída se
+avisaría al volver si el atraso no pasa de 2 h (BR-S11).
+
+| | Franja (Bogotá) | En UTC | Por qué |
+|---|---|---|---|
+| **A, recomendada** | **2:00–3:30** de una madrugada entre semana | 07:00–08:30 | 0 acciones y 0 pagos en 28 días; ningún turno del sincronizador entre las 2:00 y las 6:59. La limpieza de las 3:17 no estorba: si coincide con la caída, ese día no corre |
+| B | 4:00–5:30 | 09:00–10:30 | 3 y 5 acciones en 28 días. Termina antes de las 6:00: el sábado a esa hora ya hay movimiento (41 acciones) |
+
+**Cuánto dura** (estimaciones; **nada medido en este proyecto**): V0, 15 min, días antes; E, unos 45 min la tarde
+anterior; en la franja, W1–W3 unos 25 min, W4 lo que estime el panel —referencia oficial, «around 15 minutes» para bases
+pequeñas, de otra actualización con el mismo proceso (§12.2.a.2)— y W5–W6 unos 20 min. Se reserva **hora y media**.
+
+| Paso | Cuándo | Quién | Qué | Sigue si… | Se detiene si… |
+|---|---|---|---|---|---|
+| **V0** | Días antes | Dueño | En **Settings → General**, sin pulsar nada: versión actual, destino ofrecido, duración estimada y avisos. La frase, creada en su gestor y **probada** con datos de prueba (§12.2.c.1). El destino de la copia. Con Docker abierto, `docker images` lista `public.ecr.aws/supabase/postgres:17.6.1.156`. Capturas de la configuración de Auth —Authentication: URL Configuration, Emails y SMTP **sin** contraseña, Rate Limits y Sessions, y la duración del JWT— | El destino trae PostgREST ≥ 14.18 (17.6.1.178 o posterior, 17.11.0.002 o .003, u otra cuyo `ansible/vars.yml` lo diga); ningún aviso, objeto que se elimine ni extensión sin soporte —como mucho, las 2 vistas de `pg_stat_statements` en `extensions`, que son de Supabase—; estimación de 1 h o menos | No hay «Upgrade project», el destino trae PostgREST < 14.18 o aparece otro aviso: no se programa nada y se pasa al borrador de soporte, con autorización |
+| **E** | La tarde anterior, entre las 12:00 y las 21:00 | Dueño; el agente cuenta | El respaldo de §12.2.c.1 **con datos reales** y su prueba de restauración en local; al terminar, la copia local se borra. Los archivos de E se borran cuando W2 quede comprobado | COMPLETO, «RESTAURADO» con las filas del manifiesto, 7/7/0 cuentas, 0 huérfanos, la cuenta de prueba nace con su perfil y el dueño entra en su copia | Cualquier paso en rojo: se corrige y se repite otro día. **Sin un respaldo restaurable no se actualiza** |
+| **W1** | Al empezar la franja | Agente | `ventana.mts antes`; la base de I-202 por tramos (§12.6); `status.supabase.com`; ningún despliegue en curso | 0 acciones de personas en 15 min y 0 peticiones en curso; PostgREST todavía 14.5; ningún incidente **nuevo** de base de datos, API o ciclo de vida de proyectos (el de latencia del este de EE. UU. no cuenta: es de horas pico) | Actividad, un incidente nuevo, un despliegue o cualquier diferencia con la línea base: se aplaza |
+| W1b | Opcional | Dueño | La prueba guiada «antes» (§12.6): 3 intentos | — | — |
+| **W2** | — | Dueño | El respaldo de §12.2.c.1, los cuatro pasos, y su copia fuera del equipo | Lo mismo que en E: COMPLETO, el paquete y las cuentas como se espera, huellas anotadas | Cualquier diferencia: no se actualiza |
+| **W3** | Justo antes de W4 | Agente | `npx tsx scripts/gate-snapshot.ts antes-actualizacion --production --project-ref zqwulwvkehjdbmshqytu` (13 s en el ensayo) | Foto completa | — |
+| **W4** | — | Dueño | **Settings → General → «Upgrade project»**, con el destino de V0. Anota la hora de inicio, la estimación y lo que diga la página | La página avanza | Si muestra algo distinto de V0 —otro destino, un aviso nuevo—, **no confirma** |
+| W4 en curso | Mientras dura | Agente | `/auth/v1/health` cada pocos minutos, con la hora; nada más | — | §12.5 |
+| **W5** | Cuando el dueño avise | Agente | §12.4 | Todo como se espera | §12.5 |
+| **W6** | Después de W5 | Dueño | Con su sesión: panel y «Mis boletas», sin registrar nada; la prueba guiada «después» (§12.6). Si los registros de Supabase lo permiten, la consulta de los 401 | — | — |
+
+**Avisar a los vendedores** lo decide el dueño: en esa franja la bitácora no tiene a nadie. Si avisa, con sus palabras y
+sin prometer una hora de vuelta, del estilo de la pausa de publicación (D-239): «Esta madrugada, entre las 2:00 y las
+3:30, Rifas no va a funcionar mientras lo actualizamos. Lo que ya registraste sigue guardado.»
 
 ### 12.4 Después, en solo lectura (agente) y con la sesión del dueño
 
@@ -1721,6 +1905,31 @@ Dos cosas salieron por el camino, ninguna del procedimiento: `postgres` no puede
 | `get_runtime_errors` desde la franja | Ninguna agrupación nueva |
 | El dueño, con su sesión de vendedor | Panel y «Mis boletas» se abren; **ningún** movimiento contable |
 
+> **Ampliado el 2026-10-05.** Las mismas comprobaciones, con las herramientas que ya existen y el resultado exacto que
+> se espera. Todas en solo lectura; las órdenes, contra `--production --project-ref zqwulwvkehjdbmshqytu`. La línea
+> base de `ventana.mts` del 2026-10-05 dice lo de la columna «Se espera»; el ensayo de las dos fotos seguidas, el mismo
+> día, dio estructura `{}` y CONTINUAR con 0 filas.
+>
+> | Qué protege | Cómo (agente) | Se espera |
+> |---|---|---|
+> | La corrección | `npx tsx build/i202/ventana.mts despues --production --project-ref zqwulwvkehjdbmshqytu` (en W1, la misma con `antes`) | PostgREST **≥ 14.18**. Postgres 17.x y Auth en 200: sus versiones se anotan —la imagen fija Auth 2.190.0 y hoy hay 2.197.0; Supabase lo despliega aparte— |
+> | Historial de migraciones y pausa | La misma | 80, `0080`; sin esquema `pausa` ni gancho |
+> | Estructura, permisos y funciones | `npx tsx scripts/gate-snapshot.ts despues-actualizacion --production --project-ref zqwulwvkehjdbmshqytu --base <foto de W3>` y `npx tsx scripts/gate-compare.ts <foto de W3> <foto de después> --structure-only` | **`{}`**: ninguna categoría cambia —tablas, RLS y ACL, columnas, restricciones, índices, disparadores, políticas, funciones con la huella de su cuerpo y su ACL, extensiones, `cron`, nombres del Vault, privilegios por defecto y los disparadores de `auth.users`—. Una extensión con otra versión se anota y se estudia antes de dar nada por bueno; **cualquier otra diferencia detiene** (§12.5) |
+> | Datos del negocio y sus relaciones | `npx tsx scripts/gate-compare.ts <foto de W3> <foto de después> --production --project-ref zqwulwvkehjdbmshqytu --operation none` | **CONTINUAR**, con 0 filas tocadas o solo actividad explicada. Si la estructura cambió, esta orden dice DETENER por eso mismo: se lee junto con la anterior |
+> | Invariantes del catálogo | `npm run verify:remote` | **58/58** |
+> | Ajustes de los roles | `ventana.mts` (`ajustes_por_rol`: nombres y una huella por rol, **nunca** valores) | Las mismas huellas que en W1 —`statement_timeout` de `anon` y `authenticated`; `lock_timeout`, `session_preload_libraries` y `statement_timeout` de `authenticator`; `app.settings.jwt_exp` de la base…, 10 roles el 2026-10-05—. `gate-snapshot` no los guarda, y la actualización podría restablecerlos: si una cambia, se anota qué ajuste y se estudia antes de dar nada por bueno |
+> | Tareas programadas | `ventana.mts` a los 15 minutos de volver | Los 3 trabajos, activos, de `postgres` en `postgres`; una corrida por minuto y **0 fallos** desde la vuelta |
+> | Secretos | La misma | **2** en el Vault y **2 se descifran** |
+> | Cuentas de acceso | La misma | 7 usuarios, 7 identidades, 0 factores; 7 perfiles y 0 huérfanos; los 2 disparadores de `auth.users`, habilitados; las sesiones, las de antes salvo las que vencieron |
+> | Archivos | La misma | Storage: 0 y 0 |
+> | La aplicación | `get_runtime_errors` desde W4, por tramos | Ninguna agrupación nueva |
+> | El uso, con sesión (dueño) | W6 | Panel y «Mis boletas» abren; **ningún** movimiento contable |
+>
+> **Para después, no esa noche:** la pausa de publicación (D-239) entra por `pgrst.db_pre_request` y `raise sqlstate
+> 'PGRST'`, que no cambian entre 14.5 y 14.18 según el `CHANGELOG`, pero **nunca se ha probado con 14.18**, y la pila
+> local sigue en 14.15 (la CLI 2.111.0). La próxima publicación que necesite la pausa se ensaya antes en local con la
+> versión que quede en producción.
+
 ### 12.5 Si algo falla
 
 * **El proyecto no vuelve o la página informa un error**: soporte de Supabase de inmediato, con la hora. Volver a
@@ -1730,10 +1939,23 @@ Dos cosas salieron por el camino, ninguna del procedimiento: `postgres` no puede
 * **`PGRST303` vuelve con PostgREST ≥ 14.18**: es evidencia nueva. Se anota la hora exacta y se leen los registros de
   Supabase dentro del día que guardan (plan Free), antes de escribir a soporte.
 
+> **Precisado el 2026-10-05**, caso por caso. En ninguno se escribe nada en producción sin autorización expresa, y
+> escribir a soporte también la necesita (el borrador está listo en `build/i202/`).
+>
+> | Qué pasa | Qué se hace | Qué recuperación hay, y su límite |
+> |---|---|---|
+> | La página informa un fallo | El agente comprueba en solo lectura (`ventana.mts` y una foto contra la de W3, `--operation none`) que todo sigue como antes. **No se reintenta esa noche**; el dueño anota hora y mensaje | La guía: «your original database would be brought back up online». Si la foto difiere, se trata como la fila de abajo |
+> | Pasa del doble de la estimación del panel, o de 60 min si eso es más | No se puede cancelar. Soporte, con la hora de inicio y el estado que muestre la página; el agente sigue leyendo `/auth/v1/health` | La de Supabase; la nuestra empieza cuando el proyecto vuelve |
+> | Termina, pero PostgREST sigue por debajo de 14.18 | No es una emergencia: la aplicación funciona como antes. I-202 sigue abierta y se pregunta a soporte | — |
+> | Termina, y la estructura o los datos difieren | **Se detiene todo.** El agente aísla qué difiere (`--save-delta`, tabla por tabla); el dueño decide | Si faltan o cambiaron datos, el respaldo de W2 (§5.2): primero en local; en el proyecto real **nunca se ha ensayado**, borra lo escrito después de W2 —que en la franja debería ser nada— y solo con autorización expresa |
+> | Termina, pero las cuentas no entran | Primero Auth (`/auth/v1/health`) y la configuración del panel, contra las capturas de V0 | Restaurar las cuentas de W2 en el alojado es posible por permisos (§12.2.a.2), **nunca se ensayó** y necesita autorización expresa |
+> | El proyecto se perdiera entero | Soporte | Un proyecto nuevo: las migraciones del repositorio, `public` y las cuentas de W2, los 2 secretos del Vault desde Vercel y `cron` por las migraciones; **otras claves y otra URL**, así que Vercel tendría que cambiar sus variables y redesplegar. Horas de trabajo, no minutos |
+
 ### 12.6 Seguimiento y cierre de I-202
 
 I-202 **no se cierra** porque deje de verse. Una semana sin errores, por sí sola, no demuestra nada: la frecuencia de
-antes es baja —4 apariciones en 7 días, de 2 personas— y depende del uso. Se cierra con **las tres pruebas juntas**:
+antes es baja —4 apariciones en 7 días, de 2 personas, el 2026-10-02; 8, de 5, el 2026-10-05— y depende del uso. Se
+cierra con **las tres pruebas juntas**:
 
 | Prueba | Cómo | Qué la da por buena |
 |---|---|---|
@@ -1761,8 +1983,38 @@ también en **`/owner/tickets`**; **2**, de 2 usuarios, ya con D-248 publicado (
 2026-10-03 a las 03:49:32 UTC; ninguna agrupación de `MembershipCheckError`. La herramienta mira como mucho 7 días:
 esta base **caduca**, así que se vuelve a leer justo antes de actualizar y se anota con su fecha.
 
+> **La base, otra vez, el 2026-10-05 a las 15:42 UTC** (`build/i202/senal-i202-2026-10-05.md`): **8** apariciones en 7
+> días, la última el 2026-10-05 a las 14:45:11 UTC en `/seller/tickets`, con `783b08f` ya servido; **ninguna**
+> agrupación de `MembershipCheckError`. **La consulta de 7 días seguidos se agotó dos veces**: se lee por tramos —del día
+> −7 al −4, del −4 al −1 y las últimas 24 h—, que dieron 3, 4 y 1. Los usuarios de cada tramo no se suman (la lectura
+> entera de las 14:50 dijo 5). En W1 se repite igual, y a los 7 y 14 días, por los mismos tramos.
+>
+> **Los registros de Supabase**, que solo lee el dueño y guardan un día: los 401 de `/rest/v1` por hora, el día de la
+> ventana antes de empezar y 24 h después. La consulta, con la sintaxis vigente del Logs Explorer:
+>
+> ```sql
+> select toStartOfHour(timestamp) as hora_utc,
+>   countIf(log_attributes['request.path'] like '/rest/v1/%') as peticiones_rest,
+>   countIf(log_attributes['request.path'] like '/rest/v1/%' and log_attributes['response.status_code'] = '401') as rest_401
+> from logs where source = 'edge_logs' group by hora_utc order by hora_utc limit 48;
+> ```
+>
+> Un 401 de `/rest/v1` es casi siempre un `PGRST303`, pero el registro no trae el código: es una señal, no una prueba.
+>
+> **La prueba guiada, precisada el 2026-10-05.** El defecto necesita dos cosas a la vez: que PostgREST lleve un rato sin
+> peticiones y un token **recién emitido** (`iat` de ese instante). De día, cualquier otra persona refresca el reloj de
+> PostgREST; de madrugada, no. Por eso se hace **en la franja**, y en pareja:
+>
+> | | Cuándo | Qué hace el dueño | Qué lee el agente |
+> |---|---|---|---|
+> | «Antes» (W1b, opcional) | Con PostgREST 14.5, tras W1 | 3 veces, separadas al menos 3 minutos sin usar la aplicación: en una **ventana privada** del navegador, **entrar y abrir «Mis boletas»**, y cerrar la ventana **sin** pulsar «Cerrar sesión», que cierra la sesión en todos sus dispositivos (`logout` llama a `signOut()` con el alcance global por defecto). Anota la hora y si sale «Algo salió mal» | `get_runtime_errors` y `get_runtime_logs` de esa media hora: los `PGRST303` |
+> | «Después» (W6) | Con PostgREST ≥ 14.18 | Lo mismo, 3 veces | Lo mismo: **ninguno** |
+>
+> Ni crea datos ni mueve dinero: entrar y leer. Si «antes» reproduce al menos una vez y «después» ninguna, la prueba 2
+> gana el peso que en local no tuvo; si «antes» no reproduce, la pareja no decide nada y manda la prueba 3.
+
 Si una de las tres falla, I-202 sigue abierta y lo nuevo se anota con su hora. Si la actualización no se ofrece o se
-retrasa, ver D-246 (P2 y P3); P2 es ya D-248 (I-115), resuelta en local y sin publicar. **Con D-248 publicada, la firma
+retrasa, ver D-246 (P2 y P3); P2 es ya D-248 (I-115), publicada el 2026-10-02. **Con D-248 publicada, la firma
 de I-202 en los registros cambia**: tras el `console.error` de `getActiveMembership` ya no viene `/login?error=inactive`,
 sino un `MembershipCheckError` («No pudimos comprobar tu acceso…»). La prueba 3 cuenta las dos.
 
@@ -1773,3 +2025,9 @@ sino un `MembershipCheckError` («No pudimos comprobar tu acceso…»). La prueb
 * **No** se toca la configuración de Auth ni la de los JWT: ni se desactiva la validación de `iat`, ni se alarga la vida
   de los tokens, ni se cambian claves.
 * **No** se añaden reintentos generales en la aplicación para tapar el defecto.
+* **No** se pausa y restaura el proyecto, ni se cambia de plan, como sustituto: cada una necesita su propia preparación y
+  su autorización (§12.0).
+* **No** se confirma en el panel un destino o un aviso distinto de lo anotado en V0.
+* **No** se empuja nada a GitHub ese día: un empuje a `main` es un despliegue.
+* **No** se ejecuta `build/respaldo-opcion-a/comprobar-cuentas.mts` sobre una copia con datos reales, ni se cierra la
+  sesión de nadie para probar: la prueba guiada entra desde una ventana privada (§12.6).
