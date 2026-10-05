@@ -18527,3 +18527,16 @@ disponibles en esta sesión. No se extrajeron datos, se restauró, se hizo `db:r
 
 **Documentación:** `RUNBOOK` §12.3 y `HANDOFF` §1.a; revisión del diff y `git diff --check`. Sin baterías locales:
 no cambió código ni esquema.
+
+---
+
+## I-202: autorización de la opción A, USB y relevo a Claude (2026-10-05, 17:03 UTC; solo documentación)
+
+El dueño responde **«1-Autorizo; 2-usb»** a la petición de autorizar el respaldo cifrado de los datos y las cuentas,
+la restauración de prueba solo en local y la eliminación de esa copia al terminar. La opción A queda autorizada para
+E y W2; la custodia será **USB**, todavía sin unidad/carpeta concreta. La franja actual y el destino 17.11.0.002 ya
+fueron elegidos. Pide el prompt para que **Claude continúe**; Codex registra la autorización y entrega el relevo.
+
+No se ejecutó un respaldo ni una restauración, no se confirmó la actualización y no se repitieron las lecturas de
+las 16:56 UTC. Permanecen pendientes la frase/prueba, la ruta de la memoria, las capturas de Auth, E y W1–W6.
+Se actualizaron `RUNBOOK` §12.2.c/§12.3 y `HANDOFF` §1.a; revisión documental y `git diff --check`, sin baterías.

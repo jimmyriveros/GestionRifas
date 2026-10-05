@@ -1,6 +1,8 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-05, 16:58 UTC (**§12.3: el dueño elige la franja actual**; comprobación previa en solo
+**Actualizado:** 2026-10-05, 17:03 UTC (**§12.2.c y §12.3: el dueño autoriza la opción A con datos reales y elige
+USB**; falta la ruta de la memoria, la frase y su prueba, las capturas de Auth y el ensayo. Continúa Claude a pedido
+del dueño; nada extraído ni actualizado). Antes, 2026-10-05, 16:58 UTC (**§12.3: el dueño elige la franja actual**; comprobación previa en solo
 lectura a las 16:56 UTC, sin actividad de personas ni solicitudes en curso y `verify:remote` 58/58; Docker preparado;
 el respaldo real y su ensayo siguen pendientes). Antes, 2026-10-05, 16:47 UTC (**§12.1: el dueño confirmó la oferta del panel**, de 17.6.1.155 a
 17.11.0.002, hasta 1 h y sin avisos adicionales al seleccionar el destino; pendientes el resto de V0 y el respaldo;
@@ -1499,7 +1501,7 @@ ensayo con una foto de producción tomada en C0: la de P9 es de antes de cualqui
 
 ---
 
-## 12. Actualizar el proyecto de Supabase para corregir I-202 — **PREPARADO Y REVISADO, SIN AUTORIZAR** (2026-10-02, D-246; revisado el 2026-10-05)
+## 12. Actualizar el proyecto de Supabase para corregir I-202 — **RESPALDO AUTORIZADO; CONFIRMACIÓN DE LA ACTUALIZACIÓN PENDIENTE DE COMPROBACIONES** (2026-10-02, D-246; revisado el 2026-10-05)
 
 El rechazo esporádico `PGRST303 «JWT issued at future»` (I-202) es un defecto de PostgREST que el proyecto alojado ejecuta
 en **14.5**; la corrección llegó en **14.18** (2026-09-10, #5196). El incidente oficial
@@ -1716,10 +1718,18 @@ completa del proyecto**, y se dice así:
 > panel, las variables de Vercel y el código viven fuera de la base (§12.2.c los aparta), y una restauración **en el
 > proyecto alojado** no se ha ensayado nunca: todo ensayo fue en local.
 
-### 12.2.c La opción A, preparada y ensayada en local — **SIN EJECUTAR en producción**
+### 12.2.c La opción A, preparada y ensayada en local — **AUTORIZADA, SIN EJECUTAR en producción**
 
 El dueño pidió prepararla el 2026-10-02 **sin extraer todavía nada de Auth de producción**. Lo que sigue es el
 procedimiento concreto y sus límites; se ejecuta solo con su autorización expresa, y lo ejecuta **él**, en su terminal.
+
+> **Autorización vigente, 2026-10-05, 17:03 UTC.** Ante la petición de autorizar el respaldo cifrado de los datos y
+> las cuentas, su restauración de prueba solo en local y la eliminación de esa copia al terminar, el dueño respondió
+> **«1-Autorizo; 2-usb»**. La opción A queda autorizada para el ensayo E y el respaldo previo W2, con copia en **USB**.
+> No volver a pedir esa autorización ni la elección de custodia. Falta identificar la unidad/carpeta concreta,
+> completar la frase y su prueba y las capturas de Auth. Se conserva el procedimiento y la custodia: el dueño
+> introduce la frase; el agente no lee el contenido del respaldo. Esto no autoriza restaurar en el proyecto alojado.
+> El dueño pidió continuar **con Claude**, mediante un prompt de relevo; Codex no ejecutó ninguna extracción.
 
 | Pieza | Cómo |
 |---|---|
@@ -1898,6 +1908,11 @@ avisaría al volver si el atraso no pasa de 2 h (BR-S11).
 > A, la custodia y el resto de V0. E se hará en esta sesión antes de W4, sin omitir su restauración local ni su
 > limpieza; hasta que eso pase, el botón de confirmación espera. Docker y la imagen 17.6.1.156 ya están disponibles;
 > el detalle de la preparación y las lecturas está en `TEST_RESULTS`, «I-202: franja actual elegida…».
+
+> **Después, a las 17:03 UTC:** el dueño autorizó la opción A y eligió USB (§12.2.c). La franja actual permanece
+> elegida y se continúa con Claude. Las frases anteriores sobre autorización pendiente son el estado previo a esa
+> respuesta; el respaldo y el ensayo aún no se han ejecutado. La comprobación de las 11:56 no reemplaza W1/W3 justo
+> antes del botón, que pulsa el dueño después de superar las puertas.
 
 **Cuánto dura** (estimaciones; **nada medido en este proyecto**): V0, 15 min, días antes; E, unos 45 min la tarde
 anterior; en la franja, W1–W3 unos 25 min, W4 lo que estime el panel —referencia oficial, «around 15 minutes» para bases
