@@ -16706,3 +16706,43 @@ del catálogo en botones (perdería el funcionamiento sin JavaScript y la pesta�
 página y la búsqueda deja menos, sale «Esa página no existe» con su enlace a la primera (I-158), que es lo coherente con
 lo que dice el campo. Las direcciones que se pintan como enlace fuera del catálogo —`ReportNav`— no tienen buscador en
 su pantalla.
+
+## D-253 — El destino después de ingresar se resuelve como lo hará el navegador y tiene que quedarse en Rifas
+
+**Fecha:** 2026-10-07 · **Estado:** aceptada (autorizada por el dueño para corregirse y probarse en local) · **Sin
+migración** · **Solo en local**: sin push ni despliegue · Cierra **I-207** en local
+
+**Contexto.** Codex encontró y reprodujo que `safeNextPath` (`features/auth/actions.ts`) aceptaba cualquier texto que
+empezara por `/` y no por `//`. El router de Next resuelve el destino de una Server Action con `new URL(destino,
+dirección actual)` (`assignLocation`, en `next/dist/client/assign-location.js`), y ese parser —el mismo con el que un
+navegador resuelve una cabecera `Location`— convierte `\` en `/` y **elimina** tabuladores y saltos de línea. Así,
+`/login?next=/%5Cevil.test/path` o `?next=/%09/evil.test` llevaban a la persona, **recién ingresada**, a otro sitio.
+Medido aquí además de lo de Codex: también el tabulador, el salto de línea y el retorno de carro. El callback
+(`app/auth/callback/route.ts`) tenía su propia copia, pero antepone el origen al destino: **no salía del sitio**, y con
+esas variantes aterrizaba en `//evil.test/path`, que Next normaliza a `/evil.test/path`, una página inexistente.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Un solo validador | `src/features/auth/safe-next-path.ts`, `safeNextPath(next: unknown): string \| null`. Sustituye a las dos copias (REUSE → EXTEND: la función ya existía, ahora es una y compartida) |
+| Qué acepta | Una ruta que empiece por **una** barra, sin barras invertidas, espacios ni caracteres de control, de 2.048 caracteres como mucho, que resuelta con `new URL` contra un origen propio (`http://rifas.invalid`) **siga en ese origen** y cuya ruta normalizada no empiece por `//` (`/..//evil.test`). Devuelve la ruta **normalizada** —ruta, búsqueda y fragmento—, que es la que verá el navegador |
+| Dónde | `login` (también cuando no se pudo comprobar el acceso, D-248, que va a la portada), la página `/login` —que solo pasa al formulario una ruta válida, y deja de reenviar un `?next=a&next=b` que el esquema rechazaba— y `/auth/callback` |
+| Lo que NO cambia | Los destinos por defecto (el panel del rol tras ingresar, la portada en el callback), `/reset-password` como destino de la invitación y la recuperación, el esquema del formulario, la protección de I-204 y D-248 y el alcance del cierre de sesión. Ningún texto visible |
+
+**Medido** (`TEST_RESULTS`, «D-253»): `tests/unit/destino-tras-ingresar.test.ts`, 79 pruebas sobre la acción, la página
+y el callback, **46 fallan con el código anterior**; `tests/unit/safe-next-path.test.ts`, 40, con una propiedad sobre
+41.371 combinaciones de hasta cuatro piezas peligrosas; `tests/e2e/destino-tras-ingresar.spec.ts`, 6, con un navegador
+real y un código PKCE de verdad: con el código anterior, las dos variantes del ingreso **salen a `http://evil.test/path`**
+y el callback acaba en `/evil.test/path`; con la corrección, 6/6.
+
+**Alternativas descartadas.** Una lista blanca de prefijos (`/owner`, `/seller`, `/reset-password`): cada ruta nueva
+tendría que acordarse de ella, y no protege más que exigir el mismo origen; rechazar `next` en el esquema de Zod (un
+enlace manipulado impediría entrar con «Revisa los datos ingresados»); devolver la ruta original en vez de la
+normalizada (dos parsers distintos podrían discrepar); dejar el callback como estaba porque no salía del sitio (dos
+validadores que se desalinean fueron el origen del defecto).
+
+**Consecuencia.** I-207, resuelta en local; en producción sigue abierta hasta publicar. Cualquier redirección nueva que
+reciba un destino desde la URL usa `safeNextPath`, no un `startsWith('/')` escrito a mano.
+
+---

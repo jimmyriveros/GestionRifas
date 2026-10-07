@@ -3,7 +3,20 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-05, 20:30 UTC (15:30 en Bogotá) — **Supabase, ACTUALIZADO para corregir I-202**: el proyecto
+- **Actualizado:** 2026-10-07 — **D-253, SOLO EN LOCAL: el destino después de ingresar no sale de Rifas** (I-207;
+  sin migración, push ni despliegue). Mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Los seis
+  puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** un `next` manipulado en `/login` —`/\evil.test`, `/<TAB>/evil.test`…— ya no lleva a otro
+  sitio tras ingresar, y el callback de Auth vuelve a una ruta de Rifas; un solo validador, `safeNextPath`, para la
+  acción, su página y el callback. Ningún texto visible cambia.
+  **(2) Pruebas:** `verify` 2.174/2.174 (+119; 46 fallan con el código anterior); `test:db` 1.573 + 1, con una pasada
+  de 1 fallo en `rpc.test.ts` no reproducido y sin atribuir; E2E nueva 6/6 (3 fallan con el anterior) y 42/42 con las
+  suites del ingreso (`TEST_RESULTS`, «D-253»).
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-207 sigue abierta en producción** hasta publicar; I-206 en curso; los de antes.
+  **(6) Antes de empezar:** leer D-253; cualquier redirección con un destino de la URL usa `safeNextPath`.
+- **Antes:** 2026-10-05, 20:30 UTC (15:30 en Bogotá) — **Supabase, ACTUALIZADO para corregir I-202**: el proyecto
   pasó a la imagen **17.11.0.002** —**PostgREST 14.18**, Postgres 17.11; Auth sigue en v2.197.0— a las 19:11:54 UTC,
   con la API sin servicio de 19:06:17 a 19:12:54. Antes, respaldo cifrado de datos y cuentas en USB, restauración
   comprobada en local y foto de la base; después, 0 filas tocadas y `verify:remote` 58/58, y la revisión del dueño,

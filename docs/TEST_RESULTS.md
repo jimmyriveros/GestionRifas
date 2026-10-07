@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Publicación del lote D-249 a D-252: `783b08f` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-05, 14:02 UTC; detenida la víspera por la red)** | CI del PR (`37240712501`) y de `main` (`37321312703`) sobre `783b08f`: ✅ 2/2, **2.055/2.055** | En los dos CI: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, sobre `fc114e7` —el mismo código—: **1.042/1.044** en una sola pasada; I-090 e I-106, aceptadas por el dueño para esta publicación | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, «todo ok»; en sus registros, un 500 de **I-202** a las 14:45:11 y la misma ruta en 200 a los 7 s |
+| **Post-9 vigente (D-253: el destino tras ingresar no sale de Rifas —I-207—, solo en local, sin migración, 2026-10-07)** | **2.174/2.174** en 105 archivos (+119: `destino-tras-ingresar` 79 —**46 fallan con el código anterior**— y `safe-next-path` 40) | **1.573 ✅ y 1 omitida** en la línea base y en dos pasadas sobre siembra recién restaurada; **una pasada con 1 fallo** (`rpc.test.ts` › «crea un lote y devuelve el conteo»), no reproducido: ver «D-253» | `destino-tras-ingresar` **6/6** (3 fallan con el código anterior); con `security`, `credenciales-sin-hidratar` y `membresia-sin-comprobar`, **42/42** sobre siembra recién restaurada | ✅ `verify` (0 errores; los 2 avisos de lint de siempre) | ✅ Solo en local, sin push ni despliegue |
+| Post-9 anterior (Publicación del lote D-249 a D-252: `783b08f` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-05, 14:02 UTC; detenida la víspera por la red) | CI del PR (`37240712501`) y de `main` (`37321312703`) sobre `783b08f`: ✅ 2/2, **2.055/2.055** | En los dos CI: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, sobre `fc114e7` —el mismo código—: **1.042/1.044** en una sola pasada; I-090 e I-106, aceptadas por el dueño para esta publicación | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, «todo ok»; en sus registros, un 500 de **I-202** a las 14:45:11 y la misma ruta en 200 a los 7 s |
 | Post-9 anterior (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue) | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
 | Post-9 anterior (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada) | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
 | Post-9 anterior (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02) | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
@@ -18633,3 +18634,40 @@ seguimiento de `RUNBOOK` §12.6 —la misma lectura por tramos a los 7 días (20
 copia del USB** (W2) se borra como mucho el **2026-10-20**, junto con la frase del gestor. Dos registros nuevos:
 **I-205**, la restauración de §5.2 materializa una ACL que producción ya no tiene; e **I-206**, el alta pública de Auth
 abierta. Lo que no se hizo: restaurar en el proyecto alojado, cambiar la configuración de Auth, desplegar, empujar.
+
+---
+
+## D-253: el destino después de ingresar no sale de Rifas — I-207 (2026-10-07; solo en local, sin migración)
+
+Encargo del dueño, mantenimiento posterior a la Fase 9. Datos ficticios; nada contra producción.
+
+### a. Reproducción con el código anterior
+
+| Qué | Resultado |
+|---|---|
+| El validador anterior, con el parser de URL (`new URL(destino, 'http://localhost:3000/login?next=x')`, lo que hace `assignLocation` de Next) | Aceptaba y resolvía FUERA: `/\evil.test/path` y `/\/evil.test/path` → `http://evil.test/path`; `/<TAB>/evil.test`, `/<LF>/evil.test` y `/<CR>/evil.test` → `http://evil.test/`. Rechazaba `//evil.test` y `https://…` |
+| `tests/unit/destino-tras-ingresar.test.ts` contra los tres archivos de `HEAD` | **46 fallan de 79**. La acción: 6 variantes fuera del origen y 4 más que no caían en el panel (`/..//evil.test`, `/./\evil.test`, nulo, demasiado largo); la página pasaba todo al formulario; el callback, **siempre en el mismo origen** pero en `//evil.test/path`, `///evil.test/path`, `/%00/evil.test`… |
+| `tests/e2e/destino-tras-ingresar.spec.ts` contra `HEAD`, caso por caso | **3 fallan de 6**: barra invertida y tabulador → el navegador pidió `http://evil.test/path` (contestado por la prueba); el callback con un código real y `next=/\evil.test/path` → acabó en `http://localhost:3000/evil.test/path` (Next normaliza `//`), una página inexistente. Las tres legítimas pasaban |
+
+### b. Con la corrección
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `npx vitest run tests/unit/destino-tras-ingresar.test.ts tests/unit/safe-next-path.test.ts` | ✅ **119/119** | — | — |
+| `npx playwright test tests/e2e/destino-tras-ingresar.spec.ts --project=escritorio` | ✅ **6/6**, antes y después de la vuelta al código anterior | La primera ejecución: el servidor de `dev:local` no respondió en los 180 s del arnés (I-075); la segunda: un localizador ambiguo de la prueba (`getByText('Nueva contraseña')` casa tres elementos) | Servidor arrancado aparte y reutilizado; `getByLabel('Nueva contraseña')` |
+| Siembra restaurada + `destino-tras-ingresar`, `security`, `credenciales-sin-hidratar` y `membresia-sin-comprobar` | ✅ **42/42**, dos veces | — | — |
+| `npm run verify` | ✅ tipos, lint (0 errores; los 2 avisos de siempre en `DataTable` y `BulkTicketCreator`), **2.174/2.174** unitarias en 105 archivos y build | — | — |
+| `npm run test:db` (línea base, siembra recién restaurada, antes de tocar nada) | ✅ **1.573 + 1 omitida** | — | — |
+| `npm run test:db` (tras la E2E y el build, **sin** volver a sembrar) | ❌ **1 fallo**: `rpc.test.ts` › «bulk_create_tickets — crea un lote y devuelve el conteo» | Sin el detalle de la aserción: la salida se filtró al resumen | Investigado abajo |
+| `npx vitest run --config vitest.db.config.mts tests/db/rpc.test.ts` | ✅ 23/23 | — | — |
+| Siembra restaurada + `npm run test:db` | ✅ **1.573 + 1** | — | — |
+| La misma secuencia del fallo —siembra, las 42 E2E y `test:db`— | ✅ **1.573 + 1** | — | — |
+
+**El fallo de `rpc.test.ts`, sin atribuir.** Una vez en cuatro pasadas completas; no se reprodujo aislado ni repitiendo
+la secuencia. La prueba pide 25 combinaciones aleatorias en la rifa del seed y exige que entren las 25. Ninguna prueba de
+`tests/db` importa lo que cambió (`features/auth`, `app/auth`, `login/page`), y este trabajo no toca la base. Lo
+que no se sabe: la aserción exacta. Si vuelve, guardar la salida completa de `test:db` antes de filtrarla.
+
+### c. Lo que no se hizo
+
+Push, despliegue y cualquier cambio en el proyecto real. La comprobación en vivo queda para la publicación (I-207).

@@ -29,6 +29,7 @@ No conviertas este archivo en otro historial: el detalle cronológico vive en `T
 
 | | |
 |---|---|
+| **D-253, SOLO EN LOCAL: el destino después de ingresar no sale de Rifas (2026-10-07; I-207; sin migración, push ni despliegue)** | Encargo del dueño, primero de dos. Codex encontró que `safeNextPath` aceptaba `/\evil.test`; medido aquí, también `/<TAB>/`, `/<LF>/` y `/<CR>/`: tras ingresar, el router de Next llevaba a `http://evil.test/path`. El callback no salía del sitio, pero acababa en `/evil.test/path`. **Hecho:** un solo validador, `features/auth/safe-next-path.ts`, que resuelve como el navegador y exige el mismo origen, en `login`, su página y `/auth/callback`. **Medido:** unitarias 119 (46 fallan con el anterior), E2E 6 (3 fallan con el anterior), 42/42 con las suites del ingreso; `verify` 2.174/2.174; `test:db` 1.573 + 1 (una pasada con 1 fallo de `rpc.test.ts`, no reproducido). **I-207, abierta en producción** hasta publicar. Siguiente: I-206. Relevo en §1.a |
 | **Supabase ACTUALIZADO para corregir I-202 (2026-10-05, 19:05–19:16 UTC; imagen 17.11.0.002, PostgREST 14.18; sin código, migración ni despliegue)** | Con la autorización del dueño, de V0 a W5 de `RUNBOOK` §12.3 en la misma sesión: respaldo real cifrado en USB, **restauración comprobada en local** (el dueño entró en su copia; borrada después), respaldo W2 y foto W3, botón del dueño a las 19:05. **Medido:** la API, sin servicio de 19:06:17 a 19:12:54; Auth estable a las 19:14:06. **Después:** PostgREST **14.18**, Postgres 17.11, Auth v2.197.0; 0 filas tocadas; `verify:remote` 58/58; Vault, cuentas, sesiones y `cron`, intactos; dos diferencias de estructura equivalentes (I-205). **W6, conforme:** el dueño abrió el panel y «Mis boletas» sin volver a entrar; en la última hora, 109 × 200 y ningún 4xx ni 5xx, escrituras normales y ningún `PGRST303` desde la actualización. **Pendiente:** I-202 a los 7 y 14 días; borrar la copia del USB como mucho el 2026-10-20; I-205 e I-206 para decidir. Relevo en §1.a |
 | **I-202: opción A AUTORIZADA y custodia en USB (2026-10-05, 17:03 UTC)** | El dueño autoriza el respaldo cifrado de datos y cuentas, su ensayo de restauración solo en local y la eliminación de la copia local al terminar. La franja actual ya está elegida; falta la ruta del USB, frase/prueba y capturas de Auth. Pide un prompt para que **Claude continúe**. Nada extraído ni actualizado; autorización vigente en `RUNBOOK` §12.2.c y relevo en §1.a |
 | **I-202: el dueño elige la franja ACTUAL (2026-10-05, 16:58 UTC)** | A las 11:56 de Bogotá: 0 acciones de personas en 15 min, 0 solicitudes en curso, sin recordatorios en 3 h; `verify:remote` **58/58**. Docker iniciado y la imagen local necesaria disponible. Falta autorizar el respaldo real, elegir su custodia y completar su ensayo antes de confirmar. Se continúa en esta sesión conforme a `RUNBOOK` §12.3; relevo en §1.a |
@@ -202,7 +203,20 @@ reales).
 
 ---
 
-## 1.a Último relevo significativo — Supabase ACTUALIZADO para corregir I-202: 17.11.0.002, PostgREST 14.18 (2026-10-05, 17:28–23:40 UTC)
+## 1.a Último relevo significativo — D-253: el destino después de ingresar no sale de Rifas, SOLO EN LOCAL (2026-10-07)
+
+| Campo | Estado |
+|---|---|
+| Resultado | **Primer trabajo del encargo, terminado en local.** El defecto de Codex, reproducido con datos ficticios y ampliado: además de la barra invertida, el tabulador y los saltos de línea —el parser de URL los elimina— llevaban fuera tras ingresar. El callback de Auth no salía del sitio, pero acababa en `/evil.test/path`. Corregido con un solo validador. **Fuera, a propósito:** el esquema del formulario (sigue igual), los destinos por defecto, el alcance del cierre de sesión, cualquier texto visible |
+| Archivos | **Nuevo:** `src/features/auth/safe-next-path.ts`. **Cambiados:** `features/auth/actions.ts` (sin su copia), `app/auth/callback/route.ts` (sin su copia), `app/(public)/login/page.tsx` (solo pasa un destino válido). **Pruebas nuevas:** `tests/unit/destino-tras-ingresar.test.ts`, `tests/unit/safe-next-path.test.ts`, `tests/e2e/destino-tras-ingresar.spec.ts`. **Documentación:** `DECISIONS` (D-253), `SECURITY` (§3 y T22), `KNOWN_ISSUES` (I-207), `TESTING` §4.16, `TEST_RESULTS`, `PHASE_STATUS` y este archivo (§1, §1.a y §6.b) |
+| Reutilización | La función ya existía en dos copias: ahora es una y compartida (REUSE → EXTEND). Los simulacros de `membership-check.test.ts`; `purgeSellers` y Mailpit, como `team-member-lifecycle` |
+| Decisiones | **D-253.** Mías: exigir el mismo origen en vez de una lista de prefijos; devolver la ruta normalizada; sanear también en la página, que deja de reenviar `?next=a&next=b`; no tocar el esquema de Zod |
+| Verificación | `TEST_RESULTS`, «D-253»: reproducido antes en unitarias y E2E; después, todo en verde. Un fallo de `test:db` en `rpc.test.ts` (creación masiva con números aleatorios), en una pasada sin volver a sembrar: no se reprodujo aislado, sobre siembra nueva ni repitiendo la secuencia; sin atribuir |
+| Advertencias | **1)** El enlace de recuperación local no vuelve a `localhost:3000`: el Auth local solo admite `127.0.0.1` y cae al `site_url` (la E2E lee el `code` sin seguir la redirección). **2)** Los enlaces que genera la clave de servicio —invitaciones— llegan con la sesión en el fragmento (`#access_token`), sin `code`: se estudia en I-206. **3)** El servidor de `dev:local` puede tardar más de los 180 s del arnés en arrancar en frío: arrancarlo aparte |
+| Pendiente | Publicar y comprobar en vivo I-207 (con autorización). Segundo trabajo: I-206 |
+| Git | `feature/detalle-boleta-admin`, base `3d8e68c` (siete commits locales sin push); este trabajo, un commit local independiente. Los tres archivos del usuario, intactos |
+
+## 1.a.0 Relevo anterior — Supabase ACTUALIZADO para corregir I-202: 17.11.0.002, PostgREST 14.18 (2026-10-05, 17:28–23:40 UTC)
 
 | Campo | Estado |
 |---|---|
@@ -3445,6 +3459,10 @@ lib/auth/capability-resolver.ts  hasCapability(membership, capability): el
                     (guards.ts), que admite `roles` y la frase de rechazo. Antes
                     de escribir `role === 'admin'`, mira si es una capacidad. El
                     modulo de permisos reemplazara SOLO su cuerpo
+features/auth/safe-next-path.ts  safeNextPath(next): el UNICO validador del destino
+                    tras ingresar (D-253). Lo usan login, su pagina y
+                    /auth/callback. Resuelve con new URL contra un origen propio y
+                    exige el mismo origen: no escribas otro startsWith('/') a mano
 features/prize-awards/declared.ts  los DOS premios que el negocio reconoce (D-208,
                     con su correccion de 0068:
                     respuesta H1): numeros, sorteo, premio, importe y el respaldo con

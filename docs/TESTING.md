@@ -1523,6 +1523,19 @@ solo hace fallar las lecturas de `memberships` del vendedor de la prueba —y la
 o `alter role authenticator in database postgres reset pgrst.db_pre_request`, `notify pgrst, 'reload config'` y
 `drop schema prueba_i115 cascade`.
 
+### 4.16 El destino después de ingresar no sale de Rifas (D-253, I-207, sin migración)
+
+| Suite | Pruebas | Qué comprueba |
+|---|---|---|
+| `tests/unit/destino-tras-ingresar.test.ts` | **79** | Con datos ficticios, la acción `login`, la página `/login` y el `GET` de `/auth/callback` ante 15 destinos hostiles —barra invertida, tabulador, saltos de línea, `//`, dirección completa, `javascript:`, `/..//`, nulo, demasiado largo…— y 7 legítimos con búsqueda y fragmento. El destino de la acción se resuelve **como lo hace Next** (`new URL(destino, dirección actual)`) y tiene que quedarse en el origen; también cuando no se pudo comprobar el acceso (D-248), sin cerrar la sesión. **46 fallan con el código anterior** |
+| `tests/unit/safe-next-path.test.ts` | **40** | El validador: lo que acepta y cómo lo normaliza, lo que rechaza —también lo que no es texto— y una **propiedad** sobre 41.371 combinaciones de hasta cuatro piezas peligrosas (`\`, tabulador, saltos, espacio, `.`, `%5C`, `%2F`, `%09`, `@`, `:`, `?`, `#`): todo lo aceptado se resuelve en el mismo origen, sin `//` al principio, y es estable |
+| `tests/e2e/destino-tras-ingresar.spec.ts` | **6**, en serie | Navegador real y cuenta propia que se borra al terminar. Ingresar con `next` hostil (barra invertida y tabulador) lleva al panel; toda petición a `evil.test` la contesta la prueba y queda anotada. La pantalla pedida sin sesión se abre después de ingresar, y un destino con búsqueda y fragmento se conserva. El callback, con un **código PKCE real** del flujo «¿Olvidaste tu contraseña?» leído en Mailpit, sin seguir el enlace: con `next=/reset-password` abre «Nueva contraseña»; con `next` hostil, el panel. **Con el código anterior fallan 3**: las dos del ingreso salen a `http://evil.test/path` y el callback acaba en `/evil.test/path` |
+
+⚠️ **El enlace de recuperación local no vuelve a `localhost:3000`.** El Auth local solo admite `http://127.0.0.1:3000`
+y `https://127.0.0.1:3000` (`supabase/config.toml`) y cae al `site_url` con cualquier otro destino. Por eso la E2E lee
+el `code` de la redirección **sin seguirla** y lo lleva ella misma a `/auth/callback` en `localhost`, donde está la
+cookie del verificador PKCE.
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |
