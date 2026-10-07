@@ -18,6 +18,9 @@ const PUBLIC_PATHS = [
   '/forgot-password',
   '/reset-password',
   '/auth/callback',
+  // El enlace de la invitación y de elegir contraseña (I-206, D-254): quien lo
+  // abre todavía no tiene sesión; la ruta la crea.
+  '/auth/confirm',
   '/denied',
   '/offline',
   // La pantalla de la pausa de publicacion (D-239): texto fijo, sin consultas.

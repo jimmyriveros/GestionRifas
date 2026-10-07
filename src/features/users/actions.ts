@@ -6,6 +6,7 @@ import { authorizeAction, authorizeCapability } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { passwordLinkRedirectTo } from '@/lib/site-url'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
 
@@ -30,10 +31,6 @@ import {
  * persona define su contrasena desde el enlace, que reutiliza el flujo de
  * `/auth/callback` -> `/reset-password` de la Fase 1.
  */
-
-function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? ''
-}
 
 export async function createUser(input: unknown): Promise<ActionResult> {
   const auth = await authorizeAction(['owner', 'admin'])
@@ -201,7 +198,7 @@ export async function resendInvitation(input: unknown): Promise<ActionResult> {
 
   const admin = createAdminClient()
   const { error } = await admin.auth.resetPasswordForEmail(member.profile.email, {
-    redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
+    redirectTo: passwordLinkRedirectTo(),
   })
 
   if (error) return { error: mapPgError(error) }

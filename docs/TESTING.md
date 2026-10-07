@@ -1536,6 +1536,23 @@ y `https://127.0.0.1:3000` (`supabase/config.toml`) y cae al `site_url` con cual
 el `code` de la redirección **sin seguirla** y lo lleva ella misma a `/auth/callback` en `localhost`, donde está la
 cookie del verificador PKCE.
 
+### 4.17 Invitaciones y recuperación con el registro público cerrado (D-254, I-206, I-208, I-049, sin migración)
+
+| Suite | Pruebas | Qué comprueba |
+|---|---|---|
+| `tests/unit/auth-confirm.test.ts` | **13** | `/auth/confirm`: `invite` y `recovery` con un token válido van a `/reset-password`; un token usado o vencido, al aviso de enlace vencido; sin token, sin tipo o con cualquier otro tipo (`signup`, `magiclink`, `email_change`…) ni siquiera pregunta a Auth; un `next` no cambia el destino. Y la configuración: registro cerrado, proveedor de correo activado, asuntos en español y las dos plantillas con su enlace a `/auth/confirm`, sin `ConfirmationURL` ni comentarios |
+| `tests/unit/site-url.test.ts` | **17** | `siteUrl` quita las barras finales; `passwordLinkRedirectTo` no deja `//`; `siteUrlProblem` acepta orígenes `https` y `http` solo en `localhost` fuera de producción, y rechaza lo que falta, lo que no es una dirección, otro esquema, una ruta o una búsqueda |
+| `tests/e2e/invitaciones.spec.ts` | **5**, en serie | Con la pila local configurada como producción: el alta pública responde `422 signup_disabled` y no crea nada; el personal invita y el vendedor define su contraseña **desde otro navegador**, entra y el portal administrativo le sigue cerrado, con exactamente la membresía que le dieron, y el mismo enlace ya no sirve; lo mismo con «Mi equipo» (integrante del vendedor que lo agregó); «Reenviar acceso por correo» lleva a definir la contraseña; «¿Olvidaste tu contraseña?» funciona en otro navegador y la contraseña anterior deja de servir. Los correos se leen en Mailpit (`tests/e2e/mailpit.ts`) |
+| `tests/db/team-member-lifecycle.test.ts` | 4 lecturas cambiadas | Leían `token` del enlace `/auth/v1/verify`; ahora `token_hash` del de `/auth/confirm`, y **se exige**: con un token nulo, «el enlace viejo ya no sirve» (E2-10) pasaba en vacío |
+
+⚠️ **La configuración de Auth local solo cambia al reiniciar la pila** (`npx supabase stop` y `start`). Si la tuya
+arrancó antes de D-254, el registro sigue abierto, los correos salen en inglés y `invitaciones.spec.ts` falla. Se
+comprueba con `docker exec supabase_auth_Rifas env | grep GOTRUE_DISABLE_SIGNUP`.
+
+⚠️ **Repetir las suites de altas sobre el mismo servidor agota el límite de invitaciones** (20 por hora y organización,
+en la memoria del proceso de `next dev`): la prueba ve «Demasiados intentos». Una pasada completa envía unas 13; para
+repetir, reiniciar el servidor.
+
 ## 5. Pruebas unitarias clave
 
 | Módulo | Casos |

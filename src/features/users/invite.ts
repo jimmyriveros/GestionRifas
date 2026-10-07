@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { mapPgError } from '@/lib/errors'
+import { passwordLinkRedirectTo } from '@/lib/site-url'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
@@ -60,10 +61,6 @@ type InviteMemberInput = {
   agreement?: { mode: CommissionModel; fixedAmount: number | null; tiers: Tier[] | null }
 }
 
-function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? ''
-}
-
 /** Los datos que la invitacion deja en Auth para que el trigger arme el perfil. */
 type InvitationMetadata = {
   full_name: string
@@ -88,7 +85,7 @@ export async function sendInvitation(
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: metadata,
-    redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
+    redirectTo: passwordLinkRedirectTo(),
   })
 
   if (error || !data?.user) {

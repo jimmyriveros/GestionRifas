@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-253: el destino tras ingresar no sale de Rifas —I-207—, solo en local, sin migración, 2026-10-07)** | **2.174/2.174** en 105 archivos (+119: `destino-tras-ingresar` 79 —**46 fallan con el código anterior**— y `safe-next-path` 40) | **1.573 ✅ y 1 omitida** en la línea base y en dos pasadas sobre siembra recién restaurada; **una pasada con 1 fallo** (`rpc.test.ts` › «crea un lote y devuelve el conteo»), no reproducido: ver «D-253» | `destino-tras-ingresar` **6/6** (3 fallan con el código anterior); con `security`, `credenciales-sin-hidratar` y `membresia-sin-comprobar`, **42/42** sobre siembra recién restaurada | ✅ `verify` (0 errores; los 2 avisos de lint de siempre) | ✅ Solo en local, sin push ni despliegue |
+| **Post-9 vigente (D-254: invitaciones y recuperación con el registro público cerrado —I-206, I-208, I-049—, solo en local, sin migración, 2026-10-07)** | **2.204/2.204** en 107 archivos (+30: `auth-confirm` 13 y `site-url` 17) | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada, con `team-member-lifecycle` leyendo ya `token_hash` | `invitaciones` **5/5**; las siete suites del acceso y las altas, **69/69**; E2E completa **1.052/1.055** (56,7 min), los 3 fallos anteriores: I-148, I-090 e I-164 | ✅ `verify` | ✅ Solo en local; producción, solo leída (`/auth/v1/settings`) |
+| Post-9 anterior (D-253: el destino tras ingresar no sale de Rifas —I-207—, solo en local, sin migración, 2026-10-07) | **2.174/2.174** en 105 archivos (+119: `destino-tras-ingresar` 79 —**46 fallan con el código anterior**— y `safe-next-path` 40) | **1.573 ✅ y 1 omitida** en la línea base y en dos pasadas sobre siembra recién restaurada; **una pasada con 1 fallo** (`rpc.test.ts` › «crea un lote y devuelve el conteo»), no reproducido: ver «D-253» | `destino-tras-ingresar` **6/6** (3 fallan con el código anterior); con `security`, `credenciales-sin-hidratar` y `membresia-sin-comprobar`, **42/42** sobre siembra recién restaurada | ✅ `verify` (0 errores; los 2 avisos de lint de siempre) | ✅ Solo en local, sin push ni despliegue |
 | Post-9 anterior (Publicación del lote D-249 a D-252: `783b08f` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-05, 14:02 UTC; detenida la víspera por la red) | CI del PR (`37240712501`) y de `main` (`37321312703`) sobre `783b08f`: ✅ 2/2, **2.055/2.055** | En los dos CI: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, sobre `fc114e7` —el mismo código—: **1.042/1.044** en una sola pasada; I-090 e I-106, aceptadas por el dueño para esta publicación | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, «todo ok»; en sus registros, un 500 de **I-202** a las 14:45:11 y la misma ruta en 200 a los 7 s |
 | Post-9 anterior (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue) | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
 | Post-9 anterior (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada) | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
@@ -18671,3 +18672,51 @@ que no se sabe: la aserción exacta. Si vuelve, guardar la salida completa de `t
 ### c. Lo que no se hizo
 
 Push, despliegue y cualquier cambio en el proyecto real. La comprobación en vivo queda para la publicación (I-207).
+
+---
+
+## D-254: invitaciones y recuperación con el registro público cerrado — I-206, I-208, I-049 (2026-10-07; solo en local, sin migración)
+
+Encargo del dueño, segundo trabajo. Cuentas ficticias `@demo.test`; correo en Mailpit. **Producción, solo leída.**
+
+### a. Estado de producción, leído sin cambiar nada
+
+| Qué | Resultado |
+|---|---|
+| `GET /auth/v1/settings` con la clave publicable, 2026-10-07 21:43 UTC | `disable_signup: false` (registro público abierto), `mailer_autoconfirm: false`, proveedor de correo activado, anónimos desactivados |
+| Variables de Vercel (`filter_project_envs`, sin descifrar) | **403**: el conector no tiene permiso para listarlas. El valor de `NEXT_PUBLIC_SITE_URL` lo confirma el dueño |
+| SMTP, plantillas, límites, Site URL y destinos | No se leen por la API sin un token de gestión: siguen las capturas del 2026-10-05 (I-206, I-023) |
+| Documentación de Supabase (`/docs/guides/auth/auth-smtp`) | El correo integrado **solo entrega a direcciones autorizadas del equipo** del proyecto, 2 por hora; con SMTP propio, 30 por hora de entrada |
+
+### b. Reproducción, antes de cambiar nada (pila local con el Site URL igual al origen de la app)
+
+| Qué | Resultado |
+|---|---|
+| Alta pública: `POST /auth/v1/signup` con la clave anónima | **200**: cuenta confirmada y perfil creado, **0 membresías** |
+| Invitación (`inviteUserByEmail`, como `sendInvitation`), enlace abierto en un navegador | `/login?error=auth_callback#access_token=…&refresh_token=…&type=invite` → «El enlace no es válido o ya expiró. Solicítalo nuevamente.» Asunto «You've been invited» |
+| «Reenviar acceso por correo» (`admin.auth.resetPasswordForEmail`) | Lo mismo, `type=recovery`. Asunto «Reset your password» |
+| «¿Olvidaste tu contraseña?» con el enlace de la plantilla por defecto | **Mismo navegador:** `/reset-password`. **Otro navegador:** `/login?error=auth_callback` (el código PKCE necesita la cookie del verificador) |
+| El Site URL local era `http://127.0.0.1:3000` | Un enlace pedido desde `localhost:3000` volvía a otro origen: `config.toml` se alinea con el de la app |
+
+### c. Con la corrección
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `npx supabase stop` + `start` y `docker exec supabase_auth_Rifas env` | `GOTRUE_DISABLE_SIGNUP=true`, `GOTRUE_EXTERNAL_EMAIL_ENABLED=true`, plantillas y asuntos en español, `SITE_URL=http://localhost:3000` | — | — |
+| Las mismas sondas | Alta pública **422 `signup_disabled`**, nada en la base; invitación y reenvío → `/reset-password` desde otro navegador, con asunto «Tu invitación a Rifas» y «Elige tu contraseña de Rifas» | — | — |
+| `npx vitest run tests/unit/auth-confirm.test.ts tests/unit/site-url.test.ts tests/unit/session-proxy.test.ts` | ✅ **42/42** | La primera vez, 1 fallo **de la prueba**: buscaba `[auth.email]` con `indexOf` y encontraba el comentario que la nombra | La sección se busca al principio de una línea |
+| `tests/e2e/invitaciones.spec.ts` | ✅ **5/5** | **(1)** Tras guardar la contraseña, la persona ya tiene sesión: `/login?message=password_updated` la lleva a su panel y el aviso no se ve. Es el comportamiento de siempre. **(2)** «Demasiados intentos» al repetir las suites de altas sobre el mismo `next dev`: el límite de 20 invitaciones por hora vive en su memoria | **(1)** La prueba espera el panel y vuelve a entrar en una sesión limpia. **(2)** Servidor reiniciado; una pasada completa envía unas 13 |
+| `tests/db/team-member-lifecycle.test.ts` | Leía `token` del enlace `/verify`; con la plantilla nueva habría verificado un token **nulo** y E2-10 («el enlace viejo ya no sirve») **pasaba en vacío** | — | Lee `token_hash` y lo exige |
+| `destino-tras-ingresar.spec.ts` | ✅ 6/6: el correo ya no trae el `code`; la prueba arma el enlace de la plantilla por defecto con el mismo token, que sí lo trae | — | Lee el correo con `tests/e2e/mailpit.ts`, compartido |
+| Siembra restaurada + las siete suites del acceso y las altas (`invitaciones`, `destino-tras-ingresar`, `owner-users`, `equipo`, `security`, `credenciales-sin-hidratar`, `membresia-sin-comprobar`) | ✅ **69/69** | — | — |
+| `npm run verify` | ✅ **2.204/2.204** en 107 archivos; `check:env` en verde; lint, los 2 avisos de siempre | — | — |
+| `npm run test:db` sobre siembra recién restaurada | ✅ **1.573 + 1 omitida** | — | — |
+| `check:env` con valores de ejemplo | Acepta `https://gestion-rifas.vercel.app/` en producción; rechaza `http://…` con `VERCEL_ENV=production` y `https://…/auth` | — | — |
+| `//auth/confirm?…` (un Site URL con barra final) | **308** a `/auth/confirm?…`, con la búsqueda | — | Se documenta quitar la barra igualmente |
+| El correo en Mailpit, a 320 px | La dirección de respaldo **desbordaba 259 px** | — | `overflow-wrap: anywhere` en el párrafo y `word-break: break-all` solo en la dirección |
+| E2E completa (escritorio y móvil) sobre siembra restaurada | ⚠️ **1.052/1.055** en una sola pasada de 56,7 min, con el código inmóvil (escritorio y móvil, `dev:local`, siembra recién restaurada). Los 3 fallos, **anteriores y conocidos**, ninguno de acceso ni de altas: `premios-ganados:443` (**I-148**), `ventas-por-fecha:163` (**I-090**, depende del orden: aislada, pasa) y `ventas-por-fecha:257` (**I-164**, la copia del `Suspense`). Aisladas sobre siembra nueva, con este código: `:443` y `:257` fallan una vez y después **8/8** con `--repeat-each=4`; en un *worktree* de `3d8e68c` —el código publicado—, `:443` falla **2 de 4** y `:257` 0 de 4. Intermitentes en los dos: no se atribuyen a este trabajo | | |
+
+### d. Lo que no se hizo
+
+Push, despliegue, y **ningún** cambio en Auth del proyecto real: ni el registro, ni las plantillas, ni el SMTP, ni las URL.
+Ningún correo real. El plan, con quién hace cada paso y cómo se deshace, en `DEPLOYMENT` §3.3.h.

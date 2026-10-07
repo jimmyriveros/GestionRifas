@@ -53,6 +53,11 @@ Ya lo hace la aplicación — esto documenta el procedimiento, no código nuevo.
 2. "Invitar" → nombre completo, alias (opcional), teléfono, correo.
 3. La persona recibe un correo de invitación y fija su propia contraseña. Nunca se comparte ni se ve
    una contraseña desde la aplicación.
+   El correo dice «Tu invitación a Rifas» y su botón, «Crear mi contraseña»; sirve una sola vez y se
+   puede abrir en cualquier navegador o teléfono. Si vence o ya se usó, «Reenviar acceso por correo» en
+   la fila de la persona manda otro («Elige tu contraseña de Rifas»). **En producción, para que el correo
+   llegue a alguien de fuera hace falta el SMTP propio** (I-206, `DEPLOYMENT` §2.1): el correo integrado de
+   Supabase solo entrega al equipo del proyecto.
 4. Para desactivar a alguien (deja de poder iniciar sesión, y si tenía una sesión abierta se le
    cierra): botón de activar/desactivar en su fila del listado. Reactivar es el mismo botón.
 

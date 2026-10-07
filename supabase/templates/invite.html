@@ -1,0 +1,20 @@
+<div style="font-family: Arial, Helvetica, sans-serif; color: #1f2933; font-size: 16px; line-height: 1.5; max-width: 520px">
+  <p>{{ if .Data.full_name }}Hola, {{ .Data.full_name }}:{{ else }}Hola:{{ end }}</p>
+  <p>Te invitaron a usar Rifas. Para entrar, crea tu contraseña con este botón.</p>
+  <p style="margin: 24px 0">
+    <a
+      href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite"
+      style="background: #1d4ed8; color: #ffffff; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block"
+      >Crear mi contraseña</a
+    >
+  </p>
+  <p>Después entrarás con este correo y la contraseña que elijas.</p>
+  <p style="font-size: 14px; color: #52606d; overflow-wrap: anywhere">
+    Si el botón no funciona, copia esta dirección en tu navegador:<br />
+    <span style="word-break: break-all">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite</span>
+  </p>
+  <p style="font-size: 14px; color: #52606d">
+    El enlace sirve una sola vez. Si ya no funciona, pide a quien te invitó que te envíe una
+    invitación nueva. Si no esperabas este correo, puedes ignorarlo.
+  </p>
+</div>

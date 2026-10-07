@@ -7,6 +7,7 @@ import { MembershipCheckError } from '@/lib/auth/membership-check'
 import type { ActiveMembership } from '@/lib/auth/session'
 import { mapPgError } from '@/lib/errors'
 import { checkRateLimit, RATE_LIMITS, resetRateLimit } from '@/lib/rate-limit'
+import { passwordLinkRedirectTo } from '@/lib/site-url'
 import { createClient } from '@/lib/supabase/server'
 
 import {
@@ -116,9 +117,8 @@ export async function requestPasswordReset(input: unknown): Promise<ActionResult
   }
 
   const supabase = await createClient()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
   await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+    redirectTo: passwordLinkRedirectTo(),
   })
 
   // Se responde ok siempre, exista o no el correo: evita enumerar usuarios.

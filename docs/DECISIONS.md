@@ -16746,3 +16746,57 @@ validadores que se desalinean fueron el origen del defecto).
 reciba un destino desde la URL usa `safeNextPath`, no un `startsWith('/')` escrito a mano.
 
 ---
+
+## D-254 — Los correos de Auth abren la sesión en el servidor con `token_hash`, en español, y el registro público se cierra (I-206, I-208, I-049)
+
+**Fecha:** 2026-10-07 · **Estado:** aceptada para local (autorizada por el dueño: implementar y probar en local) ·
+**Producción: preparada, sin aplicar** —push, despliegue y cada cambio de Auth esperan su autorización expresa
+(`DEPLOYMENT` §3.3.h)— · **Sin migración**
+
+**Contexto.** I-206 pedía cerrar el registro público sin romper las invitaciones ni la recuperación, y preparar el correo
+para producción. Al probarlo de verdad, en local, con un navegador y la configuración de producción (el «Site URL» igual al
+origen de la aplicación), apareció lo que nadie había seguido hasta el final (**I-208**):
+
+| Enlace | Antes | Por qué |
+|---|---|---|
+| Invitación (personal y «Mi equipo») | «El enlace no es válido o ya expiró», con los dos tokens de la sesión a la vista en la dirección (`#access_token=…`) | La genera la clave de servicio, sin PKCE: Auth deja la sesión en el **fragmento**, que no llega al servidor, y `/auth/callback` solo entiende `?code=`. El cliente de Supabase del navegador no se usa en ninguna pantalla |
+| «Reenviar acceso por correo» | Lo mismo | `admin.auth.resetPasswordForEmail`, también sin PKCE |
+| «¿Olvidaste tu contraseña?» | Funciona **solo en el mismo navegador** que lo pidió | El código PKCE necesita la cookie del verificador: abierto en el teléfono o desde la aplicación del correo, falla |
+| Los correos | En inglés («You've been invited», «Reset your password») | Plantillas por defecto |
+
+Y en producción, aunque el enlace funcionara, **la invitación no llegaría a un vendedor**: el correo integrado de
+Supabase solo entrega a direcciones autorizadas del equipo del proyecto, 2 por hora (documentación oficial, leída el
+2026-10-07). El alta pública, abierta (`/auth/v1/settings`, leído el 2026-10-07: `disable_signup: false`); en local, una
+alta anónima creaba una cuenta y un perfil, sin membresía.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Una ruta que abre el enlace | `src/app/auth/confirm/route.ts`: `verifyOtp({ type, token_hash })` **en el servidor**, que deja la sesión en cookies, y a `/reset-password`. Solo `invite` y `recovery`; sin `next` —destino fijo, D-253—; cualquier otra cosa, el aviso de siempre (`/login?error=auth_callback`). Pública en el proxy |
+| Las plantillas | `supabase/templates/invite.html` y `recovery.html`, en español, con el enlace `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=…` —el patrón de Supabase para SSR— y la dirección escrita debajo por si el botón no funciona. Asuntos: «Tu invitación a Rifas» y «Elige tu contraseña de Rifas». La de recuperación también la recibe quien no la pidió (el reenvío del personal), así que no da por hecho que la pidió. Sin comentarios HTML: el motor evaluaría lo que llevan dentro |
+| `/auth/callback` | Se queda tal cual (con D-253): es el camino de los correos que salieron con la plantilla por defecto |
+| El registro público | Cerrado (`[auth] enable_signup = false` en local; en producción, «Allow new users to sign up»). Medido: la invitación, su reenvío, la recuperación, `admin.createUser` del seed y el inicio de sesión siguen igual. El interruptor de `[auth.email]` es el del proveedor de correo y contraseña: **sigue activado** |
+| La configuración local, como producción | `site_url = "http://localhost:3000"` —el origen de la app, como el Site URL de producción— y `http://localhost:3000/**` en los destinos. Antes, `127.0.0.1`: un enlace local volvía a otro origen y nadie podía seguirlo |
+| `NEXT_PUBLIC_SITE_URL` (I-049) | Una sola lectura, `src/lib/site-url.ts` (`siteUrl`, sin barras finales, y `passwordLinkRedirectTo`), en lugar de cuatro. `check:env` la exige: un origen sin ruta, `https` salvo en `localhost`, y `https` siempre con `VERCEL_ENV=production` |
+| El correo de producción | Un SMTP propio, con su contraseña escrita **por el dueño en el panel de Supabase**, nunca en el chat, en Git ni en Vercel: la aplicación no la necesita. Opciones y requisitos en `DEPLOYMENT` §2.1; elige el dueño |
+
+**Medido** (`TEST_RESULTS`, «D-254»): antes, con una sonda de navegador sobre la pila local, la invitación y su reenvío
+terminaban en «El enlace no es válido o ya expiró» y la recuperación solo servía en el mismo navegador; después,
+`tests/e2e/invitaciones.spec.ts` (5): el alta pública se rechaza (`422 signup_disabled`) y no crea nada; las dos vías de
+invitación y el reenvío llegan a «Nueva contraseña» **desde otro navegador**, la cuenta queda activa con exactamente la
+membresía que le dio quien invitó y el portal administrativo le sigue cerrado; la recuperación funciona en otro navegador
+y la contraseña anterior deja de servir; un enlace usado ya no sirve. Unitarias: `auth-confirm` 13 y `site-url` 17.
+
+**Alternativas descartadas.** Leer el fragmento en el navegador y llamar a `setSession` (el flujo implícito que Supabase
+desaconseja: los tokens en la dirección y el historial); generar el enlace con `admin.generateLink` y mandar el correo
+desde la aplicación (un proveedor y un secreto más en Vercel); usar `{{ .RedirectTo }}` en la plantilla (si Auth no lo
+admite, cae al Site URL y el enlace se rompe); una página con un botón antes de verificar, contra los antivirus que abren
+los enlaces (un paso más para todos; el enlace por defecto de Supabase tiene el mismo riesgo y nunca se observó aquí).
+
+**Consecuencias.** La sesión se abre desde las funciones de Vercel, así que el límite de verificaciones de Auth por IP
+(30 cada 5 min) cuenta las de todos juntos; con el volumen de Rifas no se acerca. Un enlace abierto por un escáner de
+correo antes que por la persona quedaría usado —igual que el de por defecto—: se pide otro. El Site URL de producción
+tiene que ser el de la aplicación: con barra final el enlace queda `//auth/confirm` y Next lo corrige con un 308.
+
+---

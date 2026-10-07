@@ -1,14 +1,17 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { loadSeedRefs, purgeSellers, serviceClient } from './db-setup'
+import { LOCAL_URL, loadSeedRefs, purgeSellers, serviceClient } from './db-setup'
 import { SEED_PASSWORD } from './fixtures'
+import { mailIds, waitForMail } from './mailpit'
 
 /**
  * D-253: el destino después de ingresar (`next`) no puede sacar a nadie de Rifas.
  *
  * Con un navegador real y la base local: el formulario de `/login` con un `next` manipulado, la
  * vuelta legítima a la pantalla que se pidió sin sesión y el callback de Auth con un código PKCE
- * de verdad —el del flujo «¿Olvidaste tu contraseña?», leído del correo en Mailpit—.
+ * de verdad —el del flujo «¿Olvidaste tu contraseña?», leído del correo en Mailpit—. Desde D-254 el
+ * correo lleva a `/auth/confirm`; el callback queda para los enlaces que salieron con la plantilla
+ * por defecto, y la prueba reconstruye ese enlace con el mismo token.
  *
  * El dominio ficticio `evil.test` no se resuelve nunca: toda petición hacia él la contesta la
  * propia prueba y queda anotada. Si el destino se escapa, la prueba lo dice con su dirección.
@@ -17,7 +20,6 @@ import { SEED_PASSWORD } from './fixtures'
  */
 
 const ORIGIN = 'http://localhost:3000'
-const MAILPIT = 'http://127.0.0.1:54324'
 const EVIL = /^https?:\/\/evil\.test(?::\d+)?\//
 
 test.describe.configure({ mode: 'serial' })
@@ -107,7 +109,13 @@ test.describe('D-253: ingresar con un `next` manipulado', () => {
   })
 })
 
-/** Pide la recuperación por la interfaz y devuelve el `code` PKCE del enlace del correo. */
+/**
+ * Pide la recuperación por la interfaz y devuelve un `code` PKCE de verdad.
+ *
+ * El correo lleva a `/auth/confirm` con el `token_hash` (D-254). Con ese mismo token se arma el
+ * enlace de la plantilla POR DEFECTO —`/auth/v1/verify`, el que tienen los correos que salieron
+ * antes del cambio—, y Auth lo devuelve con el código. Se lee la redirección sin seguirla.
+ */
 async function recoveryCode(page: Page): Promise<string> {
   const before = await mailIds()
   await page.goto('/forgot-password')
@@ -115,45 +123,20 @@ async function recoveryCode(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Enviar enlace de recuperación' }).click()
   await expect(page.getByText(/te enviamos un enlace/i)).toBeVisible()
 
-  let link: string | undefined
-  await expect
-    .poll(
-      async () => {
-        link = (await newLinks(before)).find((l) => l.includes('/auth/v1/verify'))
-        return Boolean(link)
-      },
-      { timeout: 15_000, message: 'no llegó el correo de recuperación a Mailpit' },
-    )
-    .toBe(true)
+  const mail = await waitForMail(email, before)
+  const confirm = mail.links.find((l) => l.includes('/auth/confirm'))
+  expect(confirm, 'el correo no trae el enlace a /auth/confirm').toBeTruthy()
+  const tokenHash = new URL(confirm!).searchParams.get('token_hash')!
 
-  // Abrir el enlace en Auth devuelve la redirección con el código; se lee sin seguirla.
-  const response = await fetch(link!, { redirect: 'manual' })
+  const legacy = new URL(`${LOCAL_URL}/auth/v1/verify`)
+  legacy.searchParams.set('token', tokenHash)
+  legacy.searchParams.set('type', 'recovery')
+  legacy.searchParams.set('redirect_to', `${ORIGIN}/auth/callback?next=/reset-password`)
+  const response = await fetch(legacy, { redirect: 'manual' })
   const location = response.headers.get('location') ?? ''
   const code = new URL(location).searchParams.get('code')
   expect(code, `Auth no devolvió un código: ${location.split('#')[0]}`).toBeTruthy()
   return code!
-}
-
-async function mailIds(): Promise<Set<string>> {
-  const res = await fetch(`${MAILPIT}/api/v1/messages?limit=200`)
-  const body = (await res.json()) as { messages: { ID: string }[] }
-  return new Set(body.messages.map((m) => m.ID))
-}
-
-async function newLinks(before: Set<string>): Promise<string[]> {
-  const res = await fetch(`${MAILPIT}/api/v1/messages?limit=200`)
-  const body = (await res.json()) as { messages: { ID: string; To: { Address: string }[] }[] }
-  const links: string[] = []
-  for (const m of body.messages) {
-    if (before.has(m.ID) || !m.To.some((t) => t.Address === email)) continue
-    const full = (await (await fetch(`${MAILPIT}/api/v1/message/${m.ID}`)).json()) as {
-      Text: string
-    }
-    for (const match of full.Text.matchAll(/https?:\/\/[^\s"'<>]+/g)) {
-      links.push(match[0].replaceAll('&amp;', '&'))
-    }
-  }
-  return links
 }
 
 test.describe('D-253: el callback de Auth con un código real', () => {

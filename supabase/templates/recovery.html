@@ -1,0 +1,19 @@
+<div style="font-family: Arial, Helvetica, sans-serif; color: #1f2933; font-size: 16px; line-height: 1.5; max-width: 520px">
+  <p>{{ if .Data.full_name }}Hola, {{ .Data.full_name }}:{{ else }}Hola:{{ end }}</p>
+  <p>Usa este botón para elegir tu contraseña de Rifas.</p>
+  <p style="margin: 24px 0">
+    <a
+      href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery"
+      style="background: #1d4ed8; color: #ffffff; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block"
+      >Elegir mi contraseña</a
+    >
+  </p>
+  <p style="font-size: 14px; color: #52606d; overflow-wrap: anywhere">
+    Si el botón no funciona, copia esta dirección en tu navegador:<br />
+    <span style="word-break: break-all">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery</span>
+  </p>
+  <p style="font-size: 14px; color: #52606d">
+    El enlace sirve una sola vez. Si ya no funciona, pide otro desde «¿Olvidaste tu contraseña?»
+    en la página de ingreso. Si no pediste este correo, ignóralo: tu contraseña sigue igual.
+  </p>
+</div>

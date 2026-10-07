@@ -93,29 +93,46 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 | **La plataforma: imagen 17.11.0.002 desde el 2026-10-05** (I-202) | **Postgres 17.11, PostgREST 14.18** y Auth v2.197.0, actualizada desde el panel con la autorización del dueño (`RUNBOOK` §12.8); antes, 17.6.1.155 con PostgREST 14.5. Las migraciones no cambiaron (`0080`). La pila local sigue en `supabase/postgres:17.6.1.156` y PostgREST 14.15, los de la CLI 2.111.0 |
 | Cuentas de prueba (`owner@demo.test`, etc.) | Existen en este proyecto — ver la nota de seguridad en `OPERATIONS.md` §4 antes de operar con datos reales |
 
-### 2.1 Configuración de Auth que hay que revisar (una sola vez)
+### 2.1 Configuración de Auth (I-023, I-206, D-254)
 
-Dashboard de Supabase → **Authentication → URL Configuration**:
+**Nada de esta tabla lo cambia un agente**: cada fila se aplica con la autorización expresa del dueño y en el orden de
+§3.3.h. «Leído» es lo que se vio sin cambiar nada —panel el 2026-10-05 (capturas dentro del respaldo cifrado de I-202) y
+`GET /auth/v1/settings` el 2026-10-07—; «Debe quedar», lo que se probó en local con `supabase/config.toml`.
 
-| Campo | Debe incluir |
-|---|---|
-| Site URL | La URL canónica de producción: `https://gestion-rifas.vercel.app` |
-| Redirect URLs | La misma URL con comodín: `https://gestion-rifas.vercel.app/**` |
+| Dónde (panel de Supabase → Authentication) | Leído | Debe quedar |
+|---|---|---|
+| URL Configuration → **Site URL** | `https://gestion-rifas.vercel.app/` | `https://gestion-rifas.vercel.app`, **sin barra final**. Es la base del enlace de los correos (`{{ .SiteURL }}`); con barra, el enlace queda `//auth/confirm` y Next lo corrige con un 308 |
+| URL Configuration → **Redirect URLs** | Solo `http://localhost:3000/` | `https://gestion-rifas.vercel.app/**`. Se recomienda **quitar** `http://localhost:3000/`: un correo de producción no tiene por qué volver a un equipo |
+| Sign In / Providers → **Allow new users to sign up** | Activado | **Desactivado.** Las invitaciones, su reenvío y la recuperación siguen funcionando (medido en local, D-254) |
+| Sign In / Providers → Email (el proveedor) | Activado | **Sin cambio.** Es el de correo y contraseña: apagarlo impediría entrar a todo el mundo |
+| Sign In / Providers → Confirm email | Activado | Sin cambio: no afecta a la invitación |
+| Emails → Templates → **Invite user** | La de Supabase, en inglés | Asunto «Tu invitación a Rifas»; cuerpo, el de `supabase/templates/invite.html`, copiado tal cual |
+| Emails → Templates → **Reset password** | La de Supabase, en inglés | Asunto «Elige tu contraseña de Rifas»; cuerpo, el de `supabase/templates/recovery.html` |
+| Emails → **SMTP Settings** | Sin SMTP propio: el correo integrado, que **solo entrega a direcciones autorizadas del equipo** del proyecto | SMTP propio, con el proveedor que elija el dueño (abajo). Nombre del remitente: **Rifas** |
+| Rate Limits → **Rate limit for sending emails** | 2 por hora | El que Supabase pone al activar el SMTP, **30 por hora**: basta, porque la aplicación limita 20 invitaciones por hora y organización y 3 recuperaciones cada 15 min por correo (`SECURITY` §10.2) |
+| Emails / Providers → **Email OTP Expiration** | Sin leer | **Lo decide el dueño.** Es lo que dura el enlace de una invitación; el valor por defecto de Supabase es 3.600 s (1 h). Si los vendedores abren la invitación al día siguiente, la encontrarán vencida y tendrán que pedir otra |
 
-> **Verificación humana pendiente de esta auditoría:** una versión anterior de este documento usaba
-> `https://gestion-rifas-jimmyriveros-projects.vercel.app`, mientras `HANDOFF.md`, el estado de Fase
-> 8 y las comprobaciones de producción registran `https://gestion-rifas.vercel.app`. Confirma en los
-> paneles de Vercel y Supabase Auth que la URL canónica y el comodín anteriores siguen configurados;
-> si el alias largo todavía se usa, autorízalo además, no en sustitución del canónico (I-023).
+**El correo, sin dominio propio** (el dueño no tiene proveedor ni dominio, 2026-10-07). Requisitos leídos ese día en la
+documentación de cada uno; se confirman al contratar. Ningún agente crea cuentas ni contrata nada:
 
-**Por qué importa:** los enlaces de invitación y de recuperación de contraseña llevan un
-`redirect_to` (`/auth/callback?next=/reset-password`, ver `src/features/users/actions.ts:70` y
-`scripts/create-organization.ts`). Supabase Auth solo respeta ese destino si coincide con la lista
-anterior; si no coincide, **no da error** — silenciosamente redirige a la URL base sin la ruta, y la
-persona invitada llega a la portada en vez de a la pantalla para fijar su contraseña. Se comprobó
-este mismo comportamiento en local durante la Fase 8: `supabase/config.toml` solo autoriza
-`https://127.0.0.1:3000` (sin ruta), así que un enlace de invitación clicado de verdad aterriza con
-`error=access_denied&error_code=otp_expired`. Ver **I-023**.
+| Opción | Requisitos | Límite | Coste | Entrega |
+|---|---|---|---|---|
+| **A. Una cuenta de Gmail solo para Rifas, con contraseña de aplicación** | Verificación en dos pasos y una contraseña de aplicación de 16 caracteres. `smtp.gmail.com`, puerto 587 (o 465); usuario y remitente, esa dirección | 500 correos al día | Gratis | Buena a este volumen: Google firma el correo de `gmail.com`. El remitente es una dirección de Gmail, y la cuenta queda atada a Google |
+| **B. Un dominio propio + Resend** | Comprar el dominio y añadir sus registros DNS (SPF, DKIM y DMARC) para verificarlo. `smtp.resend.com`, puerto 465, usuario `resend`, contraseña = la clave de la API | 100 al día y 3.000 al mes en el plan gratuito | El dominio, cada año | La mejor: remitente propio y autenticado, y el dominio sirve después para la aplicación |
+| **C. Brevo sin dominio** | Verificar una dirección de remitente | 300 al día en el plan gratuito | Gratis | La más débil: sin dominio autenticado, Brevo cambia el remitente a `@brevosend.com` |
+
+**La contraseña del SMTP la escribe el dueño en el panel de Supabase** (Emails → SMTP Settings) y nunca pasa por el
+chat, por Git ni por Vercel: la aplicación no la necesita, porque los correos los manda Auth. Para cambiarla, se genera
+otra en el proveedor y se pega en el mismo sitio.
+
+**Por qué importa:** con las plantillas por defecto, el enlace de la invitación y el de «Reenviar acceso por correo»
+terminaban en «El enlace no es válido o ya expiró», y la recuperación solo servía en el mismo navegador (I-208); con el
+correo integrado, además, una invitación a un vendedor de fuera del equipo de Supabase no se envía. Las plantillas de
+D-254 llevan a `/auth/confirm`, que abre la sesión en el servidor y funciona en cualquier navegador.
+
+> **Historia.** Una versión anterior de este documento usaba `https://gestion-rifas-jimmyriveros-projects.vercel.app`;
+> la canónica es `https://gestion-rifas.vercel.app` (I-023). Y decía que un `redirect_to` fuera de la lista cae al Site URL
+> sin error: sigue siendo así, pero con las plantillas nuevas el enlace ya no depende de él.
 
 ### 2.2 Promoción de migraciones futuras
 
@@ -346,8 +363,11 @@ Settings → Environment Variables del proyecto `gestion-rifas`, scope **Product
 | `VAPID_SUBJECT` | Plain | **Opcional.** El contacto que exige el RFC 8292 (`mailto:` o una URL). Si falta se usa `NEXT_PUBLIC_SITE_URL` |
 | `PUSH_DISPATCH_SECRET` | **Sensitive** | **Opcional.** Protege `/api/push/dispatch`, que **falla cerrado** sin ella. Mínimo 16 caracteres; acepta `CRON_SECRET` como alternativa. **Tiene que ser idéntica al secreto `push_dispatch_secret` del Vault** (§3.1.d) |
 
-`scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase.
-Hoy no valida `NEXT_PUBLIC_SITE_URL`; comprobarla en Vercel sigue siendo un paso manual (I-049).
+`scripts/check-env.ts` (el `prebuild`) corta el build si falta alguna de las tres claves de Supabase **o si
+`NEXT_PUBLIC_SITE_URL` no es un origen válido**: sin ruta, `https` salvo en `localhost`, y `https` siempre con
+`VERCEL_ENV=production` (I-049, D-254). Si el valor de Vercel no sirve, el despliegue se detiene en el build y producción
+sigue en el anterior. **El agente no puede leer la lista de variables (403)**: el dueño confirma el valor antes de
+desplegar (§3.3.h).
 `LOTTERY_SYNC_SECRET` no entra en el prebuild: sin ella el Route Handler usa `CRON_SECRET` o responde 401.
 
 ### 3.1.d Los dos secretos del Vault de Supabase — tampoco los pone un agente (D-193)
@@ -1660,6 +1680,38 @@ ventana, con otra autorización y otra recuperación.
 | La revisión del dueño, con su sesión | Cinco minutos, sin guardar nada: **(1)** como vendedor, «Mis clientes» → «Nuevo cliente»: el botón dice «Crear cliente» al terminar de cargar —un instante puede decir «Preparando el formulario…»— y la dirección no lleva `?name=` ni `?phone=`; salir con «Cancelar». **(2)** En «Mis boletas», escribir un número del buscador y, **enseguida**, tocar una columna para ordenar (o «Ordenar» en el teléfono): la lista queda buscada **y** ordenada, y la dirección lleva las dos cosas. **(3)** Avisar al terminar, para leer los registros **dentro de la hora** |
 | Qué cambia en los registros | **Nuevo:** `[rifas:instancia] nueva · región … · versión …` cuando arranca una instancia, y `[rifas:supabase] MÉTODO ruta → estado en N ms` cuando una llamada a Supabase tarda 1 s o más, devuelve un 5xx o no responde. Sin host, consulta, término, token ni cookie. **No escribe ningún 4xx** —tampoco el 401 `PGRST303` de I-202— ni una llamada que falle rápido: no captura todos los errores. Orientan sobre la próxima demora (I-190, I-198) como hipótesis, con su siguiente comprobación (`OPERATIONS` §6.b); **no demuestran nada de lo que ya pasó** |
 | Riesgo que queda | Los mismos de §3.3.e en los tres formularios: si el JavaScript no llega, el botón se queda en «Preparando el formulario…», que es lo correcto. En escritorio, al hidratar, «Cancelar» se desplaza una vez (`TEST_RESULTS`, D-249 §c). Una línea de `[rifas:supabase]` no basta para culpar a Supabase: dice cuánto tardó la llamada desde la función, red incluida |
+
+#### 3.3.h D-253 y D-254: el destino tras ingresar, los enlaces de Auth y la configuración del correo — **PREPARADO, SIN AUTORIZAR**
+
+El dueño autorizó implementar y probar **en local**. Push, despliegue y **cada** cambio de Auth en el proyecto real
+esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales, además, sus destinatarios.
+
+| | |
+|---|---|
+| Qué publica | **D-253** (`d4dfed2`: `features/auth/safe-next-path.ts`, `login`, su página y `/auth/callback`) y **D-254** (el commit siguiente: `app/auth/confirm/route.ts`, `/auth/confirm` pública en `lib/supabase/proxy.ts`, `lib/site-url.ts` en cuatro lectores y `check:env`). `supabase/config.toml` y `supabase/templates/` **no se despliegan**: son la pila local y el CI; en producción las plantillas se pegan en el panel |
+| Lo que no publica | **Ninguna migración** (`0001`–`0080`); ninguna variable nueva; sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/` ni `public/` |
+| Compatibilidad | El código nuevo funciona con la configuración de Auth de hoy: `/auth/confirm` no la usa nadie hasta cambiar las plantillas, y `/auth/callback` sigue igual. Por eso **primero el código y después Auth**, y cada paso se puede deshacer solo |
+| Antes de empujar | **El dueño confirma en Vercel** que `NEXT_PUBLIC_SITE_URL` (Production) es `https://gestion-rifas.vercel.app`: `check:env` la exige desde D-254. Y `git diff --stat 783b08f <candidato> -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public` enseña **solo** los archivos de D-253 y D-254 |
+| Punto de reversión del código | **`dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd`** (`783b08f`), el servido hoy. **Compatible**: no hay migración. Volver a él **reintroduce** I-207 y quita `/auth/confirm`: si las plantillas ya apuntan ahí, **se restauran primero** las por defecto. *Instant Rollback* lo pulsa el dueño (§4.1) |
+| Comprobado en local | `verify`, `test:db`, las suites del ingreso y de las invitaciones y la E2E completa, en `TEST_RESULTS`, «D-253» y «D-254» |
+
+**Orden, con quién hace cada cosa y cómo se deshace:**
+
+| Paso | Qué | Quién | Comprobación | Si algo falla |
+|---|---|---|---|---|
+| P0 | Lectura: lo servido, `/auth/v1/settings`, `verify:remote`, y **capturas del dueño** de URL Configuration, Templates, SMTP y Rate Limits, para poder volver | Agente (solo lectura) y dueño (capturas) | Coincide con «Leído» de §2.1 | No se sigue |
+| P1 | Empujar la rama sin `force`, PR hacia `main`, CI 2/2 sobre el SHA exacto | Agente, **con autorización** | CI en verde | No se fusiona |
+| P2 | Avance rápido de `main` en una franja sin el programador; READY y servido | Agente, **con autorización** | En vivo: `GET /auth/confirm` sin parámetros → `/login?error=auth_callback`; `verify:remote` | *Instant Rollback* a `dpl_DVrz…` |
+| P3 | **I-207 en vivo**: abrir `/login?next=/%5Cejemplo.invalid` e ingresar | Dueño, con su sesión | Llega a su panel, nunca a otro sitio | Reversión de P2 |
+| P4 | URL Configuration: Site URL sin barra y `https://gestion-rifas.vercel.app/**` | Dueño, en el panel | Lo que diga §2.1 | Los valores de la captura de P0 |
+| P5 | Templates: «Invite user» y «Reset password», asunto y cuerpo desde `supabase/templates/` | Dueño, en el panel (el agente guía) | Vista previa del panel | «Reset to default», o el texto de la captura |
+| P6 | SMTP propio con el proveedor elegido; el dueño escribe la contraseña | Dueño, en el panel | El panel lo acepta; Rate Limits pasa a 30/h | Desactivar el SMTP propio: vuelve el integrado |
+| P7 | Desactivar «Allow new users to sign up» | Dueño, en el panel | `/auth/v1/settings` → `disable_signup: true` (agente, solo lectura) | Volver a activarlo |
+| P8 | **Pruebas reales, con destinatarios que autorice el dueño**: (a) «¿Olvidaste tu contraseña?» con una cuenta existente suya, abriendo el correo en **otro** dispositivo; (b) una invitación a una dirección de prueba suya, definir la contraseña y entrar; después, **desactivarla** desde «Vendedores» (en Rifas no se borra nada, D-038) | Dueño; el agente lee los registros dentro de la hora | Correo en español, desde el remitente nuevo; «Nueva contraseña»; panel del vendedor | Según el paso que falle: P5, P6 o P7 |
+
+**Riesgo que queda.** Un escáner de correo que abra el enlace antes que la persona lo deja usado (igual que el de por
+defecto): se pide otro. El límite de verificaciones de Auth es por IP y las de todos salen de Vercel: 30 cada 5 min, lejos
+del volumen de Rifas. Si el enlace dura 1 h (§2.1, OTP), una invitación abierta al día siguiente pide reenviarla.
 
 ---
 

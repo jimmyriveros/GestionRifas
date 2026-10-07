@@ -114,6 +114,17 @@ async function activate(profileId: string, email: string): Promise<void> {
   if (error) throw error
 }
 
+/**
+ * El token del enlace del correo. Desde D-254 la plantilla lleva a `/auth/confirm?token_hash=…`
+ * (antes, `/auth/v1/verify?token=…`). Se exige: un token vacio haria que «el enlace viejo ya no
+ * sirve» pasara en vacio.
+ */
+function linkToken(link: URL): string {
+  const token = link.searchParams.get('token_hash')
+  if (!token) throw new Error(`El correo no trae token_hash: ${link.origin}${link.pathname}`)
+  return token
+}
+
 /** Enlaces de los correos que recibio esa direccion, los mas nuevos primero. */
 async function mailLinks(to: string): Promise<string[]> {
   const res = await fetch(`${MAILPIT}/api/v1/messages?limit=200`)
@@ -180,7 +191,7 @@ describe('E2 — cuando una cuenta cuenta como activada (BR-E14)', () => {
     const enlaces = await mailLinks(email)
     const url = new URL(enlaces[0]!)
     const { error: otpError } = await anonClient().auth.verifyOtp({
-      token_hash: url.searchParams.get('token')!,
+      token_hash: linkToken(url),
       type: 'invite',
     })
     expect(otpError).toBeNull()
@@ -363,7 +374,7 @@ describe('E2 — corregir el correo antes de activar (BR-E16)', () => {
     // 3. Y ahora lo que importa: el enlace viejo ya no abre nada.
     const viejo = new URL(enlaceViejo)
     const { error: viejoError } = await anonClient().auth.verifyOtp({
-      token_hash: viejo.searchParams.get('token')!,
+      token_hash: linkToken(viejo),
       type: 'invite',
     })
     expect(viejoError, 'el enlace anterior debe quedar invalidado').not.toBeNull()
@@ -371,7 +382,7 @@ describe('E2 — corregir el correo antes de activar (BR-E16)', () => {
     // Mientras que el nuevo sí.
     const enlaceNuevo = new URL((await mailLinks(bueno))[0]!)
     const { error: nuevoError } = await anonClient().auth.verifyOtp({
-      token_hash: enlaceNuevo.searchParams.get('token')!,
+      token_hash: linkToken(enlaceNuevo),
       type: 'invite',
     })
     expect(nuevoError, 'la invitación nueva debe funcionar').toBeNull()
@@ -489,7 +500,7 @@ describe('E2 — eliminar un alta equivocada (BR-E17, BR-E18)', () => {
     expect(perfil, 'el perfil se va en cascada').toHaveLength(0)
 
     const { error: otpError } = await anonClient().auth.verifyOtp({
-      token_hash: enlace.searchParams.get('token')!,
+      token_hash: linkToken(enlace),
       type: 'invite',
     })
     expect(otpError, 'la invitación de una cuenta borrada no sirve').not.toBeNull()

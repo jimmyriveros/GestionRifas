@@ -1,5 +1,7 @@
 import { config } from 'dotenv'
 
+import { siteUrlProblem } from '../src/lib/site-url'
+
 config({ path: '.env.local' })
 
 const required = [
@@ -14,6 +16,21 @@ if (missing.length > 0) {
   console.error('Faltan variables de entorno obligatorias:')
   for (const key of missing) console.error(`  - ${key}`)
   console.error('\nRevisa .env.example y crea un .env.local con los valores reales.')
+  process.exit(1)
+}
+
+// La dirección pública de Rifas (I-049, D-254): sin ella la invitación y la
+// recuperación piden a Auth un destino relativo y el catálogo reparte una ruta
+// sin dominio, y el build salía verde igual. En el despliegue de producción de
+// Vercel, además, tiene que ser https.
+const siteProblem = siteUrlProblem(process.env.NEXT_PUBLIC_SITE_URL, {
+  production: process.env.VERCEL_ENV === 'production',
+})
+if (siteProblem) {
+  console.error(`Variable de entorno inválida: ${siteProblem}.`)
+  console.error(
+    'Debe ser la dirección pública de la aplicación, p. ej. https://gestion-rifas.vercel.app.',
+  )
   process.exit(1)
 }
 

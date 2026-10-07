@@ -205,7 +205,8 @@ importa desde un componente cliente.
     │   │       └── settings/page.tsx     # Configuración del vendedor (D-176)
     │   ├── api/reports/export/route.ts    # CSV; sesión + rol (D-060)
     │   ├── api/lottery/sync/route.ts      # Tick de loterías; secreto, sin sesión (D-148)
-    │   ├── auth/callback/route.ts         # Intercambio de código de Supabase Auth
+    │   ├── auth/callback/route.ts         # Intercambio de código de Supabase Auth (enlaces de la plantilla por defecto)
+    │   ├── auth/confirm/route.ts          # Enlace de invitación y de contraseña: token_hash → sesión (D-254)
     │   └── denied/page.tsx                # Acceso denegado
     ├── components/
     │   ├── ui/                   # shadcn/ui generado
@@ -272,7 +273,8 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/login` | público | 1 | Única página de autenticación |
 | `/forgot-password` | público | 1 | Solicitud de recuperación |
 | `/reset-password` | público (con token) | 1 | Definir nueva contraseña |
-| `/auth/callback` | público | 1 | Route Handler de intercambio de código |
+| `/auth/callback` | público | 1 | Route Handler de intercambio de código PKCE; destino validado con `safeNextPath` (D-253) |
+| `/auth/confirm` | público | post-9 | Route Handler del enlace de los correos de Auth: `verifyOtp` con `token_hash`, solo `invite` y `recovery`, a `/reset-password` (D-254) |
 | `/denied` | autenticado | 1 | Acceso denegado |
 | `/catalogo/[slug]` | **público, sin sesión** | post-9 | Catálogo público de un vendedor (BR-K01, D-159). Grupo `(catalogo)`, `force-dynamic`, `noindex`. Un corte pasajero de Supabase se reintenta una vez y, si sigue, lo recoge su propio `error.tsx` (BR-K15, D-196) |
 | `/account/password` | todos | 1 | Cambio de contraseña |

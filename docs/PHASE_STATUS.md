@@ -3,7 +3,20 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-07 — **D-253, SOLO EN LOCAL: el destino después de ingresar no sale de Rifas** (I-207;
+- **Actualizado:** 2026-10-07, más tarde — **D-254, SOLO EN LOCAL: invitaciones y recuperación con el registro
+  público cerrado** (I-206, I-208, I-049; sin migración, push ni despliegue; Auth de producción **sin cambiar**). Los
+  seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** el enlace de la invitación —personal y «Mi equipo»—, el de «Reenviar acceso por correo» y el
+  de «¿Olvidaste tu contraseña?» abren «Nueva contraseña» desde cualquier navegador (`/auth/confirm` con `token_hash`);
+  antes, los dos primeros acababan en «El enlace no es válido o ya expiró» y el tercero solo servía en el mismo
+  navegador (I-208). Correos en español. Registro público cerrado en la pila local. `NEXT_PUBLIC_SITE_URL`, validada.
+  **(2) Pruebas:** `verify` 2.204/2.204 (+30); `test:db` 1.573 + 1; `invitaciones` 5/5 y las suites del acceso 69/69; E2E completa 1.052/1.055, con los 3 fallos anteriores y conocidos (I-148, I-090, I-164) (`TEST_RESULTS`, «D-254»).
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`. Cambia `supabase/config.toml` (solo la pila local y el CI).
+  **(4) Variables de entorno:** ninguna nueva; `NEXT_PUBLIC_SITE_URL` pasa a ser obligatoria en el build (un origen; `https` en producción).
+  **(5) Problemas que permanecen:** en producción, **I-206, I-207 e I-208 abiertas** hasta publicar y configurar Auth
+  (`DEPLOYMENT` §3.3.h); sin SMTP propio una invitación **no llega** a un vendedor de fuera del equipo de Supabase; I-023.
+  **(6) Antes de empezar:** reiniciar la pila local (`npx supabase stop` y `start`) para cargar `config.toml`; leer D-254.
+- **Antes:** 2026-10-07 — **D-253, SOLO EN LOCAL: el destino después de ingresar no sale de Rifas** (I-207;
   sin migración, push ni despliegue). Mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Los seis
   puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** un `next` manipulado en `/login` —`/\evil.test`, `/<TAB>/evil.test`…— ya no lleva a otro

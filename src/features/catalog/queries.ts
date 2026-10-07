@@ -3,6 +3,7 @@ import 'server-only'
 import type { RaffleStatus } from '@/lib/constants'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeSearchTerm } from '@/lib/search'
+import { siteUrl } from '@/lib/site-url'
 import { createClient } from '@/lib/supabase/server'
 
 import { retryTransientReadOnce } from './read-retry'
@@ -246,11 +247,10 @@ export function isCatalogLive(settings: CatalogSettings | null): boolean {
  * La direccion completa que se copia y se reparte.
  *
  * `NEXT_PUBLIC_SITE_URL` ya existe y es la misma que usan los enlaces de
- * invitacion y recuperacion (`features/users/actions.ts`): no se inventa otra
- * variable para lo mismo. Sin ella se devuelve la ruta relativa, que sigue
+ * invitacion y recuperacion (`lib/site-url.ts`): no se inventa otra variable
+ * para lo mismo. Sin ella se devuelve la ruta relativa, que sigue
  * siendo util para comprobar la configuracion aunque no se pueda pegar.
  */
 export function catalogPublicUrl(slug: string): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') ?? ''
-  return `${base}/catalogo/${slug}`
+  return `${siteUrl()}/catalogo/${slug}`
 }
