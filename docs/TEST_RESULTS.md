@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue)** | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
+| **Post-9 vigente (D-255 y D-256: el ojo de los cinco campos de contraseña, candidato aislado de su publicación sobre `783b08f`, sin migración, 2026-10-08)** | **2.069/2.069** en 105 archivos (+14: `login-mostrar-contrasena` 6 y `mostrar-contrasena-nueva` 8, **que fallan con los formularios anteriores**) | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada, con la configuración de Supabase de `main` | Completa **1.050/1.052** (55,0 min, una sola pasada, código inmóvil): **I-075** e **I-090**, contrastados (ver la sección) | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Candidato; la publicación, en `DEPLOYMENT` §3.3.i |
+| Post-9 anterior (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue) | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
 | Post-9 anterior (Publicación de I-204 e I-115: `0490d69` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-02, 15:37–17:35 UTC; y la preparación de Supabase: PostgREST 14.18 probado en local, no concluyente, y la opción A del respaldo, ensayada) | CI del PR (`37029001220`) y de `main` (`37041230094`) sobre `0490d69`: ✅ 2/2, **2.013/2.013** | En los dos CI: **1.572 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, con el código del candidato: **las 1.024 pruebas pasaron, en dos ejecuciones** —535 hasta un corte del entorno y lo que no terminó, relanzado: 246/246 y 246/246—, **no en una sola pasada** | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, hecha: solo notó lento el clic en «Mis boletas» —registros sin errores; I-203, activo— |
 | Post-9 anterior (I-115: un fallo al leer la membresía no es una cuenta inactiva, D-248, solo en local, 2026-10-02) | **2.013/2.013** en 100 archivos (+25, `membership-check`: **15 fallan con el código anterior**); la M-04 de `maintenance-pause`, cambiada a propósito | **1.572 ✅ y 1 omitida** sobre base recién sembrada | Nueva **5/5** con un `PGRST303` real de la PostgREST local, solo para un perfil (**4 fallan con el anterior**; la de la cuenta desactivada pasa con los dos). Completa con el código inmóvil: **535** en verde hasta que el entorno la cortó —el servidor de desarrollo cumplió el plazo de 30 min de una tarea en segundo plano: 3 caídas por sus 500 y 54 al detenerla— y lo que no terminó, relanzado: escritorio **246/246** y móvil **246/246** | ✅ | **Solo en local**, encima de I-204 (`DEPLOYMENT` §3.3.f) |
 | Post-9 anterior (I-204: los formularios de acceso y de contraseña no mandan nada por la URL antes de hidratar, D-247, solo en local, 2026-10-02) | **1.988/1.988** en 99 archivos (+12, `auth-forms-sin-hidratar`: **8 fallan con el código anterior**) | **1.572 ✅ y 1 omitida** sobre base recién sembrada; la primera pasada, sobre la de la comprobación inicial, cayó en **I-185** | Nueva **9/9** en `next dev` y en un build de producción (**6 fallan con el anterior**, en la fuga). Completa con el código inmóvil: escritorio **773/773**; el móvil, cortado por el entorno al cerrarse la sesión anterior, relanzado entero: **246/246** | ✅ | **Solo en local**, listo para publicarse solo (`DEPLOYMENT` §3.3.e) |
@@ -18354,3 +18355,44 @@ cerrado, en la misma máquina, tardó **2,0 s** en dar el error, sin ninguna red
 
 Encima de `fc114e7` solo hay documentos (`d8456ee` y el commit de estos ajustes); el guion de redes vive en `build/`,
 fuera de Git y fuera de lo que se publica.
+
+---
+
+## D-255 y D-256: el ojo de los cinco campos de contraseña — lo medido al hacerlo y el candidato aislado de su publicación (2026-10-08; sin migración)
+
+Encargo del dueño en dos pasos —el ojo del ingreso (D-255) y después el de «Nueva contraseña» y «Cambiar contraseña»
+(D-256)— y la autorización de publicar **solo** eso (`DEPLOYMENT` §3.3.i). Valores ficticios, salvo los ingresos
+completos, que usan la cuenta de desarrollo del sembrado local. Ninguna prueba guarda una contraseña nueva.
+
+### a. Lo medido al hacerlo, en la rama de trabajo
+
+| Qué | Resultado |
+|---|---|
+| El cursor, en la primera versión | Al pulsar el ojo, Chrome llevaba el cursor al principio y la siguiente tecla entraba delante (`Xvalor-ficticio`). Con sondas de Playwright: un cambio de `type` **por código** lo conserva; **con un clic de ratón**, no, también sin React. Devolverlo con `setSelectionRange` no basta; **medir antes la caja del campo** y devolverlo, sí, sin temporizadores |
+| Pruebas contra el código anterior | Unitarias: las 6 del ingreso y las 8 de los otros dos formularios **fallan todas** con los formularios anteriores. E2E: las 2 del cursor fallan sin la medición de la caja (`Xvalor-ficticio-123`) y las 3 de D-256 fallan sin el ojo |
+| Edge 154, perfil temporal | Un campo de control sin la clase, con el foco, pinta el ojo propio de Edge; el campo de Rifas, solo el suyo |
+| Consola de `/login` al escribir y alternar | Sin errores ni avisos |
+
+### b. El candidato aislado de la publicación
+
+Árbol de trabajo nuevo desde `origin/main` (`783b08f`), rama `feature/ojo-contrasena`, con **solo** los nueve archivos
+de código y pruebas del ojo —idénticos a los de `5ca911c`—: commit `4fddd6f`. `npm ci` propio. La pila local de Supabase,
+**reiniciada con la configuración de `main`** (la de la rama de trabajo cierra el registro y cambia las plantillas, D-254).
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `git diff --stat origin/main` del commit de código | Los nueve archivos y nada más | — | — |
+| `npm run db:reset && npm run seed:local` + `npm run verify` | ❌ 1 de 2.069: `admin-privacy.test.ts:283`, «esperado» y «recibido» iguales a la vista | **I-171**: el árbol nuevo salió con CRLF y la expresión de la prueba se queda con el `\r`. En la copia principal y en el CI, LF | Archivos del árbol reescritos en LF (`git -c core.autocrlf=false checkout`), sin tocar la prueba: 0 con CRLF de 952 |
+| `npm run verify`, otra vez | ✅ **2.069/2.069** en 105 archivos; lint con los 2 avisos de siempre; build compilado | — | — |
+| `npm run test:db` | ✅ **1.573 + 1 omitida** | — | — |
+| Build de producción **con Supabase local** (ninguna referencia al proyecto real en `.next`) servido en `localhost` + `build/publicacion-ojo/en-vivo.mjs despues` | El ojo en el HTML inicial de `/login` —`type="button"`, desactivado, «Mostrar contraseña» en `sr-only`, sin `aria-label`, detrás del campo, `spellcheck="false"`—, `PasswordInput` en el JavaScript y la regla de `::-ms-reveal` una vez; I-204, D-249, D-252 y lo anterior, igual | La CSP «con un solo proyecto de Supabase» no aplica en local (apunta a `127.0.0.1`) | — |
+| Siembra restaurada + E2E completa (escritorio y móvil, `dev:local` del árbol aislado, calentado; código inmóvil: huella `14ffb07786873b55` antes y después) | ⚠️ **1.050/1.052** en 55,0 min, una sola pasada. Las 8 del ojo y las 9 de I-204, en verde | Los dos fallos, contrastados abajo | — |
+| `back-navigation.spec.ts:25`, la **primera** de la pasada | Agotó los 60 s en `waitForURL` del detalle de boleta, **línea 38**: la firma de **I-075**. Medido en bloques alternos sobre el mismo servidor —cambio de código, calentamiento descartado y 5 ejecuciones de 2—: **3 de 30** con el candidato y **2 de 30** con el código de producción (`783b08f`). Tasas equivalentes, como en D-233 (1 de 10 en las dos) | — | Ninguna: anterior y ajena al ojo |
+| `ventas-por-fecha.spec.ts:163` | «55 frente a < 26» en la línea 186: la firma de **I-090**, con las **mismas cifras** que en la E2E completa de `fc114e7`, cuyo código es el de producción. Aislada justo después, sobre la base que dejó la batería, falla igual (las ventas de hoy siguen acumuladas); **sobre siembra limpia, 2 de 2 en verde** | — | Ninguna: depende de los datos que acumulan otras suites |
+
+Lo que cubren las pruebas del ojo que pidió comprobar el dueño: los cinco campos; un ojo por campo que alterna solo el
+suyo; el mismo nodo, su valor y el cursor en su sitio al mostrar y ocultar; teclado (Tab, Enter, Espacio y el foco
+visible); teléfono (toque sin cerrar el teclado, ojos de 44 px que no tapan lo escrito); «Las contraseñas no coinciden.»
+con las dos a la vista; ingresar con la contraseña a la vista, tapada y desactivada mientras se procesa; ninguna petición
+al alternar; y las 9 de I-204 en los cuatro formularios. **No se automatiza**: un gestor de contraseñas real, una
+extensión con icono dentro del campo y Safari de iPhone.

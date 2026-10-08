@@ -3,7 +3,21 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-04 (Bogotá) — **Mantenimiento del dueño, SOLO EN LOCAL** (D-249 a D-252; sin migración,
+- **Actualizado:** 2026-10-08 — **D-255 y D-256: el ojo de los cinco campos de contraseña**, con la publicación
+  autorizada por el dueño (`DEPLOYMENT` §3.3.i; sin migración). Mantenimiento posterior a la Fase 9, sin fase ni etiqueta
+  nuevas. Lo servido antes es `783b08f`: el lote D-249 a D-252, **en producción desde el 2026-10-05**. Los seis puntos de
+  `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** un ojo en cada campo de contraseña —ingresar, definir y cambiar—, con un componente,
+  `PasswordInput`: muestra y oculta sin perder el valor ni el cursor, un ojo por campo con su nombre, tapado al enviar y
+  a la vista tras un error de validación. Nada más cambia.
+  **(2) Pruebas:** sobre el candidato aislado, `verify` 2.069/2.069 (+14), `test:db` 1.573 + 1 y la E2E completa
+  **1.050/1.052** en una sola pasada; los dos fallos, anteriores y ajenos al ojo: **I-075** (`back-navigation:25`; 3 de 30 con el candidato y 2 de 30 con el código de producción) e **I-090** (`ventas-por-fecha:163`, 55 frente a < 26; en verde sobre siembra limpia) (`TEST_RESULTS`, «D-255 y D-256», b).
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** sin comprobar con un gestor de contraseñas real ni en Safari de iPhone (revisión del
+  dueño). D-253 y D-254 siguen en la rama de trabajo, **sin publicar**.
+  **(6) Antes de empezar:** leer D-255 y D-256; un campo de contraseña nuevo es un `PasswordInput`.
+- **Antes:** 2026-10-04 (Bogotá) — **Mantenimiento del dueño, SOLO EN LOCAL** (D-249 a D-252; sin migración,
   push ni despliegue): el lote, preparado en `DEPLOYMENT` §3.3.g. Mantenimiento posterior a la Fase 9, sin fase ni
   etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en local, los formularios de cliente, rifa y boleta ya no pueden mandar nada por la URL

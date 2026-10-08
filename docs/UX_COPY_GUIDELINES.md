@@ -425,6 +425,7 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Que la aplicación no pudo comprobar si alguien tiene acceso —un corte, un rechazo pasajero del servicio— | **«No pudimos comprobar tu acceso»**; volver a intentarlo, **Reintentar** (I-115, D-248) | «Tu cuenta está inactiva», que es otra cosa; «Permiso denegado», «Sesión inválida», «Error de autenticación» |
 | Un formulario que todavía no funciona, mientras la página termina de cargar —los de acceso y de contraseña, y los de cliente, rifa y boleta— | **Preparando el formulario…**, en su propio botón (I-204, D-247, D-249) | Cargando, Espere, Inicializando |
 | Lo mismo, con JavaScript desactivado en el navegador | «Este formulario necesita **JavaScript** y tu navegador lo tiene desactivado. Actívalo o abre Rifas en otro navegador.» (D-247) | «Habilita los scripts», «Navegador no compatible», «Error» |
+| El ojo de un campo de contraseña, que deja ver lo escrito y lo vuelve a tapar | **Mostrar contraseña** y **Ocultar contraseña**, según lo que hará al pulsarlo (D-255). Con dos campos en la misma pantalla, cada ojo dice cuál: **Mostrar nueva contraseña** y **Mostrar confirmación de contraseña** (D-256) | Ver, revelar, desenmascarar, «Mostrar» a secas, que no dice qué |
 | Código nuevo servido tras un despliegue | **Versión** | Build, actualización del sistema, parche |
 | Página pública con los números de un vendedor | **Catálogo** | Vitrina, tienda, landing, micrositio |
 | Su dirección, que el vendedor reparte | **Enlace** (público) | Link, URL, slug |
@@ -779,6 +780,15 @@ se escribe «Cargando», que nombra lo que hace la máquina (D-155). Sin JavaScr
 botón conserva su texto y un aviso dice lo único que sirve, activarlo o abrir otro navegador. **«JavaScript» es una
 palabra técnica y se escribe igual**, porque es el nombre del ajuste que la persona —o quien la ayude— tiene que buscar;
 cualquier rodeo la dejaría sin salida (§35.2.4: manda la prevención del error).
+
+**El ojo de una contraseña dice lo que va a hacer, y solo se oye** (D-255, D-256). Es un botón de solo icono, y se
+acepta así por dos razones: el encargo lo pidió como «ojito», y el ojo dentro de un campo de contraseña es una convención
+que la gente ya reconoce de otras aplicaciones; escribir «Mostrar» al lado le quitaría sitio a la contraseña en un
+teléfono. Su nombre cambia con lo que hará —**«Mostrar contraseña»** mientras está tapada, **«Ocultar contraseña»**
+mientras se ve— y viaja en un `sr-only` (D-114). Donde hay dos campos, cada ojo dice cuál muestra —**«nueva
+contraseña»**, **«confirmación de contraseña»**—: dos botones que se llaman igual no se distinguen a ciegas. Al
+enviar, el campo vuelve a taparse solo: nadie tiene que acordarse de hacerlo. Lo que **no** lo tapa es «Las contraseñas
+no coinciden.»: para corregirlo hay que poder verlas.
 
 **El aviso de versión nueva no da una orden, da permiso para esperar** (D-116). «Hay una nueva
 versión de Rifas · Actualiza cuando termines lo que estás haciendo. · [Actualizar]». La segunda frase
@@ -1910,6 +1920,7 @@ castigo donde solo había una espera.
 | Aviso de versión nueva | `src/features/pwa/components/ServiceWorkerManager.tsx` (D-116) |
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
 | «Preparando el formulario…» y el aviso sin JavaScript, en todo formulario que llega en el HTML del servidor | `src/components/form/HydratedSubmitButton.tsx` (`FORM_PREPARING_LABEL` y `FORM_NEEDS_JAVASCRIPT`; D-247, D-249). Ningún formulario los escribe: los de acceso y de contraseña los reciben de `AuthSubmitButton`, y los de cliente, rifa y boleta usan `HydratedSubmitButton` y `FormNoScriptNotice` |
+| «Mostrar …» y «Ocultar …», el nombre del ojo de un campo de contraseña | Los dos verbos, en `src/components/form/PasswordInput.tsx` (D-255, D-256), en un `sr-only` del botón y **no** en `aria-label`, que `getByLabel('Contraseña')` también lee. Lo que muestra lo pasa cada formulario en `subject`: «contraseña» por defecto (el ingreso); «nueva contraseña» y «confirmación de contraseña» en `ResetPasswordForm` y `ChangePasswordForm` |
 | «Estamos actualizando Rifas», «Vuelve a entrar en unos minutos. Lo que ya registraste sigue guardado.» y «Reintentar», la pantalla de la pausa | `src/app/mantenimiento/page.tsx` (D-239) |
 | «Estamos actualizando Rifas. Vuelve a intentarlo en unos minutos.», lo que responde una acción durante la pausa | `src/lib/maintenance-pause.ts` (`MAINTENANCE_PAUSE_MESSAGE`, D-239). **Vive también en SQL**, en `supabase/maintenance/pausa.sql`, para quien llame a la API: una prueba unitaria compara las dos letra por letra |
 | «No pudimos comprobar tu acceso. Vuelve a intentarlo en unos segundos.», lo que responde una acción o una ruta de la API cuando no se pudo leer la membresía | `src/lib/auth/membership-check.ts` (`MEMBERSHIP_CHECK_MESSAGE`, D-248). Las pantallas no lo escriben: caen en la página de error general |

@@ -1605,6 +1605,27 @@ ventana, con otra autorización y otra recuperación.
 | Qué cambia en los registros | **Nuevo:** `[rifas:instancia] nueva · región … · versión …` cuando arranca una instancia, y `[rifas:supabase] MÉTODO ruta → estado en N ms` cuando una llamada a Supabase tarda 1 s o más, devuelve un 5xx o no responde. Sin host, consulta, término, token ni cookie. **No escribe ningún 4xx** —tampoco el 401 `PGRST303` de I-202— ni una llamada que falle rápido: no captura todos los errores. Orientan sobre la próxima demora (I-190, I-198) como hipótesis, con su siguiente comprobación (`OPERATIONS` §6.b); **no demuestran nada de lo que ya pasó** |
 | Riesgo que queda | Los mismos de §3.3.e en los tres formularios: si el JavaScript no llega, el botón se queda en «Preparando el formulario…», que es lo correcto. En escritorio, al hidratar, «Cancelar» se desplaza una vez (`TEST_RESULTS`, D-249 §c). Una línea de `[rifas:supabase]` no basta para culpar a Supabase: dice cuánto tardó la llamada desde la función, red incluida |
 
+#### 3.3.i El ojo de los cinco campos de contraseña: D-255 y D-256 — **AUTORIZADO el 2026-10-08**
+
+Autorización expresa del dueño para publicar **solo** esta mejora: preparar la entrega, empujar, abrir el PR, integrarlo
+en `main` cuando las verificaciones lo permitan y completar el despliegue. Sin migraciones ni cambios en Supabase Auth,
+SMTP, plantillas o variables de entorno.
+
+> Sobre lo servido, `783b08f`, el lote de §3.3.g, **en producción desde el 2026-10-05, 14:02 UTC** (su registro vive en
+> la rama de trabajo). La letra **h** es, en esa rama, la publicación de D-253 y D-254: **sin autorizar**, y no va aquí.
+
+| | |
+|---|---|
+| Qué publica | `PasswordInput` (`components/form/`) y los tres formularios que lo usan —`LoginForm`, `ResetPasswordForm` y `ChangePasswordForm`—, con sus pruebas, en **un** commit sobre `783b08f`; y la documentación de D-255 y D-256. Los nueve archivos de código y pruebas son **idénticos** a los de `5ca911c` en la rama de trabajo |
+| Lo que no publica | **D-253 ni D-254**; ninguna migración (siguen `0001`–`0080`); ninguna variable nueva; nada de Supabase Auth. Sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/`, `public/` ni `src/proxy.ts` |
+| Dependencias | **Ninguna.** Ninguno de los archivos del ojo cambió entre `783b08f` y la rama de trabajo antes de D-255 (`bb5ba1a`), así que el candidato es `main` más esos nueve archivos y nada más |
+| Cómo se preparó | Un árbol de trabajo aparte desde `origin/main`, con la rama `feature/ojo-contrasena`; la rama de trabajo y sus pendientes, intactos. La pila local de Supabase, **reiniciada con la configuración de `main`** —la de la rama de trabajo cierra el registro y cambia las plantillas (D-254)— para probar lo que se publica |
+| Punto de reversión | **`dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd`** (`783b08f`), el servido hoy, con `isRollbackCandidate`. **Compatible**: no hay migración. Volver a él **quita el ojo** y nada más. *Instant Rollback* lo pulsa el dueño desde el panel (§4.1): el conector de Vercel de los agentes es de lectura y la CLI no está instalada en este equipo |
+| Comprobado en local, sobre el candidato | `verify`, `test:db` y la E2E completa en el árbol aislado, más las pruebas propias del ojo: `TEST_RESULTS`, «D-255 y D-256», b |
+| Al publicar, como en §3.3.g | P0 en solo lectura (servido `783b08f`, base en `0080` sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador (`RUNBOOK` §9.0); avance rápido de `main` por SHA; READY e identificador servido (§6.1); en vivo, `build/publicacion-ojo/en-vivo.mjs`: el ojo en el HTML inicial de `/login` —desactivado, con «Mostrar contraseña» en `sr-only`—, `PasswordInput` en su JavaScript y la regla de `::-ms-reveal`, **ausentes antes y presentes después** |
+| La revisión del dueño, con su sesión | **Sin cambiar ninguna contraseña real.** **(1)** En `/login`: escribir, mostrar y ocultar, seguir escribiendo e ingresar con la contraseña a la vista; su gestor de contraseñas, si lo usa, tiene que rellenar el campo y, si lo ofrece, guardar. **(2)** En «Cambiar contraseña» (`/account/password`): escribir dos contraseñas **distintas** inventadas, mostrar cada una con su ojo —se mueven por separado— y pulsar «Cambiar contraseña»: sale «Las contraseñas no coinciden.» y las dos siguen a la vista; salir **sin** guardar. **(3)** Avisar al terminar, para leer los registros **dentro de la hora**. «Nueva contraseña» (`/reset-password`) es la misma pieza; abrirla sin un enlace de correo no aporta más |
+| Riesgo que queda | Sin comprobar con un gestor de contraseñas real, con una extensión que pinte su icono dentro del campo ni en Safari de iPhone. Si el JavaScript no llega, el ojo se queda desactivado, como «Ingresar» (I-204) |
+
 ---
 
 ## 4. Reversión
