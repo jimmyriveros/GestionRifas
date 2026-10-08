@@ -3,7 +3,22 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-07, más tarde — **D-254, SOLO EN LOCAL: invitaciones y recuperación con el registro
+- **Actualizado:** 2026-10-08 — **D-255, SOLO EN LOCAL: el ojo del campo de contraseña del ingreso** (sin migración,
+  push ni despliegue). Mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Los seis puntos de
+  `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en `/login`, un ojo dentro del campo «Contraseña» la muestra y la oculta —«Mostrar
+  contraseña» / «Ocultar contraseña»—, con el foco y el cursor donde estaban; al ingresar vuelve a ocultarse. Nada más
+  cambia: ni el diseño, ni el envío, ni I-204, ni la autenticación. Los otros formularios de contraseña, sin ojo.
+  **(2) Pruebas:** `verify` 2.210/2.210 (+6; las 6 fallan con el formulario anterior); `test:db` 1.573 + 1; E2E nueva
+  5/5 (2 fallan sin la corrección del cursor) y, con I-204 y D-253, 20/20; E2E completa **1.059/1.060** en 55,4 min, en una sola pasada con el código inmóvil; el único fallo, **I-090** (`ventas-por-fecha:163`, 55 frente a < 26), anterior y conocido. Error encontrado y
+  corregido: Chrome llevaba el cursor al principio al cambiar el `type` con un clic (`TEST_RESULTS`, «D-255»).
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** sin comprobar con un gestor de contraseñas real ni en Safari de iPhone (revisión a
+  mano del dueño); los de D-254 y anteriores, sin cambios.
+  **(6) Antes de empezar:** leer D-255; un texto nuevo en ese botón va en `sr-only`, nunca en un `aria-label` con
+  «Contraseña» (rompería `loginAs`).
+- **Antes:** 2026-10-07, más tarde — **D-254, SOLO EN LOCAL: invitaciones y recuperación con el registro
   público cerrado** (I-206, I-208, I-049; sin migración, push ni despliegue; Auth de producción **sin cambiar**). Los
   seis puntos de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** el enlace de la invitación —personal y «Mi equipo»—, el de «Reenviar acceso por correo» y el

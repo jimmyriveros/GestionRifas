@@ -16800,3 +16800,43 @@ correo antes que por la persona quedaría usado —igual que el de por defecto�
 tiene que ser el de la aplicación: con barra final el enlace queda `//auth/confirm` y Next lo corrige con un 308.
 
 ---
+
+## D-255 — El campo de contraseña del ingreso tiene un ojo para mostrar u ocultar lo escrito
+
+**Fecha:** 2026-10-08 · **Estado:** aceptada para local (encargo del dueño: implementar y probar en local) ·
+**Producción: sin publicar** —push y despliegue esperan su autorización— · **Sin migración**
+
+**Contexto.** El dueño pidió un ojo dentro del campo «Contraseña» del ingreso, **solo ahí**, sin cambiar el diseño, el
+envío, I-204/D-247 ni la autenticación. Al probarlo con un navegador apareció lo que el encargo temía —«seguir
+escribiendo con normalidad»—: **al cambiar el `type` con un clic, Chrome lleva el cursor al principio**, y la siguiente
+tecla quedaba delante de lo escrito (`Xvalor-ficticio-123`). Pasa también sin React; con un cambio por código, no.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Dónde | Solo `features/auth/components/LoginForm.tsx`. Sin componente `PasswordInput`: hay un solo uso, y los otros tres formularios de contraseña quedan fuera del encargo. Si un segundo lo necesita, se extrae entonces (REUSE → EXTEND → CREATE) |
+| El campo | El **mismo** `<input>` con `type` `password` o `text`: nada se remonta y el valor vive solo en react-hook-form. Un booleano local, que no se guarda en ninguna parte. Conserva `autoComplete="current-password"`, la etiqueta, `aria-invalid`, `aria-describedby` y sus errores |
+| El botón | `Button` `ghost` de tamaño `icon-touch` —44 px en el teléfono, 36 desde `sm`, el alto del campo—, pegado a la derecha; el campo reserva ese mismo hueco (`pr-11 sm:pr-9`), el patrón de `SearchInput`. `type="button"`: nunca envía. Iconos `EyeIcon`/`EyeOffIcon` de `lucide-react`, `aria-hidden` |
+| Su nombre | «Mostrar contraseña» u «Ocultar contraseña» según lo que hará, en un `sr-only` y **no** en `aria-label` (D-114): `getByLabel('Contraseña')` también lee los `aria-label`, y encontraría el campo y el botón —lo usan `loginAs` y quince líneas más de las E2E—. Sin `aria-pressed`: con un nombre que ya cambia, dirían lo mismo dos veces |
+| Antes de hidratar y mientras ingresa | Desactivado, como «Ingresar» (`useHydrated`, I-204; `isPending`). Sin JavaScript se queda así, como el formulario |
+| El foco y el cursor | `onMouseDown` sin acción por defecto: el clic o el toque no le quitan el foco al campo y el teclado del teléfono no se cierra. El cursor (y la selección) se devuelven a su sitio en un `useLayoutEffect`, **midiendo antes la caja del campo**: sin eso Chrome rehace el campo después y el cursor devuelto se pierde igual (medido). Sin temporizadores. Con el teclado, el botón recibe el foco por tabulación y Enter o Espacio lo alternan |
+| Al ingresar | **Vuelve a ocultarse** (decisión mía, como el componente de contraseña de GOV.UK): la contraseña no queda a la vista tras ingresar o tras un error, y el campo vuelve a ser de contraseña cuando el navegador o el gestor la buscan. Se envía lo mismo; el `type` no toca el valor |
+| Mientras está a la vista | `spellCheck={false}`, `autoCorrect="off"` y `autoCapitalize="none"`: como campo de texto, el corrector ampliado del navegador podría mandar lo escrito a un servicio externo, y el teclado del teléfono cambiarla o aprenderla |
+| Edge | Pinta su propio ojo en los campos de contraseña: `[&::-ms-reveal]:hidden` lo quita, como `SearchInput` quita la «x» nativa. Medido en Edge 154: sin la clase aparece; en el campo, solo el nuestro |
+| Los textos | Anexo A y Anexo B de `UX_COPY_GUIDELINES` |
+
+**Medido** (`TEST_RESULTS`, «D-255»): unitaria nueva 6/6 —**6 fallan con el formulario anterior**— y las 12 de I-204
+sin cambios; E2E nueva 5/5 (escritorio 3, móvil 2) —**2 fallan sin la medición de la caja**, con el cursor al principio—;
+con I-204 y D-253, 20/20.
+
+**Alternativas descartadas.** Un `PasswordInput` compartido (un solo uso); `aria-label`; devolver el cursor con
+`requestAnimationFrame` (también funciona, pero es un temporizador y deja un fotograma con el cursor fuera de sitio);
+quitar el foco al campo al pulsar el ojo (cierra el teclado del teléfono); dejar la contraseña a la vista después de
+enviar; desactivar el ojo de Edge con `-webkit-text-security` u otro truco (no es el mecanismo que Edge documenta).
+
+**Consecuencias.** Los gestores de contraseñas que pintan su icono **dentro** del campo (extensiones como 1Password o
+Bitwarden) pueden quedar junto al ojo; no se pudo comprobar con uno real, como tampoco el autocompletado de un gestor ni
+Safari de iPhone: quedan para la revisión del dueño (`HANDOFF`). Los otros tres formularios de contraseña siguen sin ojo.
+
+---

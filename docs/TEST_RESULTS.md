@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-254: invitaciones y recuperación con el registro público cerrado —I-206, I-208, I-049—, solo en local, sin migración, 2026-10-07)** | **2.204/2.204** en 107 archivos (+30: `auth-confirm` 13 y `site-url` 17) | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada, con `team-member-lifecycle` leyendo ya `token_hash` | `invitaciones` **5/5**; las siete suites del acceso y las altas, **69/69**; E2E completa **1.052/1.055** (56,7 min), los 3 fallos anteriores: I-148, I-090 e I-164 | ✅ `verify` | ✅ Solo en local; producción, solo leída (`/auth/v1/settings`) |
+| **Post-9 vigente (D-255: el ojo del campo de contraseña del ingreso, solo en local, sin migración, 2026-10-08)** | **2.210/2.210** en 108 archivos (+6: `login-mostrar-contrasena`, **las 6 fallan con el formulario anterior**); las 12 de I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada: sin cambio de esquema | Nuevas **5/5** —escritorio 3, móvil 2; **2 fallan sin la corrección del cursor**—; con I-204 y D-253, **20/20**; completa **1.059/1.060** (55,4 min), el único fallo, I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
+| Post-9 anterior (D-254: invitaciones y recuperación con el registro público cerrado —I-206, I-208, I-049—, solo en local, sin migración, 2026-10-07) | **2.204/2.204** en 107 archivos (+30: `auth-confirm` 13 y `site-url` 17) | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada, con `team-member-lifecycle` leyendo ya `token_hash` | `invitaciones` **5/5**; las siete suites del acceso y las altas, **69/69**; E2E completa **1.052/1.055** (56,7 min), los 3 fallos anteriores: I-148, I-090 e I-164 | ✅ `verify` | ✅ Solo en local; producción, solo leída (`/auth/v1/settings`) |
 | Post-9 anterior (D-253: el destino tras ingresar no sale de Rifas —I-207—, solo en local, sin migración, 2026-10-07) | **2.174/2.174** en 105 archivos (+119: `destino-tras-ingresar` 79 —**46 fallan con el código anterior**— y `safe-next-path` 40) | **1.573 ✅ y 1 omitida** en la línea base y en dos pasadas sobre siembra recién restaurada; **una pasada con 1 fallo** (`rpc.test.ts` › «crea un lote y devuelve el conteo»), no reproducido: ver «D-253» | `destino-tras-ingresar` **6/6** (3 fallan con el código anterior); con `security`, `credenciales-sin-hidratar` y `membresia-sin-comprobar`, **42/42** sobre siembra recién restaurada | ✅ `verify` (0 errores; los 2 avisos de lint de siempre) | ✅ Solo en local, sin push ni despliegue |
 | Post-9 anterior (Publicación del lote D-249 a D-252: `783b08f` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-05, 14:02 UTC; detenida la víspera por la red) | CI del PR (`37240712501`) y de `main` (`37321312703`) sobre `783b08f`: ✅ 2/2, **2.055/2.055** | En los dos CI: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, sobre `fc114e7` —el mismo código—: **1.042/1.044** en una sola pasada; I-090 e I-106, aceptadas por el dueño para esta publicación | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, «todo ok»; en sus registros, un 500 de **I-202** a las 14:45:11 y la misma ruta en 200 a los 7 s |
 | Post-9 anterior (Mantenimiento del 2026-10-04: D-249 a D-252 e I-195, solo en local, sin migración, push ni despliegue) | **2.055/2.055** en 103 archivos (+42 desde `0490d69`: `formularios-pagina-sin-hidratar` 16 —10 fallan con el código anterior—, `take-backup` 13, `supabase-timing` 7 y `navigation-start` +6) | **1.573 ✅ y 1 omitida** sobre base recién sembrada (+1: V2-03 de `settlements-volume`) | **1.042/1.044** en una sola pasada de 57,9 min sobre `fc114e7`, con el código inmóvil; los 2 fallos, anteriores y conocidos: I-090 (`ventas-por-fecha:163`, las ventas de hoy acumuladas por otras suites: 55 frente a < 26) e I-106 (`catalogo-publico-movil:103`) | ✅ | ✅ Solo en local; el lote, preparado en `DEPLOYMENT` §3.3.g y ajustado **sin tocar el código**: D-251 precisado, I-202 con su señal y su base, la prueba de redes con un límite total («Ajustes previos a la publicación») |
@@ -18720,3 +18721,41 @@ Encargo del dueño, segundo trabajo. Cuentas ficticias `@demo.test`; correo en M
 
 Push, despliegue, y **ningún** cambio en Auth del proyecto real: ni el registro, ni las plantillas, ni el SMTP, ni las URL.
 Ningún correo real. El plan, con quién hace cada paso y cómo se deshace, en `DEPLOYMENT` §3.3.h.
+
+## D-255: el ojo del campo de contraseña del ingreso (2026-10-08; solo en local, sin migración)
+
+Encargo del dueño. Valores ficticios, salvo los ingresos completos, que usan la cuenta de desarrollo del seed. Pila
+local; producción, sin tocar ni leer.
+
+### a. El defecto del cursor, encontrado al probarlo
+
+| Qué | Resultado |
+|---|---|
+| Primera versión, en el navegador de la app: escribir, dejar el cursor en medio y pulsar el ojo | Mismo campo, mismo valor, foco en el campo y **0 peticiones**; pero el cursor en **0**: la siguiente tecla entraba delante (`Xvalor-ficticio`) |
+| Devolverlo en un `useLayoutEffect` con `setSelectionRange` | **No basta**: con Playwright, el cursor sigue en 0 después del clic |
+| Sondas en `build/ojo/` (Chromium de Playwright) | Un cambio de `type` **por código** conserva el cursor, también en el campo real y con fotogramas de por medio. **Con un clic de ratón** lo lleva a 0, también sin React. Devolverlo en el clic, 0; **medir la caja y devolverlo**, en su sitio; devolverlo en `requestAnimationFrame`, también, pero con un temporizador |
+| Corrección | `getBoundingClientRect()` antes de `setSelectionRange`, en el `useLayoutEffect` y solo si el campo tenía el foco. La sonda: el cursor sigue en 5, luego en 6 y en 7 (`abcdeXYfghij`) |
+
+### b. Comprobaciones
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `npx vitest run tests/unit/login-mostrar-contrasena.test.tsx tests/unit/auth-forms-sin-hidratar.test.tsx` | ✅ **18/18** (6 nuevas + las 12 de I-204) | — | — |
+| Las 6 nuevas con el `LoginForm` anterior (`git stash` de ese archivo) | ❌ **6/6 fallan**, como se esperaba | — | — |
+| `npx playwright test` de las dos E2E nuevas | ✅ **5/5** | La primera versión importaba las ayudas de un `.spec.ts`: Playwright no lo permite | Ayudas en `tests/e2e/mostrar-contrasena.ts` |
+| Las mismas sin la medición de la caja | ❌ **2 fallan**: `Xvalor-ficticio-123` en escritorio y en móvil; las otras 3 pasan | — | Medición repuesta |
+| Las nuevas + `credenciales-sin-hidratar` + `destino-tras-ingresar` | ✅ **20/20** | — | — |
+| Medidas en el navegador | Campo de 334 × 36 px, igual que el del correo; ojo de 36 × 36 alineado al borde derecho; `padding-right` 36 px. En el móvil, 44 × 44 y 44 px | — | — |
+| CSS de `::-ms-reveal` | En el CSS de `next dev` y en el del build de producción | Chrome no la expone en `cssRules` (no conoce el seudoelemento): se buscó en el texto servido | — |
+| Edge 154, perfil temporal, ventana visible (`build/ojo/sonda-edge.mjs`) | Un campo de control sin la clase, con el foco, **pinta el ojo de Edge**; el nuestro, solo el de `lucide-react` | La primera captura del control se hizo sin foco y no mostraba nada: Edge solo lo pinta con el foco | Captura con el foco |
+| Consola de `/login` al escribir y alternar | Sin errores ni avisos | — | — |
+| Capturas: oculta, visible, foco de teclado, error de validación, móvil y 320 px | Sin saltos ni solapes; el ojo, centrado también con el error debajo | La «oscura» salió clara: la aplicación no tiene modo oscuro activable | No aplica |
+| `npm run verify` | ✅ **2.210/2.210** en 108 archivos; lint, 0 errores y los 2 avisos de siempre (`DataTable`, `BulkTicketCreator`); build compilado | — | — |
+| `npm run db:reset && npm run seed:local` + `npm run test:db` | ✅ **1.573 + 1 omitida** | — | — |
+| Siembra restaurada + E2E completa (escritorio y móvil, `dev:local` calentado, código inmóvil: misma huella antes y después) | ⚠️ **1.059/1.060** en 55,4 min. El único fallo, `ventas-por-fecha:163`: **I-090**, con su firma de siempre (55 frente a < 26). I-148 e I-164 no aparecieron | — | — |
+
+### c. Lo que no se comprobó
+
+El autocompletado y el «¿guardar contraseña?» de un gestor real, una extensión que pinte su icono dentro del campo y
+Safari de iPhone: no se pueden automatizar aquí. Quedan para la revisión del dueño (`HANDOFF` §1.a). Push y despliegue,
+sin hacer.
