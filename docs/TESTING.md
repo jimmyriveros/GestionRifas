@@ -1,6 +1,8 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.43 · **Actualizado:** 2026-10-08 (**§4.18 nueva**, D-255, **solo en local**: el ojo del campo de
+- **Versión:** 2.44 · **Actualizado:** 2026-10-08, más tarde (§4.18, D-256, **solo en local**: el ojo en «Nueva
+  contraseña» y «Cambiar contraseña» —8 unitarias y 3 E2E, 2 de escritorio y 1 de móvil—). Antes, ese mismo día
+  (**§4.18 nueva**, D-255, **solo en local**: el ojo del campo de
   contraseña del ingreso —6 unitarias y 5 E2E, 3 de escritorio y 2 de móvil— y lo que no se automatiza). Antes,
   2026-10-02, más tarde (**§4.15 nueva** y §3, fila 2, D-248, **solo en local**:
   un fallo al leer la membresía no es una cuenta inactiva —25 unitarias y 5 E2E con un `PGRST303` real de la PostgREST
@@ -1555,16 +1557,19 @@ comprueba con `docker exec supabase_auth_Rifas env | grep GOTRUE_DISABLE_SIGNUP`
 en la memoria del proceso de `next dev`): la prueba ve «Demasiados intentos». Una pasada completa envía unas 13; para
 repetir, reiniciar el servidor.
 
-### 4.18 El ojo del campo de contraseña del ingreso (D-255, sin migración)
+### 4.18 El ojo de los campos de contraseña (D-255 y D-256, sin migración)
 
 | Suite | Pruebas | Qué comprueba |
 |---|---|---|
 | `tests/unit/login-mostrar-contrasena.test.tsx` | **6** | Con valores ficticios y `react-dom`, como `auth-forms-sin-hidratar`. En el HTML del servidor: la contraseña oculta, `autocomplete` y `spellcheck` intactos, el ojo `type="button"` y desactivado, «Mostrar contraseña» como texto y no como `aria-label`, y la protección de I-204 igual. Al hidratar: un clic la muestra y otro la oculta sobre **el mismo nodo** y con su valor; alternar no dispara `submit` ni `login`; el `mousedown` del ojo no tiene acción por defecto; y al ingresar con la contraseña a la vista, `login` recibe lo escrito, el campo vuelve a `password` y el campo y el ojo se desactivan mientras se procesa. **Las 6 fallan con el formulario anterior** |
-| `tests/e2e/mostrar-contrasena.spec.ts` | **3** (escritorio) | Navegador real. El clic alterna con el foco en el campo y **el cursor donde estaba** —la siguiente tecla entra en medio, no delante—, el mismo nodo, la misma caja del campo y del formulario y **ninguna petición** (solo se anotan método y ruta). Con el teclado: Tab llega al ojo, el foco se ve (`:focus-visible` y su anillo), Enter y Espacio alternan y nada se envía. Ingresar con la contraseña a la vista, con el `POST` retenido: el campo ya es `password` y el campo y el ojo están desactivados; al soltarlo, el panel |
-| `tests/e2e/mostrar-contrasena-movil.spec.ts` | **2** (móvil, Pixel 7 táctil) | El toque alterna sin quitarle el foco al campo y con el cursor en su sitio; el ojo mide 44 × 44, está pegado al borde derecho y el campo reserva 44 px a la derecha. Y se ingresa con la contraseña a la vista |
+| `tests/unit/mostrar-contrasena-nueva.test.tsx` | **8** | D-256, en `ResetPasswordForm` y `ChangePasswordForm`. En el HTML del servidor, los dos campos ocultos con `autocomplete="new-password"` y dos ojos desactivados, **cada uno con su nombre** —«Mostrar nueva contraseña», «Mostrar confirmación de contraseña»—, e I-204 igual. Al hidratar: cada ojo alterna **su** campo, mismos nodos y valores, sin `submit` ni acción; si «Las contraseñas no coinciden.», **siguen a la vista**; al guardar, la acción recibe lo escrito y los dos se tapan y se desactivan. **Las 8 fallan con los formularios anteriores** |
+| `tests/e2e/mostrar-contrasena.spec.ts` | **5** (escritorio): 3 del ingreso y 2 de D-256 | Navegador real. El clic alterna con el foco en el campo y **el cursor donde estaba** —la siguiente tecla entra en medio, no delante—, el mismo nodo, la misma caja del campo y del formulario y **ninguna petición** (solo se anotan método y ruta). Con el teclado: Tab llega al ojo, el foco se ve (`:focus-visible` y su anillo), Enter y Espacio alternan y nada se envía. Ingresar con la contraseña a la vista, con el `POST` retenido: el campo ya es `password` y el campo y el ojo están desactivados; al soltarlo, el panel. **D-256**, con la sesión de un vendedor del seed: en «Cambiar contraseña», cada ojo alterna su campo con el cursor en su sitio y un error de validación no los tapa; en «Nueva contraseña», con el teclado, cada ojo llega justo después de su campo y alterna solo ese. Ninguna guarda una contraseña |
+| `tests/e2e/mostrar-contrasena-movil.spec.ts` | **3** (móvil, Pixel 7 táctil) | El toque alterna sin quitarle el foco al campo y con el cursor en su sitio; el ojo mide 44 × 44, está pegado al borde derecho y el campo reserva 44 px a la derecha. Se ingresa con la contraseña a la vista. Y en «Cambiar contraseña» (D-256), los dos ojos de 44 px, cada toque en su campo |
 
 Las ayudas de las dos E2E viven en `tests/e2e/mostrar-contrasena.ts`: **Playwright no deja importar un archivo de pruebas
-desde otro**. **Sin la medición de la caja** en `LoginForm` fallan las dos del cursor (`Xvalor-ficticio-123`).
+desde otro**. **Sin la medición de la caja** —hoy en `PasswordInput`— fallan las dos del cursor del ingreso (`Xvalor-ficticio-123`); las 3 de
+D-256 fallan con los formularios anteriores. Que guardar tape las contraseñas de D-256 lo prueba la unitaria: una E2E
+cambiaría la contraseña de la cuenta que usan las demás suites.
 
 ⚠️ **Lo que no se automatiza** y queda para una revisión a mano: el autocompletado de un gestor de contraseñas real, una
 extensión que pinte su icono dentro del campo y Safari de iPhone. El ojo nativo de Edge se comprobó una vez, con una

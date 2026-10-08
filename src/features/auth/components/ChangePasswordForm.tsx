@@ -9,6 +9,7 @@ import type { z } from 'zod'
 import { changePassword } from '@/features/auth/actions'
 import { AuthSubmitButton } from '@/features/auth/components/AuthSubmitButton'
 import { changePasswordSchema } from '@/features/auth/schemas'
+import { PasswordInput } from '@/components/form/PasswordInput'
 import {
   Form,
   FormControl,
@@ -17,7 +18,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 
 type FormValues = z.infer<typeof changePasswordSchema>
 
@@ -57,9 +57,9 @@ export function ChangePasswordForm() {
             <FormItem>
               <FormLabel>Nueva contraseña</FormLabel>
               <FormControl>
-                <Input
+                <PasswordInput
+                  subject="nueva contraseña"
                   size="touch"
-                  type="password"
                   autoComplete="new-password"
                   disabled={isPending}
                   {...field}
@@ -76,9 +76,9 @@ export function ChangePasswordForm() {
             <FormItem>
               <FormLabel>Confirmar contraseña</FormLabel>
               <FormControl>
-                <Input
+                <PasswordInput
+                  subject="confirmación de contraseña"
                   size="touch"
-                  type="password"
                   autoComplete="new-password"
                   disabled={isPending}
                   {...field}

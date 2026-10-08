@@ -1,8 +1,8 @@
 import { expect, type Page } from '@playwright/test'
 
 /**
- * Lo que comparten `mostrar-contrasena.spec.ts` y su variante `-movil` (D-255). Playwright no deja
- * importar un archivo de pruebas desde otro, así que vive aquí.
+ * Lo que comparten `mostrar-contrasena.spec.ts` y su variante `-movil` (D-255, D-256). Playwright no
+ * deja importar un archivo de pruebas desde otro, así que vive aquí.
  */
 
 /** Ficticio: no es la contraseña de nadie. */
@@ -17,6 +17,24 @@ export async function abrirIngreso(page: Page) {
     campo: page.getByLabel('Contraseña'),
     mostrar,
     ocultar: page.getByRole('button', { name: 'Ocultar contraseña' }),
+  }
+}
+
+type Campo = 'nueva contraseña' | 'confirmación de contraseña'
+
+/**
+ * «Nueva contraseña» (`/reset-password`) o «Cambiar contraseña» (`/account/password`), con la
+ * sesión ya abierta (D-256). Cada uno tiene dos campos, y cada ojo dice cuál muestra.
+ */
+export async function abrirContrasenaNueva(page: Page, ruta: string) {
+  await page.goto(ruta)
+  const ojo = (accion: 'Mostrar' | 'Ocultar', campo: Campo) =>
+    page.getByRole('button', { name: `${accion} ${campo}`, exact: true })
+  await expect(ojo('Mostrar', 'nueva contraseña')).toBeEnabled()
+  return {
+    nueva: page.getByLabel('Nueva contraseña'),
+    confirmar: page.getByLabel('Confirmar contraseña'),
+    ojo,
   }
 }
 

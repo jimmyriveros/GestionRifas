@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-255: el ojo del campo de contraseña del ingreso, solo en local, sin migración, 2026-10-08)** | **2.210/2.210** en 108 archivos (+6: `login-mostrar-contrasena`, **las 6 fallan con el formulario anterior**); las 12 de I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada: sin cambio de esquema | Nuevas **5/5** —escritorio 3, móvil 2; **2 fallan sin la corrección del cursor**—; con I-204 y D-253, **20/20**; completa **1.059/1.060** (55,4 min), el único fallo, I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
+| **Post-9 vigente (D-256: el ojo también en «Nueva contraseña» y «Cambiar contraseña», `PasswordInput`, solo en local, sin migración, 2026-10-08)** | **2.218/2.218** en 109 archivos (+8: `mostrar-contrasena-nueva`, **las 8 fallan con los formularios anteriores**); las de D-255 e I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada | Nuevas **3/3** —**fallan con los anteriores**— y las 5 de D-255, **8/8**; completa **1.061/1.063** (56,0 min): I-075 e I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
+| Post-9 anterior (D-255: el ojo del campo de contraseña del ingreso, solo en local, sin migración, 2026-10-08) | **2.210/2.210** en 108 archivos (+6: `login-mostrar-contrasena`, **las 6 fallan con el formulario anterior**); las 12 de I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada: sin cambio de esquema | Nuevas **5/5** —escritorio 3, móvil 2; **2 fallan sin la corrección del cursor**—; con I-204 y D-253, **20/20**; completa **1.059/1.060** (55,4 min), el único fallo, I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
 | Post-9 anterior (D-254: invitaciones y recuperación con el registro público cerrado —I-206, I-208, I-049—, solo en local, sin migración, 2026-10-07) | **2.204/2.204** en 107 archivos (+30: `auth-confirm` 13 y `site-url` 17) | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada, con `team-member-lifecycle` leyendo ya `token_hash` | `invitaciones` **5/5**; las siete suites del acceso y las altas, **69/69**; E2E completa **1.052/1.055** (56,7 min), los 3 fallos anteriores: I-148, I-090 e I-164 | ✅ `verify` | ✅ Solo en local; producción, solo leída (`/auth/v1/settings`) |
 | Post-9 anterior (D-253: el destino tras ingresar no sale de Rifas —I-207—, solo en local, sin migración, 2026-10-07) | **2.174/2.174** en 105 archivos (+119: `destino-tras-ingresar` 79 —**46 fallan con el código anterior**— y `safe-next-path` 40) | **1.573 ✅ y 1 omitida** en la línea base y en dos pasadas sobre siembra recién restaurada; **una pasada con 1 fallo** (`rpc.test.ts` › «crea un lote y devuelve el conteo»), no reproducido: ver «D-253» | `destino-tras-ingresar` **6/6** (3 fallan con el código anterior); con `security`, `credenciales-sin-hidratar` y `membresia-sin-comprobar`, **42/42** sobre siembra recién restaurada | ✅ `verify` (0 errores; los 2 avisos de lint de siempre) | ✅ Solo en local, sin push ni despliegue |
 | Post-9 anterior (Publicación del lote D-249 a D-252: `783b08f` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-05, 14:02 UTC; detenida la víspera por la red) | CI del PR (`37240712501`) y de `main` (`37321312703`) sobre `783b08f`: ✅ 2/2, **2.055/2.055** | En los dos CI: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Local, sobre `fc114e7` —el mismo código—: **1.042/1.044** en una sola pasada; I-090 e I-106, aceptadas por el dueño para esta publicación | ✅ CI 2/2 | **EN PRODUCCIÓN**; la revisión del dueño, «todo ok»; en sus registros, un 500 de **I-202** a las 14:45:11 y la misma ruta en 200 a los 7 s |
@@ -18759,3 +18760,24 @@ local; producción, sin tocar ni leer.
 El autocompletado y el «¿guardar contraseña?» de un gestor real, una extensión que pinte su icono dentro del campo y
 Safari de iPhone: no se pueden automatizar aquí. Quedan para la revisión del dueño (`HANDOFF` §1.a). Push y despliegue,
 sin hacer.
+
+## D-256: el ojo también en «Nueva contraseña» y «Cambiar contraseña» (2026-10-08; solo en local, sin migración)
+
+Encargo del dueño, seguido de D-255. Valores ficticios; las pantallas con sesión, con la cuenta de desarrollo del seed.
+Ninguna prueba guarda una contraseña nueva. Producción, sin tocar ni leer.
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `npx tsc --noEmit`, `eslint` y Prettier de lo tocado | ✅ | `ResetPasswordForm` y `ChangePasswordForm` aparecen como mal formateados —y también `ForgotPasswordForm`, que no se tocó—: su copia de trabajo está en CRLF. Con el contenido en LF, que es lo que guarda Git, el formato es correcto | Ninguna: no se reescribieron los finales de línea |
+| `npx tsc` sobre la unitaria nueva | ❌ la primera vez: `ojos(container)[0]` puede ser `undefined` (`noUncheckedIndexedAccess`) | — | `!` en los tres accesos |
+| Las unitarias de D-255 e I-204 con el componente, sin tocarlas | ✅ **18/18** | — | — |
+| `tests/unit/mostrar-contrasena-nueva.test.tsx` | ✅ **8/8**; con los dos formularios anteriores (`git stash` de esos dos archivos), ❌ **8/8 fallan** | — | — |
+| `npx playwright test` de las dos E2E del ojo | ✅ **8/8** (5 de D-255 y 3 de D-256); las 3 nuevas, con los formularios anteriores, ❌ **3/3 fallan** (no hay ojo) | — | — |
+| Capturas de «Cambiar contraseña» con «Las contraseñas no coinciden.» y de «Nueva contraseña» en el teléfono (`build/ojo/`) | Un ojo por campo, centrado también con el error; la contraseña nueva a la vista y la confirmación tapada | — | — |
+| `npm run verify` | ✅ **2.218/2.218** en 109 archivos; lint, los 2 avisos de siempre | — | — |
+| `npm run db:reset && npm run seed:local` + `npm run test:db` | ✅ **1.573 + 1 omitida** | — | — |
+| Siembra restaurada + E2E completa (escritorio y móvil, `dev:local` calentado; huella del código igual antes y después) | ⚠️ **1.061/1.063** en 56,0 min. `ventas-por-fecha:163`, **I-090**, con su firma (55 frente a < 26). `back-navigation:25`, la **primera** de la pasada, agotó su minuto esperando el detalle de una boleta (`waitForURL`, línea 38): **I-075** | — | — |
+| `back-navigation:25` aislada, servidor caliente, 5 ejecuciones de 2 | Con D-256, **1 de 10** falla (y 1 de 3 en la primera repetición, recién terminada la completa). Con el `LoginForm` de `bb5ba1a` —anterior a D-255—, **1 de 10** más la ejecución de calentamiento. La misma línea 38 en los dos: anterior y ajena al ojo, como ya registraba I-075 desde D-233 | — | Anotado en I-075 |
+
+Los cambios de `LoginForm` para esas comparaciones se hicieron **después** de la completa y se deshicieron al terminar; la
+huella del código final es la misma que la de la pasada.

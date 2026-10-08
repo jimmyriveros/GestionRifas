@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test'
 
-import { ACCOUNTS, SEED_PASSWORD } from './fixtures'
-import { abrirIngreso, escribirConCursorEnMedio, FICTICIO, vigilarRed } from './mostrar-contrasena'
+import { ACCOUNTS, loginAs, SEED_PASSWORD } from './fixtures'
+import {
+  abrirContrasenaNueva,
+  abrirIngreso,
+  escribirConCursorEnMedio,
+  FICTICIO,
+  vigilarRed,
+} from './mostrar-contrasena'
 
 /**
  * D-255: el ojo del campo de contraseña del ingreso, en un navegador de verdad.
@@ -104,5 +110,78 @@ test.describe('D-255: mostrar y ocultar la contraseña', () => {
 
     soltar()
     await page.waitForURL(/\/seller\/dashboard/)
+  })
+})
+
+/**
+ * D-256: el mismo ojo en «Cambiar contraseña» y «Nueva contraseña», con la sesión de un vendedor del
+ * seed. Ninguna prueba guarda una contraseña —cambiaría la de las demás suites—: que al guardar se
+ * tapen y esperen desactivadas lo prueba la unitaria `mostrar-contrasena-nueva.test.tsx`, y en un
+ * navegador, el ingreso de arriba, que usa el mismo componente.
+ */
+test.describe('D-256: los formularios de contraseña nueva', () => {
+  test('«Cambiar contraseña»: cada ojo alterna su campo, el cursor se queda y un error no la tapa', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    const { nueva, confirmar, ojo } = await abrirContrasenaNueva(page, '/account/password')
+    await nueva.click()
+    await escribirConCursorEnMedio(page)
+    const red = vigilarRed(page)
+
+    await ojo('Mostrar', 'nueva contraseña').click()
+    await expect(nueva).toHaveAttribute('type', 'text')
+    await expect(confirmar).toHaveAttribute('type', 'password')
+    await expect(nueva).toBeFocused()
+    await page.keyboard.type('X')
+    await expect(nueva).toHaveValue('valorX-ficticio-123')
+
+    await confirmar.click()
+    await page.keyboard.type(FICTICIO)
+    await ojo('Mostrar', 'confirmación de contraseña').click()
+    await expect(confirmar).toHaveAttribute('type', 'text')
+    await expect(confirmar).toBeFocused()
+
+    // No coinciden: el aviso sale y las dos siguen a la vista, que es lo que hace falta para corregirlas.
+    await page.getByRole('button', { name: 'Cambiar contraseña', exact: true }).click()
+    await expect(page.getByText('Las contraseñas no coinciden.')).toBeVisible()
+    await expect(nueva).toHaveAttribute('type', 'text')
+    await expect(confirmar).toHaveAttribute('type', 'text')
+
+    await ojo('Ocultar', 'nueva contraseña').click()
+    await expect(nueva).toHaveAttribute('type', 'password')
+    await expect(confirmar).toHaveAttribute('type', 'text')
+    expect(red).toEqual([])
+    await expect(page).toHaveURL(/\/account\/password$/)
+  })
+
+  test('«Nueva contraseña»: con el teclado, cada ojo llega después de su campo y alterna solo ese', async ({
+    page,
+  }) => {
+    await loginAs(page, ACCOUNTS.seller)
+    const { nueva, confirmar, ojo } = await abrirContrasenaNueva(page, '/reset-password')
+    await nueva.click()
+    await page.keyboard.type(FICTICIO)
+    const red = vigilarRed(page)
+
+    await page.keyboard.press('Tab')
+    await expect(ojo('Mostrar', 'nueva contraseña')).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(nueva).toHaveAttribute('type', 'text')
+    await expect(ojo('Ocultar', 'nueva contraseña')).toBeFocused()
+
+    await page.keyboard.press('Tab')
+    await expect(confirmar).toBeFocused()
+    await page.keyboard.type(FICTICIO)
+    await page.keyboard.press('Tab')
+    await expect(ojo('Mostrar', 'confirmación de contraseña')).toBeFocused()
+    await page.keyboard.press('Space')
+    await expect(confirmar).toHaveAttribute('type', 'text')
+    await expect(nueva).toHaveAttribute('type', 'text')
+
+    await expect(nueva).toHaveValue(FICTICIO)
+    await expect(confirmar).toHaveValue(FICTICIO)
+    expect(red).toEqual([])
+    await expect(page).toHaveURL(/\/reset-password$/)
   })
 })

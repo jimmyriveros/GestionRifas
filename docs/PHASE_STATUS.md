@@ -3,7 +3,21 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-08 — **D-255, SOLO EN LOCAL: el ojo del campo de contraseña del ingreso** (sin migración,
+- **Actualizado:** 2026-10-08, más tarde — **D-256, SOLO EN LOCAL: el ojo también en «Nueva contraseña» y «Cambiar
+  contraseña»** (sin migración, push ni despliegue). Mantenimiento posterior a la Fase 9. Los seis puntos de
+  `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** los cinco campos de contraseña tienen ojo, con un componente compartido, `PasswordInput`.
+  En los dos formularios de contraseña nueva, un ojo por campo con su nombre —«Mostrar nueva contraseña», «Mostrar
+  confirmación de contraseña»—; la contraseña se tapa al enviar y **no** cuando la validación falla. El ingreso, igual
+  que en D-255. Nada más cambia.
+  **(2) Pruebas:** `verify` 2.218/2.218 (+8; las 8 fallan con los formularios anteriores); `test:db` 1.573 + 1; E2E
+  nuevas 3/3 (fallan con los anteriores) y las 5 de D-255, en verde; E2E completa **1.061/1.063** en 56,0 min, en una sola pasada con el código inmóvil; los 2 fallos, anteriores y conocidos: **I-075** (`back-navigation:25`, la primera de la pasada; aislada, 1 de 10 con este código y 1 de 10 con el de antes de D-255) e **I-090** (`ventas-por-fecha:163`, 55 frente a < 26) (`TEST_RESULTS`, «D-256»).
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** sin comprobar con un gestor de contraseñas real ni en Safari de iPhone (revisión a
+  mano del dueño); los de antes, sin cambios.
+  **(6) Antes de empezar:** leer D-255 y D-256; un campo de contraseña nuevo es un `PasswordInput`.
+- **Antes:** 2026-10-08 — **D-255, SOLO EN LOCAL: el ojo del campo de contraseña del ingreso** (sin migración,
   push ni despliegue). Mantenimiento posterior a la Fase 9, sin fase ni etiqueta nuevas. Los seis puntos de
   `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en `/login`, un ojo dentro del campo «Contraseña» la muestra y la oculta —«Mostrar

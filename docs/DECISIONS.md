@@ -16839,4 +16839,43 @@ enviar; desactivar el ojo de Edge con `-webkit-text-security` u otro truco (no e
 Bitwarden) pueden quedar junto al ojo; no se pudo comprobar con uno real, como tampoco el autocompletado de un gestor ni
 Safari de iPhone: quedan para la revisión del dueño (`HANDOFF`). Los otros tres formularios de contraseña siguen sin ojo.
 
+> **Ampliada el mismo día por D-256:** el ojo pasa a un componente, `PasswordInput`, y llega a «Nueva contraseña» y
+> «Cambiar contraseña». La regla «al ingresar vuelve a ocultarse» se conserva en el ingreso, ahora dicha de otra forma.
+
+---
+
+## D-256 — El ojo pasa a `PasswordInput` y llega a los formularios de contraseña nueva
+
+**Fecha:** 2026-10-08 · **Estado:** aceptada para local (encargo del dueño: «agrega el ojo también en los otros
+formularios de contraseña») · **Producción: sin publicar** · **Sin migración**
+
+**Contexto.** Después de D-255 el dueño pidió el ojo en los demás formularios de contraseña. Son dos, y cada uno tiene
+**dos** campos: «Nueva contraseña» (`/reset-password`, `ResetPasswordForm`) y «Cambiar contraseña» (`/account/password`,
+`ChangePasswordForm`). «¿Olvidaste tu contraseña?» solo pide el correo: no lleva ojo. Con cinco campos, lo que D-255
+dejó escrito para «un segundo uso» se cumple: se extrae.
+
+**Decisión.**
+
+| Qué | Cómo |
+|---|---|
+| Un componente | `src/components/form/PasswordInput.tsx`, junto a `PhoneInput` y `MoneyInput`: el campo, el ojo y todo lo de D-255 —mismo nodo, cursor devuelto midiendo la caja, `onMouseDown`, corrector y autocorrector apagados, `::-ms-reveal` quitado, desactivado antes de hidratar—. Va dentro de `FormControl` como un `Input`: el `id`, `aria-invalid` y `aria-describedby` llegan al `<input>`, y el `ref` de react-hook-form también. El alto lo da `size`, y el ojo y el hueco lo siguen (`touch`: 44/36 px; `default`: 36 px) |
+| Los tres formularios | `LoginForm`, `ResetPasswordForm` y `ChangePasswordForm` cambian `Input type="password"` por `PasswordInput` y nada más: mismos `autoComplete`, `disabled`, etiquetas, errores, envío y acciones. `LoginForm` queda como antes de D-255 salvo ese cambio |
+| Un ojo por campo | Cada campo tiene el suyo y alterna solo ese: comparar lo escrito en uno con lo del otro es para lo que sirve |
+| Su nombre | «Mostrar …» / «Ocultar …» con lo que muestra (`subject`): **«contraseña»** en el ingreso; **«nueva contraseña»** y **«confirmación de contraseña»** en los otros dos. Dos botones con el mismo nombre en una pantalla no se distinguen en la lista de botones de un lector ni por voz |
+| Cuándo se vuelve a tapar | **Cuando el campo se desactiva**, que es cuando el formulario de verdad se envía (los tres desactivan sus campos mientras esperan). Se queda tapado tras guardar o tras un error del servidor. **Un error de validación no lo tapa**: si «Las contraseñas no coinciden.», hay que poder verlas para corregirlas. En el ingreso el efecto es el de D-255: solo se desactivaba tras validar |
+| Cómo se tapa | Ajustando el estado durante el render (`if (disabled && visible) setVisible(false)`), el patrón de React para esto: sin efecto, sin fotograma con la contraseña a la vista y sin que el formulario tenga que avisar al campo |
+
+**Medido** (`TEST_RESULTS`, «D-256»): unitaria nueva 8/8 en los dos formularios —**las 8 fallan con los formularios
+anteriores**— y las de D-255 e I-204, sin tocar, en verde; E2E nuevas 3/3 —**las 3 fallan con los anteriores**— y las
+5 de D-255, en verde con el componente.
+
+**Alternativas descartadas.** Un ojo que muestre los dos campos a la vez (no deja mirar uno solo); el mismo nombre «Mostrar contraseña» en los dos ojos; tapar en cualquier envío,
+también cuando la validación falla (obliga a volver a mostrarlas para corregir un error que exige verlas); pasarle al
+campo un aviso del formulario (`hidden`, una función) en lugar de mirar `disabled` (tres formularios con una línea más
+para decir lo que ya dicen).
+
+**Consecuencias.** Un formulario nuevo con contraseña usa `PasswordInput`; si no desactiva el campo mientras envía, la
+contraseña no se tapa sola. Siguen sin comprobar el gestor de contraseñas real, las extensiones con icono dentro del
+campo y Safari de iPhone (`HANDOFF`).
+
 ---
