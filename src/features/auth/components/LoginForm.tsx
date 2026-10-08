@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { login } from '@/features/auth/actions'
 import { AuthSubmitButton } from '@/features/auth/components/AuthSubmitButton'
 import { loginSchema } from '@/features/auth/schemas'
+import { PasswordInput } from '@/components/form/PasswordInput'
 import {
   Form,
   FormControl,
@@ -95,9 +96,8 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
                 </Link>
               </div>
               <FormControl>
-                <Input
+                <PasswordInput
                   size="touch"
-                  type="password"
                   autoComplete="current-password"
                   disabled={isPending}
                   {...field}
