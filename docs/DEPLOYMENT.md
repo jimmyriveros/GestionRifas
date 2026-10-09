@@ -1,6 +1,8 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-05, 15:00 UTC (**§3.2.y nueva: el lote D-249 a D-252 EN PRODUCCIÓN** —`783b08f`, sin
+**Actualizado:** 2026-10-09, 00:20 UTC (**§3.2.z nueva: D-255 y D-256 EN PRODUCCIÓN** —`c13d831`, el ojo de los cinco
+campos de contraseña, publicado solo y desde una rama aislada, sin D-253 ni D-254; sin migración ni pausa; el punto de
+reversión pasa a `783b08f`—; §3.3.i nueva, y §3.3.h y §4.1, al día). Antes, 2026-10-05, 15:00 UTC (**§3.2.y nueva: el lote D-249 a D-252 EN PRODUCCIÓN** —`783b08f`, sin
 migración ni pausa; la revisión del dueño, «todo ok»; el punto de reversión pasa a `0490d69`, que reintroduciría I-200
 y la fuga de los tres formularios—; §3.3.g y §4.1, al día). Antes, 2026-10-04 (**§3.3.g nueva**: el lote, preparado en
 local y sin autorizar). Antes, 2026-10-02, 18:45 UTC (§3.2.x: **la revisión del dueño, hecha** —su único comentario, que el clic en
@@ -1379,6 +1381,59 @@ ninguna credencial. Detalle en `TEST_RESULTS`, «Publicación del lote D-249 a D
 > **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
 > versión y moverían el punto de reversión.
 
+### 3.2.z Release del ojo de las contraseñas: D-255 y D-256 — 2026-10-09, 00:10 UTC (2026-10-08 en Bogotá)
+
+**Sin migración y sin pausa.** Autorización expresa del dueño para publicar **solo** esta mejora según §3.3.i —preparar
+la entrega, empujar, abrir el PR, integrarlo en `main` cuando las verificaciones lo permitieran y completar el
+despliegue—, sin D-253 ni D-254 y sin migraciones ni cambios en Supabase Auth, SMTP, plantillas o variables. **No se
+detuvo**: ninguna condición falló.
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`c13d8317b7dce8ad14647a72579205eef72d4000`**, el del PR #14 con el CI en verde. Su código es **idéntico** al probado, `4fddd6f`: `git diff --stat 4fddd6f c13d831 -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public`, **vacío**; `c13d831` solo añade documentos |
+| Cómo se aisló | La rama **`feature/ojo-contrasena`**, desde `origin/main` (`783b08f`), en un árbol de trabajo aparte. Sus nueve archivos de código y pruebas son **idénticos** a los de `5ca911c`; frente a `783b08f` cambian 18 archivos —esos nueve y nueve documentos que añaden solo D-255 y D-256—. **D-253 y D-254, fuera**; esta rama de trabajo, intacta. Ninguno de los archivos del ojo cambió entre `783b08f` y `bb5ba1a`: no había dependencias |
+| Commit anterior en producción | `783b08fe4b9a87110ad0786bffdaef9afea60e60` (§3.2.y) |
+| Integración | **Avance rápido** `783b08f..c13d831`, 2 commits —`4fddd6f`, el código y sus pruebas, y `c13d831`, la documentación—, **sin fusión, sin `force` y sin la rama local `main`**: `git ls-remote` confirmó `783b08f` en `main` y `c13d831` en la rama, y `git push origin c13d831…:refs/heads/main` a las **00:09:49 UTC** (`build/publicacion-ojo/publicar-main.sh`). GitHub marca el PR #14 fusionado a las 00:09:52, sin commit de fusión |
+| Despliegue Vercel | **`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`**: creado a las 00:09:53, **READY a las 00:10:51 UTC**, en `iad1`, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`45dc3d9a49ac`** desde las **00:11:04**. El único de producción que disparó el empuje |
+| Despliegue anterior (**punto de reversión**) | **`dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd`** (`783b08f`), con `isRollbackCandidate`; `dpl_9vnY…` dejó de serlo, como corresponde en Hobby. **Compatible con la base**, que no cambió: volver a él **quita el ojo y nada más**. *Instant Rollback* lo pulsa el dueño desde el panel —el conector de los agentes es de lectura y la CLI de Vercel no está instalada en este equipo—, y después «Undo Rollback» antes de volver a desplegar (§4.1) |
+| **Migraciones** | **NINGUNA.** Siguen **80** (`0001`–`0080`) antes y después |
+| Dependencias y configuración | **Sin cambios**: ni `package.json`, ni el *lock*, ni `next.config.ts`, ni `vercel.json`, ni `.github/`, ni `public/`, ni el proxy. Ninguna variable nueva; nada de Supabase Auth |
+| Huellas de esta entrega | Además del identificador (§6.1): el ojo en el **HTML inicial** de `/login` —`<button type="button">` desactivado, «Mostrar contraseña» en `sr-only`, sin `aria-label`, detrás del campo, y el campo con `spellcheck="false"`—, el módulo `PasswordInput` en el JavaScript de `/login` y la regla de `::-ms-reveal` en su hoja. **Ausentes antes** (22:42 UTC del 2026-10-08) y **presentes después** |
+| CI | En el PR, run **`37862503137`** sobre `c13d831`: ✅ **2/2** (00:00:27–00:06:39 UTC): **2.069/2.069** unitarias y **1.573 ✅ y 1 omitida** de base. En `main`, run **`37863343304`** (`push`): ✅ **2/2** (00:09:55–00:17:54 UTC), las mismas cifras. La vista previa del PR, en rojo **por D-066 exactamente**: `check:env` sin las tres variables de Supabase |
+
+**Validado antes, sobre el candidato aislado** (`TEST_RESULTS`, «Publicación de D-255 y D-256», a): con la pila local
+reiniciada con la configuración de `main`, `verify` **2.069/2.069** —la primera pasada cayó en **I-171** por los CRLF del
+árbol nuevo; con los archivos en LF, como los ve el CI, en verde—, `test:db` **1.573 + 1**, un build de producción local
+con las huellas del ojo, y la **E2E completa en una sola pasada, 1.050/1.052**: las 8 del ojo y las 9 de I-204 en verde;
+los dos fallos, contrastados con sus antecedentes —**I-075** (`back-navigation:25`, línea 38: 3 de 30 con el candidato y
+2 de 30 con el código de producción, en bloques alternos) e **I-090** (`ventas-por-fecha:163`, 55 frente a < 26, las
+mismas cifras que en `fc114e7`; en verde sobre siembra limpia)—. **P0, en solo lectura (22:42–22:44 UTC del
+2026-10-08):** servido `cb4c9bb027e0` (`783b08f`), el ojo ausente, 43/43 rutas, base en `0080` sin pausa,
+`verify:remote` **58/58** y `dpl_DVrz…` READY y candidato a reversión. **La franja (`RUNBOOK` §9.0)**, en solo lectura a
+las **00:01:00 UTC**: hora 0, el candado libre —el último turno lo soltó a las 16:57:56—, 0 corridas sin terminar, 0
+peticiones de la API en curso y el próximo recordatorio el 2026-10-09 a las 21:15; el guion volvió a comprobar la hora,
+`main` y la rama justo antes de empujar.
+
+**Verificación en vivo (00:11–00:13 UTC):** `45dc3d9a49ac` servido y `cb4c9bb027e0` **desaparecido**; 43/43 rutas, 0 5xx,
+7/7 cabeceras, CSP por *nonce* con un solo proyecto, 0 secretos en 957 KB, Next 16.3.6; las huellas del ojo, en su sitio,
+y lo de I-204, D-244, D-245, D-249, D-252, D-234 y Color v2, igual. **El ojo, en un navegador sin sesión y con valores
+ficticios** (`build/publicacion-ojo/vivo-ojo.mjs`; nada enviado: ningún `POST`, ningún Enter ni «Ingresar»): en
+escritorio y en teléfono muestra y oculta con el mismo valor, el foco en el campo y el cursor en su sitio; con el teclado,
+Tab llega al ojo con el foco visible y Espacio lo alterna; en el teléfono mide 44 × 44 dentro del campo; alternar no pide
+nada a la red y la consola, limpia. *Una primera pasada* marcó dos peticiones `GET /forgot-password`: son la **precarga**
+del enlace «¿Olvidaste tu contraseña?» (`next-router-prefetch: 1`), que sale **entre 0,6 y 0,8 s tras cargar `/login`, se
+toque o no el ojo** —medido en cuatro variantes, con y sin pulsarlo—; se repitió esperando a que terminara, con las
+mismas comprobaciones, y todo en verde. `verify:remote` **58/58** (00:13); la base, en `0080`, sin pausa y el cierre igual
+(0 entregas, 8 pagos de premios y 0 cierres). **Registros** de `dpl_Dpn…`, 00:09–00:13: **7** líneas `info`, todas
+`[rifas:instancia] nueva · región iad1 · versión 45dc3d9a49ac`; **0** avisos y **0** errores; `get_runtime_errors` de la
+última hora, ninguno. Detalle en `TEST_RESULTS`, «Publicación de D-255 y D-256».
+
+> **Revisión del dueño con su sesión: PENDIENTE.** Los pasos de §3.3.i, **sin cambiar ninguna contraseña real**, y avisar
+> al terminar para leer los registros dentro de la hora.
+
+> **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
+> versión y moverían el punto de reversión.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1683,6 +1738,11 @@ ventana, con otra autorización y otra recuperación.
 
 #### 3.3.h D-253 y D-254: el destino tras ingresar, los enlaces de Auth y la configuración del correo — **PREPARADO, SIN AUTORIZAR**
 
+> **Desde el 2026-10-09, 00:10 UTC lo servido es `c13d831`** (D-255 y D-256, §3.2.z), no `783b08f`. Antes de publicar esto:
+> la rama tiene que **integrar `main`** —sus documentos difieren de los de `c13d831`, que llevan D-255 y D-256 escritos
+> aparte—; el `git diff --stat` de abajo se hace contra `c13d831`; y el punto de reversión del código pasa a ser
+> **`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`**. Lo de abajo se conserva como se preparó.
+
 El dueño autorizó implementar y probar **en local**. Push, despliegue y **cada** cambio de Auth en el proyecto real
 esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales, además, sus destinatarios.
 
@@ -1712,6 +1772,28 @@ esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales
 **Riesgo que queda.** Un escáner de correo que abra el enlace antes que la persona lo deja usado (igual que el de por
 defecto): se pide otro. El límite de verificaciones de Auth es por IP y las de todos salen de Vercel: 30 cada 5 min, lejos
 del volumen de Rifas. Si el enlace dura 1 h (§2.1, OTP), una invitación abierta al día siguiente pide reenviarla.
+
+
+#### 3.3.i El ojo de los cinco campos de contraseña: D-255 y D-256 — **EN PRODUCCIÓN desde el 2026-10-09, 00:10 UTC** (registro en §3.2.z)
+
+Autorización expresa del dueño para publicar **solo** esta mejora: preparar la entrega, empujar, abrir el PR, integrarlo
+en `main` cuando las verificaciones lo permitan y completar el despliegue. Sin migraciones ni cambios en Supabase Auth,
+SMTP, plantillas o variables de entorno.
+
+> **Publicado el 2026-10-09, 00:10 UTC**, desde la rama aislada `feature/ojo-contrasena` (§3.2.z). Lo de abajo es el texto
+> que viajó en `c13d831`, tal como se preparó; §3.3.h —D-253 y D-254— **no** va en esta entrega.
+
+| | |
+|---|---|
+| Qué publica | `PasswordInput` (`components/form/`) y los tres formularios que lo usan —`LoginForm`, `ResetPasswordForm` y `ChangePasswordForm`—, con sus pruebas, en **un** commit sobre `783b08f`; y la documentación de D-255 y D-256. Los nueve archivos de código y pruebas son **idénticos** a los de `5ca911c` en la rama de trabajo |
+| Lo que no publica | **D-253 ni D-254**; ninguna migración (siguen `0001`–`0080`); ninguna variable nueva; nada de Supabase Auth. Sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/`, `public/` ni `src/proxy.ts` |
+| Dependencias | **Ninguna.** Ninguno de los archivos del ojo cambió entre `783b08f` y la rama de trabajo antes de D-255 (`bb5ba1a`), así que el candidato es `main` más esos nueve archivos y nada más |
+| Cómo se preparó | Un árbol de trabajo aparte desde `origin/main`, con la rama `feature/ojo-contrasena`; la rama de trabajo y sus pendientes, intactos. La pila local de Supabase, **reiniciada con la configuración de `main`** —la de la rama de trabajo cierra el registro y cambia las plantillas (D-254)— para probar lo que se publica |
+| Punto de reversión | **`dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd`** (`783b08f`), el servido hoy, con `isRollbackCandidate`. **Compatible**: no hay migración. Volver a él **quita el ojo** y nada más. *Instant Rollback* lo pulsa el dueño desde el panel (§4.1): el conector de Vercel de los agentes es de lectura y la CLI no está instalada en este equipo |
+| Comprobado en local, sobre el candidato | `verify`, `test:db` y la E2E completa en el árbol aislado, más las pruebas propias del ojo: `TEST_RESULTS`, «D-255 y D-256», b |
+| Al publicar, como en §3.3.g | P0 en solo lectura (servido `783b08f`, base en `0080` sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador (`RUNBOOK` §9.0); avance rápido de `main` por SHA; READY e identificador servido (§6.1); en vivo, `build/publicacion-ojo/en-vivo.mjs`: el ojo en el HTML inicial de `/login` —desactivado, con «Mostrar contraseña» en `sr-only`—, `PasswordInput` en su JavaScript y la regla de `::-ms-reveal`, **ausentes antes y presentes después** |
+| La revisión del dueño, con su sesión | **Sin cambiar ninguna contraseña real.** **(1)** En `/login`: escribir, mostrar y ocultar, seguir escribiendo e ingresar con la contraseña a la vista; su gestor de contraseñas, si lo usa, tiene que rellenar el campo y, si lo ofrece, guardar. **(2)** En «Cambiar contraseña» (`/account/password`): escribir dos contraseñas **distintas** inventadas, mostrar cada una con su ojo —se mueven por separado— y pulsar «Cambiar contraseña»: sale «Las contraseñas no coinciden.» y las dos siguen a la vista; salir **sin** guardar. **(3)** Avisar al terminar, para leer los registros **dentro de la hora**. «Nueva contraseña» (`/reset-password`) es la misma pieza; abrirla sin un enlace de correo no aporta más |
+| Riesgo que queda | Sin comprobar con un gestor de contraseñas real, con una extensión que pinte su icono dentro del campo ni en Safari de iPhone. Si el JavaScript no llega, el ojo se queda desactivado, como «Ingresar» (I-204) |
 
 ---
 
@@ -1764,6 +1846,11 @@ vuelve solo si lo nuevo falla de una forma peor que esos dos defectos, y se dice
 base** —la entrega no la cambia— **pero reintroduce** I-200 y la fuga de los formularios de cliente, rifa y boleta antes
 de hidratar (D-249), y quita las líneas `[rifas:…]` del registro (D-251). I-204 e I-115 no vuelven: `0490d69` ya trae
 sus correcciones. Se vuelve solo si lo nuevo falla de una forma peor que eso.
+
+**Con D-255 y D-256, publicados el 2026-10-09** (§3.2.z), el despliegue anterior pasa a ser
+`dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd` (`783b08f`), candidato a *Instant Rollback*. Volver a él es **compatible con la
+base** —la entrega no la cambia— y **solo quita el ojo** de los campos de contraseña. Se vuelve solo si el ojo falla de
+una forma peor que no tenerlo.
 
 ### 4.2 Base de datos
 

@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (D-256: el ojo también en «Nueva contraseña» y «Cambiar contraseña», `PasswordInput`, solo en local, sin migración, 2026-10-08)** | **2.218/2.218** en 109 archivos (+8: `mostrar-contrasena-nueva`, **las 8 fallan con los formularios anteriores**); las de D-255 e I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada | Nuevas **3/3** —**fallan con los anteriores**— y las 5 de D-255, **8/8**; completa **1.061/1.063** (56,0 min): I-075 e I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
+| **Post-9 vigente (Publicación de D-255 y D-256: `c13d831` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-09, 00:09–00:13 UTC; desde una rama aislada, sin D-253 ni D-254)** | Candidato aislado: **2.069/2.069**; CI del PR (`37862503137`) sobre `c13d831`: ✅ 2/2, **2.069/2.069**; CI de `main` (`37863343304`): ✅ **2/2** (00:09:55–00:17:54): **2.069/2.069** unitarias y **1.573 ✅ y 1 omitida** de base | Candidato y CI del PR: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Candidato aislado, una sola pasada: **1.050/1.052**, con I-075 e I-090 contrastados; en vivo, el ojo en un navegador sin sesión, todo en verde | ✅ | **EN PRODUCCIÓN**; la revisión del dueño, **pendiente** |
+| Post-9 anterior (D-256: el ojo también en «Nueva contraseña» y «Cambiar contraseña», `PasswordInput`, solo en local, sin migración, 2026-10-08) | **2.218/2.218** en 109 archivos (+8: `mostrar-contrasena-nueva`, **las 8 fallan con los formularios anteriores**); las de D-255 e I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada | Nuevas **3/3** —**fallan con los anteriores**— y las 5 de D-255, **8/8**; completa **1.061/1.063** (56,0 min): I-075 e I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
 | Post-9 anterior (D-255: el ojo del campo de contraseña del ingreso, solo en local, sin migración, 2026-10-08) | **2.210/2.210** en 108 archivos (+6: `login-mostrar-contrasena`, **las 6 fallan con el formulario anterior**); las 12 de I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada: sin cambio de esquema | Nuevas **5/5** —escritorio 3, móvil 2; **2 fallan sin la corrección del cursor**—; con I-204 y D-253, **20/20**; completa **1.059/1.060** (55,4 min), el único fallo, I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
 | Post-9 anterior (D-254: invitaciones y recuperación con el registro público cerrado —I-206, I-208, I-049—, solo en local, sin migración, 2026-10-07) | **2.204/2.204** en 107 archivos (+30: `auth-confirm` 13 y `site-url` 17) | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada, con `team-member-lifecycle` leyendo ya `token_hash` | `invitaciones` **5/5**; las siete suites del acceso y las altas, **69/69**; E2E completa **1.052/1.055** (56,7 min), los 3 fallos anteriores: I-148, I-090 e I-164 | ✅ `verify` | ✅ Solo en local; producción, solo leída (`/auth/v1/settings`) |
 | Post-9 anterior (D-253: el destino tras ingresar no sale de Rifas —I-207—, solo en local, sin migración, 2026-10-07) | **2.174/2.174** en 105 archivos (+119: `destino-tras-ingresar` 79 —**46 fallan con el código anterior**— y `safe-next-path` 40) | **1.573 ✅ y 1 omitida** en la línea base y en dos pasadas sobre siembra recién restaurada; **una pasada con 1 fallo** (`rpc.test.ts` › «crea un lote y devuelve el conteo»), no reproducido: ver «D-253» | `destino-tras-ingresar` **6/6** (3 fallan con el código anterior); con `security`, `credenciales-sin-hidratar` y `membresia-sin-comprobar`, **42/42** sobre siembra recién restaurada | ✅ `verify` (0 errores; los 2 avisos de lint de siempre) | ✅ Solo en local, sin push ni despliegue |
@@ -18781,3 +18782,78 @@ Ninguna prueba guarda una contraseña nueva. Producción, sin tocar ni leer.
 
 Los cambios de `LoginForm` para esas comparaciones se hicieron **después** de la completa y se deshicieron al terminar; la
 huella del código final es la misma que la de la pasada.
+
+---
+
+## Publicación de D-255 y D-256 — EN PRODUCCIÓN: `c13d831` (2026-10-08, 22:37 UTC – 2026-10-09, 00:20 UTC)
+
+Autorización expresa del dueño para publicar **solo** el ojo de las contraseñas (`DEPLOYMENT` §3.3.i); el registro, en
+§3.2.z. Todo lo que se leyó de producción, en solo lectura; ningún formulario enviado y ninguna credencial escrita: en
+producción, solo valores ficticios en el campo, sin enviarlo.
+
+### a. El candidato aislado (como viajó en `c13d831`)
+
+Árbol de trabajo nuevo desde `origin/main` (`783b08f`), rama `feature/ojo-contrasena`, con **solo** los nueve archivos
+de código y pruebas del ojo —idénticos a los de `5ca911c`—: commit `4fddd6f`. `npm ci` propio. La pila local de Supabase,
+**reiniciada con la configuración de `main`** (la de la rama de trabajo cierra el registro y cambia las plantillas, D-254).
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `git diff --stat origin/main` del commit de código | Los nueve archivos y nada más | — | — |
+| `npm run db:reset && npm run seed:local` + `npm run verify` | ❌ 1 de 2.069: `admin-privacy.test.ts:283`, «esperado» y «recibido» iguales a la vista | **I-171**: el árbol nuevo salió con CRLF y la expresión de la prueba se queda con el `\r`. En la copia principal y en el CI, LF | Archivos del árbol reescritos en LF (`git -c core.autocrlf=false checkout`), sin tocar la prueba: 0 con CRLF de 952 |
+| `npm run verify`, otra vez | ✅ **2.069/2.069** en 105 archivos; lint con los 2 avisos de siempre; build compilado | — | — |
+| `npm run test:db` | ✅ **1.573 + 1 omitida** | — | — |
+| Build de producción **con Supabase local** (ninguna referencia al proyecto real en `.next`) servido en `localhost` + `build/publicacion-ojo/en-vivo.mjs despues` | El ojo en el HTML inicial de `/login` —`type="button"`, desactivado, «Mostrar contraseña» en `sr-only`, sin `aria-label`, detrás del campo, `spellcheck="false"`—, `PasswordInput` en el JavaScript y la regla de `::-ms-reveal` una vez; I-204, D-249, D-252 y lo anterior, igual | La CSP «con un solo proyecto de Supabase» no aplica en local (apunta a `127.0.0.1`) | — |
+| Siembra restaurada + E2E completa (escritorio y móvil, `dev:local` del árbol aislado, calentado; código inmóvil: huella `14ffb07786873b55` antes y después) | ⚠️ **1.050/1.052** en 55,0 min, una sola pasada. Las 8 del ojo y las 9 de I-204, en verde | Los dos fallos, contrastados abajo | — |
+| `back-navigation.spec.ts:25`, la **primera** de la pasada | Agotó los 60 s en `waitForURL` del detalle de boleta, **línea 38**: la firma de **I-075**. Medido en bloques alternos sobre el mismo servidor —cambio de código, calentamiento descartado y 5 ejecuciones de 2—: **3 de 30** con el candidato y **2 de 30** con el código de producción (`783b08f`). Tasas equivalentes, como en D-233 (1 de 10 en las dos) | — | Ninguna: anterior y ajena al ojo |
+| `ventas-por-fecha.spec.ts:163` | «55 frente a < 26» en la línea 186: la firma de **I-090**, con las **mismas cifras** que en la E2E completa de `fc114e7`, cuyo código es el de producción. Aislada justo después, sobre la base que dejó la batería, falla igual (las ventas de hoy siguen acumuladas); **sobre siembra limpia, 2 de 2 en verde** | — | Ninguna: depende de los datos que acumulan otras suites |
+
+Lo que cubren las pruebas del ojo que pidió comprobar el dueño: los cinco campos; un ojo por campo que alterna solo el
+suyo; el mismo nodo, su valor y el cursor en su sitio al mostrar y ocultar; teclado (Tab, Enter, Espacio y el foco
+visible); teléfono (toque sin cerrar el teclado, ojos de 44 px que no tapan lo escrito); «Las contraseñas no coinciden.»
+con las dos a la vista; ingresar con la contraseña a la vista, tapada y desactivada mientras se procesa; ninguna petición
+al alternar; y las 9 de I-204 en los cuatro formularios. **No se automatiza**: un gestor de contraseñas real, una
+extensión con icono dentro del campo y Safari de iPhone.
+
+### b. P0, en solo lectura (2026-10-08, 22:37–22:44 UTC)
+
+| Comprobación | Resultado |
+|---|---|
+| Git | `git fetch`: `origin/main` en `783b08f`; la rama de trabajo, 11 commits por delante, con D-253 y D-254 y documentos |
+| Dependencias | Ninguno de los nueve archivos del ojo cambia entre `783b08f` y `bb5ba1a`; lo que D-253 y D-254 cambian (22 archivos) no lo toca el ojo |
+| Vercel | Producción: `dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd` (`783b08f`), READY, con `isRollbackCandidate`. La CLI de Vercel no está instalada en este equipo: la reversión es *Instant Rollback* desde el panel |
+| En vivo, «antes», 22:42 (`build/publicacion-ojo/en-vivo.mjs antes`) | **Todo en verde**: `cb4c9bb027e0` servido; el ojo ausente en el HTML, el JavaScript y la hoja de `/login`; I-204, D-249, D-252 y lo anterior, servidos; 43/43 rutas, 0 5xx, 7/7 cabeceras, 0 secretos |
+| Base, 22:42 (`p0-base.mts`) | `0080`, 80 migraciones, sin pausa; cierre: 0 entregas, 8 pagos de premios y 0 cierres; candado libre; 0 corridas sin terminar; 0 peticiones en curso; próximo recordatorio el 2026-10-09 a las 21:15 |
+| `verify:remote`, 22:43 | **58/58** |
+
+### c. La publicación (2026-10-09)
+
+| Paso (UTC) | Resultado |
+|---|---|
+| Rama y PR, 00:00 | `feature/ojo-contrasena` empujada nueva (`c13d831`) y **PR #14** hacia `main` |
+| Vista previa de Vercel | `dpl_iXuuWavCbrTY7GsjPuNEUAdeADuk`, en rojo **por D-066 exactamente**: `check:env` sin las tres variables de Supabase |
+| CI del PR | Run `37862503137` sobre `c13d831`: ✅ **2/2** (00:00:27–00:06:39): **2.069/2.069** unitarias y **1.573 ✅ y 1 omitida** de base |
+| La franja, 00:01:00 | Hora 0; base en `0080` sin pausa; candado libre; 0 corridas sin terminar; 0 peticiones en curso; ningún recordatorio en 3 h |
+| Avance rápido, 00:09:49 | `build/publicacion-ojo/publicar-main.sh`: hora, `main` en `783b08f`, rama en `c13d831` y avance rápido, comprobados; `git push origin c13d831…:refs/heads/main`, `783b08f..c13d831`, sin `force`. PR #14 fusionado a las 00:09:52, sin commit de fusión |
+| Despliegue | `dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`: creado a las 00:09:53, **READY a las 00:10:51**, `iad1`, alias `gestion-rifas.vercel.app` sin error |
+| Identificador servido | **`45dc3d9a49ac`** desde las **00:11:04**, 73 s después de empezar a esperar |
+| Punto de reversión | `dpl_DVrz…` (`783b08f`), con `isRollbackCandidate`; `dpl_9vnY…`, ya no |
+| CI de `main` | Run `37863343304` (`push`): ✅ **2/2** (00:09:55–00:17:54): **2.069/2.069** unitarias y **1.573 ✅ y 1 omitida** de base |
+
+### d. En vivo, después (00:11–00:13 UTC)
+
+| Comprobación | Resultado |
+|---|---|
+| `en-vivo.mjs despues`, 00:11:25 | **Todo en verde**: `45dc3d9a49ac` servido y `cb4c9bb027e0` ausente; el ojo en el HTML inicial de `/login` —`type="button"`, desactivado, «Mostrar contraseña» en `sr-only`, sin `aria-label`, detrás del campo, `spellcheck="false"`—, `PasswordInput` en el JavaScript y la regla de `::-ms-reveal` una vez; I-204, D-244, D-245, D-249, D-252, D-234 y Color v2, igual; 43/43 rutas, 0 5xx, 7/7 cabeceras, CSP con un solo proyecto, 0 secretos en 957 KB |
+| El ojo en un navegador sin sesión (`vivo-ojo.mjs`), primera pasada | 15 de 17 en verde. **Las 2 en rojo**: «alternar no pidió nada a la red» vio un `GET /forgot-password` en escritorio y en teléfono |
+| ¿De dónde salía? (`vivo-precarga.mjs` y `vivo-precarga-2.mjs`) | Es la **precarga** del enlace «¿Olvidaste tu contraseña?»: `next-router-prefetch: 1` y `?_rsc`, dos peticiones **entre 0,6 y 0,8 s tras cargar `/login` sin tocar nada**, y las mismas en cuatro variantes —pulsando el ojo dos veces o, en su lugar, el borde del campo—; después, ninguna. La prueba empezaba a mirar antes de que terminara. En local no se veía porque `next dev` no precarga |
+| Segunda pasada, esperando 3 s a la precarga | **17 de 17 en verde**: en escritorio y en teléfono, mostrar y ocultar con el mismo valor, el foco en el campo y el cursor en su sitio (la tecla siguiente entra en medio); Tab llega al ojo con el foco visible y Espacio lo alterna; 44 × 44 en el teléfono; **ninguna petición** al alternar, **ningún `POST`**, la dirección sigue siendo `/login` sin datos y la consola, limpia |
+| `verify:remote`, 00:13 | **58/58** |
+| Base, 00:13:45 | `0080`, sin pausa; cierre igual: 0 entregas, 8 pagos de premios y 0 cierres: **ninguna migración** |
+| Registros de `dpl_Dpn…`, 00:09–00:13 | **7** líneas `info`, todas `[rifas:instancia] nueva · región iad1 · versión 45dc3d9a49ac`: `/login`, `/offline` y las dos sondas a programadores sin secreto (401, sin hacer nada). **0** avisos y **0** errores. `get_runtime_errors`, última hora: ninguno |
+
+### e. Lo que queda
+
+**La revisión del dueño con su sesión** (`DEPLOYMENT` §3.3.i), sin cambiar ninguna contraseña real, y la lectura de sus
+registros dentro de la hora. Sin automatizar: un gestor de contraseñas real, una extensión con icono dentro del campo y
+Safari de iPhone. La rama de trabajo, con D-253 y D-254, tiene que integrar `main` antes de su propia publicación.

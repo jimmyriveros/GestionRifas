@@ -3,7 +3,20 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-08, más tarde — **D-256, SOLO EN LOCAL: el ojo también en «Nueva contraseña» y «Cambiar
+- **Actualizado:** 2026-10-09, 00:20 UTC (19:20 del 2026-10-08 en Bogotá) — **D-255 y D-256 EN PRODUCCIÓN**: el ojo de los
+  cinco campos de contraseña, `c13d831`, publicado solo y desde una rama aislada (`DEPLOYMENT` §3.2.z). Los seis puntos
+  de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** en producción, el ojo en el ingreso y en «Nueva contraseña» y «Cambiar contraseña». D-253 y
+  D-254, **sin publicar**.
+  **(2) Pruebas:** candidato aislado: `verify` 2.069/2.069, `test:db` 1.573 + 1 y E2E completa 1.050/1.052 (I-075 e
+  I-090, contrastados); CI 2/2 en el PR; en vivo, todo en verde y el ojo probado en el `/login` real sin enviar nada
+  (`TEST_RESULTS`, «Publicación de D-255 y D-256»).
+  **(3) Migraciones:** ninguna. Producción y local: `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** la revisión del dueño, pendiente; sin comprobar con un gestor de contraseñas real ni
+  en Safari de iPhone; I-075 e I-090, como estaban.
+  **(6) Antes de empezar:** esta rama tiene que integrar `main` (`c13d831`) antes de publicar D-253 y D-254.
+- **Antes:** 2026-10-08, más tarde — **D-256, SOLO EN LOCAL: el ojo también en «Nueva contraseña» y «Cambiar
   contraseña»** (sin migración, push ni despliegue). Mantenimiento posterior a la Fase 9. Los seis puntos de
   `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** los cinco campos de contraseña tienen ojo, con un componente compartido, `PasswordInput`.

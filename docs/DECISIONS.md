@@ -16803,8 +16803,8 @@ tiene que ser el de la aplicación: con barra final el enlace queda `//auth/conf
 
 ## D-255 — El campo de contraseña del ingreso tiene un ojo para mostrar u ocultar lo escrito
 
-**Fecha:** 2026-10-08 · **Estado:** aceptada para local (encargo del dueño: implementar y probar en local) ·
-**Producción: sin publicar** —push y despliegue esperan su autorización— · **Sin migración**
+**Fecha:** 2026-10-08 · **Estado:** aceptada · **EN PRODUCCIÓN desde el 2026-10-09, 00:10 UTC**, junto con D-256 y
+desde una rama aislada, sin D-253 ni D-254 (`DEPLOYMENT` §3.2.z) · **Sin migración**
 
 **Contexto.** El dueño pidió un ojo dentro del campo «Contraseña» del ingreso, **solo ahí**, sin cambiar el diseño, el
 envío, I-204/D-247 ni la autenticación. Al probarlo con un navegador apareció lo que el encargo temía —«seguir
@@ -16846,8 +16846,8 @@ Safari de iPhone: quedan para la revisión del dueño (`HANDOFF`). Los otros tre
 
 ## D-256 — El ojo pasa a `PasswordInput` y llega a los formularios de contraseña nueva
 
-**Fecha:** 2026-10-08 · **Estado:** aceptada para local (encargo del dueño: «agrega el ojo también en los otros
-formularios de contraseña») · **Producción: sin publicar** · **Sin migración**
+**Fecha:** 2026-10-08 · **Estado:** aceptada (encargo del dueño: «agrega el ojo también en los otros formularios de
+contraseña») · **EN PRODUCCIÓN desde el 2026-10-09, 00:10 UTC**, junto con D-255 (`DEPLOYMENT` §3.2.z) · **Sin migración**
 
 **Contexto.** Después de D-255 el dueño pidió el ojo en los demás formularios de contraseña. Son dos, y cada uno tiene
 **dos** campos: «Nueva contraseña» (`/reset-password`, `ResetPasswordForm`) y «Cambiar contraseña» (`/account/password`,
