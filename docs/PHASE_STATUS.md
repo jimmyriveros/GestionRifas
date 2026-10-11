@@ -3,7 +3,12 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-09, 00:20 UTC (19:20 del 2026-10-08 en Bogotá) — **D-255 y D-256 EN PRODUCCIÓN**: el ojo de los
+- **Actualizado:** 2026-10-11 — **D-253 y D-254, PREPARADOS sobre lo servido (`c13d831`), sin publicar.** La rama integró
+  `main` sin cambiar su árbol; frente a producción, el código difiere solo en los 22 archivos de D-253 y D-254 y conserva
+  el ojo (D-255, D-256). `verify` 2.218/2.218 y acceso, invitaciones y el ojo 77/77; producción, solo leída: `c13d831`
+  servido, `verify:remote` 58/58, registro público abierto. Proveedor de correo elegido por el dueño: **Gmail**. Falta su
+  autorización para push y despliegue, y después cada paso de Auth (`DEPLOYMENT` §3.3.h).
+- **Antes:** 2026-10-09, 00:20 UTC (19:20 del 2026-10-08 en Bogotá) — **D-255 y D-256 EN PRODUCCIÓN**: el ojo de los
   cinco campos de contraseña, `c13d831`, publicado solo y desde una rama aislada (`DEPLOYMENT` §3.2.z). Los seis puntos
   de `CLAUDE.md` §34.3:
   **(1) Funcionalidades:** en producción, el ojo en el ingreso y en «Nueva contraseña» y «Cambiar contraseña». D-253 y

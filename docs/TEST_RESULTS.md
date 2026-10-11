@@ -13,7 +13,8 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Publicación de D-255 y D-256: `c13d831` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-09, 00:09–00:13 UTC; desde una rama aislada, sin D-253 ni D-254)** | Candidato aislado: **2.069/2.069**; CI del PR (`37862503137`) sobre `c13d831`: ✅ 2/2, **2.069/2.069**; CI de `main` (`37863343304`): ✅ **2/2** (00:09:55–00:17:54): **2.069/2.069** unitarias y **1.573 ✅ y 1 omitida** de base | Candidato y CI del PR: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Candidato aislado, una sola pasada: **1.050/1.052**, con I-075 e I-090 contrastados; en vivo, el ojo en un navegador sin sesión, todo en verde | ✅ | **EN PRODUCCIÓN**; la revisión del dueño, **pendiente** |
+| **Post-9 vigente (Preparación de D-253 y D-254 sobre `c13d831`: la rama integra `main` sin cambiar su árbol, 2026-10-11; nada publicado)** | **2.218/2.218** en 109 archivos, sobre la integración | Sin repetir: el árbol es el de `cc7e96a`, con **1.573 ✅ y 1 omitida** el 2026-10-08 | Acceso, invitaciones y el ojo, escritorio y móvil: **77/77**. La completa del mismo código, **1.061/1.063** el 2026-10-08 (I-090, I-075) | ✅ `verify` | Producción, solo leída: `c13d831` servido, `verify:remote` 58/58, registro público abierto |
+| Post-9 anterior (Publicación de D-255 y D-256: `c13d831` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-09, 00:09–00:13 UTC; desde una rama aislada, sin D-253 ni D-254) | Candidato aislado: **2.069/2.069**; CI del PR (`37862503137`) sobre `c13d831`: ✅ 2/2, **2.069/2.069**; CI de `main` (`37863343304`): ✅ **2/2** (00:09:55–00:17:54): **2.069/2.069** unitarias y **1.573 ✅ y 1 omitida** de base | Candidato y CI del PR: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Candidato aislado, una sola pasada: **1.050/1.052**, con I-075 e I-090 contrastados; en vivo, el ojo en un navegador sin sesión, todo en verde | ✅ | **EN PRODUCCIÓN**; la revisión del dueño, **pendiente** |
 | Post-9 anterior (D-256: el ojo también en «Nueva contraseña» y «Cambiar contraseña», `PasswordInput`, solo en local, sin migración, 2026-10-08) | **2.218/2.218** en 109 archivos (+8: `mostrar-contrasena-nueva`, **las 8 fallan con los formularios anteriores**); las de D-255 e I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada | Nuevas **3/3** —**fallan con los anteriores**— y las 5 de D-255, **8/8**; completa **1.061/1.063** (56,0 min): I-075 e I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
 | Post-9 anterior (D-255: el ojo del campo de contraseña del ingreso, solo en local, sin migración, 2026-10-08) | **2.210/2.210** en 108 archivos (+6: `login-mostrar-contrasena`, **las 6 fallan con el formulario anterior**); las 12 de I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada: sin cambio de esquema | Nuevas **5/5** —escritorio 3, móvil 2; **2 fallan sin la corrección del cursor**—; con I-204 y D-253, **20/20**; completa **1.059/1.060** (55,4 min), el único fallo, I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
 | Post-9 anterior (D-254: invitaciones y recuperación con el registro público cerrado —I-206, I-208, I-049—, solo en local, sin migración, 2026-10-07) | **2.204/2.204** en 107 archivos (+30: `auth-confirm` 13 y `site-url` 17) | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada, con `team-member-lifecycle` leyendo ya `token_hash` | `invitaciones` **5/5**; las siete suites del acceso y las altas, **69/69**; E2E completa **1.052/1.055** (56,7 min), los 3 fallos anteriores: I-148, I-090 e I-164 | ✅ `verify` | ✅ Solo en local; producción, solo leída (`/auth/v1/settings`) |
@@ -18857,3 +18858,24 @@ extensión con icono dentro del campo y Safari de iPhone.
 **La revisión del dueño con su sesión** (`DEPLOYMENT` §3.3.i), sin cambiar ninguna contraseña real, y la lectura de sus
 registros dentro de la hora. Sin automatizar: un gestor de contraseñas real, una extensión con icono dentro del campo y
 Safari de iPhone. La rama de trabajo, con D-253 y D-254, tiene que integrar `main` antes de su propia publicación.
+
+---
+
+## Preparación de D-253 y D-254 sobre `c13d831` (2026-10-11; nada publicado)
+
+Encargo del dueño: revisar el estado y seguir `DEPLOYMENT` §3.3.h conservando el ojo publicado. Eligió Gmail como
+proveedor; escribirá él la contraseña de aplicación en Supabase.
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `git merge --no-ff --no-commit origin/main` | Conflictos solo en 8 documentos; el código, sin conflicto | — | Los 8, con la versión de la rama: `git diff HEAD c13d831` de cada uno enseñó que lo de `main` ya estaba en la rama (D-255, D-256, el candidato aislado) con otras palabras |
+| `git diff --cached --stat HEAD` tras resolver | **Vacío**: la integración (`0593ffb`) no cambia el árbol | — | — |
+| `git diff --stat c13d831 HEAD -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public` | Los **22** archivos de D-253 y D-254, nada más; los nueve del ojo, idénticos a `4fddd6f` | — | — |
+| `npm run verify` | ✅ **2.218/2.218** en 109 archivos; `check:env` en verde; lint, los 2 avisos de siempre | — | — |
+| Siembra restaurada + `destino-tras-ingresar`, `invitaciones`, `mostrar-contrasena` (y su versión móvil), `security`, `credenciales-sin-hidratar`, `membresia-sin-comprobar`, `owner-users` y `equipo` | ✅ **77/77** | — | — |
+| Vercel (`list_deployments`, producción) | El más reciente, `dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`, `c13d831`, READY, candidato a reversión | — | — |
+| `GET https://gestion-rifas.vercel.app/login` y `/auth/confirm`, 17:23 UTC | El HTML trae «Mostrar contraseña»; `/auth/confirm`, **307** a `/login?next=%2Fauth%2Fconfirm`: no existe todavía | — | — |
+| `GET /auth/v1/settings` (clave publicable) | `disable_signup: false`, `mailer_autoconfirm: false`, correo activado, anónimos desactivados | — | — |
+| `npm run verify:remote` | ✅ **58/58** | — | — |
+
+Sin repetir la E2E completa ni `test:db`: el árbol es el mismo que pasó las dos el 2026-10-08 (`TEST_RESULTS`, «D-256»).

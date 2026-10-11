@@ -110,7 +110,7 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 | Sign In / Providers → Confirm email | Activado | Sin cambio: no afecta a la invitación |
 | Emails → Templates → **Invite user** | La de Supabase, en inglés | Asunto «Tu invitación a Rifas»; cuerpo, el de `supabase/templates/invite.html`, copiado tal cual |
 | Emails → Templates → **Reset password** | La de Supabase, en inglés | Asunto «Elige tu contraseña de Rifas»; cuerpo, el de `supabase/templates/recovery.html` |
-| Emails → **SMTP Settings** | Sin SMTP propio: el correo integrado, que **solo entrega a direcciones autorizadas del equipo** del proyecto | SMTP propio, con el proveedor que elija el dueño (abajo). Nombre del remitente: **Rifas** |
+| Emails → **SMTP Settings** | Sin SMTP propio: el correo integrado, que **solo entrega a direcciones autorizadas del equipo** del proyecto | SMTP propio con **Gmail** (opción A, elegida el 2026-10-11; valores abajo). Nombre del remitente: **Rifas** |
 | Rate Limits → **Rate limit for sending emails** | 2 por hora | El que Supabase pone al activar el SMTP, **30 por hora**: basta, porque la aplicación limita 20 invitaciones por hora y organización y 3 recuperaciones cada 15 min por correo (`SECURITY` §10.2) |
 | Emails / Providers → **Email OTP Expiration** | Sin leer | **Lo decide el dueño.** Es lo que dura el enlace de una invitación; el valor por defecto de Supabase es 3.600 s (1 h). Si los vendedores abren la invitación al día siguiente, la encontrarán vencida y tendrán que pedir otra |
 
@@ -122,6 +122,24 @@ documentación de cada uno; se confirman al contratar. Ningún agente crea cuent
 | **A. Una cuenta de Gmail solo para Rifas, con contraseña de aplicación** | Verificación en dos pasos y una contraseña de aplicación de 16 caracteres. `smtp.gmail.com`, puerto 587 (o 465); usuario y remitente, esa dirección | 500 correos al día | Gratis | Buena a este volumen: Google firma el correo de `gmail.com`. El remitente es una dirección de Gmail, y la cuenta queda atada a Google |
 | **B. Un dominio propio + Resend** | Comprar el dominio y añadir sus registros DNS (SPF, DKIM y DMARC) para verificarlo. `smtp.resend.com`, puerto 465, usuario `resend`, contraseña = la clave de la API | 100 al día y 3.000 al mes en el plan gratuito | El dominio, cada año | La mejor: remitente propio y autenticado, y el dominio sirve después para la aplicación |
 | **C. Brevo sin dominio** | Verificar una dirección de remitente | 300 al día en el plan gratuito | Gratis | La más débil: sin dominio autenticado, Brevo cambia el remitente a `@brevosend.com` |
+
+**Elegida: A, Gmail** (el dueño, 2026-10-11). Creó una cuenta de Gmail **solo para Rifas**, activó la verificación en dos
+pasos y generó la contraseña de aplicación «Supabase Rifas». Los valores, **sin ningún secreto**:
+
+| Campo del panel (nombre en la API de gestión) | Valor |
+|---|---|
+| Correo del remitente (`smtp_admin_email`) | La dirección de Gmail de Rifas, entera |
+| Nombre del remitente (`smtp_sender_name`) | `Rifas` |
+| Host (`smtp_host`) | `smtp.gmail.com` |
+| Puerto (`smtp_port`) | `587` |
+| Usuario (`smtp_user`) | La **misma** dirección de Gmail de Rifas |
+| Contraseña (`smtp_pass`) | La contraseña de aplicación «Supabase Rifas», 16 letras, **sin espacios**. La escribe el dueño |
+| Intervalo mínimo entre correos a una misma persona | El que trae el panel; no hace falta cambiarlo |
+
+El remitente tiene que ser **la misma cuenta** que el usuario: Gmail no deja enviar como otra dirección. **Si alguien
+cambia la contraseña de esa cuenta de Google, Google revoca la contraseña de aplicación** y el correo deja de salir sin
+avisar en Rifas: se genera otra y se pega en el mismo sitio. Gmail admite 500 envíos al día, muy por encima de los 30 por
+hora de Supabase.
 
 **La contraseña del SMTP la escribe el dueño en el panel de Supabase** (Emails → SMTP Settings) y nunca pasa por el
 chat, por Git ni por Vercel: la aplicación no la necesita, porque los correos los manda Auth. Para cambiarla, se genera
@@ -1738,10 +1756,15 @@ ventana, con otra autorización y otra recuperación.
 
 #### 3.3.h D-253 y D-254: el destino tras ingresar, los enlaces de Auth y la configuración del correo — **PREPARADO, SIN AUTORIZAR**
 
-> **Desde el 2026-10-09, 00:10 UTC lo servido es `c13d831`** (D-255 y D-256, §3.2.z), no `783b08f`. Antes de publicar esto:
-> la rama tiene que **integrar `main`** —sus documentos difieren de los de `c13d831`, que llevan D-255 y D-256 escritos
-> aparte—; el `git diff --stat` de abajo se hace contra `c13d831`; y el punto de reversión del código pasa a ser
-> **`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`**. Lo de abajo se conserva como se preparó.
+> **Preparado otra vez el 2026-10-11, sobre lo servido: `c13d831`** (D-255 y D-256, §3.2.z). La rama **integró `main`**
+> en `0593ffb` —los nueve archivos del ojo eran idénticos; los ocho documentos que chocaban se quedaron con la versión de la
+> rama, que ya contenía los de `c13d831`— y el árbol no cambió. **El candidato conserva el ojo**: frente a `c13d831`, su
+> código difiere **solo** en los 22 archivos de D-253 y D-254. **Punto de reversión del código:
+> `dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`** (`c13d831`). **P0, hecho en solo lectura** (17:23 UTC): el despliegue de producción más
+> reciente es ese, READY; `/login` trae el ojo; `/auth/confirm` todavía no existe (307 a `/login`); `/auth/v1/settings`,
+> `disable_signup: false`; `verify:remote` 58/58. **Comprobado sobre el candidato:** `verify` 2.218/2.218 y las suites de
+> acceso, invitaciones y el ojo, 77/77 (`TEST_RESULTS`, «Preparación de D-253 y D-254 sobre `c13d831`»). **Proveedor: Gmail**
+> (§2.1). Las celdas de abajo que citan `783b08f` o `dpl_DVrz…` se leen con `c13d831` y `dpl_DpnW…`.
 
 El dueño autorizó implementar y probar **en local**. Push, despliegue y **cada** cambio de Auth en el proyecto real
 esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales, además, sus destinatarios.
@@ -1751,8 +1774,8 @@ esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales
 | Qué publica | **D-253** (`d4dfed2`: `features/auth/safe-next-path.ts`, `login`, su página y `/auth/callback`) y **D-254** (el commit siguiente: `app/auth/confirm/route.ts`, `/auth/confirm` pública en `lib/supabase/proxy.ts`, `lib/site-url.ts` en cuatro lectores y `check:env`). `supabase/config.toml` y `supabase/templates/` **no se despliegan**: son la pila local y el CI; en producción las plantillas se pegan en el panel |
 | Lo que no publica | **Ninguna migración** (`0001`–`0080`); ninguna variable nueva; sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/` ni `public/` |
 | Compatibilidad | El código nuevo funciona con la configuración de Auth de hoy: `/auth/confirm` no la usa nadie hasta cambiar las plantillas, y `/auth/callback` sigue igual. Por eso **primero el código y después Auth**, y cada paso se puede deshacer solo |
-| Antes de empujar | **El dueño confirma en Vercel** que `NEXT_PUBLIC_SITE_URL` (Production) es `https://gestion-rifas.vercel.app`: `check:env` la exige desde D-254. Y `git diff --stat 783b08f <candidato> -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public` enseña **solo** los archivos de D-253 y D-254 |
-| Punto de reversión del código | **`dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd`** (`783b08f`), el servido hoy. **Compatible**: no hay migración. Volver a él **reintroduce** I-207 y quita `/auth/confirm`: si las plantillas ya apuntan ahí, **se restauran primero** las por defecto. *Instant Rollback* lo pulsa el dueño (§4.1) |
+| Antes de empujar | **El dueño confirma en Vercel** que `NEXT_PUBLIC_SITE_URL` (Production) es `https://gestion-rifas.vercel.app`: `check:env` la exige desde D-254. Y `git diff --stat c13d831 <candidato> -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public` enseña **solo** los archivos de D-253 y D-254 (22, comprobado el 2026-10-11) |
+| Punto de reversión del código | **`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`** (`c13d831`), el servido desde el 2026-10-09. **Compatible**: no hay migración. Volver a él **conserva el ojo**, **reintroduce** I-207 y quita `/auth/confirm`: si las plantillas ya apuntan ahí, **se restauran primero** las por defecto. *Instant Rollback* lo pulsa el dueño (§4.1) |
 | Comprobado en local | `verify`, `test:db`, las suites del ingreso y de las invitaciones y la E2E completa, en `TEST_RESULTS`, «D-253» y «D-254» |
 
 **Orden, con quién hace cada cosa y cómo se deshace:**
@@ -1761,7 +1784,7 @@ esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales
 |---|---|---|---|---|
 | P0 | Lectura: lo servido, `/auth/v1/settings`, `verify:remote`, y **capturas del dueño** de URL Configuration, Templates, SMTP y Rate Limits, para poder volver | Agente (solo lectura) y dueño (capturas) | Coincide con «Leído» de §2.1 | No se sigue |
 | P1 | Empujar la rama sin `force`, PR hacia `main`, CI 2/2 sobre el SHA exacto | Agente, **con autorización** | CI en verde | No se fusiona |
-| P2 | Avance rápido de `main` en una franja sin el programador; READY y servido | Agente, **con autorización** | En vivo: `GET /auth/confirm` sin parámetros → `/login?error=auth_callback`; `verify:remote` | *Instant Rollback* a `dpl_DVrz…` |
+| P2 | Avance rápido de `main` en una franja sin el programador; READY y servido | Agente, **con autorización** | En vivo: `GET /auth/confirm` sin parámetros → `/login?error=auth_callback`; `verify:remote` | *Instant Rollback* a `dpl_DpnW…` (`c13d831`) |
 | P3 | **I-207 en vivo**: abrir `/login?next=/%5Cejemplo.invalid` e ingresar | Dueño, con su sesión | Llega a su panel, nunca a otro sitio | Reversión de P2 |
 | P4 | URL Configuration: Site URL sin barra y `https://gestion-rifas.vercel.app/**` | Dueño, en el panel | Lo que diga §2.1 | Los valores de la captura de P0 |
 | P5 | Templates: «Invite user» y «Reset password», asunto y cuerpo desde `supabase/templates/` | Dueño, en el panel (el agente guía) | Vista previa del panel | «Reset to default», o el texto de la captura |
