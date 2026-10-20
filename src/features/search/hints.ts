@@ -95,7 +95,7 @@ export function adminTicketSearchHint(term: string): string | undefined {
     return 'Los números de una boleta tienen 4 cifras como máximo.'
   }
   if (!/^[0-9]+$/.test(trimmed)) {
-    return 'Escribe solo el número diario o el semanal de la boleta.'
+    return 'Escribe solo uno de los números de la boleta.'
   }
   return undefined
 }

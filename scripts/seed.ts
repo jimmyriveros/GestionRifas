@@ -281,13 +281,15 @@ async function seedDemoBusiness(orgId: string, ids: Record<string, string>) {
   console.log('  clientes creados: 3 de vendedor1, 2 de vendedor2')
 
   // Vendedor 1: 6 para vender + 10 disponibles + 2 por aprobar + 3 borradores.
-  // Los numeros ejercitan a proposito los ceros iniciales y el rango completo
-  // de 1 a 4 digitos (BR-N02, BR-N03).
+  // Los numeros ejercitan a proposito los ceros iniciales (BR-N03). Desde D-261
+  // la rifa tiene «Diario» y «Semanal» de CUATRO cifras exactas, asi que «007» y
+  // «7» ya no caben: se escriben con sus ceros, como los tiene que escribir
+  // cualquiera.
   const s1ToAssign = await createTickets(orgId, raffleId, seller1, owner, [
     { daily: '0001', weekly: '1001', status: 'available' },
     { daily: '0002', weekly: '1002', status: 'available' },
-    { daily: '007', weekly: '1003', status: 'available' },
-    { daily: '7', weekly: '1004', status: 'available' },
+    { daily: '0007', weekly: '1003', status: 'available' },
+    { daily: '0070', weekly: '1004', status: 'available' },
     { daily: '0000', weekly: '9999', status: 'available' },
     { daily: '1234', weekly: '5678', status: 'available' },
   ])

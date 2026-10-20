@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import type { TicketInventoryStatus } from '@/lib/constants'
 import { formatDateEs, formatTimeEs } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { numberGroupTitle, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 /**
  * Las piezas de presentacion que comparten los DOS detalles de boleta: el del
@@ -76,23 +78,43 @@ const TICKET_NUMBER_TONES = {
 /**
  * «Números de la boleta»: la misma tarjeta en los dos portales (D-231, D-234).
  *
+ * Cada caja lleva el TÍTULO del número que el dueño nombró al crear la rifa
+ * (D-261): «Número diario» y «Número semanal» en la de siempre, «Número mayor»
+ * y «Número seco» en otra, o una sola caja, «Número». Una rifa de un número no
+ * pinta una segunda caja vacía. Sin el formato —una pantalla que no lo trae—
+ * quedan los rótulos de siempre.
+ *
  * Un numero que falta —una boleta en borrador— se pinta con una raya, y quien
  * escucha la pantalla oye «Sin número» en lugar de un signo que no se lee.
  */
 export function TicketNumbersCard({
   dailyNumber,
   weeklyNumber,
+  numberFormat,
   className,
 }: {
   dailyNumber: string | null
   weeklyNumber: string | null
+  numberFormat?: RaffleNumberFormat
   className?: string
 }) {
+  const [first, second] = numberFormat?.groups ?? []
+  const single = numberFormat?.groups.length === 1
   return (
     <TicketDetailCard title="Números de la boleta" className={className}>
-      <CardContent className="grid grid-cols-2 gap-3">
-        <TicketNumber label="Número diario" value={dailyNumber} tone="daily" />
-        <TicketNumber label="Número semanal" value={weeklyNumber} tone="weekly" />
+      <CardContent className={cn('grid gap-3', single ? 'grid-cols-1' : 'grid-cols-2')}>
+        <TicketNumber
+          label={first ? numberGroupTitle(first.name) : 'Número diario'}
+          value={dailyNumber}
+          tone="daily"
+        />
+        {single ? null : (
+          <TicketNumber
+            label={second ? numberGroupTitle(second.name) : 'Número semanal'}
+            value={weeklyNumber}
+            tone="weekly"
+          />
+        )}
       </CardContent>
     </TicketDetailCard>
   )
@@ -195,6 +217,32 @@ export function DateTime({ value }: { value: string }) {
       <span className="whitespace-nowrap">{formatTimeEs(value)}</span>
     </>
   )
+}
+
+/**
+ * La fila «Aprobada» de «Detalles», la misma en los dos portales (D-234, I-211),
+ * o nada.
+ *
+ * Aprobar es el paso de una boleta `pending_approval`, la que crea un VENDEDOR
+ * (CLAUDE.md §16, BR-I09), y solo `approve_tickets` escribe `approved_at`. Las
+ * que crea el personal —a mano, en lote o por rangos— nacen listas y no tienen
+ * fecha de aprobacion: escribir «Todavía no» en ellas diria que falta algo que
+ * no falta. El detalle del vendedor lo decia de toda boleta sin fecha, y cada
+ * una de las que le entregaba el personal parecia pendiente (I-211). Por eso la
+ * fecha si la tiene, «Todavía no» solo en una pendiente de aprobacion —la unica
+ * que la espera— y, en las demas, ninguna fila.
+ */
+export function ApprovalDetailLine({
+  approvedAt,
+  inventoryStatus,
+}: {
+  approvedAt: string | null
+  inventoryStatus: TicketInventoryStatus
+}) {
+  if (approvedAt) return <DetailLine label="Aprobada" value={<DateTime value={approvedAt} />} />
+  if (inventoryStatus === 'pending_approval')
+    return <DetailLine label="Aprobada" value="Todavía no" />
+  return null
 }
 
 /**

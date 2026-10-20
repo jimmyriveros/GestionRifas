@@ -16709,8 +16709,8 @@ su pantalla.
 
 ## D-253 — El destino después de ingresar se resuelve como lo hará el navegador y tiene que quedarse en Rifas
 
-**Fecha:** 2026-10-07 · **Estado:** aceptada (autorizada por el dueño para corregirse y probarse en local) · **Sin
-migración** · **Solo en local**: sin push ni despliegue · Cierra **I-207** en local
+**Fecha:** 2026-10-07 · **Estado:** aceptada · **EN PRODUCCIÓN desde el 2026-10-11, 18:12 UTC** (`b1f8dc1`, junto con
+D-254; `DEPLOYMENT` §3.2.aa) · **Sin migración** · Cierra **I-207**, también con la sesión del dueño (P3, conforme)
 
 **Contexto.** Codex encontró y reprodujo que `safeNextPath` (`features/auth/actions.ts`) aceptaba cualquier texto que
 empezara por `/` y no por `//`. El router de Next resuelve el destino de una Server Action con `new URL(destino,
@@ -16749,9 +16749,10 @@ reciba un destino desde la URL usa `safeNextPath`, no un `startsWith('/')` escri
 
 ## D-254 — Los correos de Auth abren la sesión en el servidor con `token_hash`, en español, y el registro público se cierra (I-206, I-208, I-049)
 
-**Fecha:** 2026-10-07 · **Estado:** aceptada para local (autorizada por el dueño: implementar y probar en local) ·
-**Producción: preparada, sin aplicar** —push, despliegue y cada cambio de Auth esperan su autorización expresa
-(`DEPLOYMENT` §3.3.h)— · **Sin migración**
+**Fecha:** 2026-10-07 · **Estado:** aceptada · **El código, EN PRODUCCIÓN desde el 2026-10-11, 18:12 UTC** (`b1f8dc1`;
+`DEPLOYMENT` §3.2.aa). **Auth, aplicado por el dueño el 2026-10-12**: URL, registro cerrado, SMTP de Gmail y plantillas —en
+ese orden: el panel no deja editar plantillas sin SMTP propio—; enlace de 3.600 s; **P8 conforme** con correos reales
+(`DEPLOYMENT` §3.3.h) · **Sin migración**
 
 **Contexto.** I-206 pedía cerrar el registro público sin romper las invitaciones ni la recuperación, y preparar el correo
 para producción. Al probarlo de verdad, en local, con un navegador y la configuración de producción (el «Site URL» igual al
@@ -16877,5 +16878,415 @@ para decir lo que ya dicen).
 **Consecuencias.** Un formulario nuevo con contraseña usa `PasswordInput`; si no desactiva el campo mientras envía, la
 contraseña no se tapa sola. Siguen sin comprobar el gestor de contraseñas real, las extensiones con icono dentro del
 campo y Safari de iPhone (`HANDOFF`).
+
+---
+
+## D-257 — Inventario común por rifa, generación por rangos, entrega de lotes y apartados temporales
+
+**Fecha:** 2026-10-19 · **Estado:** aceptada (encargo del dueño, ejecutado **solo en local**: sin push, despliegue ni
+cambios en el Supabase de producción) · **Migración `0081_common_inventory_and_holds.sql`** · Reglas **BR-N15..BR-N18**,
+**BR-I17..BR-I31** y **BR-B09**
+
+**Contexto.** El dueño pidió que el personal pueda crear las boletas de una rifa sin vendedor, generarlas por rangos
+—hasta 100.000—, entregarlas por lotes a los vendedores y recuperarlas, y que los vendedores aparten temporalmente
+boletas libres desde un catálogo interno, con la base como autoridad sobre disponibilidad, hora, permisos y cupos.
+Hay vendedores operando en producción: sus boletas, clientes, ventas, abonos, permisos y recorridos no podían cambiar.
+
+**Lo que fijó el encargo** (no lo decidí yo, y no se reinterpreta): inventario común sin vendedor ficticio y con una
+sola identidad por boleta; tener vendedor no es `assigned`; las boletas existentes no se mueven ni vencen solas; rangos
+inclusivos con todas sus combinaciones, ancho explícito y hasta 100.000 como **límite técnico**; nada se sobrescribe ni
+se reutiliza una combinación anulada; la entrega no vence ni consume cupo; la recuperación no toca ventas, clientes ni
+pagos; apartados sin aprobación de **30 minutos**, **10** a la vez por vendedor y rifa, **una** extensión de 30, devolver
+antes, volver a apartar en el acto, sin enfriamiento ni renovación automática; **la configuración es solo del Dueño**;
+lo ajeno solo como libre o no disponible; nada de carrito público, pagos en línea, documentos legales, Dueño como
+vendedor ni planes. **La validación legal pendiente para comercializar y operar sigue sin resolverse**: este encargo es
+técnico.
+
+**Lo que decidí yo** (ninguna de estas es una regla del dueño; cada una se puede cambiar con su motivo):
+
+| Qué | Cómo, y por qué |
+|---|---|
+| Inventario común | `tickets.seller_id` pasa a admitir nulo, con un CHECK: sin vendedor, solo `available` o `cancelled` y sin cliente, precio, venta ni abonos. Es la única forma de una sola identidad por boleta sin vendedor ficticio (que el encargo prohibía y que las reglas de cartera, D-198, habrían tratado como una persona) |
+| Apartados | **Tabla propia**, `ticket_holds`, no columnas en `tickets`: la boleta **no se modifica** al apartar, extender o devolver —ni bitácora de boleta ni disparadores de comisión por cada toma—, cada apartado tiene su identidad (`id` y la solicitud que lo creó) y su historia se conserva. Un índice parcial único impide dos abiertos por boleta |
+| Vigencia | `ended_at is null and expires_at > now()`, siempre con la hora de la base. El vencido lo cierra **quien vuelve a tocar** la boleta (`expired`); ninguna lectura espera a nadie. **Sin tarea programada**: el encargo pedía no depender de una |
+| Carreras | Cada operación sobre un apartado bloquea **la fila de la boleta**; el cupo se cuenta dentro de un cerrojo de aviso por (rifa, vendedor) (`pg_advisory_xact_lock`), así que peticiones paralelas del mismo vendedor se ponen en fila. Los lotes reutilizan `lock_ticket_batch` (orden por id, como BR-B07) |
+| Guardas en la tabla | `tickets_guard_inventory`: una sesión (`authenticated`/`anon`) no crea una boleta sin vendedor, no le quita el vendedor a una ni escribe `generation_run_id`; solo las funciones de la base mueven el inventario. `tickets_guard_hold`: con un apartado vigente, ningún `UPDATE` ni `DELETE` de la boleta pasa, salvo la venta de ese apartado. Viven en la tabla para cubrir también una RPC futura |
+| El generador | Una fila por generación (`ticket_generation_runs`) con su identificador de solicitud y su **avance confirmado**. Bloques de **5.000** en transacciones separadas, uno por petición del navegador: `authenticated` tiene un tope de 8 s por sentencia y un bloque cuesta ~0,5 s (medido). Cada bloque es un `insert … select` con anti-unión contra lo existente; el contador de códigos internos sube una vez por bloque. Un bloque repetido o adelantado responde con el avance real |
+| Orden de las combinaciones | Diario por diario: el navegador calcula la muestra con la **misma** fórmula que la base, sin pedirle filas |
+| Códigos internos | Los de siempre, `R001-000123`, desde el contador de la rifa. Una generación que pasaría de 999.999 se rechaza (I-161) |
+| Bitácora | Inicio + una fila por **bloque**; las boletas generadas **no** escriben `ticket.create` una a una (100.000 filas): `audit_tickets` se separó en dos disparadores y el de inserción se salta las que traen `generation_run_id`, que es su procedencia. Lotes: una fila con la lista de boletas, más la `ticket.update` de cada una |
+| Venta desde un apartado | `sell_ticket_hold` comprueba el apartado vigente, lo cierra (`sold`), pone el vendedor y llama a **`assign_ticket_row`**, la venta de siempre, en la misma transacción. En la pantalla, el mismo `AssignTicketsForm` con un `holdId` |
+| Permiso de configurar | Capacidad nueva `raffles.holds.manage`, en el catálogo de SQL y en `capabilities.ts`; el Dueño la tiene por tenerlas todas y **el Administrador no**, porque el encargo lo pedía así |
+| Lo que ve el personal | Las proyecciones `admin_*` (D-198) se ampliaron con la custodia —inventario común, apartada por quién y hasta cuándo, con un vendedor— y un filtro «Inventario». Siguen sin una sola columna de cartera; la prueba que lo vigila se amplió |
+| Lo que ve el vendedor | `seller_inventory_tickets` devuelve una disponibilidad (`free`, `held_by_me`, `mine`, `unavailable`) y deja en nulo el identificador y el vencimiento de lo ajeno: la privacidad está en la respuesta, no en la pantalla |
+| Motor de loterías | `match_lottery_result` deja fuera las boletas sin vendedor: la fotografía exige vendedor (`lottery_ticket_matches.seller_id` es NOT NULL) y no hay a quién avisar. Copiado de `0064` con ese filtro y nada más (comparado línea a línea) |
+| Quien deja de vender | Disparadores en `memberships` y `profiles` cierran sus apartados (`seller_inactive`) |
+| Pantallas | «Crear en lote» ofrece dos modos —«Escribir los números» y «Generar por rangos»— como **enlaces**, cada uno con su dirección; la ficha de la rifa resume su inventario y los apartados; «Inventario común» del vendedor va en el menú (no en la barra inferior, D-106) y «Mis boletas» avisa cuando hay libres |
+| Refresco | En «Inventario común» del vendedor —donde una boleta cambia de libre a apartada en minutos— se reutiliza `CatalogRefreshOnFocus`, ampliado con un intervalo (30 s) y con la hora de cada vencimiento. La cuenta atrás se ajusta a la hora de la base (`server_now`) y nunca pasa de lo que dura el apartado. Las pantallas del **personal** no se refrescan solas, como hasta hoy: se actualizan al navegar, la elegibilidad de un lote se vuelve a pedir al seleccionar y la base rechaza con su frase una operación sobre una boleta que cambió (BR-B06, BR-I23) |
+| Comisiones | Sin cambios: `recalc_seller_commission` ya devolvía sin hacer nada con un vendedor nulo, así que generar, apartar o recuperar no mueve ninguna ganancia; asignar una boleta a un vendedor la recuenta para él como cualquier cambio de vendedor |
+| Orden de la migración | Todo lo nuevo primero; el `ALTER TABLE tickets` y las claves foráneas hacia tablas vivas, **al final**, para que los cerrojos sobre tablas vivas duren lo mínimo (lo aprendido con la `0080`, D-241: una FK dentro de `create table` bloqueó escrituras de boletas 5,9 s) |
+
+**Medido** (`TEST_RESULTS`, «D-257»): 100.000 boletas en 20 bloques —el más lento, 0,52 s; la generación entera,
+~9 s, con una interrupción y su continuación— y `tickets` +47 a +73 MB según el espacio libre que ya tuviera la tabla;
+catálogo y listas del personal paginados en 20–300 ms con 100.000 boletas; lotes de 1.000 en ~0,3 s. **En paralelo**,
+con sesiones distintas: dos vendedores sobre la misma boleta (se la queda uno), muchas tomas simultáneas del mismo
+vendedor (no pasan el cupo) y una venta contra una recuperación, seis veces (siempre termina una sola). **En secuencia**,
+con el vencimiento forzado en la base: un apartado vencido no se extiende ni se vende, y una pantalla vieja no extiende,
+no devuelve ni vende el apartado nuevo de la misma boleta. El instante exacto en que una extensión y un vencimiento
+coinciden no se puede provocar desde una prueba: lo decide la fila bloqueada con la hora de la base.
+
+**Alternativas descartadas.** Un vendedor ficticio «Inventario» (prohibido por el encargo, y una persona falsa en cada
+regla de cartera); un estado nuevo en `inventory_status` («en inventario», «apartada») —confunde custodia con venta y
+obliga a tocar la máquina de estados y los reportes—; columnas de apartado en `tickets` —cada toma reescribiría la boleta
+y una solicitud vieja no se distinguiría de una nueva—; vencer con una tarea programada; generar las 100.000 en una sola
+transacción —el tope de 8 s y, si falla, se pierde todo— o en el navegador; una fila de bitácora por boleta generada;
+dar al Administrador la configuración.
+
+**Consecuencias.**
+
+- **Pendiente del dueño (I-209):** una boleta vendida desde un apartado y después **liberada** (BR-I14) queda con ese
+  vendedor sin vencimiento, como cualquier liberación. Se conservó la regla de siempre. *Nota posterior, el mismo día:*
+  el dueño decidió que **vuelva al inventario común** — **D-258**, migración `0082`, regla BR-I32.
+- **Espacio (I-210):** 100.000 boletas ocupan de 47 a 73 MB de la base; en el plan gratuito de Supabase (500 MB) eso
+  hay que mirarlo antes de generar volúmenes así en producción.
+- **Publicar `0081`** tomará al final un bloqueo exclusivo sobre `tickets` —el `ALTER TABLE` valida el CHECK nuevo
+  recorriendo la tabla— y cerrojos de escritura mientras crea sus índices y sus FK. **Su duración no se midió** con
+  escrituras en curso, como se hizo con la `0080`. Mientras nadie genere boletas sin vendedor, el código servido hoy no
+  encuentra ninguna; las funciones `admin_*` ganan columnas y un parámetro con valor por omisión. Esa compatibilidad
+  **está razonada, no ensayada** contra el código servido. Las dos cosas se comprueban al preparar la publicación, que
+  **no está autorizada**. `verify:remote` ya conoce las 16 funciones nuevas. *Nota posterior, el mismo día (D-259):*
+  medido con la latencia de producción, ese bloqueo duraba 10–14 s y hacía caer peticiones por los 8 s de
+  `authenticated` (I-212); con la sección en un bloque `do` y los privilegios antes, 0,5–0,6 s. Y `verify:remote` no
+  conocía la firma de once argumentos de `admin_list_tickets` (I-213). La compatibilidad con el código servido, en
+  `TEST_RESULTS`, «Preparación de la publicación de D-257, D-258 e I-211».
+- Un carrito público futuro tiene que usar `ticket_holds`; no puede inventar otra disponibilidad (BR-I30).
+
+---
+
+## D-258 — Una boleta vendida desde un apartado vuelve al inventario común al liberarse
+
+**Fecha:** 2026-10-19 · **Estado:** aceptada — **la regla es del dueño** (respuesta a I-209: «Que vuelva al
+inventario»); la forma de hacerlo es mía · **Solo en local**, como D-257: sin push, despliegue ni cambios en el
+Supabase de producción · **Migración `0082_release_from_hold_to_common.sql`** · Regla **BR-I32**
+
+**Contexto.** D-257 dejó una pregunta abierta (I-209): liberar una venta (BR-I14) devuelve la boleta a `available`
+**con su vendedor**, venga de donde venga. Para una boleta que el vendedor tomó del inventario común con un apartado,
+eso la dejaba a su cargo para siempre: un apartado sin vencimiento ni cupo. El dueño decidió que **vuelva al
+inventario común**.
+
+**Lo que decidí yo** (cada una se puede cambiar con su motivo):
+
+| Qué | Cómo, y por qué |
+|---|---|
+| Cómo se sabe de dónde salió la venta | Una columna nueva, `tickets.sold_from_hold`: la venta **vigente** salió de un apartado. La pone `sell_ticket_hold` en la misma transacción de la venta y la quita la liberación. Deducirlo de `ticket_holds` no sirve: una boleta vendida desde un apartado, liberada, entregada después por el personal y vendida otra vez por su vendedor conserva en su historia un apartado `sold`, y su venta vigente no salió de él |
+| A quién afecta | Solo a la venta vigente que salió de un apartado. Una entregada por el personal (BR-I18) o creada por el vendedor se queda con su vendedor al liberarse, como siempre. Corregir el cliente (BR-I13) o el precio no cambian la marca: siguen siendo la misma venta |
+| Nadie más escribe la marca | La protege `tickets_guard_inventory`, como al vendedor nulo y a `generation_run_id`. Un CHECK, `tickets_sold_from_hold_is_a_sale`, solo la admite con vendedor y en una boleta vendida —o anulada, que conserva su historia—: una disponible con la marca haría que una venta posterior, que no salió de un apartado, volviera al inventario común |
+| La liberación | `release_ticket_client` es la de la `0057` con dos cambios: si la venta salió de un apartado deja `seller_id` nulo y quita la marca en la misma escritura, y compara el vendedor con `is distinct from` (con `<>`, una boleta sin vendedor pasaba la primera puerta y la paraba la siguiente). La bitácora (`ticket.release_client`) guarda la marca anterior y `to_common_inventory`. El CHECK del inventario común (BR-I17) exige justo lo que la liberación ya borraba |
+| La pantalla | El diálogo dice **antes** de confirmar a dónde va la boleta: «volverá al inventario común, de donde la apartaste: saldrá de tus boletas…». Después, la acción vuelve a leer la boleta con la sesión de quien liberó —lo que pasó lo decide la base, no la pantalla—: si ya no la ve, volvió al inventario común, y la pantalla sale a «Mis boletas», porque ese detalle ya no se podría abrir (`tickets_select` solo enseña las propias) |
+| Las ventas anteriores | Ninguna lleva la marca: la `0082` no la deduce hacia atrás. En producción no hay ventas desde apartados, porque la `0081` no está publicada |
+| Orden de la migración | Las funciones primero; el `ALTER TABLE tickets` —una columna con valor constante, que en PostgreSQL 11+ es solo metadatos—, el CHECK y el disparador, **al final** (lección de la `0080`, D-241). El CHECK recorre la tabla al añadirse |
+
+**Probado** (`TEST_RESULTS`, «D-258»): cinco pruebas de base nuevas en `tests/db/common-inventory.test.ts` —vuelve al
+inventario común y la bitácora lo dice; una entregada por el personal se queda; corregir el cliente no cambia la
+marca; otra venta desde un apartado la marca otra vez y una entregada después, no; ninguna sesión escribe la marca y la
+base no la admite fuera de una venta—. **No son vacías:** con la `release_ticket_client` de la `0057` restaurada,
+fallan las tres que liberan una venta desde un apartado y pasan las otras dos —la entregada por el personal y la
+guarda—, que dan lo mismo con las dos versiones. Y una prueba de navegador del recorrido completo.
+
+**Alternativas descartadas.** Deducir la procedencia del historial de `ticket_holds` (falla con la secuencia de
+arriba); dejarla con su vendedor y que el personal la recupere (era la situación de I-209); una tabla aparte para la
+procedencia de la venta (una columna basta, y vive con la venta que describe).
+
+**Consecuencias.**
+
+- **I-209 queda resuelta en local.**
+- **La `0082` se publica con la `0081`, nunca después:** sola, la `0081` dejaría ventas desde apartados sin marca, y al
+  liberarlas se quedarían con su vendedor. Ninguna de las dos está autorizada para publicarse.
+- El ensayo de la publicación de la `0081` que pide D-257 tiene que incluir la `0082`: su CHECK también recorre
+  `tickets` con un bloqueo exclusivo. *Nota posterior, el mismo día:* ensayado —con escrituras en curso, con los
+  privilegios alojados y con la latencia de producción— en **D-259**, que reordena las dos.
+
+---
+
+## D-259 — La `0081` y la `0082` bloquean `tickets` en una sola sentencia, y `verify:remote` conoce la firma nueva de `admin_list_tickets`
+
+**Fecha:** 2026-10-19 · **Estado:** aceptada — **decisión técnica mía**, tomada al ensayar la publicación de D-257 y
+D-258 que encargó el dueño; **solo en local**: sin push, despliegue ni cambios en producción, y la publicación **sigue
+sin autorizar** · Migraciones `0081` y `0082` (sin publicar en ningún sitio), reordenadas · `scripts/verify-remote.ts` ·
+**I-212** e **I-213**, resueltas en local
+
+**Contexto.** D-257 y D-258 dejaron pendiente medir cuánto bloquean la `0081` y la `0082` con escrituras de boletas en
+curso y comprobarlas con los privilegios del proyecto alojado (I-132). Se ensayaron sobre una **copia de producción**
+restaurada en local (el respaldo del 2026-10-01, en `0079`, más la `0080`: 1.321 boletas), aplicándolas con la CLI
+como en C4 de `RUNBOOK` §11 mientras tres conexiones escribían y leían boletas como `authenticated`, y con un proxy
+que da a la CLI la ida y vuelta medida desde el equipo del dueño hasta producción (90 ms en P0 de D-240; el proxy, 94).
+
+**Lo que se encontró.** La CLI envía el archivo **sentencia a sentencia** y espera cada respuesta —entre una y otra,
+la conexión está `idle in transaction` esperando al cliente—, y un cerrojo dura hasta confirmar. En la `0081`, la
+primera sentencia de la sección de cerrojos toma ACCESS EXCLUSIVE sobre `tickets` —bloquea **lecturas y
+escrituras**— y la seguían 72 sentencias: 15 de esa sección, las 56 de privilegios y la fila de historial. Con la
+latencia de producción, `tickets` estuvo bloqueada **10,5 s y 13,8 s** en dos pasadas, y en cada una **tres
+peticiones cayeron por los 8 s de `statement_timeout`**: una venta, una creación de boleta y lecturas de «Mis boletas»
+(I-212). Y `verify:remote` exigía diez argumentos a `admin_list_tickets`, que la `0081` deja con once: después de
+publicar habría quedado en rojo (I-213).
+
+**Lo que decidí** (cada punto se puede cambiar con su motivo):
+
+| Qué | Cómo, y por qué |
+|---|---|
+| Los privilegios, antes de los cerrojos | En la `0081`, la sección de privilegios pasa a ser la 9 y la de cerrojos la 10. Conceder o revocar `EXECUTE` no toca ninguna tabla, y ninguna de esas sentencias depende de la sección de cerrojos |
+| Lo que bloquea, en **un** bloque `do` | La sección 10 de la `0081` (16 sentencias) y la 4 de la `0082` (5) van dentro de un `do` cada una: **las mismas sentencias en el mismo orden**, y una sola ida y vuelta. El cerrojo dura el bloque, la fila de historial y la confirmación |
+| El esquema que queda | **Idéntico**: la estructura después de migrar con los archivos originales y con los reordenados no difiere en nada (`gate-compare --structure-only`: `{}`), y el delta esperado es **byte a byte** el mismo (34.455 bytes). Los cuerpos de las funciones no cambian |
+| Por qué se pudo editar | Ninguna de las dos se ha aplicado fuera de bases locales, que se recrean con `db:reset`. Una migración publicada no se edita nunca (`DEPLOYMENT` §4.2) |
+| `verify:remote` | La comprobación de la firma de orden (`0075`, `0076`) pide ahora `search_tickets` con diez argumentos y `admin_list_tickets` con once, **una sola versión de cada una** —una sobrecarga vieja confundiría a PostgREST— y ninguna ejecutable por `anon`. Antes de la `0081` falla a propósito, como la de las 16 funciones del inventario |
+
+**Medido** (`TEST_RESULTS`, «Preparación de la publicación de D-257, D-258 e I-211»), siempre sobre la misma copia y
+con las mismas sondas:
+
+| Migraciones | Ida y vuelta de la CLI | `tickets` bajo ACCESS EXCLUSIVE (`0081` / `0082`) | Operación más lenta | Caídas por los 8 s |
+|---|---|---|---|---|
+| Originales | local | 1,48 s / 0,12 s | 1,5 s | 0 |
+| Originales | 94 ms | 10,48 s / 1,00 s y 13,75 s / 1,34 s | 5,8 s | **3 y 3** |
+| Reordenadas | local | 0,21 s / 0,18 s | 0,25 s | 0 |
+| Reordenadas | 94 ms | 0,47 s / 0,47 s y 0,62 s / 0,59 s | 0,65 s | 0 |
+| Reordenadas | ~200 ms | 1,18 s / 0,96 s | 1,2 s | 0 |
+
+Con una lectura larga abierta sobre `tickets`, la reordenada se rinde a los 900 ms de `lock_timeout` con `55P03` **sin
+aplicar nada** —ni tablas, ni la columna, ni el historial—, las sondas esperan como mucho 0,9 s, y el reintento
+termina. `verify:remote` contra esa copia: antes, 57 OK y 3 en rojo —las dos esperadas y los cron que el ensayo apaga—;
+después, 59 OK y solo los cron.
+
+**Alternativas descartadas.** Publicar los archivos tal como estaban en una franja sin actividad: basta un vendedor
+vendiendo en ese momento para que su venta falle, y el encargo era no interrumpir ventas ni abonos. La pausa de la API
+(D-239): pararía todas las ventas durante toda la ventana, minutos, frente a medio segundo. Aplicar el SQL desde el
+editor del panel, que no paga idas y vueltas: se sale del procedimiento —sin `--dry-run`, sin `lock_timeout` y con el
+historial reparado a mano—. Solo subir los privilegios, sin el bloque `do`: dejaría 16 sentencias detrás del cerrojo —a
+146–191 ms cada una, lo medido—, 2–3 s con la latencia de producción.
+
+**Consecuencias.**
+
+- La `0081` y la `0082` que se publiquen son las reordenadas. Cualquier base local que tenga las de antes se recrea
+  con `db:reset`: la CLI no compara el contenido de lo ya aplicado.
+- La regla para las migraciones siguientes: lo que bloquea una tabla viva va **al final y en un solo bloque `do`**;
+  en producción, cada sentencia que vaya detrás del primer cerrojo lo alarga una ida y vuelta (más lo que tarde la CLI).
+  El ensayo con el proxy de latencia está en `RUNBOOK` §13.3.
+- El procedimiento de publicación —sin pausa, con la base primero— está en `RUNBOOK` §13 y `DEPLOYMENT` §3.3.j, **sin
+  autorizar**.
+
+---
+
+## D-260 — La generación por rangos deja al día la estadística de `tickets`: un `ANALYZE` en su primer bloque y en el último
+
+**Fecha:** 2026-10-20 · **Estado:** aceptada — **la solución es mía**; las condiciones son del encargo del dueño: sin
+subir el tiempo de espera ni pedirle que espere, y sin tocar la atomicidad, los permisos, la bitácora ni la protección
+frente a ventas y apartados en paralelo · **Solo en local**: sin push, despliegue ni cambios en producción; la
+publicación **sigue sin autorizar** · Migración `0081` (sin publicar en ningún sitio), sección 7.3 · **I-214**,
+resuelta en local
+
+**Contexto.** I-214, vista al ensayar D-259: justo después de generar 100.000 boletas, «Asignar a un vendedor» tardaba
+unos 23 ms por boleta en una copia de producción, y un lote de unas 350 o más caía por los 8 s de `authenticated` y se
+deshacía, hasta que el análisis automático de PostgreSQL ponía al día la estadística de `tickets` —normalmente en el
+minuto siguiente—. Lo primero que hará el dueño después de generar es justo eso: entregar lotes.
+
+**La causa, confirmada** sobre la misma copia (el respaldo del 2026-10-01 más la `0080`, con la `0081` y la `0082`) con
+`auto_explain` sobre las sentencias anidadas y `track_functions`:
+
+| Hecho | Medido |
+|---|---|
+| El tiempo es de `recalc_seller_commission` | 40 llamadas y 470 de los 512 ms de un lote de 20; la dispara `tickets_sync_commission`, una vez por boleta entregada |
+| Solo con un vendedor **con equipo** | 24 ms por boleta al vendedor principal de producción, que tiene equipo; 0,9 ms a uno sin equipo y 0,6 ms a su integrante |
+| La consulta que se tuerce | La cuenta de las boletas pagadas del equipo en la rifa. Con la estadística de antes de generar —la rifa no existe y ninguna boleta está sin vendedor—, el planificador estima **una** fila para (organización, rifa) y entra por `tickets_org_raffle_weekly_idx`, que solo fija esas dos columnas: **100.000 filas descartadas y ~21.400 bloques por boleta**, para encontrar cero |
+| Con la estadística al día | La misma consulta entra por `tickets_commission_count_idx` (vendedor, rifa y estado de pago): de 3 a 11 bloques. Y el `UPDATE` del lote deja de recorrer `tickets_common_inventory_idx` entero (99.980 filas, 17 ms por lote) y usa la clave primaria |
+| El JIT | No interviene: los mismos tiempos con `jit = off` |
+| Una generación interrumpida | Con 50.000 creadas y sin terminar, de 9 a 12 ms por boleta: un lote de 1.000 cae por los 8 s igual |
+| En el seed | La misma estadística vieja hace elegir `tickets_org_raffle_payment_status_idx`, que da cero filas sin recorrer nada, y no falla. Depende del reparto de los datos: por eso la suite de volumen no lo vio, y el seed no tiene ningún vendedor con equipo |
+| Lo que decía el ensayo | «El último análisis automático había caído durante la generación»: fue antes —`n_mod_since_analyze` marcaba exactamente 100.000—, el de la restauración |
+
+**Lo que decidí** (cada punto se puede cambiar con su motivo):
+
+| Qué | Cómo, y por qué |
+|---|---|
+| Dónde | En `admin_process_ticket_generation`, la única operación que mete decenas de miles de boletas de una vez: las demás crean como mucho 1.000 por llamada. Es lo que recomienda PostgreSQL después de una carga grande, analizar la tabla, hecho por la misma operación que la carga |
+| Cuándo | En el **primer** bloque —la rifa entra en la estadística aunque la generación se interrumpa, y sirve a quien entregue lotes mientras sigue— y en el **último**, con el tamaño real de la tabla. Los demás bloques no: con la rifa ya en la estadística, los planes no cambian (medido: con solo el primer bloque analizado, 1.000 boletas en 0,28 s con 50.000 creadas) |
+| Cómo | `analyze (skip_locked) tickets` dentro de la transacción del bloque, antes de confirmar, así que cuenta las filas que ella misma insertó. Toma SHARE UPDATE EXCLUSIVE, que no choca con lecturas, escrituras ni `FOR UPDATE`: ventas, abonos, apartados y lotes siguen en paralelo. Con `SKIP_LOCKED`, si un vacuum u otro análisis tiene la tabla, no espera ni falla: el bloque termina y la estadística la pone el análisis automático, como hasta hoy |
+| Permisos | Corre como el dueño de la función (`postgres`, SECURITY DEFINER), que es el dueño de `tickets`. En la foto de producción del 2026-10-05 la tabla dice `postgres=arwdDxtm/postgres`: la `m` es MAINTAIN, el privilegio que pide `ANALYZE` en PostgreSQL 17 (producción está en 17.11). Ninguna sesión gana nada: `authenticated` sigue con `arw` |
+| Lo que no cambia | Cada bloque y cada lote siguen siendo una transacción; un bloque repetido, o uno de una generación terminada, no hace nada —tampoco analizar—; la bitácora, el cupo, el tope de 1.000 por lote, el tamaño del bloque y el `statement_timeout`. El esquema que deja la migración solo cambia en el cuerpo de esa función |
+| Por qué editar la `0081` y no una `0083` | No se ha aplicado fuera de bases locales (D-259). Una `0083` dejaría tres migraciones y tres transacciones en la publicación, y la función creada en una y sustituida en la siguiente sin que nadie la haya usado |
+
+**Medido** (`TEST_RESULTS`, «I-214»), en la copia de producción, a su vendedor con equipo y con el análisis automático
+apagado para que la estadística solo la pudiera poner al día el generador:
+
+| Escenario | Antes (`7d5f341`) | Con D-260 |
+|---|---|---|
+| Lotes de 10 / 50 / 100 / 200, nada más generar 100.000 | 0,27 / 1,2 / 2,5 / 4,1–4,8 s | 20 / 20 / 34 / 61 ms |
+| Lotes de 350 / 500 / 1.000 | 7,1 s o `57014`; `57014`; `57014` —sin dejar nada entregado— | 106 / 144 / 282 ms |
+| Un lote de 1.000 con la generación interrumpida a 50.000 | `57014` a los 8 s | 293 ms |
+| Generar 100.000 | 7,7–8,7 s | 7,7 s: el primer bloque y el último, ~0,1 s más cada uno |
+| Cerrojos de la publicación con 94 ms de ida y vuelta (`RUNBOOK` §13.3) | 0,81 / 0,78 s, el mismo día y con las mismas sondas | 0,72 / 0,68 s y 0,72 / 0,72 s; 0 caídas |
+
+En el seed recién sembrado, con un vendedor con equipo creado por la prueba, los lotes de 10 a 1.000 tardan de 18 a
+287 ms, y la suite de volumen comprueba la estadística en los dos momentos: **falla con la `0081` de antes** («la
+estadística conoce la rifa tras el primer bloque: expected false to be true») y pasa con esta.
+
+**Alternativas descartadas.** Subir el `statement_timeout` o decir que se espere: el encargo los excluye, y solo
+esconden la causa. Un tope menor para los lotes: con 200 boletas tardaba 4,8 s —más de la mitad del margen— y lo que usa
+el dueño es «Seleccionar las 1.000 del filtro». Analizar solo al terminar: deja fuera la generación interrumpida, con
+1.000 boletas por encima de los 8 s a 50.000. Analizar en cada bloque: veinte análisis donde bastan dos, y cada uno
+cuesta más cuanto más grande es la tabla. Reescribir la cuenta del equipo de `recalc_seller_commission` para que no
+dependa de la estadística: cambia un cálculo de dinero ya publicado para tapar un síntoma, y el resto de lecturas del
+inventario nuevo —el lote, el catálogo, las listas— seguiría planificando a ciegas. Analizar al entregar un lote cuando
+la estadística parezca vieja: el coste caería en la operación que el dueño espera, y los contadores de PostgreSQL llegan
+con retraso. `jit = off`: no interviene. Estadísticas extendidas: no conocen un valor que todavía no existe.
+
+**Consecuencias.**
+
+- La `0081` que se publique es esta. Cualquier base local con la de antes se recrea con `db:reset`.
+- El delta esperado de la publicación cambia en **una sola huella**, la del cuerpo de
+  `admin_process_ticket_generation`: con el de D-259, la comparación de I5 dice DETENER («se creó con otra
+  definición»). El nuevo está en `build/gate/delta-esperado-0081-0082.json` de la copia principal, fuera de Git; el de
+  D-259 se conserva como `delta-esperado-0081-0082-d259.json`.
+- `RUNBOOK` §13.2 ya no pide esperar entre generar y entregar lotes grandes.
+- La cuenta del equipo sigue dependiendo de la estadística. Ningún otro camino mete decenas de miles de boletas en una
+  rifa de una vez, y el análisis automático sigue funcionando. Si otro llegara a hacerlo, tendría que analizar igual.
+
+---
+
+## D-261 — Cada rifa define los números de sus boletas: uno o dos, con nombre y cifras exactas, y no cambian; los premios comparan también las dos últimas, con 4 > 3 > 2
+
+**Fecha:** 2026-10-20 · **Estado:** aceptada — **el alcance y las reglas son del encargo del dueño** (uno o dos números,
+su nombre, sus cifras —2, 3 o 4—, el orden, la inmutabilidad, el formato exacto, la unicidad, el generador por
+rangos, las últimas dos y la prioridad 4 > 3 > 2); **las soluciones técnicas son mías**, y la tabla de abajo dice cuáles
+· **Solo en local**: sin push, despliegue ni cambios en producción · Migraciones **`0083`** y **`0084`**, nuevas; la
+`0081` y la `0082` **no se tocan** · Amplía D-257 y D-258 sin reescribirlas · Reglas **BR-N19..BR-N26** y
+**BR-J24..BR-J26**
+
+**Contexto.** Hasta aquí toda boleta tenía exactamente dos números —diario y semanal— de 1 a 4 cifras cada uno, sin
+ancho fijo: «7», «007» y «0007» eran tres boletas distintas (BR-N02, BR-N03). El negocio quiere rifas cuyas boletas
+lleven **un solo número** (por ejemplo, de tres cifras) o **dos con anchos distintos** («Mayor» de cuatro y «Seco» de
+dos), y premios que comparen **las dos últimas cifras** del resultado. El encargo exige además que la estructura no
+cambie una vez creada la rifa, que el formato sea exacto en todas las vías de entrada, y que la rifa real, con sus
+1.321 boletas de dos números de cuatro cifras, siga igual.
+
+**Lo que decidí** (cada punto se puede cambiar con su motivo):
+
+| Qué | Cómo, y por qué |
+|---|---|
+| Identidad de cada número | **Su ranura**, no su nombre: el primero vive en `tickets.daily_number` y el segundo en `tickets.weekly_number`, las mismas dos ranuras que ya usan `lottery_match_field`, los premios y el motor. El nombre («Diario», «Mayor», «Número») **solo se pinta**. No se renombra ninguna columna: el encargo pide adaptación mínima, y renombrar tocaba cada consulta, RPC, prueba y documento por una palabra |
+| Dónde vive la estructura | Cinco columnas en `raffles` —`number_group_count`, `first_group_name`, `first_group_digits`, `second_group_name`, `second_group_digits`— con cuatro `CHECK` de forma. No una tabla aparte: son uno o dos grupos fijos que se leen en cada escritura de una boleta, y una fila hija pedía un JOIN y su propia inmutabilidad |
+| Las reglas, una vez | `raffle_number_groups_problem` y `ticket_numbers_problem` (puras, en SQL) son la fuente; `src/lib/ticket-number-format.ts` repite **las mismas frases** y una prueba de base las compara letra por letra. Ninguna sesión las ejecuta (revocadas a todos) |
+| Inmutable, por cualquier vía | `raffles_guard_number_groups` (BEFORE INSERT OR UPDATE OF las cinco columnas): al crear valida y quita los espacios de los nombres; **cualquier** cambio después —también en borrador, también con la clave de servicio— responde «Los números de una rifa no se cambian después de crearla…». El nombre, las fechas, el precio y lo demás de la rifa se siguen editando |
+| El formato, en la base | `tickets_enforce_number_format` (BEFORE INSERT OR UPDATE OF los números, la rifa, el estado y `number_group_count`), SECURITY DEFINER porque la boleta la escribe la sesión de un vendedor: valida **al crear, al cambiar números o rifa, y al entrar en una venta o una aprobación** (`draft`/`pending_approval` → `available`/`assigned`, y `available` → `assigned`). Cubre así la creación manual, el lote, la importación, la edición, la aprobación, el generador, el inventario común y PostgREST directo |
+| Lo que ya existía fuera de formato | **No se revalida ni se toca** mientras sus números no cambien: se lee, se anula, se elimina si nunca se vendió, se le marca el paz y salvo. Lo que **no** puede es aprobarse ni venderse: la frase dice cuál boleta y por qué. El personal ve la lista en la ficha de la rifa (`admin_raffle_nonconforming_tickets`, con lista blanca de columnas) |
+| La unicidad de un solo número | `tickets.number_group_count` la pone el disparador desde la rifa —escribirla a mano no cambia nada— y un índice único **parcial** `tickets_single_group_unique (organization_id, raffle_id, daily_number) where number_group_count = 1`. No depende de nulos: con `weekly_number` nulo, `tickets_combo_unique` dejaría entrar dos «387». Un `CHECK` garantiza que una boleta de un número no lleva segundo. Con dos números sigue `tickets_combo_unique` (BR-N04) |
+| Las rifas que ya existían | Todas quedan **Diario de 4 + Semanal de 4**: es lo que la aplicación ya suponía en cada pantalla, catálogo y premio, y **no se infiere de los datos** —el seed local tenía anchos mezclados—. La `0084` lo deja escrito por rifa en `raffle_number_format_audits` (boletas, cuántas fuera de formato, por estado, y los anchos que había), solo legible por la clave de servicio. En la copia de producción del 2026-10-01: **2 rifas, 1.321 boletas, 0 fuera de formato** |
+| Regularizar | **Explícito y trazable, con lo que ya existe**: corregir los números de cada boleta (`admin_update_ticket_numbers`, auditado) o eliminarla si nunca se vendió (BR-B05). Nada automático: rellenar ceros a escondidas es justo la normalización silenciosa que prohíbe BR-N03 |
+| El generador | Un rango por número **de la rifa**. El ancho lo da la rifa, no lo escrito: con cuatro cifras, del 0 al 5 crea 0000…0005, y la vista previa lo enseña. Un extremo con más cifras que su número **se rechaza**, no se recorta. Los extremos se guardan ya rellenados, así que repetir la solicitud con «0» o con «0000» es la misma generación. El tope de 100.000, los bloques de 5.000, la continuación, la idempotencia, el informe de lo que ya existía y el `ANALYZE` de D-260 **no cambian**. En plpgsql el destino `ON CONFLICT` del índice parcial nombra `raffle_id`, que también es un parámetro de salida: la función lleva `#variable_conflict use_column` (todo lo demás de su cuerpo va calificado) |
+| `last_two`, en su propia migración | `0083` solo añade el valor al tipo `raffle_prize_digits`: `ALTER TYPE … ADD VALUE` no se puede usar en la misma transacción que lo añade (el patrón de la `0073`) |
+| Qué puede comparar un premio | `raffle_prize_version_problem` añade dos comprobaciones delante: el premio juega con un número que **la rifa tiene**, y compara **como mucho** las cifras de ese número. El conflicto de BR-J08 no cambia: mismo número, mismas cifras, misma lotería y mismo día |
+| La prioridad | En `match_lottery_result`, de las coincidencias de un cliente en una rifa y un resultado se quedan **todas las de más cifras**, y solo esas: 4 > 3 > 2, entre los dos números y entre sus boletas. Una boleta sin cliente es su propia unidad. No se elige entre empates. `lottery_ticket_match_prizes_check` lo defiende: un mismo cliente no conserva enlaces de cifras distintas en un resultado. Lo ya fotografiado **no se recalcula** |
+| La presentación | `ticketLabel` escribe solo el primer número cuando la rifa tiene uno —sin «/» ni hueco—. Cada página carga una vez el mapa de formatos de sus rifas (`listRaffleNumberFormats`, con `cache` de React) y lo adjunta a cada fila; las listas con varias rifas siguen diciendo la rifa. El CSV usa «Primer número» y «Segundo número», con la rifa, porque los nombres cambian de una rifa a otra |
+| Lo que no se adapta a propósito | La plantilla de importación conserva los encabezados de siempre cuando la rifa es Diario 4 + Semanal 4; el comparador fijo de las rifas `legacy` (BR-L06) y la transición de D-204 solo tratan rifas de dos números de cuatro cifras, que son las únicas `legacy` que existen |
+| El orden de la `0084` | El de D-259: primero las funciones, los privilegios y las tablas pequeñas, y al final, en **un solo bloque**, lo que toca `tickets` —la columna, los dos `CHECK`, el índice único y el disparador—. En producción son 1.321 filas |
+
+**Alternativas descartadas.** Una tabla `raffle_number_groups`: más JOIN en cada escritura de una boleta, y la
+inmutabilidad habría que defenderla en dos sitios. Renombrar `daily_number`/`weekly_number`: un cambio masivo sin
+beneficio para el usuario. Un índice único con una expresión que leyera la rifa: un índice no puede llamar a una función
+que lea otra tabla. Confiar en `weekly_number` nulo dentro de `tickets_combo_unique`: en PostgreSQL dos nulos son
+distintos y entrarían duplicados, y el encargo lo prohíbe. Revalidar lo existente: habría bloqueado leer, anular o
+marcar el paz y salvo de boletas que ya existen. Rellenar con ceros lo existente: normalización silenciosa (BR-N03).
+Deducir la estructura de los datos: el seed local tenía «7» y «007» en la misma rifa.
+
+**Reglas que esta decisión sustituye o acota** (cada una conserva su texto como historia y lleva su nota en
+`BUSINESS_RULES`): BR-N02 (de 1 a 4 cifras → las cifras exactas de su número), BR-N04 y BR-N07 (con un número, el número
+es la identidad), BR-N09 (los dos números → los que tenga la rifa), BR-N12 (la fila del archivo trae los números de la
+rifa), BR-N15 (el ancho lo da la rifa, no lo escrito), BR-I20 (los números con el nombre de la rifa), BR-J02 («cuál de
+los dos números» → cuál de los números de la rifa), BR-J06 (se añaden las dos últimas), BR-J07 (4 > 3 → 4 > 3 > 2),
+BR-J08 (conviven las cifras distintas, no solo cuatro y tres) y BR-K09 (el mensaje nombra los números de la rifa).
+`CLAUDE.md` §13 y §15 llevan una nota.
+
+**Consecuencias.**
+
+- **La preparación de publicación de D-257/D-258 (`RUNBOOK` §13, `DEPLOYMENT` §3.3.j) deja de estar vigente**: tiene que
+  incluir la `0083` y la `0084`, su delta esperado, su ensayo de cerrojos y la comprobación de la auditoría (0 boletas
+  fuera de formato en producción). La rama `publicar/inventario-comun` es la candidata **anterior** y no se publica.
+- En la base local de revisión del dueño quedan **14 boletas fuera de formato** en «Rifa Navidad 2026», ninguna tocada:
+  las **12 de prueba** generadas con semanales de dos cifras y **2 del seed antiguo** («7» y «007»). Ver I-215.
+- `npm run seed:local` ya no siembra números cortos: «007» pasó a «0007» y «7» a «0070».
+- `verify:remote` admite la función nueva en su lista blanca y comprueba los dos disparadores, el índice parcial, que
+  ninguna función pura de la regla se ejecuta desde una sesión y el valor `last_two`.
+
+---
+
+## D-262 — La publicación de D-257 a D-261 con sus cuatro migraciones: la `0084` toca `tickets` y `raffles` en un solo bloque final, y la puerta comprueba lo que escribe su auditoría
+
+**Fecha:** 2026-10-20 · **Estado:** aceptada — **la solución es mía**; el encargo del dueño: preparar otra vez la
+publicación del conjunto D-257 a D-261 con la `0081`, la `0082`, la `0083` y la `0084`, en local sobre una copia de
+producción, sin push, sin despliegue y sin leer ni cambiar producción · **Solo en local**: la publicación **sigue sin
+autorizar** · Migración `0084` (sin publicar en ningún sitio), secciones 1 y 12; `scripts/gate-data-effects.ts`,
+`gate-compare.ts` y `gate-snapshot.ts` · Resuelve en local **I-216**
+
+**Contexto.** I-216: la preparación de `RUNBOOK` §13 era de la `0081` y la `0082` solas. El primer ensayo de las cuatro
+sobre la copia de producción —el respaldo del 2026-10-01 más la `0080` desde `b1f8dc1`, con los privilegios alojados—,
+con las sondas creando, vendiendo y leyendo boletas como `authenticated`, encontró cuatro cosas que impedían publicar la
+`0084` de D-261 tal como estaba:
+
+| Hallazgo | Evidencia |
+|---|---|
+| Un interbloqueo con una boleta nueva | Ensayo r2: `40P01` en la sentencia 41, el `ALTER TABLE raffles`. La migración esperaba ACCESS EXCLUSIVE sobre `raffles`, bloqueada por una creación de boleta, que esperaba ROW EXCLUSIVE sobre `raffles`, bloqueada por la migración. La causa: la clave foránea de `raffle_number_format_audits` hacia `raffles`, creada en la sección 1, toma SHARE ROW EXCLUSIVE sobre `raffles` hasta el final de la migración. Crear una boleta comprueba su rifa (ROW SHARE, que sí entra) y después sube el contador de la rifa (ROW EXCLUSIVE, que no) |
+| Boletas nuevas caídas | En esa misma pasada, tres creaciones de boleta cayeron por los 8 s de `authenticated` (`57014`): desde la sección 1 hasta el final —unas cuarenta sentencias de la CLI— nadie podía crear boletas |
+| La puerta no sabía leer la `0084` | Con el comparador de `b1f8dc1`: **DETENER**, «La tabla nueva raffle_number_format_audits tiene 2 filas y tenía que nacer vacía». La auditoría es la única tabla nueva que nace con filas, y a propósito |
+| Los avisos de la auditoría no se ven | La CLI de Supabase no enseña los `raise notice`: ninguna pasada los trae en su salida. El comentario de la `0084` decía que quien la aplica los ve «sin consultar nada» |
+
+**Lo que decidí** (cada punto se puede cambiar con su motivo):
+
+| Qué | Cómo, y por qué |
+|---|---|
+| Un solo bloque al final | Todo lo que toca `tickets` o `raffles` —las filas de la auditoría y su aviso, la clave foránea de la auditoría, el `ALTER TABLE raffles` con su disparador, el catálogo público, `ticket_generation_runs` y el `ALTER TABLE tickets` con su índice y su disparador— va en **un** `do` al final (sección 12). La CLI aplica el archivo sentencia a sentencia, y cada una paga una ida y vuelta con el cliente con los cerrojos tomados: con el bloque, la ventana es el bloque, la fila del historial y el `COMMIT` |
+| Los dos cerrojos, seguidos y en orden | `lock table tickets, raffles in access exclusive mode` al empezar el bloque: primero `tickets` y después `raffles`, el orden en que los toman una boleta nueva y una venta. Antes de ese punto la migración no tiene nada sobre ninguna de las dos tablas, así que no hay ciclo posible: con `lock_timeout`, lo peor que pasa es que la migración se rinda entera |
+| La auditoría, después de los cerrojos | La tabla se crea en la sección 1, vacía y **sin** clave foránea. Sus filas se calculan dentro del bloque, después de los cerrojos, así que describen exactamente las boletas que había cuando cambió la estructura. La clave foránea se añade dentro del bloque, con `raffles` ya cerrada |
+| El esquema que queda | **Idéntico** al de la `0084` de D-261: la comparación de estructura entre las dos da `{}`. El cuerpo de `public_catalog_seller` va sin la sangría del bloque, para que su huella sea la misma |
+| La puerta comprueba lo que escribe la `0084` | `gate-data-effects.ts` registra la lista exacta `0081,0082,0083,0084`, con `raffle_number_format_audits` como la única tabla nueva con datos. La foto de antes guarda, por rifa, cuántas boletas tiene, cuántas tienen números y cuántas quedan fuera de «Diario» 4 + «Semanal» 4 —con la misma expresión que la auditoría—, por estado y por cifras. La de después, la configuración de cada rifa y el `number_group_count` de sus boletas. La comparación exige una fila de auditoría por cada rifa de antes, y ninguna más, con esos mismos recuentos, y que todas las rifas y boletas queden «Diario» 4 + «Semanal» 4. Cualquier otra fila sigue deteniendo. Diez pruebas unitarias (`gate-number-groups.test.ts`), escritas antes y vistas fallar |
+| Lo que la auditoría encontrará, antes de migrar | `gate-snapshot` imprime una línea más, «Números (fuera de «Diario» 4 + «Semanal» 4)», con las rifas, las boletas y las que quedan fuera de formato: es lo que el aviso de la `0084` no puede enseñar con la CLI. El comentario de la `0084` dice ahora lo que pasa |
+| Por qué editar la `0084` y no añadir una `0085` | No se ha aplicado fuera de bases locales. El problema está en **cómo** toma sus cerrojos la propia `0084`, y una migración posterior no lo arregla. El esquema final es el mismo |
+
+**Medido** (`TEST_RESULTS`, «Preparación de la publicación de D-257 a D-261»), en la copia de producción, con las sondas
+creando, vendiendo y leyendo boletas:
+
+| Escenario | Resultado |
+|---|---|
+| r2: la `0084` de D-261, directo | `40P01` en la sentencia 41; 3 creaciones de boleta caídas a los 8 s |
+| r3 y r4: la de D-262, directo | ACCESS EXCLUSIVE sobre `tickets` durante **0,93–1,09 s** por migración (`0081`, `0082` y `0084`); 0 errores en 51.056 operaciones (r4) |
+| r5: con 94 ms de ida y vuelta | **1,41–1,49 s**; 0 errores en 66.401 operaciones; la más lenta, 1,53 s |
+| r6: con 200 ms | **1,81–1,96 s**; 0 errores en 81.915 operaciones; la más lenta, 2,05 s |
+| r10: el archivo del commit, directo, al final del día | **1,57–1,62 s**; 0 errores en 78.072 operaciones; `verify:remote` 57 + 4 antes y 60 + los cron después; la puerta, **CONTINUAR** con el delta |
+| El bloque, en el servidor | **14 ms**; la `0084` entera, 33 ms en 42 sentencias. El resto de la ventana es la CLI: el bloque, la fila del historial y el `COMMIT` |
+| Una lectura larga abierta sobre `tickets` | `55P03` en la sentencia 39, el bloque; el historial se queda en `0083` y de la `0084` no queda nada, ni sus funciones. El reintento se aplica |
+| Una lectura larga abierta sobre `raffles`, con las sondas | `55P03`; `tickets`, cerrada 0,87 s mientras la migración esperaba `raffles`; 0 errores. El reintento con las sondas: 1,34 s y 0 errores |
+| La `0083` y la `0084` en una sola transacción | `unsafe use of new value "last_two"`: la `0084` crea una función SQL que nombra el valor nuevo. No se aplica nada |
+| Tres boletas fuera de formato antes de migrar —una disponible, un borrador y una vendida con $80.000 abonados— | **CONTINUAR**, 0 filas tocadas; la auditoría las cuenta por estado y por cifras, y ningún número cambia |
+
+Sobre la ventana: ese mismo día, la CLI de este equipo tardaba unos 300 ms por sentencia de su lado —la base estuvo
+activa 16 ms en 60 sentencias—; el 2026-10-19 eran unos 65 ms. Por eso las ventanas de la `0081` y la `0082` de hoy son
+más largas que las de D-259 con los mismos archivos, y por eso r10, en directo, dio más que r3 y r4: las comparaciones
+solo valen entre pasadas seguidas.
+
+**Alternativas descartadas.** Dejar la clave foránea y el `ALTER TABLE raffles` donde estaban, con un `lock_timeout` más
+corto: el interbloqueo no depende del tiempo de espera, y cada boleta nueva seguiría esperando toda la migración. Crear
+la clave foránea `NOT VALID` y validarla después: crearla sigue tomando SHARE ROW EXCLUSIVE. Quitar la clave foránea:
+la auditoría dejaría de impedir que se borre una rifa auditada. Aplicar la `0084` con `psql` para ahorrar las idas y
+vueltas: la ventana bajaría a milisegundos, pero cambia la herramienta de todas las publicaciones con migraciones y
+obliga a escribir el historial a mano. Dejar la auditoría vacía y guardar los recuentos en otro sitio: la `0084` es la
+única que sabe qué encontró en el instante del cambio. Hacer en la puerta un hueco para «una tabla nueva con filas»:
+dejaría pasar cualquier tabla nueva con cualquier fila.
+
+**Consecuencias.**
+
+- La `0084` que se publique es esta. Cualquier base local con la de antes se recrea con `db:reset`.
+- El delta esperado es `build/gate/delta-esperado-0081-0084.json` de la copia principal, fuera de Git; el de la `0081`
+  y la `0082` ya no sirve para esta publicación.
+- `RUNBOOK` §13 y `DEPLOYMENT` §3.3.j vuelven a estar vigentes, para las cuatro migraciones; I-216 queda resuelta en
+  local.
+- `limpiar()` de `raffle-number-groups.test.ts` borra también los pagos de sus boletas. G7-03 es la primera prueba de
+  esa suite que cobra, y sin ese cambio un pago sin asignaciones rompía «todo pago cuadra» de `catalog.test.ts`.
 
 ---

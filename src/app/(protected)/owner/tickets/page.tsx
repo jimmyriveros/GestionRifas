@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { CompactActionSlot } from '@/components/layout/CompactHeader'
 import { Button } from '@/components/ui/button'
+import { parseCustody } from '@/features/inventory/rules'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { adminTicketSearchEmptyDescription } from '@/features/search/hints'
@@ -73,6 +74,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
     inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
     paymentState: paymentState.success ? paymentState.data : undefined,
     search: single(params.q),
+    // D-257: el inventario comun, las apartadas o las que tiene un vendedor. Un
+    // valor que no es de los tres se descarta, no se aplica.
+    custody: parseCustody(single(params.custody)),
   }
 
   const [{ rows, total, page, pageSize }, raffles, sellers] = await Promise.all([
@@ -90,7 +94,8 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
     filters.raffleId ??
     filters.sellerId ??
     filters.inventoryStatus ??
-    filters.paymentState,
+    filters.paymentState ??
+    filters.custody,
   )
 
   const emptyDescription = adminTicketSearchEmptyDescription(filters.search, hasFilters)
@@ -103,13 +108,14 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
     inventoryStatus: filters.inventoryStatus,
     paymentStatus: filters.paymentState,
     search: filters.search,
+    custody: filters.custody,
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Boletas"
-        description="Todas las boletas de la organización. Búscalas por su número diario o semanal."
+        description="Todas las boletas de la organización. Búscalas por sus números."
         actions={
           <>
             <Button asChild variant="outline" className={HEADER_ACTION_CLASS}>
@@ -142,6 +148,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
               label: `${raffle.shortCode} — ${raffle.name}`,
             }))}
             sellers={sellers.map((seller) => ({ value: seller.id, label: seller.fullName }))}
+            custody
             // Junto a «Filtros», en la misma fila (D-108). Sin boletas en la
             // lista no se ofrece: no habria nada que seleccionar.
             secondaryAction={rows.length > 0 ? <TicketSelectionModeButton /> : null}

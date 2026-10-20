@@ -2,6 +2,11 @@ import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
 import type { RaffleStatus } from '@/lib/constants'
+import {
+  numberFormatFromRow,
+  RAFFLE_NUMBER_FORMAT_COLUMNS,
+  type RaffleNumberFormat,
+} from '@/lib/ticket-number-format'
 
 import type { PrizeCategory, PrizeReward, PrizeRewardMode } from './copy'
 import type { PrizeDigits } from './matching'
@@ -48,6 +53,8 @@ export type PrizeRaffleContext = {
   startDate: string
   endDate: string
   prizeMode: 'legacy' | 'configurable'
+  /** D-261: con qué números puede jugar un premio y cuántas cifras tiene cada uno. */
+  numberFormat: RaffleNumberFormat
 }
 
 const PRIZE_COLUMNS =
@@ -149,7 +156,7 @@ export async function getPrizeRaffleContext(raffleId: string): Promise<PrizeRaff
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('raffles')
-    .select('id, name, short_code, status, start_date, end_date, prize_mode')
+    .select(`id, name, short_code, status, start_date, end_date, prize_mode, ${RAFFLE_NUMBER_FORMAT_COLUMNS}`)
     .eq('id', raffleId)
     .maybeSingle()
 
@@ -164,5 +171,6 @@ export async function getPrizeRaffleContext(raffleId: string): Promise<PrizeRaff
     startDate: data.start_date,
     endDate: data.end_date,
     prizeMode: data.prize_mode,
+    numberFormat: numberFormatFromRow(data),
   }
 }

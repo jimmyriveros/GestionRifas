@@ -1,4 +1,5 @@
 import type { TicketInventoryStatus } from '@/lib/constants'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 /**
  * Que se puede hacer con cada boleta seleccionada, y por que no cuando no se
@@ -14,7 +15,20 @@ import type { TicketInventoryStatus } from '@/lib/constants'
  * el navegador y las pruebas unitarias.
  */
 
-export const BULK_ACTIONS = ['approve', 'assign', 'cancel', 'changeSeller', 'delete'] as const
+/**
+ * `assignToSeller` y `recover` son del inventario comun (D-257): pasar boletas
+ * libres a un vendedor y devolver al inventario las que un vendedor no vendio.
+ * Solo el personal las tiene; para el vendedor valen siempre `false`.
+ */
+export const BULK_ACTIONS = [
+  'approve',
+  'assign',
+  'cancel',
+  'changeSeller',
+  'delete',
+  'assignToSeller',
+  'recover',
+] as const
 export type BulkAction = (typeof BULK_ACTIONS)[number]
 
 type EligibilityBase = {
@@ -22,10 +36,13 @@ type EligibilityBase = {
   dailyNumber: string | null
   weeklyNumber: string | null
   inventoryStatus: TicketInventoryStatus
-  sellerId: string
+  /** `null` en el inventario comun (D-257). Solo puede serlo para el personal. */
+  sellerId: string | null
   raffleId: string
   raffleActive: boolean
   can: Record<BulkAction, boolean>
+  /** D-261: los números de su rifa, para nombrarla. */
+  numberFormat?: RaffleNumberFormat
 }
 
 /** Lo que recibe el VENDEDOR: sabe si hay cliente, abonos y entre que precios vende. */
@@ -47,7 +64,11 @@ export type SellerTicketEligibility = EligibilityBase & {
  * `admin_ticket_bulk_eligibility` no los devuelve y este tipo tampoco los
  * declara, asi que ningun dialogo del portal administrativo los puede pintar.
  */
-export type AdminTicketEligibility = EligibilityBase & { audience: 'staff' }
+export type AdminTicketEligibility = EligibilityBase & {
+  audience: 'staff'
+  /** Quien la tiene apartada ahora, si alguien (D-257). */
+  heldBy: string | null
+}
 
 export type TicketEligibility = SellerTicketEligibility | AdminTicketEligibility
 
@@ -81,6 +102,8 @@ export const BULK_ACTION_LABELS: Record<BulkAction, string> = {
   cancel: 'Anular boletas',
   changeSeller: 'Cambiar vendedor',
   delete: 'Eliminar boletas',
+  assignToSeller: 'Asignar a un vendedor',
+  recover: 'Recuperar al inventario común',
 }
 
 export function countEligible(rows: readonly TicketEligibility[], action: BulkAction): number {
@@ -136,6 +159,9 @@ export function whyNot(row: TicketEligibility, action: BulkAction): string {
     return 'No puede cambiar de vendedor.'
   }
 
+  // El inventario comun es del personal (D-257).
+  if (action === 'assignToSeller' || action === 'recover') return 'Solo el personal puede hacerlo.'
+
   // delete
   if (row.inventoryStatus === 'cancelled') return 'Está anulada: sus números quedan reservados.'
   if (row.hasClient) return 'Ya está vendida a un cliente.'
@@ -151,6 +177,25 @@ export function whyNot(row: TicketEligibility, action: BulkAction): string {
  * diria que esta abonada.
  */
 function staffWhyNot(row: AdminTicketEligibility, action: BulkAction): string {
+  // Una apartada no se toca hasta que la vendan, la devuelvan o venza (BR-I23).
+  const held = row.heldBy !== null
+  if (held && action !== 'approve') return 'Está apartada por un vendedor.'
+
+  if (action === 'assignToSeller') {
+    if (row.sellerId !== null) return 'Ya la tiene un vendedor.'
+    if (row.inventoryStatus === 'cancelled') return 'Está anulada.'
+    return 'Su rifa ya no admite cambios de inventario.'
+  }
+
+  if (action === 'recover') {
+    if (row.sellerId === null) return 'Ya está en el inventario común.'
+    if (row.inventoryStatus === 'assigned') return 'Ya está vendida.'
+    if (row.inventoryStatus === 'cancelled') return 'Está anulada.'
+    if (row.inventoryStatus === 'draft') return 'Le faltan los números.'
+    if (row.inventoryStatus === 'pending_approval') return 'Falta aprobarla.'
+    return 'No se puede recuperar.'
+  }
+
   if (action === 'approve') {
     if (row.inventoryStatus === 'cancelled') return 'Está anulada.'
     if (row.inventoryStatus === 'draft') return 'Le faltan los números.'
@@ -168,6 +213,7 @@ function staffWhyNot(row: AdminTicketEligibility, action: BulkAction): string {
   if (action === 'changeSeller') {
     if (row.inventoryStatus === 'assigned') return 'Ya está vendida: el cliente es de su vendedor.'
     if (row.inventoryStatus === 'cancelled') return 'Está anulada.'
+    if (row.sellerId === null) return 'Está en el inventario común: asígnala a un vendedor.'
     return 'No puede cambiar de vendedor.'
   }
 

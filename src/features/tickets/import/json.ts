@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { matchJsonKey, type TicketColumn } from './columns'
+import { matchJsonKey, type GroupNames, type TicketColumn } from './columns'
 import { ImportParseError } from './errors'
 import type { ImportRow } from './rows'
 
@@ -43,11 +43,14 @@ type JsonObject = Record<string, unknown>
  * trata como si la clave no estuviera: la fila llega incompleta a la vista
  * previa, que es donde se ve y se corrige, en vez de tumbar el archivo entero.
  */
-function readColumns(object: JsonObject): Partial<Record<TicketColumn, string>> {
+function readColumns(
+  object: JsonObject,
+  names: GroupNames,
+): Partial<Record<TicketColumn, string>> {
   const found: Partial<Record<TicketColumn, string>> = {}
 
   for (const [key, value] of Object.entries(object)) {
-    const column = matchJsonKey(key)
+    const column = matchJsonKey(key, names)
     if (!column || column in found) continue
 
     if (value === null) found[column] = ''
@@ -70,7 +73,7 @@ function readColumns(object: JsonObject): Partial<Record<TicketColumn, string>> 
  * regla que con el CSV, y deja corregir un archivo de 500 boletas sin tener que
  * adivinar cual era la mala.
  */
-export function parseJsonTickets(content: string): ImportRow[] {
+export function parseJsonTickets(content: string, names: GroupNames = {}): ImportRow[] {
   let data: unknown
   try {
     data = JSON.parse(content)
@@ -88,7 +91,7 @@ export function parseJsonTickets(content: string): ImportRow[] {
   }
 
   const rows = parsed.data.map((object, index) => {
-    const found = readColumns(object)
+    const found = readColumns(object, names)
 
     return {
       rowNumber: index + 1,
@@ -102,7 +105,7 @@ export function parseJsonTickets(content: string): ImportRow[] {
 
   if (rows.every((row) => row.dailyNumber === '' && row.weeklyNumber === '')) {
     throw new ImportParseError(
-      'No encontramos los números en el archivo. Cada boleta necesita «daily_number» y «weekly_number».',
+      'No encontramos los números en el archivo. Cada boleta necesita «daily_number» y, si la rifa tiene dos números, «weekly_number».',
     )
   }
 

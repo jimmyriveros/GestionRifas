@@ -17,6 +17,7 @@ import { ClearanceReceiptField } from '@/features/tickets/components/ClearanceRe
 import { ClearanceReceiptReadOnly } from '@/features/tickets/components/ClearanceReceiptReadOnly'
 import { TicketClientActions } from '@/features/tickets/components/TicketClientActions'
 import {
+  ApprovalDetailLine,
   DateTime,
   DetailLine,
   InternalCodeNote,
@@ -149,7 +150,7 @@ export default async function SellerTicketDetailPage({
             {canAssign ? (
               <AssignTicketDialog
                 ticketId={ticket.id}
-                ticketNumbers={ticketLabel(ticket)}
+                ticketNumbers={ticketLabel(ticket, ticket.numberFormat?.groups.length)}
                 rafflePrice={ticket.raffleTicketPrice}
                 minSalePrice={ticket.minSalePrice}
                 clients={clients}
@@ -161,6 +162,7 @@ export default async function SellerTicketDetailPage({
                 ticketId={ticket.id}
                 dailyNumber={ticket.dailyNumber}
                 weeklyNumber={ticket.weeklyNumber}
+                numberFormat={ticket.numberFormat}
               />
             ) : null}
           </>
@@ -201,7 +203,11 @@ export default async function SellerTicketDetailPage({
           `truncate`. `minmax(0, …)` en las columnas de escritorio, por lo mismo. */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)]">
         <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
-          <TicketNumbersCard dailyNumber={ticket.dailyNumber} weeklyNumber={ticket.weeklyNumber} />
+          <TicketNumbersCard
+            dailyNumber={ticket.dailyNumber}
+            weeklyNumber={ticket.weeklyNumber}
+            numberFormat={ticket.numberFormat}
+          />
 
           <TicketDetailCard title="Cliente">
             <CardContent>
@@ -329,9 +335,12 @@ export default async function SellerTicketDetailPage({
                   value={`${ticket.raffleShortCode} — ${ticket.raffleName}`}
                 />
                 <DetailLine label="Creada" value={<DateTime value={ticket.createdAt} />} />
-                <DetailLine
-                  label="Aprobada"
-                  value={ticket.approvedAt ? <DateTime value={ticket.approvedAt} /> : 'Todavía no'}
+                {/* Solo si dice algo, con la regla del detalle administrativo:
+                    las boletas del personal nunca se aprueban, y decir
+                    «Todavía no» de ellas las hacia parecer pendientes (I-211). */}
+                <ApprovalDetailLine
+                  approvedAt={ticket.approvedAt}
+                  inventoryStatus={ticket.inventoryStatus}
                 />
                 <DetailLine
                   label="Asignada"

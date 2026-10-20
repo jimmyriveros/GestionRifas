@@ -131,7 +131,12 @@ describe('DB-03 la misma combinacion SI puede existir en otra rifa (BR-N06)', ()
   })
 })
 
-describe('DB-04/05 formato de los numeros (BR-N02)', () => {
+/*
+ * D-261: la rifa del seed tiene dos números de CUATRO cifras, así que cada uno
+ * lleva exactamente cuatro (BR-N21). «1», «25» y «007» eran válidos en BR-N02 y
+ * aquí ya no; los anchos de 2 y 3 cifras los prueba raffle-number-groups.
+ */
+describe('DB-04/05 formato de los numeros (BR-N02, BR-N21)', () => {
   const invalid: Array<[string, string]> = [
     ['12345', 'cinco digitos'],
     ['12A4', 'caracter no numerico'],
@@ -139,6 +144,8 @@ describe('DB-04/05 formato de los numeros (BR-N02)', () => {
     ['12.5', 'separador decimal'],
     ['', 'cadena vacia'],
     [' 123', 'espacio inicial'],
+    ['1', 'una cifra en un numero de cuatro'],
+    ['007', 'tres cifras en un numero de cuatro'],
   ]
 
   for (const [value, description] of invalid) {
@@ -156,7 +163,7 @@ describe('DB-04/05 formato de los numeros (BR-N02)', () => {
     })
   }
 
-  const valid = ['1', '25', '007', '0000', '9999']
+  const valid = ['0001', '0025', '0007', '0000', '9999']
   for (const value of valid) {
     it(`acepta "${value}"`, async () => {
       const { weekly } = randomNumbers()
@@ -196,16 +203,18 @@ describe('DB-06 conservacion de ceros iniciales (BR-N03)', () => {
     expect(data!.daily_number).not.toBe('42')
   })
 
-  it('"007" y "7" son combinaciones DISTINTAS y pueden coexistir (BR-N07)', async () => {
+  // D-261: el seed sembraba «007» y «7»; en una rifa de cuatro cifras son
+  // «0007» y «0070», dos boletas distintas que siguen conviviendo.
+  it('"0007" y "0070" son combinaciones DISTINTAS y pueden coexistir (BR-N07)', async () => {
     const { data } = await svc
       .from('tickets')
       .select('daily_number, weekly_number')
       .eq('raffle_id', ctx.demoRaffle.id)
-      .in('daily_number', ['007', '7'])
+      .in('daily_number', ['0007', '0070'])
 
     const dailies = data!.map((t) => t.daily_number).sort()
-    expect(dailies).toContain('007')
-    expect(dailies).toContain('7')
+    expect(dailies).toContain('0007')
+    expect(dailies).toContain('0070')
   })
 })
 

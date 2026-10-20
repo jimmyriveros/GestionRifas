@@ -240,7 +240,7 @@ test.describe('Buscar boletas por el nombre del cliente (BR-N13)', () => {
     const conNombreReal = await respuestaA(nombre)
     await expect(enlace).toHaveCount(0)
     await expect(
-      page.getByText('Escribe solo el número diario o el semanal de la boleta.').first(),
+      page.getByText('Escribe solo uno de los números de la boleta.').first(),
     ).toBeVisible()
 
     const conNombreInventado = await respuestaA(`${PREFIJO} Nadie Zzyzx`)

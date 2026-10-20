@@ -5,10 +5,9 @@ import { RowLink } from '@/components/data/RowLink'
 import { Notice } from '@/components/feedback/Notice'
 import { ReportTable, type ReportTableColumn } from '@/features/reports/components/ReportTable'
 import {
-  TICKET_NUMBERS_LEGEND,
   TicketNumbersCell,
   TicketNumbersLink,
-  hasBothNumbers,
+  ticketNumbersLegend,
 } from '@/features/tickets/components/TicketNumbers'
 import { formatDateEs } from '@/lib/dates'
 import { cn } from '@/lib/utils'
@@ -212,8 +211,8 @@ function PrizeAwardCard({
         <dt className="text-muted-foreground">{COPY.row.ticket}</dt>
         <dd className="min-w-0">
           <TicketNumbersLink ticket={row} href={`${ticketBasePath}/${row.ticketId}`} />
-          {hasBothNumbers(row) ? (
-            <span className="text-muted-foreground block text-xs">{TICKET_NUMBERS_LEGEND}</span>
+          {ticketNumbersLegend(row) !== null ? (
+            <span className="text-muted-foreground block text-xs">{ticketNumbersLegend(row)}</span>
           ) : null}
         </dd>
 

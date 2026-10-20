@@ -1,6 +1,13 @@
 # RUNBOOK — problemas frecuentes en producción
 
-**Actualizado:** 2026-10-05, 20:30 UTC (**§12 EJECUTADA**: el proyecto pasó a 17.11.0.002 con PostgREST 14.18 a las
+**Actualizado:** 2026-10-20, por la noche (**§13 rehecha**: publicar el inventario común y los números de cada rifa —la
+`0081`, la `0082`, la `0083` y la `0084`, con D-262—, preparada y **ensayada en local sobre una copia de producción** con
+escrituras en curso y la latencia de producción; el delta nuevo, `verify:remote` 58 + 3 → 61, la foto que dice cuántas
+boletas quedan fuera de formato y la reversión con rifas nuevas; **sin autorizar**). Antes, 2026-10-19, por la noche
+(**§13 nueva**: publicar el inventario común —la `0081` y la `0082`,
+reordenadas por D-259, y su código—, preparada y **ensayada en local sobre una copia de producción** con escrituras en
+curso, los privilegios alojados y la ida y vuelta de producción; sin pausa, con la base primero; **sin autorizar**).
+Antes, 2026-10-05, 20:30 UTC (**§12 EJECUTADA**: el proyecto pasó a 17.11.0.002 con PostgREST 14.18 a las
 19:11:54 UTC, con la API sin servicio de 19:06:17 a 19:12:54; **§12.8 nueva**, el resultado y lo aprendido;
 §12.2.c.1, `cron.alter_job` en vez de `update cron.job`; **§5.2**, la diferencia esperada nueva de I-205). Antes,
 2026-10-05, 17:03 UTC (**§12.2.c y §12.3: el dueño autoriza la opción A con datos reales y elige
@@ -2116,3 +2123,130 @@ Supabase, EJECUTADA».
 **Lo que queda:** el seguimiento de I-202 de §12.6, por los mismos tramos, el **2026-10-12** y el **2026-10-19**;
 borrar la copia del USB (W2) y la frase del gestor **como mucho el 2026-10-20**, anotando aquí la fecha; e I-205 e
 I-206, para decidir aparte.
+
+---
+
+## 13. Publicar el inventario común y los números de cada rifa (`0081`–`0084` y su código: D-257 a D-262) — **PREPARADA y ensayada en local el 2026-10-20; sin autorizar**
+
+> **Nada de esto se ha ejecutado contra producción.** Preparado y ensayado el 2026-10-20 sobre una copia de producción
+> restaurada en local, con escrituras en curso y con la latencia de producción (D-262; `TEST_RESULTS`, «Preparación de
+> la publicación de D-257 a D-261»). **Sustituye** a la preparación del 2026-10-19 para la `0081` y la `0082` solas
+> (I-216, resuelta en local): su delta esperado, sus recuentos de `verify:remote` y la rama `publicar/inventario-comun` —renombrada
+> `obsoleta/publicar-inventario-comun-d260`—
+> **ya no sirven**. Publicar exige la **autorización expresa del dueño**, y cada puerta de §13.1 dice qué autorización
+> necesita. Qué se publica y desde qué rama: `DEPLOYMENT` §3.3.j.
+
+### 13.0 Por qué no lleva pausa, y qué la hace segura
+
+| Hecho | Medido en el ensayo (§13.3) | Consecuencia |
+|---|---|---|
+| **El código servido funciona con la base nueva** | `b1f8dc1` con su E2E completa contra las 84 migraciones y el seed de la candidata —todas sus boletas «Diario» 4 + «Semanal» 4, como producción—: **1.059/1.063** en 56,2 min, y los 4 fallos explicados: I-075 (sola, ✅), I-090, la guarda de la pausa —que se niega a propósito porque código y base no son pareja— y `owner-tickets:236`, cuya preparación crea una boleta con el diario «7» y que la base nueva rechaza con «El número «Diario» lleva exactamente 4 cifras: escribe 0007.». Es la regla de D-261 (BR-N21): con el código servido, un número corto ya no entra, y quien lo escriba lee esa frase | **La base va primero**, y la pausa de D-239, que es para cambios incompatibles, no hace falta |
+| **No toca datos, salvo la auditoría** | `gate-compare` da **CONTINUAR** con **0 filas tocadas** sobre las 1.321 boletas reales de la copia. Las rifas que ya existían quedan «Diario» 4 + «Semanal» 4 —columnas con valor constante, sin reescribir la tabla— y la `0084` escribe **una fila de auditoría por rifa** (2 en la copia, con **0 boletas fuera de formato**); las tablas del inventario nacen vacías. Con tres boletas fuera de formato sembradas antes —una disponible, un borrador y una vendida con $80.000 abonados—, también CONTINUAR y 0 filas tocadas: **ningún número se renumera** y la auditoría las cuenta por estado y por cifras | Nada que recuperar. Si en I3 aparece alguna fuera de formato, se queda como está (§13.1, I3) |
+| **Cuatro transacciones, y la `0083` sola** | La CLI aplica cada archivo en su transacción, con su fila de historial. La `0083` añade `last_two` a un tipo y **tiene que estar confirmada** antes de la `0084`, que crea una función SQL que nombra ese valor: las dos en una sola transacción fallan con `unsafe use of new value "last_two"` y no aplican nada (comprobado) | Si una migración se rinde, no queda nada de ella y el `--dry-run` lista exactamente las que faltan. **Nunca** se pegan la `0083` y la `0084` juntas en el editor SQL |
+| **Cerrojos** | La `0081`, la `0082` y la `0084` toman ACCESS EXCLUSIVE sobre `tickets` —**lecturas y escrituras**—, y la `0084` también sobre `raffles`, durante **0,93–1,62 s** cada una en directo —según lo lenta que vaya la CLI ese rato—, **1,41–1,49 s** con la ida y vuelta de producción (94 ms) y **1,81–1,96 s** con 200 ms; **0 peticiones caídas** entre 49.646 y 81.915 operaciones por pasada. El bloque de la `0084` tarda **14 ms** en el servidor: el resto es la CLI —el bloque, la fila del historial y el `COMMIT`—. La `0083` no toca ninguna tabla viva. La `0084` de D-261, antes de D-262, **acababa en un interbloqueo** (`40P01`) y tiraba creaciones de boleta | Una franja tranquila fuera del programador y `lock_timeout=900ms`: una venta que coincida espera unos 2 s como mucho |
+| **`lock_timeout` con una tabla ocupada** | Con una lectura larga sobre `tickets`, la `0084` se rinde con `55P03` en su bloque final y no deja nada —ni sus funciones—: el historial queda en `0083`. Con una sobre `raffles`, igual, y `tickets` queda cerrada 0,87 s mientras espera, sin caídas. El reintento se aplica | Un `55P03` se repite (§13.1, I4) |
+| **Código nuevo sin la base** | El filtro «Inventario», el generador, los lotes y los apartados llaman a funciones que la `0080` no tiene; los formularios de la rifa y de las boletas mandan los números de cada rifa a columnas que no existen (razonado sobre el código, no ensayado: no hace falta, porque no se hace) | **Nunca** se despliega el código antes de las cuatro migraciones |
+| **Código viejo con rifas nuevas** (la reversión después de crear una rifa de un número, o con otros nombres o cifras) | Con una rifa de un número de 3 cifras y otra «Mayor» 4 + «Seco» 2, con boletas vendidas y una abonada, y un premio de las dos últimas cifras: **3/3** sin errores, sin 5xx y sin «Algo salió mal» en las pantallas del personal y del vendedor —rifas, premios, «Boletas», los dos detalles, el panel, los reportes, el cliente, los pagos y «Premios ganados»—, y el vendedor **vende** con el código viejo una boleta de un número (queda asignada a $120.000 y sin segundo número). **Lo que se ve mal**: la boleta de un número sale como «387 / —», con «Número semanal: Sin número»; los números se llaman siempre «Número diario» y «Número semanal», nunca «Mayor» ni «Seco»; y la columna «Cifras» de un premio de las dos últimas queda vacía. **Lo que no puede hacer** (razonado sobre el código): crear una boleta o corregir sus números en una rifa de un número —el formulario viejo pide los dos y la base rechaza el segundo— ni guardar un premio de dos cifras | §13.4 |
+
+### 13.1 El orden, con sus puertas
+
+`<SHA>` es el commit que se publique —la cabeza de la rama elegida en `DEPLOYMENT` §3.3.j, con su CI **2/2**—;
+`<REF>`, la referencia del proyecto; `<SUPABASE_DB_URL>`, la conexión directa (*session pooler*), que nunca se escribe en
+un documento. Las herramientas son las de §11.1; la pausa y la recuperación no se usan.
+
+| # | Puerta | Qué se hace | Se sigue solo si |
+|---|---|---|---|
+| I0 | Solo lectura (agente; necesita que el dueño autorice leer producción) | `npx supabase migration list --db-url "<SUPABASE_DB_URL>"`: la última aplicada es `0080` y no hay ninguna posterior. El despliegue servido es `b1f8dc1` (`dpl_8v5s7XDzSeYvNYJcohpKo4Ue5AWp`) y **el anterior existe** (la reversión de Hobby solo va al anterior, `DEPLOYMENT` §4.1). `npm run verify:remote` **con el código de `<SHA>`**: **58 OK y 3 en rojo a propósito** —las 16 funciones del inventario («0 (esperado 16)»), la firma de orden («1 (esperado 2)») y los números de cada rifa («Los grupos de numeros de cada rifa y su formato exacto (0084): 1 (esperado 5)»)—. El tamaño de la base, `select pg_size_pretty(sum(pg_database_size(datname))) from pg_database;` (I-210) | Exactamente eso. Otra roja, una migración posterior a `0080` o un despliegue servido distinto detienen |
+| I1 | Rama y CI — **requiere autorización de push** | Empujar la rama elegida **sin `force`**, PR en borrador y CI **2/2** sobre `<SHA>`: el trabajo de base de datos aplica las 84 migraciones desde cero y corre `test:db` | 2/2 |
+| I2 | Franja — con el dueño | Una hora tranquila (§13.5), **fuera** de las del programador (UTC 3, 4, 5, 6, 12, 13, 15 y 16 = Bogotá 22, 23, 0, 1, 7, 8, 10 y 11): su turno lee boletas y escribe en `lottery_ticket_matches`, y la `0081` y la `0084` redefinen `match_lottery_result`. Ningún recordatorio en la hora siguiente. Se anotan, en solo lectura, las ventas y los abonos de los últimos 15 minutos. No se desactiva ni se suspende nada (D-208) | Franja acordada con el dueño |
+| I3 | Respaldo y foto | `npx tsx scripts/take-backup.ts "<CARPETA-NUEVA-FUERA-DEL-REPO>" --production --project-ref <REF>` y `npx tsx scripts/gate-snapshot.ts antes-0081 --production --project-ref <REF>`; se anota la ruta de la foto **y su línea «Números (fuera de «Diario» 4 + «Semanal» 4)»**: `forma` «antes», las rifas, las boletas y `fuera_de_formato`, que es lo que la auditoría de la `0084` va a encontrar | Manifiesto **COMPLETO**, «Guardada en build\gate\foto-antes-0081-produccion-….json» y `forma` «antes». **Si `fuera_de_formato` no es 0** —la copia del 2026-10-01 tenía 0—, se le dice al dueño antes de I4, con el número. No impide publicar: la `0084` no renumera nada; esas boletas aparecen en la ficha de su rifa como «Boletas sin el formato de esta rifa», las vendidas se siguen cobrando y ninguna se aprueba ni se vuelve a vender hasta que se corrijan sus números (D-261) |
+| I4 | Migrar — **requiere autorización de migrar** | `npx supabase db push --dry-run --db-url "<SUPABASE_DB_URL>"` lista **exactamente** `0081`, `0082`, `0083` y `0084`; después `npx supabase db push --db-url "<SUPABASE_DB_URL>?lock_timeout=900ms" --yes` —con `&` si la URL ya trae parámetros—. La CLI **no enseña** los avisos de la auditoría: lo que encontró lo dice I5 | «Finished supabase db push.». Un `55P03` es un cerrojo que no se consiguió: se mira `migration list` —la migración que se rindió **no está**, ni nada de ella—, se espera un minuto y se repite desde el `--dry-run`, que tiene que listar **exactamente** las que faltan. Cualquier otro error detiene y se reporta. **Nunca** se aplican a mano, ni la `0083` y la `0084` juntas |
+| I5 | Comprobar | `npm run verify:remote` **61/61**. `npx tsx scripts/gate-snapshot.ts despues-0084 --production --project-ref <REF> --base <foto de I3>` y `npx tsx scripts/gate-compare.ts <foto de I3> <foto de después> --production --project-ref <REF> --operation migrations --migrations 0081,0082,0083,0084 --expected-delta build/gate/delta-esperado-0081-0084.json --report i5.json` | 61/61 y **CONTINUAR**, con `efectos_de_datos.comprobado` igual a la línea de I3 —las mismas rifas y boletas, y las mismas `fuera_de_formato`— y las tablas nuevas `raffle_hold_settings` 0, `raffle_number_format_audits` **una por rifa**, `ticket_generation_runs` 0 y `ticket_holds` 0. Un DETENER se lee y se reporta: las ventas, los cobros y un turno programado de la franja son actividad normal; cualquier otra fila, no |
+| I6 | Código — **requiere autorización de push y de despliegue** | `git ls-remote origin refs/heads/main` (sigue en `b1f8dc1`); `git push origin <SHA>:refs/heads/main` por avance rápido; **un** despliegue | READY sobre `<SHA>` y su identificador servido (`DEPLOYMENT` §6.1) |
+| I7 | En vivo y revisión | El agente: en vivo (§13.2), `verify:remote` 61/61 y los registros de Vercel de esa hora, sin errores. El dueño, con su sesión: **solo mirar** (§13.2) | Todo como en local. **No se crea ninguna rifa, ni se genera, se aparta o se entrega nada de prueba**: serían datos reales, y una rifa no cambia sus números después de creada |
+
+### 13.2 Qué se comprueba en vivo (I7)
+
+| Quién | Qué | Bien si |
+|---|---|---|
+| Agente, sin sesión | El identificador de versión de `<SHA>` (sha256 del commit, 12 hex) en los fragmentos de JavaScript de `/login`, **ausente antes y presente después** —el método de `DEPLOYMENT` §6.1: los textos nuevos viven en páginas con sesión—; `verify:remote` 61/61; registros de Vercel de la hora, sin 5xx ni errores de ejecución | Las tres cosas |
+| Dueño, con su sesión | «Boletas»: el filtro «Inventario» y el listado de siempre; el detalle de una boleta vendida; «Crear en lote» ofrece «Escribir los números» y «Generar por rangos», y la vista previa de un rango **sin pulsar «Generar»**; la ficha de la rifa con su resumen de inventario y **sin** «Boletas sin el formato de esta rifa» si I3 dio 0. «Editar» la rifa —**sin guardar**—: «Números de cada boleta» en solo lectura, «Diario» y «Semanal» de 4 cifras, con «Los números de una rifa no se cambian después de crearla.». «Nueva rifa», **sin crearla**: la pregunta «¿Cuántos números tiene cada boleta?». Como vendedor —una cuenta de prueba, nunca la de un vendedor real—: «Mis boletas» y «Inventario común» en el menú, que dirá que no hay boletas libres | Todo se ve como en local; nada nuevo en los registros |
+| Dueño, después y **cuando decida** | La primera rifa con otros números, y la primera generación real **solo con el plan decidido (I-210)**. Los lotes se pueden entregar en cuanto termina la generación (D-260, I-214) | — |
+
+### 13.3 El ensayo (hecho el 2026-10-20, en local, sobre una copia de producción, con escrituras en curso y con la latencia de producción)
+
+Las herramientas están **fuera de Git**, en `build/publicacion-inventario/` y `build/publicacion-d261/` de la copia
+principal (`LEEME.md`); se ejecutan desde la raíz del repositorio y solo contra la base local.
+
+```
+RESPALDO=<respaldo de producción en 0079> SERVIDO=<árbol de b1f8dc1> FOTO=<foto de producción> \
+  bash build/publicacion-inventario/reset-antes.sh
+npx tsx scripts/gate-snapshot.ts ensayo-antes-0081 --local
+npm run verify:remote          # con SUPABASE_DB_URL apuntando a la base local, ?sslmode=disable
+node build/publicacion-inventario/latency-proxy.mjs 55432 45     # en otra terminal: ~94 ms de ida y vuelta
+bash build/publicacion-inventario/run-push.sh <etiqueta> 54322   # directo; 55432 por el proxy
+npx tsx scripts/gate-snapshot.ts ensayo-despues-0084 --local --base <foto de antes>
+npx tsx scripts/gate-compare.ts <antes> <después> --structure-only --save-delta build/gate/delta-esperado-0081-0084.json
+npx tsx scripts/gate-compare.ts <antes> <después> --local --operation migrations --migrations 0081,0082,0083,0084 --expected-delta build/gate/delta-esperado-0081-0084.json
+```
+
+| Resultado | |
+|---|---|
+| La base | El respaldo del 2026-10-01 (`0079`) más la `0080` aplicada con la CLI desde `b1f8dc1`: 1.321 boletas reales en dos rifas; privilegios alojados (`gate-mirror-privileges`) |
+| `--dry-run` | Exactamente `0081`, `0082`, `0083` y `0084` |
+| Cerrojos con escrituras en curso | La tabla de §13.0 y la de `TEST_RESULTS` §c: ninguna caída en las siete pasadas con la `0084` de D-262, la última con el archivo del commit; con la de D-261, un `40P01` y tres caídas |
+| Una lectura larga sobre `tickets`, y otra sobre `raffles` | La `0084` se rinde con `55P03` en su bloque final, sin aplicar nada; las sondas esperan como mucho 0,9 s; el reintento termina |
+| La `0083` y la `0084` en una transacción | `unsafe use of new value "last_two"`; nada aplicado |
+| La comparación | **CONTINUAR**, 0 diferencias con lo ensayado, **0 filas tocadas**; efectos de datos `{"rifas": 2, "boletas": 1321, "fuera_de_formato": 0}`; con tres boletas fuera de formato sembradas, `{"rifas": 2, "boletas": 1323, "fuera_de_formato": 3}` y la auditoría por estado y por cifras. Con el comparador de `b1f8dc1`, DETENER: no conoce la auditoría |
+| El delta | `build/gate/delta-esperado-0081-0084.json` (48 KB): tablas +4, columnas +58 ~1, restricciones +36 ~1, índices +15, disparadores +7 ~1, funciones +43 −1 ~17, tipos ~1, migraciones +4 |
+| `verify:remote` | Antes, 57 OK y 4 en rojo —las tres esperadas y los cron que el ensayo apaga—; después, 60 OK y los cron |
+| El almacenamiento | La `0084` ocupa 40 KB en `public`. Generar 100.000 boletas «Diario» 4 + «Semanal» 4, **74,2 MB**, frente a 74,0 MB sin D-261 (I-210) |
+| El código servido | `b1f8dc1` contra las 84 migraciones y el seed de la candidata: E2E completa **1.059/1.063** en 56,2 min, cada fallo con su causa (`TEST_RESULTS`, «Preparación de la publicación de D-257 a D-261», e). Con rifas que no conoce —una de un número y otra «Mayor» 4 + «Seco» 2, vendidas y abonadas, y un premio de las dos últimas—, **3/3** sin errores ni 5xx, con los nombres de siempre y la columna «Cifras» vacía |
+| El ensayo anterior | El del 2026-10-19 y el 2026-10-20 por la mañana, con la `0081` y la `0082` solas (D-259, D-260): ya no describe lo que se publica. Sus resultados siguen en `TEST_RESULTS` |
+
+El delta y las fotos quedan en `build/gate/`, **fuera de Git**. **El delta vigente es
+`build/gate/delta-esperado-0081-0084.json`** de la copia principal; `delta-esperado-0081-0082.json` ya no sirve para I5.
+En otro equipo, o si cambia una de las cuatro migraciones, se repite el ensayo con una foto de producción tomada en I0:
+la del 2026-10-05 es anterior a cualquier cambio posterior.
+
+### 13.4 Si algo falla
+
+| Dónde | Qué se hace |
+|---|---|
+| I4 falla en una de las cuatro | No quedó nada de esa: cada migración es una transacción. `55P03` se repite desde el `--dry-run`, que lista exactamente las que faltan; otro error se reporta sin tocar nada más |
+| I4: la base queda a medias | El código servido sigue funcionando: no tiene pantallas de apartados, la `0083` solo añade un valor que nadie usa y nada suyo depende de la `0084`. Se repite lo que falta; si no entra, **no se despliega** y se reporta. El único hueco, el de antes: una venta desde un apartado hecha llamando a la API a mano antes de la `0082` quedaría sin la marca de D-258 |
+| I5 dice DETENER | No se despliega. Se reporta cada motivo; el código servido sigue funcionando con la base nueva |
+| El código nuevo falla después de I6 | *Instant Rollback* al despliegue anterior (`b1f8dc1`, `dpl_8v5s7XDzSeYvNYJcohpKo4Ue5AWp`), que funciona con las cuatro migraciones (§13.3). Lo pulsa el dueño; antes de volver a desplegar, «Undo Rollback» (`DEPLOYMENT` §4.1). Lo que se pierde al volver: el generador, los lotes, los apartados y **elegir los números al crear una rifa** —el código viejo no manda los números, así que crea siempre «Diario» 4 +
+«Semanal» 4, los valores por omisión de la `0084`—. Los apartados abiertos vencen solos a los 30 minutos. **Con boletas sin vendedor ya generadas**, el código viejo las enseña con «Vendedor» como nombre y su tarjeta lleva a una ficha 404 (comprobado el 2026-10-19). **Con rifas de un número o con otros nombres o cifras** (comprobado el 2026-10-20, §13.0): el código viejo las enseña y las vende sin errores, pero las llama «Número diario» y «Número semanal», escribe «387 / —» en una boleta de un número y deja vacía la columna «Cifras» de un premio de las dos últimas; y no puede crear ni corregir boletas de un número ni guardar ese premio. Se avisa al personal de las dos cosas y se vuelve a publicar en cuanto se pueda |
+| Hay que retirar la `0084` | Una **migración nueva**, según su nota final: **solo si ninguna rifa de un número ni de otras cifras tiene boletas**, porque las de un número romperían las reglas de antes. Los nombres y las cifras de cada rifa se pierden, y `last_two` se queda en el tipo, sin uso (la nota de la `0083`): antes hay que cambiar o archivar los premios que lo usen. Ninguna boleta, venta ni premio se toca para revertir |
+| Hay que retirar la `0081` y la `0082` | Una **migración nueva**, según las notas del final de las dos: exacta mientras no haya boletas sin vendedor, apartados ni generaciones. Con filas, primero se exportan; las boletas sin vendedor se asignan o se eliminan antes (nunca hay una vendida: el CHECK lo impide) |
+
+### 13.5 Cuándo, según el uso real
+
+| Dato | Valor | De dónde |
+|---|---|---|
+| Horas del programador de loterías | UTC 3, 4, 5, 6, 12, 13, 15 y 16 —Bogotá 22, 23, 0, 1, 7, 8, 10 y 11—; en Hobby el turno cae en cualquier minuto de esa hora | `vercel.json`, sin cambios en esta entrega |
+| Lo que la publicación hace a quien esté vendiendo | Tres esperas de **1,4 a 2 s**, una por migración que toca `tickets`, sin fallos (§13.0) | Ensayo con 94 ms y con 200 ms |
+| Lo que tarda la publicación | `db push` de las cuatro: **127 s** con 94 ms y **149 s** con 200 ms, de los que `tickets` está cerrada **4,4 s** y **5,7 s** en total | Ensayo, `TEST_RESULTS` §c |
+| Franja medida sin actividad | De 2:00 a 3:30 en Bogotá, **0 acciones en 28 días** (medido para I-202, `RUNBOOK` §12) | Bitácora de producción, 2026-10-05 |
+| Publicaciones anteriores sin incidentes | 20:01 en Bogotá (la `0080`) y 13:12 en Bogotá (D-253 y D-254) | `DEPLOYMENT` §3.2.v y §3.2.aa |
+
+**Recomendación:** una tarde entre semana, **de 19:00 a 21:30 en Bogotá** (00:00–02:30 UTC) —libre de programador
+hasta las 22:00 y con el dueño disponible para I7—, o de **13:00 a 15:00** (18:00–20:00 UTC). La franja de 2:00 a 3:30
+es la más vacía, pero exige que el dueño esté despierto para autorizar I4 e I6 y para la revisión. En I2 se mira la
+actividad real de los últimos 15 minutos, las peticiones en curso y los recordatorios de la hora siguiente; si hay ventas
+en curso, se espera: el cerrojo es corto, pero no hay prisa.
+
+### 13.6 Lo que NO se hace nunca
+
+* **No** se despliega el código antes de las cuatro migraciones, ni sobre una base a medias.
+* **No** se aplican la `0083` y la `0084` en una sola transacción, ni a mano en el editor SQL.
+* **No** se publican la `0081` y la `0082` de antes de D-259 (tiraban peticiones, I-212), ni la `0084` de antes de D-262
+  (acababa en un interbloqueo).
+* **No** se migra sin `lock_timeout`, ni en una hora del programador.
+* **No** se usa el delta de la `0081` y la `0082` en I5: con él, la comparación dice DETENER.
+* **No** se edita ni se vuelve a aplicar ninguna de las cuatro una vez publicada: un cambio es una migración nueva.
+* **No** se crea ninguna rifa de prueba en producción, ni se genera, se aparta o se entrega nada de prueba; la primera
+  generación real, con el plan decidido (I-210).
+* **No** se empujan los commits de documentos por separado: cada empujón a `main` despliega y mueve el punto de
+  reversión (`DEPLOYMENT` §3.3.j).

@@ -2,12 +2,13 @@ import { LOTTERY_LABELS } from '@/features/lottery/constants'
 import { LOTTERY_DASHBOARD_COPY } from '@/features/lottery/dashboard'
 import {
   PRIZE_DIGITS_FULL_LABELS,
-  PRIZE_NUMBER_FIELD_LABELS,
+  prizeNumberFieldName,
   rewardOptionsText,
   rewardOptionText,
 } from '@/features/raffle-prizes/copy'
 import { formatLongDateBetweenEs, formatLongDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { numberGroupTitle, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import type { PrizeAwardBase, PrizeAwardCoverage, PrizeAwardTotals } from './queries'
 import type { PrizeAwardAudience, PrizeAwardFilters } from './schemas'
@@ -263,13 +264,16 @@ export function prizeAwardDrawText(award: Pick<AwardText, 'lotteryCode' | 'drawN
  * (BR-J23).
  */
 export function prizeAwardPlayedText(
-  award: Pick<AwardText, 'matchField' | 'matchedNumber' | 'prizeDigits'>,
+  award: Pick<AwardText, 'matchField' | 'matchedNumber' | 'prizeDigits'> & {
+    /** D-261: el número se nombra como lo nombró la rifa. */
+    numberFormat?: RaffleNumberFormat
+  },
   options: { inSentence?: boolean } = {},
 ): string {
   // Detrás de «Jugó con», en la misma línea, va en minúscula: se lee como una
   // frase —«Jugó con número diario 0046 · cuatro cifras»—, no como dos rótulos.
   const cased = (text: string) => (options.inSentence ? text.toLowerCase() : text)
-  const played = `${cased(PRIZE_NUMBER_FIELD_LABELS[award.matchField])} ${award.matchedNumber}`
+  const played = `${cased(numberGroupTitle(prizeNumberFieldName(award.numberFormat, award.matchField)))} ${award.matchedNumber}`
   return award.prizeDigits
     ? `${played}${SEP}${cased(PRIZE_DIGITS_FULL_LABELS[award.prizeDigits])}`
     : played

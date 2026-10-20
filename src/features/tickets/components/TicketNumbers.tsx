@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { RowLink } from '@/components/data/RowLink'
+import { numberFormatLegend, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
@@ -24,7 +25,10 @@ import type { TicketListItem } from '../queries'
  * antes.
  */
 
-/** Dice cual de las dos cifras es cual. Se calla cuando falta alguna. */
+/**
+ * La leyenda de la rifa de siempre. Desde D-261 cada boleta trae la de SU rifa
+ * —`ticketNumbersLegend`—; esta queda solo para lo que no la conoce.
+ */
 export const TICKET_NUMBERS_LEGEND = 'Diario · Semanal'
 
 /**
@@ -36,10 +40,40 @@ export const TICKET_NUMBERS_LEGEND = 'Diario · Semanal'
  * columnas que enseña, y aun asi reutiliza esta celda tal cual. Los llamadores
  * de siempre siguen pasando su `TicketListItem`, que encaja sin cambiar nada.
  */
-export type TicketNumbersSource = Pick<TicketListItem, 'dailyNumber' | 'weeklyNumber'>
+export type TicketNumbersSource = Pick<TicketListItem, 'dailyNumber' | 'weeklyNumber'> & {
+  /**
+   * D-261: cuantos numeros tiene la boleta y como se llaman, los de SU rifa. Lo
+   * pegan las lecturas del servidor; una lista que mezcla rifas pinta cada
+   * boleta con el suyo.
+   */
+  numberFormat?: RaffleNumberFormat
+}
 
+/** Cuantos numeros tiene la boleta, si se sabe: lo que `ticketLabel` necesita. */
+export function ticketGroupCount(ticket: TicketNumbersSource): 1 | 2 | undefined {
+  return ticket.numberFormat?.groups.length
+}
+
+/** Los numeros de la boleta, como se nombra: «1234 / 5678» o «387». */
+export function ticketNumbersLabel(ticket: TicketNumbersSource): string {
+  return ticketLabel(ticket, ticketGroupCount(ticket))
+}
+
+/** Tiene TODOS los numeros de su rifa: uno o los dos. */
 export function hasBothNumbers(ticket: TicketNumbersSource): boolean {
+  if (ticket.numberFormat?.groups.length === 1) return ticket.dailyNumber !== null
   return ticket.dailyNumber !== null && ticket.weeklyNumber !== null
+}
+
+/**
+ * Cual cifra es cual, con los nombres de la rifa: «Diario · Semanal», «Mayor ·
+ * Seco» o «Número». Se calla cuando falta alguno, y cuando la boleta no trae su
+ * formato y no tiene los dos: sin saber como se llama un numero, no se inventa.
+ */
+export function ticketNumbersLegend(ticket: TicketNumbersSource): string | null {
+  if (!hasBothNumbers(ticket)) return null
+  if (ticket.numberFormat) return numberFormatLegend(ticket.numberFormat)
+  return ticket.weeklyNumber !== null ? TICKET_NUMBERS_LEGEND : null
 }
 
 export function TicketNumbersLink({
@@ -77,7 +111,7 @@ export function TicketNumbersLink({
    */
   interactive?: boolean
 }) {
-  const label = ticketLabel(ticket)
+  const label = ticketNumbersLabel(ticket)
   const shared = cn('truncate font-mono text-base font-medium tabular-nums', className)
 
   if (!interactive) {
@@ -116,8 +150,8 @@ export function TicketNumbersCell({
   return (
     <div className="min-w-0 space-y-0.5">
       <TicketNumbersLink ticket={ticket} href={href} interactive={interactive} />
-      {hasBothNumbers(ticket) ? (
-        <p className="text-muted-foreground text-xs">{TICKET_NUMBERS_LEGEND}</p>
+      {ticketNumbersLegend(ticket) !== null ? (
+        <p className="text-muted-foreground text-xs">{ticketNumbersLegend(ticket)}</p>
       ) : null}
       {children}
     </div>

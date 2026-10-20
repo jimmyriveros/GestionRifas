@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
+import { numberFormatFromRow, RAFFLE_NUMBER_FORMAT_COLUMNS } from '@/lib/ticket-number-format'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResultWith } from '@/lib/action-result'
 
@@ -45,20 +46,31 @@ export async function bulkCreateTickets(
   }
   const values = parsed.data
 
+  const supabase = await createClient()
+
+  // D-261: las filas se validan con los números de LA rifa. Leerla es del
+  // personal (`raffles_select`); si no aparece, la RPC dice lo de siempre.
+  const { data: raffleRow } = await supabase
+    .from('raffles')
+    .select(RAFFLE_NUMBER_FORMAT_COLUMNS)
+    .eq('id', values.raffleId)
+    .maybeSingle()
+  const format = raffleRow ? numberFormatFromRow(raffleRow) : undefined
+  const single = format?.groups.length === 1
+
   // Segunda capa de la validacion por fila (BR-N10): el navegador ya la hizo,
   // pero una Server Action puede invocarse sin pasar por la interfaz.
-  if (hasErrors(validateBulkRows(values.rows))) {
+  if (hasErrors(validateBulkRows(values.rows, { format }))) {
     return { error: 'El lote tiene filas con números inválidos o repetidos entre sí.' }
   }
 
-  const supabase = await createClient()
   const { data, error } = await supabase.rpc('bulk_create_tickets', {
     p_raffle_id: values.raffleId,
     p_seller_id: values.sellerId,
     p_rows: values.rows.map((row) => ({
       // Una fila vacia se guarda como borrador para completarla despues.
       daily_number: row.dailyNumber === '' ? null : row.dailyNumber,
-      weekly_number: row.weeklyNumber === '' ? null : row.weeklyNumber,
+      weekly_number: single || row.weeklyNumber === '' ? null : row.weeklyNumber,
     })),
   })
 
@@ -76,8 +88,8 @@ export async function bulkCreateTickets(
       requested: result.requested ?? values.rows.length,
       inserted: result.inserted ?? 0,
       conflicts: (result.conflicts ?? []).flatMap((conflict) =>
-        conflict.daily_number && conflict.weekly_number
-          ? [comboKey(conflict.daily_number, conflict.weekly_number)]
+        conflict.daily_number && (single || conflict.weekly_number)
+          ? [comboKey(conflict.daily_number, single ? '' : (conflict.weekly_number ?? ''))]
           : [],
       ),
     },
@@ -102,9 +114,10 @@ export async function findExistingCombinations(
   const auth = await authorizeAction(['owner', 'admin'])
   if ('error' in auth) return auth
 
+  // Con un solo número la fila trae el segundo vacío (D-261): basta el primero.
   const wanted = new Set(
     combos
-      .filter((combo) => combo.dailyNumber !== '' && combo.weeklyNumber !== '')
+      .filter((combo) => combo.dailyNumber !== '')
       .map((combo) => comboKey(combo.dailyNumber, combo.weeklyNumber)),
   )
   if (wanted.size === 0) return { ok: true, data: [] }
@@ -124,7 +137,7 @@ export async function findExistingCombinations(
   if (error) return { error: mapPgError(error) }
 
   const existing = (data ?? []).flatMap((row) =>
-    row.daily_number && row.weekly_number ? [comboKey(row.daily_number, row.weekly_number)] : [],
+    row.daily_number ? [comboKey(row.daily_number, row.weekly_number ?? '')] : [],
   )
 
   return { ok: true, data: existing.filter((key) => wanted.has(key)) }

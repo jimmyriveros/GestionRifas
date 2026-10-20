@@ -115,12 +115,16 @@ export async function WeeklyResultsContent({ profileId, week }: WeeklyResultsSec
       <WeeklyResultsSummary
         results={results}
         raffleName={raffle.kind === 'ready' ? raffle.name : null}
+        numberFormat={raffle.kind === 'ready' ? raffle.numberFormat : undefined}
       />
       <WeeklyResultsShare
         imageUrl={ready ? weeklyResultsImageUrl(week) : null}
         fileName={weeklyResultsFileName(week)}
         imageAlt={COPY.week.imageAlt(formatWeekLong(week))}
-        defaultMessage={weeklyResultsMessage(week)}
+        defaultMessage={weeklyResultsMessage(
+          week,
+          raffle.kind === 'ready' ? raffle.numberFormat : undefined,
+        )}
         messageReady={ready}
         messageSettings={messageSettings}
         unavailableText={unavailableText}

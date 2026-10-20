@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { Notice } from '@/components/feedback/Notice'
 import { FormNoScriptNotice, HydratedSubmitButton } from '@/components/form/HydratedSubmitButton'
 import { MoneyInput } from '@/components/form/MoneyInput'
@@ -26,10 +27,13 @@ import { RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
 import { DEFAULT_TICKET_PRICE, type RaffleStatus } from '@/lib/constants'
 import { todayBogota } from '@/lib/dates'
 import { hasInternalHistory } from '@/lib/navigation-history'
+import { numberGroupDescription } from '@/lib/ticket-number-format'
 
 import { createRaffle, updateRaffle } from '../actions'
 import { RAFFLE_DATE_CHANGE_NOTICE, raffleDateChangeAnnounced } from '../date-change'
+import { numberGroupsToFormat, RAFFLE_NUMBER_GROUPS_COPY } from '../number-groups'
 import { createRaffleSchema, raffleFormDefaults, type CreateRaffleInput } from '../schemas'
+import { RaffleNumberGroupsField } from './RaffleNumberGroupsField'
 
 type RaffleFormProps = {
   raffle?: CreateRaffleInput & { id: string }
@@ -51,6 +55,11 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  /**
+   * D-261: al CREAR, lo validado espera aquí a que se confirme el resumen de
+   * los números, que después no se pueden cambiar.
+   */
+  const [toConfirm, setToConfirm] = useState<CreateRaffleInput | null>(null)
   const isEdit = raffle !== undefined
   const leaveHref = raffle ? (returnHref ?? `/owner/raffles/${raffle.id}`) : '/owner/raffles'
 
@@ -69,6 +78,14 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
 
   function onSubmit(values: CreateRaffleInput) {
     setServerError(null)
+    if (!raffle) {
+      setToConfirm(values)
+      return
+    }
+    save(values)
+  }
+
+  function save(values: CreateRaffleInput) {
     startTransition(async () => {
       if (raffle) {
         const result = await updateRaffle({ ...values, id: raffle.id })
@@ -80,6 +97,7 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
         router.push(leaveHref)
       } else {
         const result = await createRaffle(values)
+        setToConfirm(null)
         if ('error' in result) {
           setServerError(result.error)
           return
@@ -173,6 +191,11 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
               <FormMessage />
             </FormItem>
           )}
+        />
+
+        <RaffleNumberGroupsField
+          disabled={isPending}
+          readOnlyFormat={raffle ? numberGroupsToFormat(raffle) : undefined}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -271,6 +294,38 @@ export function RaffleForm({ raffle, status, returnHref }: RaffleFormProps) {
           </Button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={toConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open && !isPending) setToConfirm(null)
+        }}
+        title={RAFFLE_NUMBER_GROUPS_COPY.confirm.title}
+        description={
+          toConfirm ? (
+            <span className="block space-y-2">
+              <span className="block">
+                {RAFFLE_NUMBER_GROUPS_COPY.confirm.intro(toConfirm.groupCount)}
+              </span>
+              <span className="block">
+                {numberGroupsToFormat(toConfirm).groups.map((group) => (
+                  <span key={group.slot} className="text-foreground block font-medium">
+                    {numberGroupDescription(group)}
+                  </span>
+                ))}
+              </span>
+              <span className="block">{RAFFLE_NUMBER_GROUPS_COPY.confirm.consequence}</span>
+            </span>
+          ) : null
+        }
+        confirmLabel={RAFFLE_NUMBER_GROUPS_COPY.confirm.confirmLabel}
+        cancelLabel={RAFFLE_NUMBER_GROUPS_COPY.confirm.cancelLabel}
+        pending={isPending}
+        pendingLabel={RAFFLE_NUMBER_GROUPS_COPY.confirm.pendingLabel}
+        onConfirm={() => {
+          if (toConfirm) save(toConfirm)
+        }}
+      />
     </Form>
   )
 }

@@ -1,5 +1,8 @@
 import 'server-only'
 
+import { listRaffleNumberFormats, withNumberFormat } from '@/features/raffles/number-formats'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
+
 import { cache } from 'react'
 import { z } from 'zod'
 
@@ -14,6 +17,9 @@ import type { ListSort } from '@/lib/list-sort'
 import { normalizeSearchTerm } from '@/lib/search'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
+
+import { INVENTORY_COPY } from '@/features/inventory/copy'
+import type { TicketCustody } from '@/features/inventory/rules'
 
 import { parseClearanceState, type ClearanceState } from './clearance-receipt'
 import { sellerNameMap } from './queries'
@@ -47,6 +53,8 @@ export type AdminTicketFilters = {
   search?: string
   /** La seleccion multiple pide boletas concretas por su id (BR-B01). */
   ticketIds?: readonly string[]
+  /** Quien tiene la boleta: inventario comun, apartada o con un vendedor (D-257). */
+  custody?: TicketCustody
   page?: number
   pageSize?: number
   /** Orden pedido desde la URL, ya validado contra `ADMIN_TICKET_SORT_COLUMNS`. */
@@ -73,8 +81,20 @@ export type AdminTicketListItem = {
   raffleId: string
   raffleName: string
   raffleShortCode: string
-  sellerId: string
+  /** `null` en el inventario comun, libre o apartada (D-257). */
+  sellerId: string | null
+  /**
+   * Lo que se lee en la columna «Vendedor»: su nombre, «Inventario común» o
+   * «Apartada por …». Las listas lo pintan tal cual.
+   */
   sellerName: string
+  custody: TicketCustody
+  /** Quien la tiene apartada y hasta cuando; solo con `custody === 'held'`. */
+  heldById: string | null
+  heldByName: string | null
+  holdExpiresAt: string | null
+  /** D-261: los numeros de SU rifa: cuantos son y como se llaman. */
+  numberFormat?: RaffleNumberFormat
 }
 
 type AdminListRow = {
@@ -87,7 +107,9 @@ type AdminListRow = {
   raffle_id: string
   raffle_name: string | null
   raffle_short_code: string | null
-  seller_id: string
+  seller_id: string | null
+  held_by: string | null
+  hold_expires_at: string | null
   total_count: number
 }
 
@@ -95,7 +117,28 @@ function parsePaymentState(value: string | null): AdminTicketPaymentState | null
   return value === 'paid' || value === 'unpaid' ? value : null
 }
 
+/** Quien tiene la boleta, y como se lee en la columna «Vendedor» (D-257). */
+function custodyOf(
+  sellerId: string | null,
+  heldBy: string | null,
+  sellerNames: Map<string, string>,
+): { custody: TicketCustody; sellerName: string; heldByName: string | null } {
+  if (sellerId) {
+    return {
+      custody: 'seller',
+      sellerName: sellerNames.get(sellerId) ?? 'Vendedor',
+      heldByName: null,
+    }
+  }
+  if (heldBy) {
+    const name = sellerNames.get(heldBy) ?? 'Vendedor'
+    return { custody: 'held', sellerName: INVENTORY_COPY.staff.heldBy(name), heldByName: name }
+  }
+  return { custody: 'common', sellerName: INVENTORY_COPY.staff.commonInventory, heldByName: null }
+}
+
 function mapListRow(row: AdminListRow, sellerNames: Map<string, string>): AdminTicketListItem {
+  const custody = custodyOf(row.seller_id, row.held_by, sellerNames)
   return {
     id: row.id,
     dailyNumber: row.daily_number,
@@ -107,7 +150,11 @@ function mapListRow(row: AdminListRow, sellerNames: Map<string, string>): AdminT
     raffleName: row.raffle_name ?? '',
     raffleShortCode: row.raffle_short_code ?? '',
     sellerId: row.seller_id,
-    sellerName: sellerNames.get(row.seller_id) ?? 'Vendedor',
+    sellerName: custody.sellerName,
+    custody: custody.custody,
+    heldById: row.seller_id ? null : row.held_by,
+    heldByName: custody.heldByName,
+    holdExpiresAt: row.seller_id ? null : row.hold_expires_at,
   }
 }
 
@@ -132,6 +179,7 @@ async function callAdminList(
     ...(filters.inventoryStatus ? { p_inventory_status: filters.inventoryStatus } : {}),
     ...(filters.paymentState ? { p_payment_state: filters.paymentState } : {}),
     ...(filters.ticketIds ? { p_ticket_ids: [...filters.ticketIds] } : {}),
+    ...(filters.custody ? { p_custody: filters.custody } : {}),
     ...(filters.sort
       ? { p_sort_column: filters.sort.column, p_sort_direction: filters.sort.direction }
       : {}),
@@ -152,9 +200,10 @@ export async function listAdminTickets(filters: AdminTicketFilters): Promise<{
   const pageSize = filters.pageSize ?? PAGE_SIZE
   const page = Math.max(1, filters.page ?? 1)
 
-  const [rows, sellerNames] = await Promise.all([
+  const [rows, sellerNames, formats] = await Promise.all([
     callAdminList(filters, pageSize, (page - 1) * pageSize),
     sellerNameMap(),
+    listRaffleNumberFormats(),
   ])
 
   /*
@@ -169,7 +218,10 @@ export async function listAdminTickets(filters: AdminTicketFilters): Promise<{
   }
 
   return {
-    rows: rows.map((row) => mapListRow(row, sellerNames)),
+    rows: withNumberFormat(
+      rows.map((row) => mapListRow(row, sellerNames)),
+      formats,
+    ),
     total,
     page,
     pageSize,
@@ -216,6 +268,10 @@ export type AdminTicketDetail = AdminTicketListItem & {
   raffleStatus: RaffleStatus
   /** Fecha de una entrega MANUAL del paz y salvo; nunca la de la carga inicial (D-170). */
   clearanceDeliveredAt: string | null
+  /** Si el apartado vigente ya uso su extension (D-257). */
+  holdExtended: boolean
+  /** La generacion por rangos que la creo, si la creo una (D-257). */
+  generationRunId: string | null
 }
 
 const ticketIdSchema = z.uuid()
@@ -231,15 +287,17 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
   if (!ticketIdSchema.safeParse(ticketId).success) return null
 
   const supabase = await createClient()
-  const [{ data, error }, sellerNames] = await Promise.all([
+  const [{ data, error }, sellerNames, formats] = await Promise.all([
     supabase.rpc('admin_ticket_detail', { p_ticket_id: ticketId }),
     sellerNameMap(),
+    listRaffleNumberFormats(),
   ])
 
   if (error) throw error
   const row = data?.[0]
   if (!row) return null
 
+  const custody = custodyOf(row.seller_id, row.held_by, sellerNames)
   return {
     id: row.id,
     internalCode: row.internal_code,
@@ -252,8 +310,15 @@ export async function getAdminTicketDetail(ticketId: string): Promise<AdminTicke
     raffleName: row.raffle_name ?? '',
     raffleShortCode: row.raffle_short_code ?? '',
     raffleStatus: row.raffle_status,
+    numberFormat: formats.get(row.raffle_id),
     sellerId: row.seller_id,
-    sellerName: sellerNames.get(row.seller_id) ?? 'Vendedor',
+    sellerName: custody.sellerName,
+    custody: custody.custody,
+    heldById: row.seller_id ? null : row.held_by,
+    heldByName: custody.heldByName,
+    holdExpiresAt: row.seller_id ? null : row.hold_expires_at,
+    holdExtended: row.hold_extended,
+    generationRunId: row.generation_run_id,
     saleDate: row.sale_date,
     createdAt: row.created_at,
     approvedAt: row.approved_at,
@@ -281,7 +346,17 @@ export type InventoryCounts = {
   ticketsNotPaid: number
 }
 
-export type AdminInventoryRow = InventoryCounts & { raffleId: string; sellerId: string }
+/**
+ * Una fila por rifa y vendedor. La de `sellerId` NULL es el inventario comun
+ * (D-257): sus disponibles incluyen las apartadas ahora, que `ticketsHeld` cuenta.
+ * Los totales la suman; las listas por vendedor la ignoran, porque unen por
+ * persona.
+ */
+export type AdminInventoryRow = InventoryCounts & {
+  raffleId: string
+  sellerId: string | null
+  ticketsHeld: number
+}
 
 export const ZERO_INVENTORY: InventoryCounts = {
   ticketsTotal: 0,
@@ -309,7 +384,8 @@ export function addInventory(acc: InventoryCounts, row: InventoryCounts): Invent
 
 type RawInventoryRow = {
   raffle_id: string
-  seller_id: string
+  seller_id: string | null
+  tickets_held: number
   tickets_total: number
   tickets_available: number
   tickets_assigned: number
@@ -354,9 +430,34 @@ export const readAdminTicketInventory = cache(
       ticketsCancelled: Number(row.tickets_cancelled ?? 0),
       ticketsPaid: Number(row.tickets_paid ?? 0),
       ticketsNotPaid: Number(row.tickets_not_paid ?? 0),
+      ticketsHeld: Number(row.tickets_held ?? 0),
     }))
   },
 )
+
+/** El inventario comun de una rifa (o de todas), contado por SQL (D-257). */
+export type CommonInventoryCounts = {
+  /** Libres: sin vendedor, disponibles y sin apartado vigente. */
+  free: number
+  /** Apartadas ahora por algun vendedor. */
+  held: number
+  /** Disponibles con un vendedor: asignadas por el personal o creadas por el. */
+  withSellers: number
+}
+
+export function commonInventoryCounts(rows: readonly AdminInventoryRow[]): CommonInventoryCounts {
+  return rows.reduce<CommonInventoryCounts>(
+    (acc, row) =>
+      row.sellerId === null
+        ? {
+            ...acc,
+            free: acc.free + row.ticketsAvailable - row.ticketsHeld,
+            held: acc.held + row.ticketsHeld,
+          }
+        : { ...acc, withSellers: acc.withSellers + row.ticketsAvailable },
+    { free: 0, held: 0, withSellers: 0 },
+  )
+}
 
 /** Que acciones de lote admite cada boleta, para el personal (BR-B06, BR-Q07). */
 export async function listAdminTicketEligibility(
@@ -371,13 +472,16 @@ export async function listAdminTicketEligibility(
 
   if (error) throw error
 
+  const formats = await listRaffleNumberFormats()
   return (data ?? []).map((row) => ({
+    numberFormat: formats.get(row.raffle_id),
     audience: 'staff' as const,
     ticketId: row.ticket_id,
     dailyNumber: row.daily_number,
     weeklyNumber: row.weekly_number,
     inventoryStatus: row.inventory_status,
     sellerId: row.seller_id,
+    heldBy: row.held_by,
     raffleId: row.raffle_id,
     raffleActive: row.raffle_active,
     can: {
@@ -387,6 +491,8 @@ export async function listAdminTicketEligibility(
       cancel: row.can_cancel,
       changeSeller: row.can_change_seller,
       delete: row.can_delete,
+      assignToSeller: row.can_assign_to_seller,
+      recover: row.can_recover,
     },
   }))
 }

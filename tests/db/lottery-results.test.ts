@@ -296,6 +296,38 @@ afterAll(async () => {
   await otherOrgOwner?.auth.signOut()
 })
 
+/** Una boleta como las de antes de la 0084: fuera del formato de su rifa (D-261). */
+async function createLegacyTicket(raffleId: string, daily: string, weekly: string): Promise<string> {
+  const pg = new PgClient({ connectionString: DB_URL })
+  await pg.connect()
+  try {
+    await pg.query('begin')
+    await pg.query('set local session_replication_role = replica')
+    const { rows } = await pg.query<{ id: string }>(
+      `insert into tickets (organization_id, raffle_id, seller_id, created_by, daily_number, weekly_number,
+                            inventory_status, created_at, internal_code, number_group_count)
+       values ($1, $2, $3, $4, $5, $6, 'available', $7, $8, 2) returning id`,
+      [
+        ctx.demoOrg.id,
+        raffleId,
+        ctx.ids.seller1,
+        ctx.ids.owner,
+        daily,
+        weekly,
+        CREATED_BEFORE,
+        `LEGACY-${Date.now().toString(36)}-${daily}-${weekly}`,
+      ],
+    )
+    await pg.query('commit')
+    return rows[0]!.id
+  } catch (error) {
+    await pg.query('rollback')
+    throw error
+  } finally {
+    await pg.end()
+  }
+}
+
 describe('numero mayor como texto exacto (BR-L06)', () => {
   it('rechaza un numero mayor que no tenga cuatro digitos', async () => {
     const { data: schedule, error: scheduleError } = await ctx.svc
@@ -328,13 +360,10 @@ describe('numero mayor como texto exacto (BR-L06)', () => {
       daily: '0046',
       weekly: randomNumbers().weekly,
     })
-    const unpadded = await createTicket({
-      raffleId: demoRaffleId,
-      organizationId: ctx.demoOrg.id,
-      sellerId: ctx.ids.seller1,
-      daily: '46',
-      weekly: randomNumbers().weekly,
-    })
+    // D-261: en una rifa de cuatro cifras «46» ya no se puede escribir; solo
+    // existe si se creó antes de la 0084. Se siembra así, sin disparadores, y
+    // la regla de BR-L06 sigue siendo la misma: el texto no se rellena.
+    const unpadded = await createLegacyTicket(demoRaffleId, '46', randomNumbers().weekly)
     const { resultId } = await confirmResult({ lottery: 'bogota', winningNumber: '0046' })
     const { error } = await match(resultId)
     expect(error).toBeNull()

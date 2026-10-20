@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { listRaffleNumberFormats, withNumberFormat } from '@/features/raffles/number-formats'
 import { listOrgMembers } from '@/features/users/queries'
 import { PAGE_SIZE, type TicketInventoryStatus, type TicketPaymentStatus } from '@/lib/constants'
 import { pageBeyondEnd } from '@/lib/list-page'
@@ -12,6 +13,7 @@ export {
 import type { TicketSortColumn } from './sort-options'
 import { isTicketSearchTerm, normalizeSearchTerm } from '@/lib/search'
 import { createClient } from '@/lib/supabase/server'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 /**
  * Lecturas de boletas. La politica `tickets_select` ya limita las filas a la
@@ -108,6 +110,12 @@ export type TicketListItem = {
    * persona: su fecha es tecnica y la interfaz NO la enseña (D-170).
    */
   clearanceAssumedDelivered: boolean
+  /**
+   * D-261: cuantos numeros tiene la boleta, como se llaman y sus cifras: los
+   * de SU rifa. Lo pega la lectura; una lista que mezcla rifas no supone que
+   * todas tengan la misma estructura.
+   */
+  numberFormat?: RaffleNumberFormat
 }
 
 /*
@@ -228,9 +236,10 @@ export async function listTickets(
       })
     : query.order('created_at', { ascending: false })
 
-  const { data, error, count } = await ordered
-    .order('id', { ascending: true })
-    .range((page - 1) * pageSize, page * pageSize - 1)
+  const [{ data, error, count }, formats] = await Promise.all([
+    ordered.order('id', { ascending: true }).range((page - 1) * pageSize, page * pageSize - 1),
+    listRaffleNumberFormats(),
+  ])
 
   if (error) {
     if (!pageBeyondEnd(error)) throw error
@@ -243,7 +252,7 @@ export async function listTickets(
   }
 
   return {
-    rows: ((data ?? []) as TicketRow[]).map(mapTicketRow),
+    rows: withNumberFormat(((data ?? []) as TicketRow[]).map(mapTicketRow), formats),
     total: count ?? 0,
     page,
     pageSize,
@@ -331,9 +340,11 @@ async function searchTicketsMatching(
     total = Number(primera?.[0]?.total_count ?? 0)
   }
 
+  const formats = await listRaffleNumberFormats()
   return {
     total,
     rows: rows.map((row) => ({
+      numberFormat: formats.get(row.raffle_id),
       id: row.id,
       internalCode: row.internal_code,
       dailyNumber: row.daily_number,
@@ -430,6 +441,12 @@ export type TicketDetail = TicketListItem & {
   hasPaymentHistory: boolean
   /** La boleta aparece en alguna coincidencia de loteria (BR-L14). */
   hasLotteryMatch: boolean
+  /**
+   * La venta vigente salio de un apartado del inventario comun (D-258). Si se
+   * libera, la boleta vuelve alli y deja de ser de su vendedor: el dialogo lo
+   * dice antes de confirmar. Lo decide `release_ticket_client`, no esto.
+   */
+  soldFromHold: boolean
 }
 
 /**
@@ -487,6 +504,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
       // `TICKET_SELECT`: se pide aparte para no cargar el telefono en cada fila
       // del listado, igual que `raffle_full` hace con la rifa.
       `${TICKET_DETAIL_SELECT}, base_price, approved_at, cancelled_at, cancel_reason, assigned_at,
+       sold_from_hold,
        raffle_full:raffles!tickets_raffle_org_fk ( status, ticket_price ),
        client_contact:clients!tickets_client_org_fk ( phone )`,
     )
@@ -502,6 +520,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
     cancelled_at: string | null
     cancel_reason: string | null
     assigned_at: string | null
+    sold_from_hold: boolean
     raffle_full: { status: string; ticket_price: number } | null
     client_contact: { phone: string } | null
   }
@@ -514,7 +533,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
   // saber si hay alguna (I-011). Las dos tablas ya estan acotadas por su
   // propia RLS —el vendedor ve las suyas, el personal las de su organizacion—,
   // asi que esto no ensena nada nuevo a nadie.
-  const [sellerNames, limits, allocations, matches] = await Promise.all([
+  const [sellerNames, limits, allocations, matches, formats] = await Promise.all([
     sellerNameMap(),
     supabase.rpc('ticket_sale_price_limits', { p_ticket_id: ticketId }),
     supabase
@@ -525,6 +544,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
       .from('lottery_ticket_matches')
       .select('id', { count: 'exact', head: true })
       .eq('ticket_id', ticketId),
+    listRaffleNumberFormats(),
   ])
 
   if (limits.error) throw limits.error
@@ -535,6 +555,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
 
   return {
     ...mapTicketRow(flattenDetailRow(row, sellerNames)),
+    numberFormat: formats.get(row.raffle_id),
     approvedAt: row.approved_at,
     cancelledAt: row.cancelled_at,
     cancelReason: row.cancel_reason,
@@ -546,6 +567,7 @@ export async function getTicketDetail(ticketId: string): Promise<TicketDetail | 
     clientPhone: row.client_contact?.phone ?? null,
     hasPaymentHistory: (allocations.count ?? 0) > 0,
     hasLotteryMatch: (matches.count ?? 0) > 0,
+    soldFromHold: row.sold_from_hold,
   }
 }
 

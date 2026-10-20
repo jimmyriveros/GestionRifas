@@ -1,7 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { loadSeedRefs, serviceClient, type SeedRefs } from './db-setup'
-import { ACCOUNTS, addPrize, createRaffleWithPrize, expectToast, loginAs, unique } from './fixtures'
+import {
+  ACCOUNTS,
+  addPrize,
+  createRaffleWithPrize,
+  expectToast,
+  loginAs,
+  submitNewRaffle,
+  unique,
+} from './fixtures'
 
 /**
  * El panel de premios configurables (Entrega 2, D-202).
@@ -55,7 +63,7 @@ test.describe('Premios configurables', () => {
     await page.getByLabel('Nombre de la rifa').fill(name)
     await page.getByLabel('Fecha de inicio').fill('2026-01-01')
     await page.getByLabel('Fecha de fin').fill('2026-12-31')
-    await page.getByRole('button', { name: 'Crear rifa' }).click()
+    await submitNewRaffle(page)
 
     await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
     await expect(page.getByText('Todavía no hay premios')).toBeVisible()
@@ -213,7 +221,7 @@ test.describe('Premios configurables', () => {
     await page.getByLabel('Nombre de la rifa').fill(name)
     await page.getByLabel('Fecha de inicio').fill('2026-01-01')
     await page.getByLabel('Fecha de fin').fill('2026-12-31')
-    await page.getByRole('button', { name: 'Crear rifa' }).click()
+    await submitNewRaffle(page)
     await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
 
     // Sin premios: la revisión lo dice y no ofrece activar.
@@ -266,7 +274,7 @@ async function createDraftRaffle(page: Page, name: string): Promise<string> {
   await page.getByLabel('Nombre de la rifa').fill(name)
   await page.getByLabel('Fecha de inicio').fill('2026-01-01')
   await page.getByLabel('Fecha de fin').fill('2026-12-31')
-  await page.getByRole('button', { name: 'Crear rifa' }).click()
+  await submitNewRaffle(page)
   await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
   return page.url().split('/owner/raffles/')[1]?.split('/')[0] ?? ''
 }

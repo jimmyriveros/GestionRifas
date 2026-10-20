@@ -414,9 +414,13 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
     const { data: lista } = await owner.rpc('admin_list_tickets', {
       p_ticket_ids: [boletas.abonada],
     })
+    // D-257: quien tiene apartada una boleta del inventario comun y hasta cuando.
+    // Es inventario, no cartera.
     expect(Object.keys(lista![0]!).sort()).toEqual([
       'clearance_state',
       'daily_number',
+      'held_by',
+      'hold_expires_at',
       'id',
       'inventory_status',
       'payment_state',
@@ -439,6 +443,10 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
       'clearance_state',
       'created_at',
       'daily_number',
+      'generation_run_id',
+      'held_by',
+      'hold_expires_at',
+      'hold_extended',
       'id',
       'internal_code',
       'inventory_status',
@@ -457,10 +465,13 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
     })
     expect(Object.keys(elegibilidad![0]!).sort()).toEqual([
       'can_approve',
+      'can_assign_to_seller',
       'can_cancel',
       'can_change_seller',
       'can_delete',
+      'can_recover',
       'daily_number',
+      'held_by',
       'inventory_status',
       'raffle_active',
       'raffle_id',
@@ -479,6 +490,7 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
       'tickets_available',
       'tickets_cancelled',
       'tickets_draft',
+      'tickets_held',
       'tickets_not_paid',
       'tickets_paid',
       'tickets_pending_approval',
@@ -508,6 +520,9 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
     `)
 
     expect(rows.map((r) => r.proname)).toEqual([
+      // 0081 (D-257): el generador, los lotes y sus lecturas. Ninguna declara
+      // una columna de la cartera, como comprueba la regla de abajo.
+      'admin_assign_inventory_tickets',
       'admin_audit_log',
       'admin_audit_redact',
       'admin_list_raffles',
@@ -520,8 +535,17 @@ describe('BR-Q02 lo que devuelve la proyeccion administrativa es una lista blanc
       'admin_prize_award_sellers',
       'admin_prize_award_totals',
       'admin_prize_awards',
+      'admin_process_ticket_generation',
+      // 0084 (D-261): las boletas sin el formato de su rifa: números, código
+      // interno, estado y la frase del problema. Nada de la cartera.
+      'admin_raffle_nonconforming_tickets',
+      'admin_recover_inventory_tickets',
+      'admin_start_ticket_generation',
       'admin_ticket_bulk_eligibility',
       'admin_ticket_detail',
+      'admin_ticket_generation_existing',
+      'admin_ticket_generation_preview',
+      'admin_ticket_generation_runs',
       'admin_ticket_inventory',
       'admin_update_ticket_numbers',
     ])
@@ -1173,7 +1197,8 @@ describe('BR-Q03 el inventario sigue siendo del personal', () => {
       p_weekly_number: cambiado!.weekly,
     })
     expect(letras.error).not.toBeNull()
-    expect(letras.error!.message).toMatch(/entre 1 y 4 dígitos/i)
+    // D-261: la frase nombra el número de la rifa («Diario») y dice qué escribir.
+    expect(letras.error!.message).toBe('El número «Diario» lleva solo cifras, sin letras ni símbolos.')
   })
 
   it('crea una boleta sin venta con su propio id, sin poder leerla de vuelta', async () => {

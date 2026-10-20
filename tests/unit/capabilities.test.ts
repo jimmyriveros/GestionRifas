@@ -23,6 +23,7 @@ import { join, relative } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { RAFFLE_WIZARD_COPY } from '@/features/raffle-prizes/copy'
+import { NUMBER_GROUP_FORM_DEFAULTS } from '@/features/raffles/number-groups'
 import { APP_CAPABILITIES } from '@/lib/auth/capabilities'
 import type { ActiveMembership } from '@/lib/auth/session'
 import type { AppRole } from '@/lib/constants'
@@ -74,6 +75,7 @@ const RIFA = {
   startDate: '2026-11-02',
   endDate: '2026-12-31',
   allowSellerTicketCreation: false,
+  ...NUMBER_GROUP_FORM_DEFAULTS,
 }
 
 /** Un Supabase de mentira que registra lo que la acción intentó escribir. */
@@ -182,6 +184,12 @@ describe('createRaffle depende de la guarda central (BR-R01, D-202)', () => {
         organization_id: m.organizationId,
         created_by: m.profileId,
         prize_mode: 'configurable',
+        // D-261: los números de cada boleta viajan explícitos, para siempre.
+        number_group_count: 2,
+        first_group_name: 'Diario',
+        first_group_digits: 4,
+        second_group_name: 'Semanal',
+        second_group_digits: 4,
       })
     }
   })

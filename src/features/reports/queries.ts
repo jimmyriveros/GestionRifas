@@ -7,6 +7,7 @@ import {
   type RaffleSummary,
 } from '@/features/raffles/queries'
 import { listSellersWithInventory } from '@/features/sellers/queries'
+import { listRaffleNumberFormats } from '@/features/raffles/number-formats'
 import {
   addInventory,
   readAdminTicketInventory,
@@ -25,6 +26,7 @@ import {
 } from '@/lib/constants'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import type { ReportFilters } from './schemas'
 
@@ -532,6 +534,10 @@ export async function getPaymentReport(
 
 export type SalesByDateReportRow = {
   ticketId: string
+  /** D-261: la rifa de la boleta: un reporte que mezcla rifas dice de cuál es cada una. */
+  raffleId: string
+  raffleName: string
+  numberFormat?: RaffleNumberFormat
   /** `tickets.sale_date`: el dia en que se vendio, no en que entro el dinero. */
   saleDate: string | null
   dailyNumber: string | null
@@ -571,6 +577,8 @@ const SALES_BY_DATE_SELECT = `
   paid_amount,
   sale_date,
   client_id,
+  raffle_id,
+  raffle:raffles!tickets_raffle_org_fk ( name ),
   client:clients!tickets_client_org_fk ( id, name )
 `
 
@@ -584,6 +592,8 @@ type SalesByDateRow = {
   paid_amount: number
   sale_date: string | null
   client_id: string | null
+  raffle_id: string
+  raffle: { name: string } | null
   client: { id: string; name: string } | null
 }
 
@@ -672,9 +682,13 @@ export async function getSalesByDateReport(params: {
 
   if (totalsError) throw totalsError
 
+  const formats = await listRaffleNumberFormats()
   return {
     rows: pageResult.rows.map((row) => ({
       ticketId: row.id,
+      raffleId: row.raffle_id,
+      raffleName: row.raffle?.name ?? '',
+      numberFormat: formats.get(row.raffle_id),
       saleDate: row.sale_date,
       dailyNumber: row.daily_number,
       weeklyNumber: row.weekly_number,

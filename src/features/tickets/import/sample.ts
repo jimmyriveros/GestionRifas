@@ -1,4 +1,9 @@
 import { toCsv } from '@/lib/csv'
+import {
+  LEGACY_NUMBER_FORMAT,
+  type NumberGroupSlot,
+  type RaffleNumberFormat,
+} from '@/lib/ticket-number-format'
 
 /**
  * Los archivos de ejemplo que el importador ofrece descargar.
@@ -12,31 +17,86 @@ import { toCsv } from '@/lib/csv'
  * El importador acepta las dos formas, asi que quien prefiera comas no tiene
  * ningun problema: el separador se detecta al leer.
  *
- * Desde D-198 solo hay un ejemplo, con los dos numeros: ningun portal importa
+ * Desde D-198 solo hay un ejemplo, con los numeros: ningun portal importa
  * clientes ni abonos, y ofrecer un archivo con esas columnas seria ensenar a
  * rellenar algo que la vista previa va a rechazar (BR-Q07).
+ *
+ * Desde D-261 el ejemplo es el de LA rifa: sus columnas se llaman como sus
+ * números y cada número tiene sus cifras exactas. La rifa de siempre conserva
+ * los encabezados de su Excel, «Premio semanal» y «Premio diario».
  */
 
-type Ejemplo = {
-  semanal: string
-  diario: string
-}
-
-const FILAS: Ejemplo[] = [
-  { semanal: '7607', diario: '3332' },
-  { semanal: '3929', diario: '9654' },
+const EXAMPLES = [
+  { daily: '3332', weekly: '7607' },
+  { daily: '9654', weekly: '3929' },
 ]
 
-export const SAMPLE_CSV = toCsv<Ejemplo>(
-  [
-    { header: 'Premio semanal', value: (fila) => fila.semanal },
-    { header: 'Premio diario', value: (fila) => fila.diario },
-  ],
-  FILAS,
-)
+function isLegacy(format: RaffleNumberFormat): boolean {
+  const [first, second] = format.groups
+  return (
+    first.name === 'Diario' && first.digits === 4 && second?.name === 'Semanal' && second.digits === 4
+  )
+}
 
-export const SAMPLE_JSON = JSON.stringify(
-  FILAS.map((fila) => ({ weekly_number: fila.semanal, daily_number: fila.diario })),
-  null,
-  2,
-)
+/** Una columna del archivo: qué número de la boleta trae y cómo se llama. */
+export type ImportColumn = { slot: NumberGroupSlot; header: string; question: string }
+
+/**
+ * Las columnas que espera el importador, en el orden del archivo de ejemplo
+ * (D-261). La rifa de siempre conserva las de su Excel —«Premio semanal» y
+ * «Premio diario», en ese orden— y la pantalla las sigue nombrando así; otra
+ * rifa, por los nombres de sus números. Lo leen el texto de antes de subir, el
+ * mapeo de columnas y la vista previa: los tres dicen lo mismo.
+ */
+export function importColumns(format: RaffleNumberFormat = LEGACY_NUMBER_FORMAT): ImportColumn[] {
+  if (isLegacy(format)) {
+    return [
+      { slot: 'weekly_number', header: 'Premio semanal', question: '¿Cuál columna es el premio semanal?' },
+      { slot: 'daily_number', header: 'Premio diario', question: '¿Cuál columna es el premio diario?' },
+    ]
+  }
+  return format.groups.map((group) => ({
+    slot: group.slot,
+    header: group.name,
+    question: `¿Cuál columna es «${group.name}»?`,
+  }))
+}
+
+export function sampleCsv(format: RaffleNumberFormat = LEGACY_NUMBER_FORMAT): string {
+  const [first, second] = format.groups
+  if (isLegacy(format)) {
+    return toCsv<(typeof EXAMPLES)[number]>(
+      [
+        { header: 'Premio semanal', value: (fila) => fila.weekly },
+        { header: 'Premio diario', value: (fila) => fila.daily },
+      ],
+      EXAMPLES,
+    )
+  }
+  return toCsv<(typeof EXAMPLES)[number]>(
+    [
+      { header: first.name, value: (fila) => fila.daily.slice(-first.digits) },
+      ...(second
+        ? [{ header: second.name, value: (fila: (typeof EXAMPLES)[number]) => fila.weekly.slice(-second.digits) }]
+        : []),
+    ],
+    EXAMPLES,
+  )
+}
+
+export function sampleJson(format: RaffleNumberFormat = LEGACY_NUMBER_FORMAT): string {
+  const [first, second] = format.groups
+  return JSON.stringify(
+    EXAMPLES.map((fila) =>
+      second
+        ? { weekly_number: fila.weekly.slice(-second.digits), daily_number: fila.daily.slice(-first.digits) }
+        : { daily_number: fila.daily.slice(-first.digits) },
+    ),
+    null,
+    2,
+  )
+}
+
+/** Los de la rifa de siempre (compatibilidad). */
+export const SAMPLE_CSV = sampleCsv()
+export const SAMPLE_JSON = sampleJson()

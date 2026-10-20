@@ -52,17 +52,35 @@ type SearchRow = {
  * terminos —«1234/5678» esta ahi a proposito—: colarlas en la comparacion haria
  * que la prueba dependiera del seed en vez del orden, que es lo que se mide.
  */
-async function searchOver(combos: readonly [string, string][], term: string): Promise<SearchRow[]> {
+/**
+ * `legacy`: las boletas se siembran como las de ANTES de la 0084, sin
+ * disparadores, porque solo ahí conviven anchos distintos en una misma rifa
+ * —«123», «1239» y «9123»— (D-261). La búsqueda las sigue ordenando igual.
+ */
+async function searchOver(
+  combos: readonly [string, string][],
+  term: string,
+  { legacy = false }: { legacy?: boolean } = {},
+): Promise<SearchRow[]> {
   await db.query('begin')
   try {
+    if (legacy) await db.query('set local session_replication_role = replica')
     for (const [daily, weekly] of combos) {
       await db.query(
-        `insert into tickets (organization_id, raffle_id, seller_id, created_by,
-                              daily_number, weekly_number, inventory_status)
-         select organization_id, raffle_id, seller_id, created_by, $1, $2, 'available'
-         from tickets
-         where daily_number = '0100'
-         limit 1`,
+        legacy
+          ? `insert into tickets (organization_id, raffle_id, seller_id, created_by,
+                                daily_number, weekly_number, inventory_status, internal_code)
+             select organization_id, raffle_id, seller_id, created_by, $1, $2, 'available',
+                    'LEGACY-' || $1 || '-' || $2
+             from tickets
+             where daily_number = '0100'
+             limit 1`
+          : `insert into tickets (organization_id, raffle_id, seller_id, created_by,
+                                daily_number, weekly_number, inventory_status)
+             select organization_id, raffle_id, seller_id, created_by, $1, $2, 'available'
+             from tickets
+             where daily_number = '0100'
+             limit 1`,
         [daily, weekly],
       )
     }
@@ -108,8 +126,10 @@ describe('search_tickets: que encuentra', () => {
   })
 
   it('un numero de una sola cifra se busca igual que uno de cuatro', async () => {
-    const rows = await searchOver([['7', '1234']], '7')
-    expect(pairs(rows)).toContain('7/1234')
+    // D-261: en una rifa de cuatro cifras la boleta es «0007»; escribir «7» la
+    // sigue encontrando, porque busca por parte del número.
+    const rows = await searchOver([['0007', '1234']], '7')
+    expect(pairs(rows)).toContain('0007/1234')
   })
 })
 
@@ -191,6 +211,7 @@ describe('search_tickets: orden por relevancia (BR-N11)', () => {
         ['7006', '123'], // semanal: exacto
       ],
       '123',
+      { legacy: true },
     )
 
     expect(pairs(rows)).toEqual([

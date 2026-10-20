@@ -171,11 +171,19 @@ describe('createSellerTicketsSchema (CLAUDE.md 16, D-049)', () => {
     expect(createSellerTicketsSchema.safeParse({ raffleId: UUID, rows }).success).toBe(false)
   })
 
-  it('exige los dos números en cada fila', () => {
+  it('D-261: el segundo número puede ir vacío —la rifa puede no tenerlo—; lo exige la rifa', () => {
+    // El esquema mira la FORMA. Que una rifa de dos números exija el segundo lo
+    // dice `validateBulkRows` con su formato, en la accion y en la base.
     expect(
       createSellerTicketsSchema.safeParse({
         raffleId: UUID,
         rows: [{ dailyNumber: '1234', weeklyNumber: '' }],
+      }).success,
+    ).toBe(true)
+    expect(
+      createSellerTicketsSchema.safeParse({
+        raffleId: UUID,
+        rows: [{ dailyNumber: '', weeklyNumber: '1234' }],
       }).success,
     ).toBe(false)
   })

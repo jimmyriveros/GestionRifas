@@ -429,6 +429,12 @@ El perfil de cliente debe mostrar:
 
 # 13. BOLETAS
 
+> **Ampliado el 2026-10-20 (D-261, BR-N19..BR-N25, solo en local).** Desde la `0084`, **cada rifa define al crearse**
+> si sus boletas llevan **uno o dos** números, cómo se llama cada uno y sus cifras **exactas** (2, 3 o 4), y eso no
+> cambia después. Con un número, ese número es la identidad de la boleta en la rifa; con dos, la combinación. Las rifas
+> que ya existían quedan con «Diario» y «Semanal» de cuatro cifras. Lo que sigue describe esa rifa de siempre y se
+> conserva como historia: el «de 1 a 4 dígitos» de abajo es BR-N02, que BR-N21 sustituye.
+
 Cada boleta debe tener dos números:
 
 * Número de premio diario.
@@ -567,6 +573,8 @@ registrado**. Una boleta con `$100.000` abonados sobre un precio corregido de `$
 ---
 
 # 15. CREACIÓN MASIVA DE BOLETAS
+
+> **Desde D-261** cada registro lleva los números **que tenga su rifa** —uno o dos, con sus cifras exactas—.
 
 Owner y Admin pueden:
 

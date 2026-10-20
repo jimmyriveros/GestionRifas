@@ -40,19 +40,42 @@ const salePrice = z
   .positive('El precio de venta debe ser mayor que cero.')
   .optional()
 
-export const assignTicketsSchema = z.object({
-  ticketIds,
-  clientId: z.uuid('Selecciona un cliente.'),
-  saleDate: isoDate,
-  salePrice,
-})
+/**
+ * El apartado con el que se abrio la venta de una boleta del inventario comun
+ * (D-257, BR-I25). Solo con UNA boleta: un apartado es de una. Sin el, la venta
+ * es la de siempre, sobre boletas que ya son del vendedor.
+ */
+const holdId = z.uuid('El apartado no existe o no es tuyo.').optional()
+
+function oneTicketPerHold(value: { ticketIds: string[]; holdId?: string }, ctx: z.RefinementCtx) {
+  if (value.holdId && value.ticketIds.length !== 1) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Una boleta apartada se vende sola.',
+      path: ['ticketIds'],
+    })
+  }
+}
+
+export const assignTicketsSchema = z
+  .object({
+    ticketIds,
+    clientId: z.uuid('Selecciona un cliente.'),
+    saleDate: isoDate,
+    salePrice,
+    holdId,
+  })
+  .superRefine(oneTicketPerHold)
 export type AssignTicketsInput = z.infer<typeof assignTicketsSchema>
 
 /** Crear el cliente y asignarle las boletas en el mismo paso (CLAUDE.md 17). */
-export const assignTicketsToNewClientSchema = z.object({
-  ticketIds,
-  saleDate: isoDate,
-  salePrice,
-  client: clientFormSchema,
-})
+export const assignTicketsToNewClientSchema = z
+  .object({
+    ticketIds,
+    saleDate: isoDate,
+    salePrice,
+    client: clientFormSchema,
+    holdId,
+  })
+  .superRefine(oneTicketPerHold)
 export type AssignTicketsToNewClientInput = z.infer<typeof assignTicketsToNewClientSchema>

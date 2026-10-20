@@ -107,6 +107,10 @@ export async function purgeSellers(ids: string[]): Promise<void> {
            or recipient_profile_id = any($1)`,
       [ids],
     )
+    // Sus apartados del inventario comun (D-257): apuntan a la membresia con
+    // RESTRICT, y la boleta apartada no es suya —no tiene vendedor—, asi que el
+    // borrado de abajo no los alcanza.
+    await db.query('delete from ticket_holds where seller_id = any($1)', [ids])
     await db.query('delete from tickets where seller_id = any($1)', [ids])
     await db.query('delete from clients where seller_id = any($1)', [ids])
     await db.query('delete from commission_ledger where seller_id = any($1)', [ids])
@@ -323,12 +327,23 @@ export async function purgeTestRaffles(options: {
       [ticketIds, clientIds],
     )
     const paymentIds = payments.map((row) => row.id)
-    const entityIds = [...raffleIds, ...ticketIds, ...clientIds, ...paymentIds]
+    // Las generaciones por rangos de esas rifas (D-257): sus boletas las
+    // referencian y ellas a la rifa, las dos con RESTRICT.
+    const { rows: runs } = await db.query<{ id: string }>(
+      'select id from ticket_generation_runs where raffle_id = any($1)',
+      [raffleIds],
+    )
+    const runIds = runs.map((row) => row.id)
+    const entityIds = [...raffleIds, ...ticketIds, ...clientIds, ...paymentIds, ...runIds]
 
     await db.query('delete from payment_allocations where payment_id = any($1)', [paymentIds])
     await db.query('delete from payments where id = any($1)', [paymentIds])
     await db.query('delete from notifications where entity_id = any($1)', [entityIds])
+    // Una boleta con un apartado vigente no se deja borrar (`tickets_guard_hold`).
+    await db.query('delete from ticket_holds where raffle_id = any($1)', [raffleIds])
     await db.query('delete from tickets where id = any($1)', [ticketIds])
+    await db.query('delete from ticket_generation_runs where id = any($1)', [runIds])
+    await db.query('delete from raffle_hold_settings where raffle_id = any($1)', [raffleIds])
     await db.query('delete from commission_ledger where raffle_id = any($1)', [raffleIds])
     await db.query('delete from seller_commissions where raffle_id = any($1)', [raffleIds])
     await db.query('delete from clients where id = any($1)', [clientIds])
@@ -343,6 +358,143 @@ export async function purgeTestRaffles(options: {
   } catch (error) {
     await db.query('rollback')
     throw error
+  } finally {
+    await db.end()
+  }
+}
+
+/**
+ * Borra lo que crea una prueba del inventario comun (D-257): las boletas de sus
+ * generaciones —con sus apartados, sus ventas y sus abonos—, las generaciones,
+ * los clientes que se pasan y, si la prueba cambio los apartados de una rifa,
+ * esa configuracion, que vuelve a los valores de siempre.
+ *
+ * POR QUE NO BASTA `purgeTestData`: una boleta con un apartado vigente no se
+ * deja borrar (`tickets_guard_hold`), y las boletas generadas apuntan a su
+ * generacion con RESTRICT (`tickets_generation_run_fk`). Asi que va en este
+ * orden: apartados, ventas, boletas, generaciones y, al final, la bitacora.
+ *
+ * SOLO LO SUYO. Las generaciones se eligen por id, las boletas por su
+ * generacion y la bitacora por esos ids. Los lotes y la configuracion se anotan
+ * sin entidad o con la de la rifa del seed, asi que esas filas se eligen por su
+ * accion, por las boletas que nombran o la rifa que cambiaron, y por ser de
+ * despues de `since`. Ni un barrido por nombre (I-151). En UNA transaccion, y
+ * un fallo se LANZA.
+ */
+export async function purgeCommonInventory(options: {
+  runIds: string[]
+  clientIds?: string[]
+  /** Rifas cuyos apartados cambio la prueba. */
+  holdSettingsRaffleIds?: string[]
+  /** Cuando empezo la prueba: lo de la bitacora sin entidad propia es posterior. */
+  since: string
+}): Promise<void> {
+  const runIds = options.runIds.filter(Boolean)
+  const clientIds = (options.clientIds ?? []).filter(Boolean)
+  const settingsRaffleIds = (options.holdSettingsRaffleIds ?? []).filter(Boolean)
+  if (runIds.length === 0 && clientIds.length === 0 && settingsRaffleIds.length === 0) return
+
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    await db.query('begin')
+    const { rows: tickets } = await db.query<{ id: string }>(
+      'select id from tickets where generation_run_id = any($1) or client_id = any($2)',
+      [runIds, clientIds],
+    )
+    const ticketIds = tickets.map((row) => row.id)
+    const { rows: payments } = await db.query<{ id: string }>(
+      `select distinct payment_id as id from payment_allocations where ticket_id = any($1)
+       union
+       select id from payments where client_id = any($2)`,
+      [ticketIds, clientIds],
+    )
+    const paymentIds = payments.map((row) => row.id)
+    const { rows: holds } = await db.query<{ id: string }>(
+      'select id from ticket_holds where ticket_id = any($1)',
+      [ticketIds],
+    )
+    const entityIds = [
+      ...ticketIds,
+      ...clientIds,
+      ...paymentIds,
+      ...runIds,
+      ...holds.map((row) => row.id),
+    ]
+
+    await db.query('delete from payment_allocations where payment_id = any($1)', [paymentIds])
+    await db.query('delete from payments where id = any($1)', [paymentIds])
+    // La fotografia de un sorteo es inmutable (BR-L11): el disparador se apaga
+    // SOLO dentro de esta transaccion, como en `purgeTestData`.
+    await db.query(
+      'alter table lottery_ticket_matches disable trigger lottery_ticket_matches_immutable',
+    )
+    await db.query('delete from lottery_ticket_matches where ticket_id = any($1)', [ticketIds])
+    await db.query(
+      'alter table lottery_ticket_matches enable trigger lottery_ticket_matches_immutable',
+    )
+    await db.query('delete from notifications where entity_id = any($1)', [entityIds])
+    await db.query('delete from ticket_holds where ticket_id = any($1)', [ticketIds])
+    await db.query('delete from tickets where id = any($1)', [ticketIds])
+    await db.query('delete from clients where id = any($1)', [clientIds])
+    await db.query('delete from ticket_generation_runs where id = any($1)', [runIds])
+    await db.query('delete from raffle_hold_settings where raffle_id = any($1)', [
+      settingsRaffleIds,
+    ])
+
+    await db.query('delete from audit_logs where entity_id = any($1)', [entityIds])
+    await db.query(
+      `delete from audit_logs
+        where action in ('ticket.inventory_assign', 'ticket.inventory_recover')
+          and created_at >= $2
+          and new_values -> 'ticket_ids' ?| $1::text[]`,
+      [ticketIds, options.since],
+    )
+    await db.query(
+      `delete from audit_logs
+        where action = 'raffle.hold_settings' and entity_id = any($1) and created_at >= $2`,
+      [settingsRaffleIds, options.since],
+    )
+    await db.query('commit')
+  } catch (error) {
+    await db.query('rollback')
+    throw error
+  } finally {
+    await db.end()
+  }
+}
+
+/**
+ * Las generaciones que dejo una prueba con estos rangos en esta rifa, tambien
+ * las de un intento que fallo antes de poder apuntar su id.
+ */
+export async function generationRunIds(options: {
+  raffleId: string
+  dailyFrom: string
+  dailyTo: string
+  /** `null` en una rifa de un solo número, que no tiene segundo rango (D-261). */
+  weeklyFrom: string | null
+  weeklyTo: string | null
+  since: string
+}): Promise<string[]> {
+  const db = new PgClient({ connectionString: DB_URL })
+  await db.connect()
+  try {
+    const { rows } = await db.query<{ id: string }>(
+      `select id from ticket_generation_runs
+        where raffle_id = $1 and daily_from = $2 and daily_to = $3
+          and weekly_from is not distinct from $4 and weekly_to is not distinct from $5
+          and created_at >= $6`,
+      [
+        options.raffleId,
+        options.dailyFrom,
+        options.dailyTo,
+        options.weeklyFrom,
+        options.weeklyTo,
+        options.since,
+      ],
+    )
+    return rows.map((row) => row.id)
   } finally {
     await db.end()
   }
@@ -598,6 +750,8 @@ export async function createTicket(
     dailyNumber: string
     weeklyNumber: string
     inventoryStatus: Database['public']['Enums']['ticket_inventory_status']
+    /** Quien la aprobo y cuando (BR-I09). Sin esto queda sin fecha de aprobacion. */
+    approval?: { by: string; at: string }
   },
 ): Promise<{ id: string; internalCode: string }> {
   const svc = serviceClient()
@@ -611,6 +765,9 @@ export async function createTicket(
       weekly_number: options.weeklyNumber,
       inventory_status: options.inventoryStatus,
       created_by: refs.sellerId,
+      ...(options.approval
+        ? { approved_by: options.approval.by, approved_at: options.approval.at }
+        : {}),
     })
     .select('id, internal_code')
     .single()

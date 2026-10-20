@@ -132,9 +132,13 @@ const clientBalanceColumns: CsvColumn<ClientBalanceReportRow>[] = [
  */
 const salesByDateColumns: CsvColumn<SalesByDateReportRow>[] = [
   { header: 'Fecha de venta', value: (row) => (row.saleDate ? formatDateCsv(row.saleDate) : '') },
-  { header: 'Boleta', value: (row) => ticketLabel(row) },
-  { header: 'Número diario', value: (row) => row.dailyNumber },
-  { header: 'Número semanal', value: (row) => row.weeklyNumber },
+  // D-261: el reporte puede mezclar rifas con números distintos, así que cada
+  // fila dice su rifa y las columnas de números van por su orden, no por un
+  // nombre que solo tiene una de ellas.
+  { header: 'Rifa', value: (row) => row.raffleName },
+  { header: 'Boleta', value: (row) => ticketLabel(row, row.numberFormat?.groups.length) },
+  { header: 'Primer número', value: (row) => row.dailyNumber },
+  { header: 'Segundo número', value: (row) => row.weeklyNumber },
   { header: 'Cliente', value: (row) => row.clientName },
   { header: 'Precio de venta', value: (row) => formatCOP(row.salePrice ?? 0) },
   { header: 'Abonado', value: (row) => formatCOP(row.paidAmount) },

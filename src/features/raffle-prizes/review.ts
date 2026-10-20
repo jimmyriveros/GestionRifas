@@ -1,6 +1,8 @@
 import { formatDateCsv } from '@/lib/dates'
 
-import { prizeConflictMessage, RAFFLE_WIZARD_COPY } from './copy'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
+
+import { prizeConflictMessage, prizeGroupProblem, RAFFLE_WIZARD_COPY } from './copy'
 import { prizeConflict, type PrizeScheduleSubject } from './schedule'
 
 /**
@@ -17,7 +19,12 @@ import { prizeConflict, type PrizeScheduleSubject } from './schedule'
  */
 export type ReviewPrize = PrizeScheduleSubject & { id: string }
 
-export type ReviewRaffle = { startDate: string; endDate: string }
+export type ReviewRaffle = {
+  startDate: string
+  endDate: string
+  /** D-261: el grupo de cada premio tiene que existir y caberle sus cifras. */
+  numberFormat?: RaffleNumberFormat
+}
 
 export function raffleReviewProblems(prizes: ReviewPrize[], raffle: ReviewRaffle): string[] {
   const problems: string[] = []
@@ -27,6 +34,11 @@ export function raffleReviewProblems(prizes: ReviewPrize[], raffle: ReviewRaffle
   }
 
   for (const prize of prizes) {
+    const groupProblem = raffle.numberFormat
+      ? prizeGroupProblem(prize.title, raffle.numberFormat, prize.numberField, prize.digits)
+      : null
+    if (groupProblem) problems.push(groupProblem)
+
     const outside = prize.rules.some(
       (rule) => rule.startDate < raffle.startDate || rule.endDate > raffle.endDate,
     )

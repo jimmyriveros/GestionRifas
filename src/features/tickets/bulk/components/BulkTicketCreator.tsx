@@ -25,13 +25,19 @@ import { cn } from '@/lib/utils'
 import { TicketImportDialog } from '../../import/components/TicketImportDialog'
 import type { BulkTicketRow } from '../../schemas'
 import { bulkCreateTickets, findExistingCombinations } from '../actions'
-import { comboKey, countErrors, selectSendableRows, validateBulkRows } from '../duplicates'
+import { comboKeyFor, countErrors, selectSendableRows, validateBulkRows } from '../duplicates'
+import {
+  LEGACY_NUMBER_FORMAT,
+  numberGroupTitle,
+  type RaffleNumberFormat,
+} from '@/lib/ticket-number-format'
 import { BULK_GRID_COPY, checkBulkQuantity, countFilledRows, regenerateWarning } from '../grid'
 
 type Option = { id: string; label: string }
 
 type BulkTicketCreatorProps = {
-  raffles: Option[]
+  /** D-261: cada rifa con sus números; la grilla sigue a la elegida. */
+  raffles: (Option & { numberFormat?: RaffleNumberFormat })[]
   sellers: Option[]
   defaultRaffleId?: string
   defaultSellerId?: string
@@ -73,9 +79,11 @@ export function BulkTicketCreator({
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  const format = raffles.find((raffle) => raffle.id === raffleId)?.numberFormat ?? LEGACY_NUMBER_FORMAT
+  const [firstGroup, secondGroup] = format.groups
   const validations = useMemo(
-    () => validateBulkRows(rows, { existingCombos }),
-    [rows, existingCombos],
+    () => validateBulkRows(rows, { existingCombos, format }),
+    [rows, existingCombos, format],
   )
   const errorCount = countErrors(validations)
 
@@ -146,7 +154,10 @@ export function BulkTicketCreator({
   }
 
   async function checkAgainstDatabase(): Promise<ReadonlySet<string>> {
-    const result = await findExistingCombinations(raffleId, rows)
+    const result = await findExistingCombinations(
+      raffleId,
+      secondGroup ? rows : rows.map((row) => ({ ...row, weeklyNumber: '' })),
+    )
     if ('error' in result) {
       toast.error(result.error)
       return existingCombos
@@ -161,8 +172,12 @@ export function BulkTicketCreator({
       const found = await checkAgainstDatabase()
       toast[found.size === 0 ? 'success' : 'warning'](
         found.size === 0
-          ? 'Ninguna combinación existe todavía en la rifa.'
-          : `${found.size} combinación(es) ya existen en la rifa.`,
+          ? secondGroup
+            ? 'Ninguna combinación existe todavía en la rifa.'
+            : 'Ningún número existe todavía en la rifa.'
+          : secondGroup
+            ? `${found.size} combinación(es) ya existen en la rifa.`
+            : `${found.size} número(s) ya existen en la rifa.`,
       )
     })
   }
@@ -172,7 +187,7 @@ export function BulkTicketCreator({
       // Capa 1 y 2 de la validacion antes de escribir nada (BR-N10): formato y
       // duplicados dentro del formulario, y contraste con la base de datos.
       const found = await checkAgainstDatabase()
-      const freshValidations = validateBulkRows(rows, { existingCombos: found })
+      const freshValidations = validateBulkRows(rows, { existingCombos: found, format })
       if (countErrors(freshValidations) > 0) {
         toast.error(
           `Corrige las ${countErrors(freshValidations)} fila(s) marcadas antes de guardar.`,
@@ -195,7 +210,8 @@ export function BulkTicketCreator({
         const result = await bulkCreateTickets({
           raffleId,
           sellerId,
-          rows: batch.map(({ row }) => row),
+          // Con un solo número, la fila no lleva segundo (D-261).
+          rows: batch.map(({ row }) => (secondGroup ? row : { ...row, weeklyNumber: '' })),
         })
 
         if ('error' in result) {
@@ -228,10 +244,12 @@ export function BulkTicketCreator({
 
       // Manejo de errores PARCIALES: se conservan solo las filas rechazadas por
       // la base de datos para corregirlas, con su marca de conflicto.
-      setRows(rows.filter((row) => conflicts.has(comboKey(row.dailyNumber, row.weeklyNumber))))
+      setRows(rows.filter((row) => conflicts.has(comboKeyFor(row, format))))
       setExistingCombos(conflicts)
       toast.warning(
-        `Se crearon ${inserted} boleta(s). Quedaron ${conflicts.size} con la combinación ya usada.`,
+        secondGroup
+          ? `Se crearon ${inserted} boleta(s). Quedaron ${conflicts.size} con la combinación ya usada.`
+          : `Se crearon ${inserted} boleta(s). Quedaron ${conflicts.size} con el número ya usado.`,
       )
       router.refresh()
     })
@@ -327,6 +345,7 @@ export function BulkTicketCreator({
         </p>
         <TicketImportDialog
           raffleId={raffleId}
+          numberFormat={format}
           sellerId={sellerId}
           disabled={isPending || !raffleId || !sellerId}
           successHref={`/owner/tickets?raffleId=${raffleId}&sellerId=${sellerId}`}
@@ -372,10 +391,17 @@ export function BulkTicketCreator({
           ) : null}
 
           <div className="rounded-lg border">
-            <div className="text-muted-foreground grid grid-cols-[3rem_1fr_1fr] gap-2 border-b px-3 py-2 text-xs font-medium">
+            <div
+              className={cn(
+                'text-muted-foreground grid gap-2 border-b px-3 py-2 text-xs font-medium',
+                secondGroup ? 'grid-cols-[3rem_1fr_1fr]' : 'grid-cols-[3rem_1fr]',
+              )}
+            >
               <span>#</span>
-              <span>Número diario</span>
-              <span>Número semanal</span>
+              <span>{`${numberGroupTitle(firstGroup.name)} (${firstGroup.digits} cifras)`}</span>
+              {secondGroup ? (
+                <span>{`${numberGroupTitle(secondGroup.name)} (${secondGroup.digits} cifras)`}</span>
+              ) : null}
             </div>
             <div ref={scrollRef} className="h-[28rem] overflow-y-auto">
               <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
@@ -397,7 +423,8 @@ export function BulkTicketCreator({
                       data-index={index}
                       ref={virtualizer.measureElement}
                       className={cn(
-                        'absolute top-0 left-0 grid w-full grid-cols-[3rem_1fr_1fr] items-start gap-2 border-b px-3 py-2',
+                        'absolute top-0 left-0 grid w-full items-start gap-2 border-b px-3 py-2',
+                        secondGroup ? 'grid-cols-[3rem_1fr_1fr]' : 'grid-cols-[3rem_1fr]',
                         rowHasError && 'bg-destructive/5',
                       )}
                       style={{ transform: `translateY(${virtualRow.start}px)` }}
@@ -407,30 +434,41 @@ export function BulkTicketCreator({
                       </span>
                       <div>
                         <TicketNumberInput
-                          aria-label={`Número diario de la fila ${index + 1}`}
+                          aria-label={`${numberGroupTitle(firstGroup.name)} de la fila ${index + 1}`}
                           aria-invalid={Boolean(validation?.dailyError)}
                           value={row.dailyNumber}
                           onChange={(value) => updateRow(index, { dailyNumber: value })}
+                          maxDigits={firstGroup.digits}
                           disabled={isPending}
                         />
                         {validation?.dailyError ? (
                           <p className="text-destructive mt-1 text-xs">{validation.dailyError}</p>
                         ) : null}
                       </div>
-                      <div>
-                        <TicketNumberInput
-                          aria-label={`Número semanal de la fila ${index + 1}`}
-                          aria-invalid={Boolean(validation?.weeklyError)}
-                          value={row.weeklyNumber}
-                          onChange={(value) => updateRow(index, { weeklyNumber: value })}
-                          disabled={isPending}
-                        />
-                        {validation?.weeklyError ? (
-                          <p className="text-destructive mt-1 text-xs">{validation.weeklyError}</p>
-                        ) : null}
-                      </div>
+                      {secondGroup ? (
+                        <div>
+                          <TicketNumberInput
+                            aria-label={`${numberGroupTitle(secondGroup.name)} de la fila ${index + 1}`}
+                            aria-invalid={Boolean(validation?.weeklyError)}
+                            value={row.weeklyNumber}
+                            onChange={(value) => updateRow(index, { weeklyNumber: value })}
+                            maxDigits={secondGroup.digits}
+                            disabled={isPending}
+                          />
+                          {validation?.weeklyError ? (
+                            <p className="text-destructive mt-1 text-xs">{validation.weeklyError}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
                       {validation?.rowError ? (
-                        <p className="text-destructive col-span-3 text-xs">{validation.rowError}</p>
+                        <p
+                          className={cn(
+                            'text-destructive text-xs',
+                            secondGroup ? 'col-span-3' : 'col-span-2',
+                          )}
+                        >
+                          {validation.rowError}
+                        </p>
                       ) : null}
                     </div>
                   )

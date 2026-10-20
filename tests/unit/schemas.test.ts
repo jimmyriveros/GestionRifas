@@ -5,6 +5,7 @@ import {
   changeRaffleStatusSchema,
   raffleFormDefaults,
 } from '@/features/raffles/schemas'
+import { NUMBER_GROUP_FORM_DEFAULTS } from '@/features/raffles/number-groups'
 import {
   cancelTicketSchema,
   createTicketSchema,
@@ -80,6 +81,7 @@ describe('createRaffleSchema', () => {
     startDate: '2026-01-01',
     endDate: '2026-12-31',
     allowSellerTicketCreation: false,
+    ...NUMBER_GROUP_FORM_DEFAULTS,
   }
 
   it('acepta una rifa valida con el precio predeterminado', () => {

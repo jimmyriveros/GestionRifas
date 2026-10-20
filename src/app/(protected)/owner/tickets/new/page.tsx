@@ -61,6 +61,7 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Se
           id: raffle.id,
           name: raffle.name,
           shortCode: raffle.shortCode,
+          numberFormat: raffle.numberFormat,
         }))}
         sellers={sellers.map((seller) => ({ id: seller.id, fullName: seller.fullName }))}
         defaultRaffleId={single(params.raffleId)}

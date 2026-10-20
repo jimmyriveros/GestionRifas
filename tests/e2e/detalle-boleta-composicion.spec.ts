@@ -20,6 +20,7 @@ import {
   TONOS,
 } from './detalle-boleta'
 import { ACCOUNTS, loginAs, logout, randomTicketNumbers, unique } from './fixtures'
+import { formatDateEs, formatTimeEs } from '../../src/lib/dates'
 
 /**
  * El detalle de boleta del vendedor, recompuesto según Figma (D-231).
@@ -57,6 +58,7 @@ let refs: SeedRefs
 let abonada: { id: string; daily: string; weekly: string }
 let disponibleId: string
 let pendienteId: string
+let aprobada: { id: string; at: string }
 
 /**
  * Lo que crea la suite, apuntado EN CUANTO EXISTE y no al final: si `beforeAll`
@@ -111,6 +113,19 @@ test.beforeAll(async () => {
   })
   ticketsCreados.push(pendiente.id)
   pendienteId = pendiente.id
+
+  // Creada por el vendedor y aprobada por el dueño: la única de la suite con
+  // fecha de aprobación (BR-I09).
+  const aprobados = randomTicketNumbers()
+  const aprobadaEl = new Date().toISOString()
+  const conAprobacion = await createTicket(refs, {
+    dailyNumber: aprobados.daily,
+    weeklyNumber: aprobados.weekly,
+    inventoryStatus: 'available',
+    approval: { by: refs.ownerId, at: aprobadaEl },
+  })
+  ticketsCreados.push(conAprobacion.id)
+  aprobada = { id: conAprobacion.id, at: aprobadaEl }
 })
 
 test.afterAll(async () => {
@@ -122,6 +137,14 @@ function tarjeta(page: Page, titulo: Seccion): Locator {
   return page
     .locator('main [data-slot="card"]')
     .filter({ has: page.getByRole('heading', { level: 2, name: titulo, exact: true }) })
+}
+
+/** El valor de la fila «Aprobada» de «Detalles de la boleta», por su rótulo. */
+function filaAprobada(page: Page): Locator {
+  return tarjeta(page, 'Detalles de la boleta')
+    .locator('dt')
+    .filter({ hasText: /^Aprobada$/ })
+    .locator('xpath=following-sibling::dd[1]')
 }
 
 async function abrir(page: Page, ticketId: string, width: number): Promise<void> {
@@ -334,6 +357,31 @@ test.describe('Detalle de boleta del vendedor: composición (D-231)', () => {
         expect(hora.lineas, `«${hora.texto}» a ${width} px`).toBe(1)
       }
     }
+  })
+
+  /**
+   * «Aprobada» solo se escribe cuando dice algo, con la regla del detalle
+   * administrativo (D-234): la fecha si la boleta se aprobó y «Todavía no» solo
+   * en una pendiente de aprobación. La boleta vendida de la suite la creó el
+   * personal (`createAssignedTicket`), que nunca aprueba: decía «Todavía no» y
+   * parecía pendiente de aprobación (I-211).
+   */
+  test('«Aprobada»: ninguna fila en una boleta del personal, «Todavía no» en una pendiente y la fecha en una aprobada (I-211)', async ({
+    page,
+  }) => {
+    await abrir(page, abonada.id, 1440)
+    const detalles = tarjeta(page, 'Detalles de la boleta')
+    // La tarjeta ya está pintada: lo que no aparece es porque no se escribe.
+    await expect(detalles.getByText('Creada', { exact: true })).toBeVisible()
+    await expect(detalles.getByText('Aprobada', { exact: true })).toHaveCount(0)
+
+    await abrir(page, pendienteId, 1440)
+    await expect(filaAprobada(page)).toHaveText('Todavía no')
+
+    await abrir(page, aprobada.id, 1440)
+    await expect(filaAprobada(page)).toHaveText(
+      `${formatDateEs(aprobada.at)}, ${formatTimeEs(aprobada.at)}`,
+    )
   })
 
   test('el diario y el semanal llevan sus dos tonos de índigo, en claro y en oscuro, a 320, 390 y 1920', async ({

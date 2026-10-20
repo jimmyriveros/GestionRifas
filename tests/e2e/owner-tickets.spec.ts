@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test'
 
 import { createTicket, loadSeedRefs, type SeedRefs } from './db-setup'
-import { ACCOUNTS, expectToast, loginAs, randomTicketNumbers, toggleCheckbox } from './fixtures'
+import {
+  ACCOUNTS,
+  expectToast,
+  loginAs,
+  randomTicketNumbers,
+  submitNewRaffle,
+  toggleCheckbox,
+} from './fixtures'
 
 /**
  * Pruebas 6, 7, 8, 12, 13 y 14 de la Fase 3: creacion individual, limites de
@@ -68,11 +75,8 @@ test.describe('Boletas', () => {
     await page.getByLabel('Número semanal').fill(numbers.weekly)
     await page.getByRole('button', { name: 'Crear boleta' }).click()
 
-    await expect(
-      page.getByText(
-        'Ya existe una boleta con esa combinación de número diario y semanal en esta rifa.',
-      ),
-    ).toBeVisible()
+    // D-261: el aviso ya no nombra «diario y semanal», que en otra rifa serían otros.
+    await expect(page.getByText('Ya existe una boleta con esos números en esta rifa.')).toBeVisible()
   })
 
   test('rechaza el duplicado también cuando es de otro vendedor (prueba 9, BR-N05)', async ({
@@ -97,7 +101,7 @@ test.describe('Boletas', () => {
     await page.getByLabel('Número semanal').fill(numbers.weekly)
     await page.getByRole('button', { name: 'Crear boleta' }).click()
 
-    await expect(page.getByText(/Ya existe una boleta con esa combinación/)).toBeVisible()
+    await expect(page.getByText(/Ya existe una boleta con esos números/)).toBeVisible()
   })
 
   test('la misma combinación SI se permite en otra rifa (BR-N06)', async ({ page }) => {
@@ -114,7 +118,7 @@ test.describe('Boletas', () => {
     await page.getByLabel('Nombre de la rifa').fill(raffleName)
     await page.getByLabel('Fecha de inicio').fill('2026-01-01')
     await page.getByLabel('Fecha de fin').fill('2026-12-31')
-    await page.getByRole('button', { name: 'Crear rifa' }).click()
+    await submitNewRaffle(page)
     // D-202: la rifa nueva sigue en sus premios; para esta prueba basta el borrador.
     await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
 
@@ -234,7 +238,8 @@ test.describe('Boletas', () => {
   })
 
   test('busca por número conservando los ceros iniciales (BR-N03)', async ({ page }) => {
-    // Dos boletas que solo se distinguen por los ceros iniciales del diario.
+    // Dos boletas cuyo diario solo se distingue por dónde están los ceros. Desde
+    // D-261 «7» no cabe en una rifa de cuatro cifras: la otra es «0070».
     const paddedWeekly = randomTicketNumbers().weekly
     const bareWeekly = randomTicketNumbers().weekly
     await createTicket(refs, {
@@ -243,7 +248,7 @@ test.describe('Boletas', () => {
       inventoryStatus: 'available',
     })
     await createTicket(refs, {
-      dailyNumber: '7',
+      dailyNumber: '0070',
       weeklyNumber: bareWeekly,
       inventoryStatus: 'available',
     })
@@ -257,8 +262,10 @@ test.describe('Boletas', () => {
       page.getByRole('link', { name: `Ver la boleta 0007 / ${paddedWeekly}` }),
     ).toBeVisible()
     // Los numeros se comparan como TEXTO, nunca convertidos a entero: «0007» no
-    // esta dentro de «7», asi que la boleta sin ceros no aparece aqui.
-    await expect(page.getByRole('link', { name: `Ver la boleta 7 / ${bareWeekly}` })).toHaveCount(0)
+    // esta dentro de «0070», asi que esa boleta no aparece aqui.
+    await expect(
+      page.getByRole('link', { name: `Ver la boleta 0070 / ${bareWeekly}` }),
+    ).toHaveCount(0)
   })
 
   test('el código interno ya no encuentra la boleta, y se explica (BR-N11)', async ({ page }) => {
@@ -282,7 +289,7 @@ test.describe('Boletas', () => {
     // D-198 el personal busca solo por numero, y la pista dice que escribir
     // (BR-Q05): un codigo interno lleva letras y guion.
     await expect(
-      page.getByText('Escribe solo el número diario o el semanal de la boleta.').first(),
+      page.getByText('Escribe solo uno de los números de la boleta.').first(),
     ).toBeVisible()
   })
 

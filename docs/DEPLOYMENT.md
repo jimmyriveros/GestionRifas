@@ -1,6 +1,6 @@
 # DESPLIEGUE
 
-**Actualizado:** 2026-10-09, 00:20 UTC (**§3.2.z nueva: D-255 y D-256 EN PRODUCCIÓN** —`c13d831`, el ojo de los cinco
+**Actualizado:** 2026-10-20, por la noche (**§3.3.j rehecha con D-261 y D-262**: las cuatro migraciones —la `0081`, la `0082`, la `0083` y la `0084`—, ensayadas sobre la copia de producción con escrituras en curso y la latencia de producción, el código servido contra la base nueva y con rifas nuevas, la rama B nueva —`publicar/inventario-comun-d261`— y la anterior, renombrada `obsoleta/publicar-inventario-comun-d260`; §4.1 al día; **sin autorizar**). Antes, 2026-10-20 (**§3.3.j con D-260**: la `0081` deja al día la estadística de `tickets` al generar —I-214, resuelta en local—, ensayada otra vez sobre la copia de producción, con el delta esperado nuevo y la rama B rehecha; sigue **sin autorizar**). Antes, 2026-10-19, por la noche (**§3.3.j nueva**: el inventario común —D-257, D-258, I-211 y D-259, con la `0081` y la `0082` reordenadas—, preparado y ensayado en local y **sin autorizar**; cómo publicar sin empujar solos los 8 commits de documentos; §4.1, el punto de reversión si se publica). Antes, 2026-10-13, 01:20 UTC (**§3.3.h, COMPLETA**: Auth configurado por el dueño —P4, P7, P6 y P5, en ese orden— y P8 conforme con correos reales; §2.1 al día). Antes, 2026-10-11, 18:20 UTC (**§3.2.aa nueva**: D-253 y D-254 EN PRODUCCIÓN, `b1f8dc1`, sin migración ni pausa; Auth sin tocar; §3.3.h y §4.1, al día). Antes, 2026-10-09, 00:20 UTC (**§3.2.z nueva: D-255 y D-256 EN PRODUCCIÓN** —`c13d831`, el ojo de los cinco
 campos de contraseña, publicado solo y desde una rama aislada, sin D-253 ni D-254; sin migración ni pausa; el punto de
 reversión pasa a `783b08f`—; §3.3.i nueva, y §3.3.h y §4.1, al día). Antes, 2026-10-05, 15:00 UTC (**§3.2.y nueva: el lote D-249 a D-252 EN PRODUCCIÓN** —`783b08f`, sin
 migración ni pausa; la revisión del dueño, «todo ok»; el punto de reversión pasa a `0490d69`, que reintroduciría I-200
@@ -103,16 +103,19 @@ Ya provisto — es "el proyecto real" usado durante las Fases 2 a 7. Nada que cr
 
 | Dónde (panel de Supabase → Authentication) | Leído | Debe quedar |
 |---|---|---|
-| URL Configuration → **Site URL** | `https://gestion-rifas.vercel.app/` | `https://gestion-rifas.vercel.app`, **sin barra final**. Es la base del enlace de los correos (`{{ .SiteURL }}`); con barra, el enlace queda `//auth/confirm` y Next lo corrige con un 308 |
-| URL Configuration → **Redirect URLs** | Solo `http://localhost:3000/` | `https://gestion-rifas.vercel.app/**`. Se recomienda **quitar** `http://localhost:3000/`: un correo de producción no tiene por qué volver a un equipo |
-| Sign In / Providers → **Allow new users to sign up** | Activado | **Desactivado.** Las invitaciones, su reenvío y la recuperación siguen funcionando (medido en local, D-254) |
+| URL Configuration → **Site URL** | `https://gestion-rifas.vercel.app/`; el 2026-10-11 (P4) el dueño lo dejó **sin barra final** | `https://gestion-rifas.vercel.app`, **sin barra final**. Es la base del enlace de los correos (`{{ .SiteURL }}`); con barra, el enlace queda `//auth/confirm` y Next lo corrige con un 308 |
+| URL Configuration → **Redirect URLs** | Solo `http://localhost:3000/`; el 2026-10-11 (P4) el dueño **añadió** `https://gestion-rifas.vercel.app/**` | `https://gestion-rifas.vercel.app/**`. Se recomendó **quitar** `http://localhost:3000/`; **el dueño decidió conservarlo** (2026-10-12). Sin comodín, solo coincide con esa dirección exacta, y los enlaces de D-254 no usan `redirect_to` |
+| Sign In / Providers → **Allow new users to sign up** | Activado; **desactivado** por el dueño el 2026-10-12 (P7), y `disable_signup: true` en `/auth/v1/settings` (2026-10-13, 00:39 UTC) | **Desactivado.** Las invitaciones, su reenvío y la recuperación siguen funcionando (medido en local, D-254) |
 | Sign In / Providers → Email (el proveedor) | Activado | **Sin cambio.** Es el de correo y contraseña: apagarlo impediría entrar a todo el mundo |
 | Sign In / Providers → Confirm email | Activado | Sin cambio: no afecta a la invitación |
-| Emails → Templates → **Invite user** | La de Supabase, en inglés | Asunto «Tu invitación a Rifas»; cuerpo, el de `supabase/templates/invite.html`, copiado tal cual |
-| Emails → Templates → **Reset password** | La de Supabase, en inglés | Asunto «Elige tu contraseña de Rifas»; cuerpo, el de `supabase/templates/recovery.html` |
-| Emails → **SMTP Settings** | Sin SMTP propio: el correo integrado, que **solo entrega a direcciones autorizadas del equipo** del proyecto | SMTP propio con **Gmail** (opción A, elegida el 2026-10-11; valores abajo). Nombre del remitente: **Rifas** |
-| Rate Limits → **Rate limit for sending emails** | 2 por hora | El que Supabase pone al activar el SMTP, **30 por hora**: basta, porque la aplicación limita 20 invitaciones por hora y organización y 3 recuperaciones cada 15 min por correo (`SECURITY` §10.2) |
-| Emails / Providers → **Email OTP Expiration** | Sin leer | **Lo decide el dueño.** Es lo que dura el enlace de una invitación; el valor por defecto de Supabase es 3.600 s (1 h). Si los vendedores abren la invitación al día siguiente, la encontrarán vencida y tendrán que pedir otra |
+| Emails → Templates → **Invite user** | La de Supabase, en inglés; **pegada** la de D-254 por el dueño el 2026-10-12 (P5) | Asunto «Tu invitación a Rifas»; cuerpo, el de `supabase/templates/invite.html`, copiado tal cual |
+| Emails → Templates → **Reset password** | La de Supabase, en inglés; **pegada** la de D-254 por el dueño el 2026-10-12 (P5) | Asunto «Elige tu contraseña de Rifas»; cuerpo, el de `supabase/templates/recovery.html` |
+| Emails → **SMTP Settings** | Sin SMTP propio: el correo integrado, que **solo entrega a direcciones autorizadas del equipo** del proyecto; el 2026-10-12 (P6) el dueño **configuró Gmail** | SMTP propio con **Gmail** (opción A, elegida el 2026-10-11; valores abajo). Nombre del remitente: **Rifas** |
+| Rate Limits → **Rate limit for sending emails** | 2 por hora; **30 por hora** después de P6, leído por el dueño el 2026-10-16 | El que Supabase pone al activar el SMTP, **30 por hora**: basta, porque la aplicación limita 20 invitaciones por hora y organización y 3 recuperaciones cada 15 min por correo (`SECURITY` §10.2) |
+| Emails / Providers → **Email OTP Expiration** | **3.600 s** (1 h), leído por el dueño el 2026-10-11; el 2026-10-12 lo subió a **86.400 s** (24 h) y el panel avisó «OTP expiry exceeds recommended threshold», que recomienda menos de una hora. Ese mismo día lo **devolvió a 3.600 s** | **Lo decide el dueño.** Es lo que dura el enlace de una invitación; el valor por defecto de Supabase es 3.600 s (1 h). Si los vendedores abren la invitación al día siguiente, la encontrarán vencida y tendrán que pedir otra. **El riesgo de alargarlo:** cada enlace lleva un código de `otp_length` cifras (6 por defecto) que también se puede canjear con el correo, y quien conozca una dirección puede pedir una recuperación con la clave pública y probar códigos mientras dure (30 intentos cada 5 min por IP). Con 24 h y 6 cifras caben 24 veces más intentos que con 1 h. **Las dos salidas que se le presentan:** volver a 3.600 s, o conservar 86.400 s y subir **Email OTP Length** a 10 (Auth acepta de 6 a 10): Rifas no enseña ni pide ese código —el enlace lleva `token_hash`—, así que no cambia nada para nadie. **Decidido por el dueño (2026-10-12): 3.600 s**, «para no complicarnos»; Email OTP Length, sin tocar. Una invitación abierta después de una hora se reenvía con «Reenviar acceso por correo» |
+
+**Las plantillas piden el SMTP propio:** el panel solo deja editar el código de una plantilla con el SMTP propio activo («Set up custom SMTP to edit the source», visto por el dueño al intentar P5 el 2026-10-12). Por eso el SMTP va **antes** que las plantillas, y el registro se
+cierra antes que los dos (§3.3.h).
 
 **El correo, sin dominio propio** (el dueño no tiene proveedor ni dominio, 2026-10-07). Requisitos leídos ese día en la
 documentación de cada uno; se confirman al contratar. Ningún agente crea cuentas ni contrata nada:
@@ -1452,6 +1455,45 @@ mismas comprobaciones, y todo en verde. `verify:remote` **58/58** (00:13); la ba
 > **Los commits de documentación de esta publicación** se quedan en la rama y **no** se empujan: desplegarían otra
 > versión y moverían el punto de reversión.
 
+### 3.2.aa Release de D-253 y D-254: el destino tras ingresar y los enlaces de Auth — 2026-10-11, 18:12 UTC (13:12 en Bogotá)
+
+**Sin migración y sin pausa; Supabase Auth, sin tocar.** Autorización expresa del dueño para P1–P2 de §3.3.h con el
+candidato `b1f8dc1`: empujar la rama sin `force`, abrir el PR, esperar el CI 2/2 sobre ese candidato y completar la
+publicación en una franja compatible con el programador. Antes, confirmó en Vercel que `NEXT_PUBLIC_SITE_URL` (Production)
+es exactamente `https://gestion-rifas.vercel.app`. **No se detuvo**: ninguna condición falló. Las plantillas, el SMTP, las
+URL y el registro de Auth **siguen como estaban** (P4–P8, sin autorizar).
+
+| Dato | Valor |
+|---|---|
+| Commit desplegado | **`b1f8dc1299f521b236ca92d70bbb6b79cc92d522`**, el del PR #15 con el CI en verde. Frente a `c13d831`, el código cambia **solo** en los 22 archivos de D-253 y D-254; los nueve del ojo, idénticos |
+| Cómo se integró | La rama integró `main` en `0593ffb` sin cambiar su árbol (§3.3.h) y se empujó **sin `force`** (`783b08f..b1f8dc1`). `main` avanzó por **avance rápido** `c13d831..b1f8dc1` a las **18:11:07 UTC** (`build/publicacion-d253-d254/publicar-main.sh`, que comprobó la hora, `main` en `c13d831` y la rama en el candidato), sin commit de fusión |
+| Commit anterior en producción | `c13d8317b7dce8ad14647a72579205eef72d4000` (§3.2.z) |
+| Despliegue Vercel | **`dpl_8v5s7XDzSeYvNYJcohpKo4Ue5AWp`**: creado a las 18:11:10, **READY a las 18:12:08 UTC**, en `iad1`, alias `gestion-rifas.vercel.app` sin error; el dominio sirve **`60647d464acc`** desde las **18:12:20** |
+| Despliegue anterior (**punto de reversión**) | **`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`** (`c13d831`), candidato a *Instant Rollback*. Compatible con la base, que no cambió; volver a él **conserva el ojo**, **reintroduce** I-207 y quita `/auth/confirm`. Si para entonces las plantillas ya apuntan a `/auth/confirm`, **se restauran primero** las por defecto. Lo pulsa el dueño desde el panel (§4.1) |
+| **Migraciones** | **NINGUNA.** Siguen **80** (`0001`–`0080`) antes y después |
+| Dependencias y configuración | **Sin cambios** en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/` y `public/`; ninguna variable nueva. `check:env` pasó en el build de producción: `NEXT_PUBLIC_SITE_URL` es un origen `https` (I-049) |
+| CI | En el PR, run **`38162104280`** sobre `b1f8dc1`: ✅ **2/2** (18:02:01–18:09:46 UTC): 109 archivos de unitarias y **1.573 ✅ y 1 omitida** de base, ya con la configuración local de D-254. En `main`: run **`38162750164`** (`push`): ✅ **2/2** (18:11:13–18:19:08 UTC), **2.218/2.218** unitarias y **1.573 ✅ y 1 omitida** de base. La vista previa del PR, en rojo **por D-066 exactamente**: `check:env` sin las tres variables de Supabase |
+
+**P0, en solo lectura** (17:23–18:11 UTC): `c13d831` servido, el ojo en `/login`, `/auth/confirm` inexistente (307 a
+`/login?next=…`), `/auth/v1/settings` con `disable_signup: false`, `verify:remote` **58/58**, la base en `0080` sin pausa, y
+en vivo (`build/publicacion-d253-d254/en-vivo.mjs antes`), todo en verde con las huellas nuevas **ausentes**: un `next`
+hostil en `/login` **viajaba** hasta el formulario. **La franja**, en solo lectura a las **18:10:57 UTC**: hora 18, el candado
+libre, 0 corridas sin terminar, 0 peticiones de la API en curso y ningún recordatorio en las próximas 3 h.
+
+**Verificación en vivo (18:12–18:13 UTC):** `60647d464acc` servido y `45dc3d9a49ac` **desaparecido**; 43/43 rutas, 0 5xx,
+7/7 cabeceras, CSP por *nonce* con un solo proyecto, 0 secretos en 957 KB, Next 16.3.6. **Lo de esta entrega:**
+`/auth/confirm` sin token y con un tipo no admitido lleva al aviso de enlace vencido (`/login?error=auth_callback`) sin
+preguntar a Auth; con `/login?next=/%5Cejemplo.invalid/x`, la propiedad `next` **ya no llega** al formulario, y un `next`
+legítimo sí; `/auth/callback` sin código, igual que antes. **Lo anterior, en su sitio:** el ojo (D-255, D-256), I-204,
+D-244, D-245, D-249, D-252, D-234 y Color v2. `verify:remote` **58/58** (18:13); la base, en `0080`, sin pausa y el
+cierre igual (0 entregas, 8 pagos de premios y 0 cierres). **Registros** de `dpl_8v5s…`, 18:11–18:13: **8** líneas
+`info`, todas `[rifas:instancia] nueva`; **0** avisos y **0** errores; `get_runtime_errors` de la última hora, ninguno.
+
+**Lo que no se comprueba desde fuera:** ingresar con un `next` hostil —lo hace el dueño en P3, con su sesión— y los
+enlaces de los correos, que siguen saliendo con las plantillas por defecto hasta P5.
+
+**P3, hecha por el dueño** (hacia las 18:24 UTC): en una ventana privada abrió `/login?next=/%5Cejemplo.invalid`, ingresó y llegó a `gestion-rifas.vercel.app/owner/dashboard`; cerró la pestaña sin «Cerrar sesión». **Registros** de 17:46 a 18:26 UTC: 30 líneas `info`, todas `[rifas:instancia] nueva`; 0 avisos, 0 errores, ninguna `[rifas:supabase]`; `get_runtime_errors` de la última hora, ninguno. Los registros no dicen de quién es cada petición: lo confirma el relato del dueño.
+
 ### 3.3 Despliegues futuros
 
 #### 3.3.a Publicación de D-211 a D-226, con Next 16.3.6 (**EJECUTADA el 2026-09-26: P0–P10**)
@@ -1754,7 +1796,25 @@ ventana, con otra autorización y otra recuperación.
 | Qué cambia en los registros | **Nuevo:** `[rifas:instancia] nueva · región … · versión …` cuando arranca una instancia, y `[rifas:supabase] MÉTODO ruta → estado en N ms` cuando una llamada a Supabase tarda 1 s o más, devuelve un 5xx o no responde. Sin host, consulta, término, token ni cookie. **No escribe ningún 4xx** —tampoco el 401 `PGRST303` de I-202— ni una llamada que falle rápido: no captura todos los errores. Orientan sobre la próxima demora (I-190, I-198) como hipótesis, con su siguiente comprobación (`OPERATIONS` §6.b); **no demuestran nada de lo que ya pasó** |
 | Riesgo que queda | Los mismos de §3.3.e en los tres formularios: si el JavaScript no llega, el botón se queda en «Preparando el formulario…», que es lo correcto. En escritorio, al hidratar, «Cancelar» se desplaza una vez (`TEST_RESULTS`, D-249 §c). Una línea de `[rifas:supabase]` no basta para culpar a Supabase: dice cuánto tardó la llamada desde la función, red incluida |
 
-#### 3.3.h D-253 y D-254: el destino tras ingresar, los enlaces de Auth y la configuración del correo — **PREPARADO, SIN AUTORIZAR**
+#### 3.3.h D-253 y D-254: el destino tras ingresar, los enlaces de Auth y la configuración del correo — **EL CÓDIGO, EN PRODUCCIÓN desde el 2026-10-11, 18:12 UTC** (P1–P2, registro en §3.2.aa); **P3–P8, HECHAS** (Auth configurado el 2026-10-12; P8 conforme)
+
+> **P1 y P2, hechas el 2026-10-11** con la autorización expresa del dueño (§3.2.aa): `b1f8dc1` servido. **P3, conforme**
+> (el dueño, hacia las 18:24 UTC). **P4, hecha** (el dueño, 2026-10-11 y 12): Site URL sin barra final y
+> `https://gestion-rifas.vercel.app/**` en Redirect URLs; `http://localhost:3000/` se queda, por decisión suya. Leído en
+> P0: el enlace dura **3.600 s** (el 2026-10-12 lo subió a 86.400 s y lo devolvió a 3.600 s, §2.1). **P7, hecha** (2026-10-12) y
+> comprobada: `disable_signup: true` (2026-10-13, 00:39 UTC). **P5 no se pudo hacer** (2026-10-12): sin SMTP propio, el panel no deja editar el
+> código de las plantillas («Set up custom SMTP to edit the source»). Nada cambió. **El orden pasa a P7 → P6 → P5 → P8**
+> (abajo). **P6 y P5, hechas** por el dueño a continuación (2026-10-12), en ese orden. Desde fuera no se ven: las comprueba
+> P8. **P8, conforme** (2026-10-13, 01:04–01:15 UTC; 20:04–20:15 del 12 en Bogotá): el dueño invitó a un
+> vendedor de prueba en una dirección suya; el correo llegó de **Rifas**, en español, y «Crear mi contraseña» abrió «Nueva contraseña» y lo dejó en el panel
+> del vendedor. Con esa dirección, «¿Olvidaste tu contraseña?» y el correo abierto en **otro** dispositivo: también.
+> Después lo desactivó desde «Vendedores». **Registros** de 00:18 a 01:16 UTC: ningún error de ejecución; 13 líneas
+> `[rifas:instancia] nueva` —una en `GET /auth/confirm`, 01:13:08— y un aviso, `[rifas:supabase] POST /auth/v1/recover →
+> 200 en 3313 ms` (`POST /forgot-password`, 01:14:25). No escriben el estado de cada petición ni quién la hizo, ni la
+> invitación, que va con la clave de servicio y no se cronometra: el resultado lo da el relato del dueño.
+> **Comprobado otra vez el 2026-10-16** (hacia las 22:24 UTC, solo lectura): el despliegue de producción sigue siendo
+> `dpl_8v5s7XD…` (`b1f8dc1`), sin ninguno después; `en-vivo.mjs despues`, todo en verde; `disable_signup: true`;
+> `verify:remote` 58/58. Rate Limits, 30 por hora (el dueño).
 
 > **Preparado otra vez el 2026-10-11, sobre lo servido: `c13d831`** (D-255 y D-256, §3.2.z). La rama **integró `main`**
 > en `0593ffb` —los nueve archivos del ojo eran idénticos; los ocho documentos que chocaban se quedaron con la versión de la
@@ -1775,10 +1835,18 @@ esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales
 | Lo que no publica | **Ninguna migración** (`0001`–`0080`); ninguna variable nueva; sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json`, `.github/` ni `public/` |
 | Compatibilidad | El código nuevo funciona con la configuración de Auth de hoy: `/auth/confirm` no la usa nadie hasta cambiar las plantillas, y `/auth/callback` sigue igual. Por eso **primero el código y después Auth**, y cada paso se puede deshacer solo |
 | Antes de empujar | **El dueño confirma en Vercel** que `NEXT_PUBLIC_SITE_URL` (Production) es `https://gestion-rifas.vercel.app`: `check:env` la exige desde D-254. Y `git diff --stat c13d831 <candidato> -- src scripts supabase tests package.json package-lock.json next.config.ts vercel.json .github public` enseña **solo** los archivos de D-253 y D-254 (22, comprobado el 2026-10-11) |
-| Punto de reversión del código | **`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`** (`c13d831`), el servido desde el 2026-10-09. **Compatible**: no hay migración. Volver a él **conserva el ojo**, **reintroduce** I-207 y quita `/auth/confirm`: si las plantillas ya apuntan ahí, **se restauran primero** las por defecto. *Instant Rollback* lo pulsa el dueño (§4.1) |
+| Punto de reversión del código | **`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih`** (`c13d831`), el servido desde el 2026-10-09. **Compatible**: no hay migración. Volver a él **conserva el ojo**, **reintroduce** I-207 y quita `/auth/confirm`: si las plantillas ya apuntan ahí, **se restauran primero** las por defecto, con el SMTP propio todavía activo. *Instant Rollback* lo pulsa el dueño (§4.1) |
 | Comprobado en local | `verify`, `test:db`, las suites del ingreso y de las invitaciones y la E2E completa, en `TEST_RESULTS`, «D-253» y «D-254» |
 
 **Orden, con quién hace cada cosa y cómo se deshace:**
+
+> **Corregido el 2026-10-12: se ejecuta P4 → P7 → P6 → P5 → P8.** Los pasos conservan su número para no mover las
+> referencias. Motivo: el panel solo deja editar el código de una plantilla con el SMTP propio activo («Set up custom
+> SMTP to edit the source», visto por el dueño al intentar P5 el 2026-10-12). El registro se cierra **antes** del SMTP
+> porque, con el SMTP propio y el registro abierto, cualquiera podría hacer salir correos de confirmación desde la
+> cuenta de Gmail de Rifas; con el registro cerrado, las invitaciones, su reenvío y la recuperación siguen funcionando
+> (medido en local, D-254). Entre P6 y P5 los correos ya llegan a cualquier dirección con las plantillas por defecto, así
+> que **no se invita ni se reenvía acceso** hasta terminar P5, que va a continuación.
 
 | Paso | Qué | Quién | Comprobación | Si algo falla |
 |---|---|---|---|---|
@@ -1787,14 +1855,15 @@ esperan su autorización expresa (`AGENTS.md` §5); las pruebas de correo reales
 | P2 | Avance rápido de `main` en una franja sin el programador; READY y servido | Agente, **con autorización** | En vivo: `GET /auth/confirm` sin parámetros → `/login?error=auth_callback`; `verify:remote` | *Instant Rollback* a `dpl_DpnW…` (`c13d831`) |
 | P3 | **I-207 en vivo**: abrir `/login?next=/%5Cejemplo.invalid` e ingresar | Dueño, con su sesión | Llega a su panel, nunca a otro sitio | Reversión de P2 |
 | P4 | URL Configuration: Site URL sin barra y `https://gestion-rifas.vercel.app/**` | Dueño, en el panel | Lo que diga §2.1 | Los valores de la captura de P0 |
-| P5 | Templates: «Invite user» y «Reset password», asunto y cuerpo desde `supabase/templates/` | Dueño, en el panel (el agente guía) | Vista previa del panel | «Reset to default», o el texto de la captura |
-| P6 | SMTP propio con el proveedor elegido; el dueño escribe la contraseña | Dueño, en el panel | El panel lo acepta; Rate Limits pasa a 30/h | Desactivar el SMTP propio: vuelve el integrado |
-| P7 | Desactivar «Allow new users to sign up» | Dueño, en el panel | `/auth/v1/settings` → `disable_signup: true` (agente, solo lectura) | Volver a activarlo |
+| P7 | Desactivar «Allow new users to sign up». **Primero de los tres** | Dueño, en el panel | `/auth/v1/settings` → `disable_signup: true` (agente, solo lectura) | Volver a activarlo |
+| P6 | SMTP propio con Gmail (§2.1); el dueño escribe la contraseña. Deja editar las plantillas | Dueño, en el panel | El panel lo acepta; Rate Limits pasa a 30/h | Desactivar el SMTP propio: vuelve el integrado. Si también hay que deshacer P5, las plantillas **antes**: sin el SMTP propio no se pueden editar |
+| P5 | Templates: «Invite user» y «Reset password», asunto y cuerpo desde `supabase/templates/`, **justo después de P6** | Dueño, en el panel (el agente guía) | Vista previa del panel | «Reset to default», o el texto de la captura, **con el SMTP propio activo** |
 | P8 | **Pruebas reales, con destinatarios que autorice el dueño**: (a) «¿Olvidaste tu contraseña?» con una cuenta existente suya, abriendo el correo en **otro** dispositivo; (b) una invitación a una dirección de prueba suya, definir la contraseña y entrar; después, **desactivarla** desde «Vendedores» (en Rifas no se borra nada, D-038) | Dueño; el agente lee los registros dentro de la hora | Correo en español, desde el remitente nuevo; «Nueva contraseña»; panel del vendedor | Según el paso que falle: P5, P6 o P7 |
 
 **Riesgo que queda.** Un escáner de correo que abra el enlace antes que la persona lo deja usado (igual que el de por
 defecto): se pide otro. El límite de verificaciones de Auth es por IP y las de todos salen de Vercel: 30 cada 5 min, lejos
-del volumen de Rifas. Si el enlace dura 1 h (§2.1, OTP), una invitación abierta al día siguiente pide reenviarla.
+del volumen de Rifas. Si el enlace dura 1 h (§2.1, OTP), una invitación abierta al día siguiente pide reenviarla. Entre P6 y P5, una
+invitación saldría con la plantilla por defecto y su enlace fallaría (I-208): por eso en ese rato no se invita.
 
 
 #### 3.3.i El ojo de los cinco campos de contraseña: D-255 y D-256 — **EN PRODUCCIÓN desde el 2026-10-09, 00:10 UTC** (registro en §3.2.z)
@@ -1817,6 +1886,29 @@ SMTP, plantillas o variables de entorno.
 | Al publicar, como en §3.3.g | P0 en solo lectura (servido `783b08f`, base en `0080` sin pausa, `verify:remote`); empujar la rama **sin `force`**, PR hacia `main` y CI **2/2** sobre el SHA exacto; la franja fuera de las horas del programador (`RUNBOOK` §9.0); avance rápido de `main` por SHA; READY e identificador servido (§6.1); en vivo, `build/publicacion-ojo/en-vivo.mjs`: el ojo en el HTML inicial de `/login` —desactivado, con «Mostrar contraseña» en `sr-only`—, `PasswordInput` en su JavaScript y la regla de `::-ms-reveal`, **ausentes antes y presentes después** |
 | La revisión del dueño, con su sesión | **Sin cambiar ninguna contraseña real.** **(1)** En `/login`: escribir, mostrar y ocultar, seguir escribiendo e ingresar con la contraseña a la vista; su gestor de contraseñas, si lo usa, tiene que rellenar el campo y, si lo ofrece, guardar. **(2)** En «Cambiar contraseña» (`/account/password`): escribir dos contraseñas **distintas** inventadas, mostrar cada una con su ojo —se mueven por separado— y pulsar «Cambiar contraseña»: sale «Las contraseñas no coinciden.» y las dos siguen a la vista; salir **sin** guardar. **(3)** Avisar al terminar, para leer los registros **dentro de la hora**. «Nueva contraseña» (`/reset-password`) es la misma pieza; abrirla sin un enlace de correo no aporta más |
 | Riesgo que queda | Sin comprobar con un gestor de contraseñas real, con una extensión que pinte su icono dentro del campo ni en Safari de iPhone. Si el JavaScript no llega, el ojo se queda desactivado, como «Ingresar» (I-204) |
+
+#### 3.3.j El inventario común y los números de cada rifa: D-257 a D-262, con la `0081`, la `0082`, la `0083` y la `0084` — **PREPARADA y ensayada en local el 2026-10-20; sin autorizar**
+
+> **Sustituye** a la preparación del 2026-10-19 para la `0081` y la `0082` solas (I-216, resuelta en local). Aquella
+> rama, ahora **`obsoleta/publicar-inventario-comun-d260`** —se llamaba `publicar/inventario-comun`—, no lleva los
+> números por rifa y **no se publica**; tampoco su delta esperado.
+
+Encargo del dueño: preparar otra vez la publicación del conjunto D-257 a D-261 con las cuatro migraciones, en local
+sobre una copia de producción, **sin publicar**. La autorización de empujar, migrar y desplegar es suya, y cada paso está
+en `RUNBOOK` §13.1 con la autorización que necesita. Sin pausa: la base primero, en una franja tranquila, y el código
+después.
+
+| | |
+|---|---|
+| Qué publica | El inventario común, la generación por rangos, los lotes y los apartados (D-257); liberar lo vendido desde un apartado de vuelta al inventario (D-258); «Aprobada» en el detalle del vendedor solo cuando dice algo (I-211); las dos migraciones reordenadas (D-259) con la estadística al día al generar (D-260); **los números de cada boleta definidos por su rifa** —uno o dos, con nombre y cifras exactas, que no cambian— y los premios de las dos últimas cifras, con 4 > 3 > 2 (D-261); y la `0084` con lo que toca `tickets` y `raffles` en un solo bloque final, con la puerta que comprueba su auditoría (D-262). Migraciones **`0081`, `0082`, `0083` y `0084`, juntas, en ese orden y cada una en su transacción** |
+| Lo que no publica | Ninguna variable de entorno nueva; nada de Supabase Auth; sin cambios en `package.json`, el *lock*, `next.config.ts`, `vercel.json` —el programador, igual—, `.github/`, `public/` ni `src/proxy.ts` (comprobado con `git diff b1f8dc1`) |
+| Dependencias | La `0082` exige la `0081`; la `0084`, la `0083` **ya confirmada** —nunca las dos en una transacción—; y el código exige las cuatro: nunca el código antes, nunca sobre una base a medias (`RUNBOOK` §13.0) |
+| Lo que hace con los datos | Nada, salvo su auditoría: las rifas que ya existen quedan «Diario» 4 + «Semanal» 4, sin reescribir ninguna boleta, y la `0084` guarda una fila por rifa con lo que encontró. En la copia de producción, **0 boletas fuera de formato**; en I3 la foto dice cuántas hay en el momento, y ninguna se renumera |
+| Comprobado en local | `TEST_RESULTS`, «Preparación de la publicación de D-257 a D-261»: seis pasadas de las cuatro migraciones sobre la copia de producción con escrituras en curso —en directo, con 94 ms y con 200 ms de ida y vuelta—, 0 caídas; las dos lecturas largas que la hacen rendirse sin aplicar nada; la `0083` y la `0084` en una transacción, que fallan; tres boletas fuera de formato antes de migrar; la puerta CONTINUAR con el delta nuevo; `verify:remote` antes y después; el almacenamiento; el código servido contra la base nueva —E2E completa **1.059/1.063**, los 4 fallos explicados— y con rifas que no conoce (**3/3**); y la versión candidata: `verify`, `test:db` y su E2E completa |
+| La rama | Dos formas, y el dueño elige. **A (recomendada)** — empujar `feature/inventario-comun` tal cual: los commits de solo documentos que hay encima de `b1f8dc1` —el registro de D-253 y D-254 y los de cada preparación— viajan en el **mismo** empujón que el código, hay **un** despliegue y el punto de reversión es el que tiene que ser, el de `b1f8dc1`. **B** — si no se quieren en la historia de `main`: la rama local **`publicar/inventario-comun-d261`**, preparada, con `origin/main` (`b1f8dc1`) como padre y **un solo commit cuyo árbol es idéntico** al de la cabeza de `feature/inventario-comun` (`git diff` vacío entre las dos). Si una de las dos se mueve, se rehace la otra antes de elegir. La de antes, **`obsoleta/publicar-inventario-comun-d260`** (`4d8d3e9`), no lleva D-261 ni D-262 y **no se usa** |
+| Punto de reversión | **`dpl_8v5s7XDzSeYvNYJcohpKo4Ue5AWp`** (`b1f8dc1`), el servido hoy —candidato a *Instant Rollback* por ser el anterior—. **Compatible** con las cuatro migraciones (`RUNBOOK` §13.3). Volver a él quita el generador, los lotes, los apartados y elegir los números al crear una rifa; las tablas, las boletas y las rifas se quedan. **Con rifas de un número o con otros nombres o cifras**, el código viejo las enseña y las vende sin errores, pero con los nombres de siempre, «387 / —» en una boleta de un número y la columna «Cifras» vacía en un premio de las dos últimas, y sin poder crear ni corregir boletas de un número (`RUNBOOK` §13.4). Lo pulsa el dueño (§4.1) |
+| Al publicar | `RUNBOOK` §13.1, de I0 a I7: solo lectura, CI 2/2 sobre el SHA exacto, franja, respaldo y foto con las boletas fuera de formato, las cuatro migraciones con `lock_timeout`, `verify:remote` **61/61** y CONTINUAR con el delta `delta-esperado-0081-0084.json`, el código por avance rápido y la revisión **solo mirando** |
+| Lo que queda abierto | **I-210**, el plan antes de la primera generación grande: generar 100.000 boletas ocupa unos 74 MB y una rifa de 100.000 vendida entera no cabe en el plan gratuito. **La validación legal pendiente para comercializar y operar** sigue sin resolverse (D-257). **I-215**, las 14 boletas fuera de formato de la base local de revisión del dueño, que no existen en producción |
 
 ---
 
@@ -1874,6 +1966,23 @@ sus correcciones. Se vuelve solo si lo nuevo falla de una forma peor que eso.
 `dpl_DVrzUEmmJZUtAHrZwAHvUkCp4RKd` (`783b08f`), candidato a *Instant Rollback*. Volver a él es **compatible con la
 base** —la entrega no la cambia— y **solo quita el ojo** de los campos de contraseña. Se vuelve solo si el ojo falla de
 una forma peor que no tenerlo.
+
+**Con D-253 y D-254, publicados el 2026-10-11** (§3.2.aa), el despliegue anterior pasa a ser
+`dpl_DpnWDddYPEJgPpJHr9g8JoS1cxih` (`c13d831`), candidato a *Instant Rollback*. Volver a él es **compatible con la
+base** —la entrega no la cambia— y **conserva el ojo**, **pero reintroduce** I-207 y quita `/auth/confirm`. **Si las
+plantillas de Auth ya apuntan a `/auth/confirm`, primero se restauran las por defecto**, con el SMTP propio todavía
+activo, que es cuando el panel deja editarlas: si no, la invitación y la
+recuperación quedarían rotas para todo el mundo. Se vuelve solo si lo nuevo falla de una forma peor que eso.
+
+**Si se publican D-257 a D-262** (§3.3.j, **sin autorizar**), el despliegue anterior pasará a ser
+`dpl_8v5s7XDzSeYvNYJcohpKo4Ue5AWp` (`b1f8dc1`), candidato a *Instant Rollback*. Volver a él es **compatible con las
+cuatro migraciones** —su E2E completa pasó contra esa base, con los cuatro fallos explicados— y quita el generador, los
+lotes, los apartados y elegir los números al crear una rifa; las tablas, los apartados abiertos —vencen solos—, las
+rifas y las boletas se quedan. **Con boletas sin vendedor ya generadas**, el código viejo las enseña con «Vendedor» como
+nombre y su tarjeta lleva a una ficha 404; **con rifas de un número o con otros nombres o cifras**, las enseña y las
+vende con los nombres de siempre, «387 / —» en una boleta de un número y la columna «Cifras» vacía en un premio de las
+dos últimas, y no puede crear ni corregir boletas de un número. Probado, sin errores ni 5xx, y hay que decírselo al
+personal (`RUNBOOK` §13.4). Las migraciones no se revierten para volver.
 
 ### 4.2 Base de datos
 

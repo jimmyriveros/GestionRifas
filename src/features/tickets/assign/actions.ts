@@ -39,6 +39,7 @@ import { assignTicketsSchema, assignTicketsToNewClientSchema } from './schemas'
  */
 
 function revalidateAssignment() {
+  revalidatePath('/seller/inventory')
   revalidatePath('/seller/tickets')
   revalidatePath('/seller/tickets/[ticketId]', 'page')
   revalidatePath('/seller/clients')
@@ -62,21 +63,52 @@ export async function assignTickets(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos ingresados.' }
   }
-  const { ticketIds, clientId, saleDate, salePrice } = parsed.data
+  const { ticketIds, clientId, saleDate, salePrice, holdId } = parsed.data
 
   const supabase = await createClient()
-  const { data, error } = await supabase.rpc('bulk_assign_tickets', {
-    p_ticket_ids: ticketIds,
-    p_client_id: clientId,
-    p_sale_date: saleDate,
-    p_sale_price: salePrice,
-  })
-
-  if (error) return { error: mapPgError(error) }
+  const sale = await runSale(supabase, { ticketIds, clientId, saleDate, salePrice, holdId })
+  if ('error' in sale) return { error: mapPgError(sale.error) }
 
   revalidateAssignment()
-  const count = data ?? ticketIds.length
+  const count = sale.count
   return { ok: true, data: { count, message: assignedMessage(count) } }
+}
+
+/**
+ * Una venta: la de siempre sobre boletas del vendedor (`bulk_assign_tickets`),
+ * o la de UNA boleta apartada del inventario comun (`sell_ticket_hold`, D-257),
+ * que cierra el apartado, le pone el vendedor a la boleta y aplica las mismas
+ * reglas de `assign_ticket_row`. Con un apartado que vencio o que ya no es el
+ * vigente, la base no vende nada.
+ */
+async function runSale(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sale: {
+    ticketIds: string[]
+    clientId: string
+    saleDate: string
+    salePrice?: number
+    holdId?: string
+  },
+): Promise<{ count: number } | { error: unknown }> {
+  if (sale.holdId) {
+    const { error } = await supabase.rpc('sell_ticket_hold', {
+      p_hold_id: sale.holdId,
+      p_client_id: sale.clientId,
+      p_sale_date: sale.saleDate,
+      ...(sale.salePrice !== undefined ? { p_sale_price: sale.salePrice } : {}),
+    })
+    if (error) return { error }
+    return { count: 1 }
+  }
+  const { data, error } = await supabase.rpc('bulk_assign_tickets', {
+    p_ticket_ids: sale.ticketIds,
+    p_client_id: sale.clientId,
+    p_sale_date: sale.saleDate,
+    p_sale_price: sale.salePrice,
+  })
+  if (error) return { error }
+  return { count: data ?? sale.ticketIds.length }
 }
 
 /**
@@ -92,9 +124,7 @@ export async function assignTickets(
  * La asignacion en si sigue siendo todo o nada: o se venden todas las boletas
  * del lote o no se vende ninguna.
  */
-export async function assignTicketsToNewClient(
-  input: unknown,
-): Promise<
+export async function assignTicketsToNewClient(input: unknown): Promise<
   ActionResultWith<{
     count: number
     message: string
@@ -109,7 +139,7 @@ export async function assignTicketsToNewClient(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos del cliente.' }
   }
-  const { ticketIds, saleDate, salePrice, client } = parsed.data
+  const { ticketIds, saleDate, salePrice, client, holdId } = parsed.data
 
   const supabase = await createClient()
 
@@ -127,22 +157,23 @@ export async function assignTicketsToNewClient(
 
   if (clientError) return { error: mapPgError(clientError) }
 
-  const { data, error } = await supabase.rpc('bulk_assign_tickets', {
-    p_ticket_ids: ticketIds,
-    p_client_id: created.id,
-    p_sale_date: saleDate,
-    p_sale_price: salePrice,
+  const sale = await runSale(supabase, {
+    ticketIds,
+    clientId: created.id,
+    saleDate,
+    salePrice,
+    holdId,
   })
 
-  if (error) {
+  if ('error' in sale) {
     revalidateAssignment()
     return {
-      error: `${mapPgError(error)} El cliente sí quedó guardado: puedes asignarle otras boletas.`,
+      error: `${mapPgError(sale.error)} El cliente sí quedó guardado: puedes asignarle otras boletas.`,
     }
   }
 
   revalidateAssignment()
-  const count = data ?? ticketIds.length
+  const count = sale.count
   return {
     ok: true,
     data: {

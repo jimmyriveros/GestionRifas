@@ -49,6 +49,13 @@ const BulkChangeSellerDialog = dynamic(() =>
 const BulkDeleteDialog = dynamic(() =>
   import('./BulkDeleteDialog').then((module) => module.BulkDeleteDialog),
 )
+// Los dos del inventario comun (D-257), con la misma regla de carga.
+const BulkAssignToSellerDialog = dynamic(() =>
+  import('./BulkAssignToSellerDialog').then((module) => module.BulkAssignToSellerDialog),
+)
+const BulkRecoverDialog = dynamic(() =>
+  import('./BulkRecoverDialog').then((module) => module.BulkRecoverDialog),
+)
 
 /** Los que puede necesitar cada portal. El vendedor solo asigna. */
 function preloadDialogs(portal: 'owner' | 'seller') {
@@ -60,6 +67,8 @@ function preloadDialogs(portal: 'owner' | 'seller') {
   void import('./BulkCancelDialog')
   void import('./BulkChangeSellerDialog')
   void import('./BulkDeleteDialog')
+  void import('./BulkAssignToSellerDialog')
+  void import('./BulkRecoverDialog')
 }
 
 /**
@@ -163,6 +172,18 @@ export function TicketSelectionToolbar({
             key: 'changeSeller',
             label: 'Cambiar vendedor',
             open: () => openDialog('changeSeller'),
+          },
+          // D-257: del inventario comun a un vendedor, y de un vendedor de
+          // vuelta al inventario comun.
+          {
+            key: 'assignToSeller',
+            label: 'Asignar a un vendedor',
+            open: () => openDialog('assignToSeller'),
+          },
+          {
+            key: 'recover',
+            label: 'Recuperar al inventario común',
+            open: () => openDialog('recover'),
           },
           {
             key: 'delete',
@@ -418,6 +439,19 @@ export function TicketSelectionToolbar({
         <BulkDeleteDialog
           open={dialog === 'delete'}
           onOpenChange={(open) => setDialog(open ? 'delete' : null)}
+        />
+      ) : null}
+      {mountedDialog === 'assignToSeller' ? (
+        <BulkAssignToSellerDialog
+          open={dialog === 'assignToSeller'}
+          onOpenChange={(open) => setDialog(open ? 'assignToSeller' : null)}
+          sellers={sellers}
+        />
+      ) : null}
+      {mountedDialog === 'recover' ? (
+        <BulkRecoverDialog
+          open={dialog === 'recover'}
+          onOpenChange={(open) => setDialog(open ? 'recover' : null)}
         />
       ) : null}
       {mountedDialog === 'assign' ? (

@@ -40,6 +40,7 @@ vi.mock('@/features/commissions/actions', () => ({ saveCommissionTemplate: vi.fn
 import { ClientForm } from '@/features/clients/components/ClientForm'
 import { CommissionTemplateForm } from '@/features/commissions/components/CommissionTemplateForm'
 import { RaffleForm } from '@/features/raffles/components/RaffleForm'
+import { NUMBER_GROUP_FORM_DEFAULTS } from '@/features/raffles/number-groups'
 import { TicketForm } from '@/features/tickets/components/TicketForm'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -72,6 +73,7 @@ const RIFA = {
   startDate: '2026-10-01',
   endDate: '2026-12-21',
   allowSellerTicketCreation: false,
+  ...NUMBER_GROUP_FORM_DEFAULTS,
 }
 
 const FORMULARIOS: Array<{ nombre: string; elemento: () => ReactElement; boton: string }> = [

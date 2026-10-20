@@ -139,7 +139,9 @@ describe('CSV', () => {
   it('rechaza el archivo entero solo cuando no hay nada que leer', () => {
     expect(() => parseCsv('')).toThrow(ImportParseError)
     expect(() => parseCsv('   \n  ')).toThrow(ImportParseError)
-    expect(() => parseCsv('Premio semanal\n7607')).toThrow(/dos columnas/)
+    // D-261: una sola columna ya es un archivo válido —una rifa puede tener un
+    // solo número—; qué columnas faltan lo dice el mapeo con los números de la rifa.
+    expect(parseCsv('Número\n387').headers).toEqual(['Número'])
   })
 
   it('CASO 7 — con encabezados desconocidos no rechaza: pide el mapeo', () => {

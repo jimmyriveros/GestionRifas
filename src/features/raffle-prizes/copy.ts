@@ -3,8 +3,9 @@ import type { LotteryMatchField } from '@/features/lottery/constants'
 import { WEEKDAY_LABELS } from '@/lib/constants'
 import { formatDateCsv, longDatePartsEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { groupForSlot, numberGroupPhrase, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 
-import type { PrizeDigits } from './matching'
+import { PRIZE_DIGITS_COUNT, type PrizeDigits } from './matching'
 import {
   canonicalRules,
   expandRules,
@@ -64,12 +65,14 @@ export const PRIZE_REWARD_MODE_VALUES = Object.keys(PRIZE_REWARD_MODE_LABELS) as
 export const PRIZE_DIGITS_LABELS: Record<PrizeDigits, string> = {
   four: '4 cifras',
   last_three: 'Últimas 3',
+  last_two: 'Últimas 2',
 }
 
 /** El término entero, para el detalle y para quien escucha la pantalla. */
 export const PRIZE_DIGITS_FULL_LABELS: Record<PrizeDigits, string> = {
   four: 'Cuatro cifras',
   last_three: 'Últimas tres cifras',
+  last_two: 'Últimas dos cifras',
 }
 
 export const PRIZE_NUMBER_FIELD_LABELS: Record<LotteryMatchField, string> = {
@@ -80,6 +83,42 @@ export const PRIZE_NUMBER_FIELD_LABELS: Record<LotteryMatchField, string> = {
 export const PRIZE_NUMBER_FIELD_SHORT_LABELS: Record<LotteryMatchField, string> = {
   daily_number: 'Diario',
   weekly_number: 'Semanal',
+}
+
+/**
+ * Lo que impide que un premio juegue con el número que eligió (D-261): que la
+ * rifa no tenga ese número, o que el premio compare más cifras de las que tiene.
+ * Las MISMAS frases que `raffle_prize_version_problem` (0084, 7.1).
+ */
+export function prizeGroupProblem(
+  title: string,
+  format: RaffleNumberFormat,
+  field: LotteryMatchField,
+  digits: PrizeDigits,
+): string | null {
+  const group = groupForSlot(format, field)
+  if (!group) {
+    return `El premio «${title}» juega con un número que esta rifa no tiene. Elige «${format.groups[0].name}».`
+  }
+  const count = PRIZE_DIGITS_COUNT[digits]
+  if (count > group.digits) {
+    return `El premio «${title}» compara ${count} cifras, pero el número «${group.name}» tiene ${group.digits}. Elige menos cifras.`
+  }
+  return null
+}
+
+/**
+ * El nombre del número con el que juega un premio, como lo nombró el dueño al
+ * crear la rifa (D-261): «Diario», «Mayor», «Seco»… El grupo es la ranura; el
+ * nombre solo se pinta. Sin el formato de la rifa —el script de la transición,
+ * que solo trata rifas de siempre— queda el nombre de siempre.
+ */
+export function prizeNumberFieldName(
+  format: RaffleNumberFormat | undefined,
+  field: LotteryMatchField,
+): string {
+  const group = format ? groupForSlot(format, field) : null
+  return group?.name ?? PRIZE_NUMBER_FIELD_SHORT_LABELS[field]
 }
 
 export const PRIZE_STATUS_LABELS = {
@@ -253,15 +292,22 @@ export function prizeConflictMessage(title: string, conflict: PrizeConflict): st
  * Cuando todos sus días juegan con la misma lotería se dice cuál, que es más
  * útil que repetir «correspondiente».
  */
+const PRIZE_DIGITS_SENTENCE: Record<PrizeDigits, string> = {
+  four: 'las cuatro cifras',
+  last_three: 'las tres últimas cifras',
+  last_two: 'las dos últimas cifras',
+}
+
 export function prizePreviewSentence(prize: {
   rules: PrizeRule[]
   numberField: LotteryMatchField
   digits: PrizeDigits
   reward: PrizeReward
+  numberFormat?: RaffleNumberFormat
 }): string {
   const when = scheduleSummary(prize.rules)
-  const digits = prize.digits === 'four' ? 'las cuatro cifras' : 'las tres últimas cifras'
-  const field = PRIZE_NUMBER_FIELD_LABELS[prize.numberField].toLowerCase()
+  const digits = PRIZE_DIGITS_SENTENCE[prize.digits]
+  const field = numberGroupPhrase(prizeNumberFieldName(prize.numberFormat, prize.numberField))
   const lotteries = new Set(expandRules(prize.rules).map((occurrence) => occurrence.lottery))
   const only = lotteries.size === 1 ? [...lotteries][0] : null
   const lottery = only
@@ -455,7 +501,10 @@ export const PRIZE_FORM_COPY = {
   numberFieldLabel: 'Número de la boleta',
   digitsLabel: 'Cifras',
   digitsHelp:
-    'Con cuatro cifras el número tiene que ser idéntico. Los ceros iniciales cuentan: 0046 no es lo mismo que 46.',
+    'Con cuatro cifras el número tiene que ser idéntico. Con las últimas tres o dos se comparan solo esas. Los ceros cuentan: con el resultado 5307, las dos últimas son 07.',
+  /** D-261: un premio no compara más cifras de las que tiene su número. */
+  digitsLimited: (name: string, digits: number) =>
+    `El número «${name}» tiene ${digits} cifras: el premio puede comparar ${digits} o menos.`,
 
   lotteryLegend: 'Calendario y lotería',
 

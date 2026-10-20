@@ -336,7 +336,12 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 |---|---|---|
 | Sorteo que agrupa las boletas | **Rifa** | Sorteo, campaña, evento |
 | Unidad que se vende | **Boleta** | Ticket, número, cupón |
-| Sus dos números | **Número diario** y **número semanal** | Combinación diaria/semanal, cifra |
+| Sus dos números | **Número diario** y **número semanal**; en una rifa que los nombró de otro modo, los suyos (D-261) | Combinación diaria/semanal, cifra |
+| Los números de la boleta de una rifa, cuando la rifa los define (D-261) | El **título** del número como rótulo —**«Número diario»**, **«Número mayor»**, y **«Número»** a secas si así lo llamó el dueño—; dentro de una frase, **«el número mayor»**; y entre comillas angulares cuando un aviso cita el nombre literal: «El número «Mayor» lleva exactamente 4 cifras» | Grupo, grupo de números, campo, slot, combinación |
+| En el formulario de la rifa, cada uno de esos números | **Primer número** y **Segundo número**; la sección, **«Números de cada boleta»**; la pregunta, **«¿Cuántos números tiene cada boleta?»**, con **Uno** y **Dos** (D-261) | Grupo 1, grupo 2, cantidad de grupos, estructura |
+| Cuántas cifras lleva un número | **Cifras**: «4 cifras (0000 a 9999)»; y en una línea, «Diario, de 4 cifras (0000 a 9999)» (D-261) | Dígitos, longitud, ancho, formato |
+| Las boletas que ya existían y no tienen las cifras de su rifa | **Boletas sin el formato de esta rifa** (D-261) | Inválidas, corruptas, heredadas, legacy |
+| Comparar las dos últimas cifras del resultado | **Últimas 2** en una columna estrecha; **Últimas dos cifras** donde cabe (D-261) | Terminación, cifras finales, dos cifras |
 | Los dos, en **la columna de una tabla o en una tarjeta**, donde se escriben juntos | **Boleta**, con la leyenda **«Diario · Semanal»** debajo (D-130) | Dos columnas separadas; «Núm. diario» y «Núm. semanal», que ya no existen |
 | Lo abonado de una boleta | **Abonado** | Pagado, recaudado, cobrado |
 | Lo que falta por cobrar de una boleta, **en la columna de una tabla larga** | **Falta** (D-130) | Debe, pendiente, restante |
@@ -391,6 +396,22 @@ Una función, un nombre. Si un texto nuevo necesita otro término, primero se ca
 | Poner a otro cliente una boleta que se vendió a la persona equivocada | **Cambiar cliente** | Reasignar, transferir, reubicar, mover |
 | El motivo que se escribe al hacerlo | **Motivo de la corrección** | Justificación, razón, observación |
 | Deshacer la venta de una boleta que el cliente ya no quiere, y devolverla al inventario | **Liberar** la boleta; la **liberación** | Desasignar, devolver, revertir, cancelar la venta |
+| Las boletas de una rifa que todavía no tiene ningún vendedor | **Inventario común** (D-257) | Bolsa, stock, pool, banco de boletas, inventario general |
+| Crear todas las combinaciones de un rango de números diarios y otro de semanales | **Generar por rangos**; cada vez, una **generación** (D-257) | Autogenerar, crear masivamente, «lote», que es escribir los números en «Crear en lote» |
+| Lo otro que ofrece «Crear en lote»: los números escritos a mano, hasta 1.000, para un vendedor | **Escribir los números** (D-257) | Manual, digitar, cargar |
+| Los dos extremos de un rango | **Desde** y **Hasta**, dentro del título de cada número: «Número diario», «Número mayor» (D-261; antes, «Números diarios» y «Números semanales») | Inicio y fin, mínimo y máximo |
+| Devolver al inventario común boletas que un vendedor tiene sin vender | **Recuperar al inventario común** (D-257) | Devolver, quitar, retirar, revocar |
+| Tomar por un rato una boleta del inventario común para venderla | **Apartar**; el hecho, un **apartado** (D-257) | Reservar, separar, bloquear, tomar. En el catálogo **público** sigue prohibido: allí se **solicita** y no se aparta nada (Anexo C) |
+| Una boleta del inventario común que nadie tiene apartada | **Libre** (D-257) | **Disponible**, que es el estado de cualquier boleta sin cliente; suelta, abierta |
+| En el catálogo interno, una boleta que el vendedor no puede tomar —de otro vendedor, apartada por otro o vendida— | **No disponible** (D-257), sin decir de quién ni por qué | Ocupada, tomada, vendida, «de Carlos». En el catálogo **público** sigue siendo «tomado», solo en las cifras (Anexo C) |
+| En el catálogo interno, las del propio vendedor y las que tiene apartadas | **En tus boletas** y **Apartada por ti** (D-257) | Mía, asignada, reservada |
+| Lo mismo, visto por el personal | **Apartada por {nombre}**, y en el detalle **«… hasta las 3:40 p. m.»** (D-257) | Reservada por, bloqueada por |
+| Los 30 minutos que se pueden pedir una vez | **Pedir 30 minutos más**; ya pedidos, **«Ya pediste los 30 minutos más.»** (D-257) | Extender, prorrogar, renovar, ampliar |
+| Terminar un apartado antes de tiempo, sin vender | **Devolver** la boleta (D-257) | **Liberar**, que deshace una venta (Anexo C); soltar, cancelar el apartado |
+| Cuántas boletas puede tener apartadas a la vez cada vendedor | **Cupo** (D-257) | Límite, cuota, máximo de reservas |
+| La sección del vendedor con sus apartados vigentes | **Tus apartados** (D-257) | Mis reservas, separadas, en espera |
+| La sección de la ficha de una rifa con la duración y el cupo | **Apartados de los vendedores** (D-257) | Reservas, configuración de bloqueos |
+| Ahí, las boletas que los vendedores tienen sin vender | **Con vendedores, sin vender** (D-257): las tres cifras —«Libres», «Apartadas ahora» y esta— suman las «Disponibles» de la rifa | «Con vendedores» a secas, que también incluiría las vendidas |
 | Desprendible que la boleta trae para el cliente | **Paz y salvo** | Recibo, comprobante, talón, colilla, ticket |
 | Que el vendedor ya se lo dio en mano | **Paz y salvo entregado**; en una tabla o tarjeta estrecha, **Entregado** | Recibido, firmado, cerrado |
 | Que todavía no | **Paz y salvo por entregar**; donde no cabe, **Por entregar** | Pendiente, sin entregar, debe |
@@ -570,9 +591,48 @@ una de las veinticinco filas.
 > números se juntaron en una sola llamada «Boleta» —que cabe entera— con la leyenda «Diario ·
 > Semanal» debajo. La regla sigue vigente tal cual, y la paginación la sigue aplicando con «1 de 5».
 
-**Cómo se nombra una boleta en pantalla:** por sus **dos números**, «1234 / 5678» (BR-N11). El
+**Cómo se nombra una boleta en pantalla:** por sus **números**, «1234 / 5678» (BR-N11); la de una rifa de un solo
+número, por ese número, «387», sin «/» ni hueco (D-261). El
 **código interno** es información administrativa: aparece solo dentro del detalle de la boleta y
 nunca se ofrece como forma de buscar. Un texto que diga «busca por código» está mal.
+
+**Los números se llaman como los llamó la rifa** (D-261). El dueño decide al crear la rifa si cada boleta lleva uno o
+dos números, cómo se llama cada uno y cuántas cifras tiene. A partir de ahí la pantalla no inventa nombres: usa los
+suyos. Tres formas, según dónde va el nombre, y las tres salen de `lib/ticket-number-format.ts`:
+
+| Dónde | Cómo se escribe | Ejemplo |
+|---|---|---|
+| Rótulo de un campo, una caja, una columna o un desplegable | El título | «Número diario», «Número mayor», «Número» |
+| Dentro de una frase | En minúscula, con «número» delante | «el número mayor», «del número semanal» |
+| Un aviso que cita el nombre literal | Entre comillas angulares | «El número «Seco» lleva exactamente 2 cifras, y 123 tiene 3.» |
+| La leyenda de una lista y las tarjetas | Los nombres a secas, en orden (D-130) | «Diario · Semanal», «Mayor · Seco» |
+
+La rifa de siempre suena **exactamente igual que antes**: se llama «Diario» y «Semanal», y sus títulos son «Número
+diario» y «Número semanal». **«Grupo» es la palabra de la documentación, no de la pantalla**: el formulario dice
+«Primer número» y «Segundo número».
+
+**Antes de crear la rifa se resume y se dice que no cambia después.** Es lo único que el dueño no puede deducir del
+formulario, y es definitivo. El diálogo se titula **«Revisa los números de la boleta»**, enumera cada número
+—«Mayor, de 4 cifras (0000 a 9999)»— y dice la consecuencia: «Después de crear la rifa no podrás cambiar cuántos
+números tiene cada boleta, sus nombres ni sus cifras.». Los botones son **«Crear rifa»** y **«Volver»**. En la
+edición, la sección se lee y lo dice: «Los números de una rifa no se cambian después de crearla.»
+
+**Un error de cifras dice qué escribir.** «El número «Número» lleva exactamente 3 cifras: escribe 007.» y no «formato
+inválido»: los ceros de delante cuentan y **nada se rellena solo** (BR-N03), así que la salida es escribirlos. Con más
+cifras de las que caben, la frase dice cuántas tiene lo escrito. Son **las mismas frases en la pantalla y en la base**.
+
+**El generador dice el ancho con el número de la rifa**, porque es lo único que no se ve en el campo: «Cada número sale
+con las cifras de la rifa: «Diario» tiene 4, así que del 0 al 5 crea 0000, 0001, … 0005.». La vista previa enseña el
+**formato final**, con los ceros puestos.
+
+**El importador conserva las columnas del Excel de siempre.** En la rifa de siempre siguen siendo **«Premio semanal»** y
+**«Premio diario»** —son los nombres de las columnas del archivo, no términos de pantalla—; en otra rifa, los nombres
+de sus números.
+
+**Las boletas que ya existían fuera de formato se explican sin culpar a nadie.** El personal lee, en la ficha de la
+rifa, «Boletas sin el formato de esta rifa» y «Se crearon antes de que la rifa tuviera sus números definidos y no se
+cambiaron: no se pueden aprobar ni vender hasta que se corrijan.», con la salida: abrir cada una para corregir sus
+números o, si nunca se vendió, eliminarla. Quien intenta venderla lee cuál es y por qué.
 
 **Nombrar una boleta y titular una pantalla no son lo mismo** (D-126). El encabezado del detalle de
 una boleta dice **«Detalle boleta»**, a secas, en los dos portales. Decía «4593 / 8868» con
@@ -597,8 +657,9 @@ que de verdad está pasando: «Los números de una boleta tienen 4 cifras como m
 buscamos el teléfono del cliente». Un resultado que la persona no sabe explicar parece un fallo.
 
 **En el portal administrativo ese mismo buscador encuentra solo números** (D-198, BR-Q05). El personal
-no ve clientes, así que ahí se dice lo que sí sirve y nada más: con letras, **«Escribe solo el número
-diario o el semanal de la boleta.»**; con más de cuatro cifras, **«Los números de una boleta tienen 4
+no ve clientes, así que ahí se dice lo que sí sirve y nada más: con letras, **«Escribe solo uno de los
+números de la boleta.»** —hasta D-261 decía «el número diario o el semanal», que en una rifa con otros nombres
+sería falso—; con más de cuatro cifras, **«Los números de una boleta tienen 4
 cifras como máximo.»**, sin la segunda frase del vendedor, porque ahí no se busca ningún teléfono.
 **Nunca se escribe «ese cliente no existe»** ni nada que cambie según el nombre buscado: un nombre real
 y uno inventado tienen que recibir exactamente la misma respuesta.
@@ -867,6 +928,16 @@ siempre debajo: «Queda guardado en el historial de la boleta.» El botón dice 
 liberación»** y, mientras trabaja, **«Liberando...»** —no «Procesando...», que no dice qué se está
 haciendo—. Al terminar, el aviso nombra la boleta por sus dos números: «La boleta 1234 / 5678 quedó
 disponible.»
+
+**Si la venta salió de un apartado, el diálogo dice a dónde va la boleta** (D-258, BR-I32). Liberarla ya no la deja
+con quien la vendió: vuelve al inventario común. Es lo único que esa persona no puede deducir de la pantalla —la
+boleta está en «Mis boletas» y parece suya—, así que la primera frase cambia: «Dejará de estar asignada a {nombre} y
+volverá al inventario común, de donde la apartaste: saldrá de tus boletas y cualquier vendedor podrá apartarla otra
+vez, tú también. Se borran el precio y la fecha de esta venta; los números y la rifa no cambian.» «El vendedor» sale
+de lo que no cambia, porque cambia. Al terminar, el aviso dice **«La boleta 1234 / 5678 volvió al inventario
+común.»** —la familia de «La boleta volvió al inventario común.», que es lo que dice devolver un apartado— y la
+pantalla vuelve a «Mis boletas», porque el detalle de una boleta que ya no es suya no se puede abrir. Se escribe
+**volver**, no **devolver**: devolver es terminar un apartado (Anexo A), y aquí se deshace una venta.
 
 **Y la rifa cerrada tiene su propia frase, porque afecta a una sola acción** (D-169). «La rifa ya no
 está activa: esta boleta no se puede liberar.» Ahí «Cambiar cliente» **sí** se puede (D-168), así que
@@ -1830,6 +1901,29 @@ la agregó puede corregirle el correo o eliminar el alta, y en cuanto entra ya n
 un integrante recién agregado —que es lo que hacía la aplicación antes de 2026-08-14— sugería un
 castigo donde solo había una espera.
 
+**El inventario común dice lo justo para no equivocarse de boleta** (D-257). Antes de apartar, la
+confirmación escribe los **dos números, cada uno con su nombre**: un número diario se repite en
+varias boletas, y apartar «el 1234» equivocado es el error que esa pantalla tiene que evitar. La
+consecuencia que no se ve —que el apartado vence solo— se dice antes de confirmar: «La tendrás 30
+minutos para venderla. Si no la vendes ni la devuelves, vuelve sola al inventario común.».
+
+**«Libre» no es «Disponible».** *Disponible* es el estado de cualquier boleta sin cliente; *libre*
+es, además, que está en el inventario común y nadie la tiene apartada. Por eso el catálogo interno
+pinta «Libre» y no la insignia de estado: «Disponible» ahí sería verdad también para una apartada.
+
+**Lo ajeno se nombra sin dueño.** «No disponible» no dice si la tiene otro vendedor, si está apartada
+o si se vendió, y así tiene que ser (BR-I21): cualquier pista sobre la cartera de otro está fuera. El
+personal sí lee «Apartada por Ana Torres», porque eso es inventario y no cartera.
+
+**La hora del vencimiento ya trae su punto.** «Vence a las 3:40 p. m.» termina en el punto de «p. m.»:
+una frase que acaba con la hora no lleva otro (es la misma regla de `formatClockEs`). Una prueba
+unitaria lo vigila en todo el módulo.
+
+**Lo que se cuenta, se cuenta en lo que dice el botón.** La vista previa del generador titula con las
+boletas que **se van a crear** —«Se crearán 2 boletas»—, que es lo que dice el botón, y el aviso
+dice de dónde sale: «De las 8 combinaciones, 6 ya existen en la rifa: no se crean otra vez.». Si no
+hay ninguna nueva, no hay botón: «Generar 0 boletas» no es una acción.
+
 ## Anexo B — Dónde vive cada texto
 
 | Tipo de texto | Dónde se escribe |
@@ -1859,8 +1953,9 @@ castigo donde solo había una espera.
 | Rótulos y textos de la ficha del cliente | `src/features/clients/components/ClientInfoCard.tsx` y `ClientTotals.tsx` (D-113) |
 | Rótulos del resumen de pago de una boleta («Abonado», «Pendiente», «de $120.000») | `src/features/tickets/components/TicketPaymentSummary.tsx` (D-124) |
 | Los títulos de las seis tarjetas del detalle de boleta del vendedor: «Números de la boleta», «Cliente», «Información de venta», «Estado y resumen de pago», «Abonos de esta boleta» y «Detalles de la boleta» | El `title` de cada `TicketDetailCard` en `src/app/(protected)/seller/tickets/[ticketId]/page.tsx`; «Números de la boleta», en `TicketNumbersCard` (`features/tickets/components/TicketDetailParts.tsx`, D-234); los dos de las tarjetas que son componentes, en `TicketPaymentSummary.tsx` y `TicketPaymentsCard.tsx` (D-231). «Resumen de pago» ya no se escribe como rótulo: lo dice el título |
-| Los títulos de las cuatro tarjetas del detalle de boleta del **personal** —«Números de la boleta», «Vendedor y rifa», «Estado y venta» y «Detalles de la boleta»— y sus rótulos: «Vendedor», «Rifa», «Estado», «Estado de pago», «Sin venta», «Fecha de venta», «Paz y salvo», «Creada», «Aprobada», «Todavía no», «Anulada», «Motivo de anulación» y «Código interno» | `src/app/(protected)/owner/tickets/[ticketId]/page.tsx` (D-234); «Números de la boleta», en `TicketNumbersCard`, **la misma** del vendedor. «Todavía no» solo acompaña a «Aprobada» en una boleta **pendiente**: las del personal nunca se aprueban, y ahí la fila no se escribe |
+| Los títulos de las cuatro tarjetas del detalle de boleta del **personal** —«Números de la boleta», «Vendedor y rifa», «Estado y venta» y «Detalles de la boleta»— y sus rótulos: «Vendedor», «Rifa», «Estado», «Estado de pago», «Sin venta», «Fecha de venta», «Paz y salvo», «Creada», «Anulada», «Motivo de anulación» y «Código interno» | `src/app/(protected)/owner/tickets/[ticketId]/page.tsx` (D-234); «Números de la boleta», en `TicketNumbersCard`, **la misma** del vendedor, y la fila «Aprobada», en `ApprovalDetailLine` (I-211) |
 | La nota del código interno —«El código interno lo genera el sistema para identificar la boleta por dentro. Para buscarla, usa sus números.»— y «Sin número», lo que se oye cuando falta uno de los dos números | `InternalCodeNote` y `TicketNumbersCard`, en `TicketDetailParts.tsx`, **una vez para los dos portales** (D-234). «Sin número» es `sr-only`: a la vista sigue la raya |
+| La fila «Aprobada» de «Detalles de la boleta» y su «Todavía no», en los **dos** portales | `ApprovalDetailLine`, en `TicketDetailParts.tsx`, **una vez para los dos portales** (D-234, I-211). Dice la fecha si la boleta se aprobó y «Todavía no» **solo** en una pendiente de aprobación; en las demás —las que crea el personal, que nunca se aprueban— la fila no se escribe. El «Todavía no» de «Fecha de venta» y de «Asignada», en el detalle del vendedor, sigue en su página |
 | Lo que va dentro de un anillo: el pie bajo el porcentaje | Lo pasa quien lo usa, en `caption` / `centerCaption` (D-124) |
 | Nombres del menú (lateral, barra inferior y menú de usuario) | El `layout.tsx` de cada portal: `label` y, para la barra inferior, `shortLabel` (D-106) |
 | «Cerrar el menú» y «Abrir el menú», los **dos únicos** textos de ese botón | `src/components/layout/AppSidebar.tsx` (D-131, D-132) |
@@ -1899,7 +1994,7 @@ castigo donde solo había una espera.
 | Los dos avisos de por qué una boleta ya no puede cambiar de cliente **ni liberarse** | `src/features/tickets/reassign-client.ts`, **los dos juntos** (D-168, ensanchados en D-169) |
 | El aviso de la rifa cerrada, y quién de los tres se pinta | `src/features/tickets/release-ticket.ts` (`ticketClientNotice`, D-169) |
 | Todos los textos del paz y salvo: título, ayuda, los dos estados, su forma corta, la nota de la carga inicial y «Guardando…» | `src/features/tickets/clearance-receipt.ts` (`CLEARANCE_COPY`), **todos juntos** (D-170) |
-| Título, aviso, rótulos y botones de liberar una boleta | `src/features/tickets/components/ReleaseTicketDialog.tsx` — «Liberar boleta», «Número diario», «Número semanal», «Cliente actual», «Motivo de la liberación», «Confirmar liberación», «Liberando...» (D-169) |
+| Título, aviso, rótulos y botones de liberar una boleta | `src/features/tickets/components/ReleaseTicketDialog.tsx` — «Liberar boleta», «Número diario», «Número semanal», «Cliente actual», «Motivo de la liberación», «Confirmar liberación», «Liberando...» (D-169); y, si la venta salió de un apartado, el aviso que dice que vuelve al inventario común y «La boleta … volvió al inventario común.» (D-258) |
 | Estado vacío del buscador de clientes al cambiar el cliente | El `emptyMessage` que le pasa `ReassignTicketClientDialog` a `ClientOptionsPicker` (D-168) |
 | Quién recibe el abono, debajo del título | `src/features/payments/components/PaymentClientBanner.tsx` — «Abono para», **Cambiar** (el nombre accesible sigue siendo «Cambiar de cliente», D-138) |
 | Rótulos de cada boleta en el teléfono al repartir un abono | `src/features/payments/components/PaymentAllocationCards.tsx` — «Boleta», «Debe», «Abonar ahora», «Saldo después del abono», «Quedará» (D-138) |
@@ -1921,7 +2016,7 @@ castigo donde solo había una espera.
 | Pantalla sin conexión | `src/app/offline/page.tsx` y `components/OfflineRetry.tsx` (D-116) |
 | «Preparando el formulario…» y el aviso sin JavaScript, en todo formulario que llega en el HTML del servidor | `src/components/form/HydratedSubmitButton.tsx` (`FORM_PREPARING_LABEL` y `FORM_NEEDS_JAVASCRIPT`; D-247, D-249). Ningún formulario los escribe: los de acceso y de contraseña los reciben de `AuthSubmitButton`, y los de cliente, rifa y boleta usan `HydratedSubmitButton` y `FormNoScriptNotice` |
 | «Mostrar …» y «Ocultar …», el nombre del ojo de un campo de contraseña | Los dos verbos, en `src/components/form/PasswordInput.tsx` (D-255, D-256), en un `sr-only` del botón y **no** en `aria-label`, que `getByLabel('Contraseña')` también lee. Lo que muestra lo pasa cada formulario en `subject`: «contraseña» por defecto (el ingreso); «nueva contraseña» y «confirmación de contraseña» en `ResetPasswordForm` y `ChangePasswordForm` |
-| Asunto y texto de los dos correos de Auth: la invitación («Tu invitación a Rifas», «Crear mi contraseña») y el de elegir contraseña («Elige tu contraseña de Rifas», «Elegir mi contraseña»), que también sale con «Reenviar acceso por correo» | `supabase/templates/invite.html` y `recovery.html`; los asuntos, en `supabase/config.toml` (I-206, D-254). **En producción viven en el panel de Supabase**: cambiar uno es cambiar el archivo y pegarlo allí. El de elegir contraseña no da por hecho que la persona la pidió. Una prueba unitaria vigila el enlace y los asuntos |
+| Asunto y texto de los dos correos de Auth: la invitación («Tu invitación a Rifas», «Crear mi contraseña») y el de elegir contraseña («Elige tu contraseña de Rifas», «Elegir mi contraseña»), que también sale con «Reenviar acceso por correo» | `supabase/templates/invite.html` y `recovery.html`; los asuntos, en `supabase/config.toml` (I-206, D-254). **En producción viven en el panel de Supabase**: cambiar uno es cambiar el archivo y pegarlo allí, con el SMTP propio activo, que es cuando el panel deja editarlas. El de elegir contraseña no da por hecho que la persona la pidió. Una prueba unitaria vigila el enlace y los asuntos |
 | «Estamos actualizando Rifas», «Vuelve a entrar en unos minutos. Lo que ya registraste sigue guardado.» y «Reintentar», la pantalla de la pausa | `src/app/mantenimiento/page.tsx` (D-239) |
 | «Estamos actualizando Rifas. Vuelve a intentarlo en unos minutos.», lo que responde una acción durante la pausa | `src/lib/maintenance-pause.ts` (`MAINTENANCE_PAUSE_MESSAGE`, D-239). **Vive también en SQL**, en `supabase/maintenance/pausa.sql`, para quien llame a la API: una prueba unitaria compara las dos letra por letra |
 | «No pudimos comprobar tu acceso. Vuelve a intentarlo en unos segundos.», lo que responde una acción o una ruta de la API cuando no se pudo leer la membresía | `src/lib/auth/membership-check.ts` (`MEMBERSHIP_CHECK_MESSAGE`, D-248). Las pantallas no lo escriben: caen en la página de error general |
@@ -2006,6 +2101,16 @@ castigo donde solo había una espera.
 | «Cierre de cuentas» y «Mi cierre de cuentas» en el menú | El `label` de cada portal, en su `layout.tsx` (D-106); son las mismas palabras de `SETTLEMENT_COPY.nav` |
 | Lo que responde la base al confirmar, registrar un premio, anular o cerrar | Los `raise` de la `0080`: dicen quién confirma («Lo que entrega Luis Pérez lo confirma su vendedor a cargo, Carlos Ruiz.»), el tope con la cifra y las fechas. Las que también comprueba el formulario —el tope, el importe vacío, el motivo, el pagador— usan **las mismas palabras** en `SETTLEMENT_COPY` |
 | «Este premio ya tiene un pago registrado.» y «Esta confirmación ya se había enviado con otros datos. Vuelve a abrir la cuenta.», los duplicados | `src/lib/errors.ts` (`CONSTRAINT_MESSAGES`, por los índices `settlement_prize_payments_live_key` y los dos `…_request_key`, D-241): la red de abajo, con **las mismas palabras** que las RPC dicen antes |
+| Todos los textos del inventario común: el generador y su vista previa, la custodia en las listas del personal, los dos lotes, la configuración de los apartados, el catálogo interno, «Tus apartados» y el aviso de «Mis boletas» | `src/features/inventory/copy.ts` (`INVENTORY_COPY` y `AVAILABILITY_LABELS`), **todos juntos** (D-257). Una prueba unitaria barre el módulo en busca de términos prohibidos, de promesas de envío y de dos puntos seguidos |
+| Las frases que rechazan un rango del generador | `src/features/inventory/rules.ts` (`RANGE_MESSAGES`). **Viven también en SQL**, en `ticket_generation_range_problem` de la `0081`, y una prueba de base las compara letra por letra: cambiar una es cambiar las dos, con una migración nueva |
+| Lo que responde la base al apartar, pedir los 30 minutos, devolver, vender desde un apartado, asignar o recuperar | Los `raise` de la `0081`: el cupo con su cifra —«Ya tienes 2 boletas apartadas en esta rifa, que es el máximo…»—, «Este apartado ya terminó…» y «No se realizó ningún cambio: …», que dice cuántas de las seleccionadas ya no servían |
+
+| Todos los textos de «Números de cada boleta»: el formulario, el resumen antes de crear y la nota de solo lectura; y el aviso de las boletas sin el formato de la rifa | `src/features/raffles/number-groups.ts` (`RAFFLE_NUMBER_GROUPS_COPY` y `NONCONFORMING_COPY`, D-261) |
+| Las frases que rechazan los números de una rifa y los de una boleta | `src/lib/ticket-number-format.ts` (`NUMBER_GROUPS_MESSAGES` y `TICKET_NUMBER_MESSAGES`). **Viven también en SQL**, en `raffle_number_groups_problem` y `ticket_numbers_problem` de la `0084`, y una prueba de base las compara letra por letra |
+| El título, la frase y la descripción de cada número —«Número diario», «el número mayor», «Diario, de 4 cifras (0000 a 9999)»— | `numberGroupTitle`, `numberGroupPhrase` y `numberGroupDescription`, en `src/lib/ticket-number-format.ts` (D-261). Ninguna pantalla los compone a mano |
+| Las frases del rango de cada número en el generador, y la ayuda del ancho | `GROUP_RANGE_MESSAGES` en `src/features/inventory/rules.ts` —también en SQL, `ticket_generation_group_range_problem` de la `0084`— y `INVENTORY_COPY.generator.groupWidthHint` (D-261) |
+| Las columnas que espera el importador y su pregunta en el mapeo | `importColumns`, en `src/features/tickets/import/sample.ts` (D-261) |
+| Lo que un premio no puede comparar —un número que la rifa no tiene, o más cifras de las suyas— | `prizeGroupProblem` y `PRIZE_FORM_COPY.digitsLimited`, en `src/features/raffle-prizes/copy.ts`, con las **mismas** frases que `raffle_prize_version_problem` de la `0084` |
 
 Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extrae.
 
@@ -2028,6 +2133,10 @@ Un mismo mensaje no se escribe dos veces: si dos pantallas lo necesitan, se extr
 | El Anexo A prohíbe «descuento» para la rebaja, y el cierre dice que un premio «se descuenta de la entrega» | Es otro concepto: restar un premio pagado. En el cierre solo se usa el **verbo** —«Se descuenta de la entrega», «Este valor se descontará de lo que Ana te entrega»—; el sustantivo «descuento» no se escribe ahí, y en una venta sigue siendo **rebaja** |
 | «Entregado» es la forma corta del paz y salvo, y el cierre habla de dinero entregado | En el cierre se escribe **con su sujeto o su importe** —«Ya entregaste», «Entregó Ana», «Entregado» solo como rótulo de una cifra en la comparación de un cierre—; el paz y salvo nunca aparece en esas pantallas, y el cierre nunca en la lista de boletas |
 | «Premios ganados» no puede escribir «pagado», y el cierre registra premios pagados | Las dos reglas siguen: «Premios ganados» no sabe si un premio se pagó y no lo dice; el cierre lo dice **solo** cuando alguien lo registró, con quién y cuándo |
+| «Apartar» estaba en lo que no se dice para «Solicitar», en el catálogo público, y desde D-257 es un término del glosario | Las dos cosas siguen: en el catálogo **público** no se aparta nada y se dice «Solicitar» —y su pie, «Tocar «Solicitar» no aparta el número», es ahora todavía más exacto—; **apartar** es solo lo que hace un vendedor en el inventario común |
+| «Devolver» estaba en lo que no se dice para **liberar**, y desde D-257 nombra terminar un apartado | No se cruzan: **liberar** deshace una venta —la boleta se queda con su vendedor, salvo que esa venta saliera de un apartado: entonces **vuelve** al inventario común (D-258)—; **devolver** termina un apartado y la boleta vuelve al inventario común. Ninguna pantalla ofrece las dos sobre la misma boleta |
+| «No disponible» está prohibido para la boleta tomada del catálogo **público**, y el encargo de D-257 pide que el vendedor vea lo ajeno «como libre o no disponible» | Manda el encargo en el catálogo **interno** (`CLAUDE.md` §35.2.4): dice que no la puede tomar sin decir por qué, que es justo lo que pide la privacidad (BR-I21). El catálogo público no cambia |
+| El encargo de D-261 habla de «grupos de números», y la pantalla dice «número» | Manda la comprensión (`CLAUDE.md` §35.2.4): para quien vende, cada boleta tiene **números**, no grupos. El formulario dice «Primer número» y «Segundo número», y «grupo» se queda en el código y la documentación |
 
 ## Anexo D — Estado de aplicación
 

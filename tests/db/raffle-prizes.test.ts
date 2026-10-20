@@ -376,10 +376,13 @@ describe('J1 — quién puede configurar premios (BR-J10, D-200)', () => {
     // MEMBRESÍA COMPLETA. Aquí se le da la de verdad —leída de la base— y se
     // compara con lo que responde `has_org_capability` con la identidad de esa
     // misma persona, que es la autoridad.
+    // El Administrador tiene todas MENOS la de los apartados, que es solo del
+    // Dueño (D-257, BR-I27).
+    const SOLO_DUENO = new Set(['raffles.holds.manage'])
     const personas = [
-      { rol: 'owner', id: ctx.ids.owner, espera: true },
-      { rol: 'admin', id: ctx.ids.admin, espera: true },
-      { rol: 'seller', id: ctx.ids.seller1, espera: false },
+      { rol: 'owner', id: ctx.ids.owner, espera: () => true },
+      { rol: 'admin', id: ctx.ids.admin, espera: (c: string) => !SOLO_DUENO.has(c) },
+      { rol: 'seller', id: ctx.ids.seller1, espera: () => false },
     ] as const
 
     for (const persona of personas) {
@@ -432,7 +435,9 @@ describe('J1 — quién puede configurar premios (BR-J10, D-200)', () => {
           await db.query('rollback')
         }
 
-        expect(puede, `PostgreSQL · ${persona.rol} · ${capability}`).toBe(persona.espera)
+        expect(puede, `PostgreSQL · ${persona.rol} · ${capability}`).toBe(
+          persona.espera(capability),
+        )
         expect(
           await hasCapability(membership, capability),
           `aplicación · ${persona.rol} · ${capability}`,

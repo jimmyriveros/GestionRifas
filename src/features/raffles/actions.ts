@@ -9,6 +9,7 @@ import { mapPgError } from '@/lib/errors'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult, ActionResultWith } from '@/lib/action-result'
 
+import { numberGroupsToRow } from './number-groups'
 import { changeRaffleStatusSchema, createRaffleSchema, updateRaffleSchema } from './schemas'
 
 /**
@@ -59,6 +60,9 @@ export async function createRaffle(input: unknown): Promise<ActionResultWith<{ i
       end_date: values.endDate,
       allow_seller_ticket_creation: values.allowSellerTicketCreation,
       created_by: auth.membership.profileId,
+      // D-261: los números de cada boleta, para siempre. La base los vuelve a
+      // validar y no deja cambiarlos después (raffles_guard_number_groups).
+      ...numberGroupsToRow(values),
       // D-202: una rifa nueva define SUS premios. Las que ya existian siguen
       // en `legacy` y ninguna sesion puede convertirlas (BR-J13).
       prize_mode: 'configurable',

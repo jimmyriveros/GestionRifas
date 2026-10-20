@@ -8,6 +8,9 @@ import { cn } from '@/lib/utils'
 import type { ImportReview, ImportRowStatus, ReviewedRow } from '../review'
 import { StatusBadge } from '@/components/data/StatusBadge'
 import type { StatusTone } from '@/lib/constants'
+import { LEGACY_NUMBER_FORMAT, type RaffleNumberFormat } from '@/lib/ticket-number-format'
+
+import { importColumns } from '../sample'
 
 /**
  * Vista previa de lo que se va a importar.
@@ -27,6 +30,8 @@ import type { StatusTone } from '@/lib/constants'
 
 type ImportPreviewProps = {
   review: ImportReview
+  /** D-261: cómo se llama cada número de la rifa, y cuántos son. */
+  numberFormat?: RaffleNumberFormat
   /** `false` mientras se comprueba contra la rifa. */
   checked: boolean
 }
@@ -64,7 +69,13 @@ function EstadoBadge({ status }: { status: ImportRowStatus }) {
 
 const POR_PAGINA = 50
 
-export function ImportPreview({ review, checked }: ImportPreviewProps) {
+export function ImportPreview({
+  review,
+  checked,
+  numberFormat = LEGACY_NUMBER_FORMAT,
+}: ImportPreviewProps) {
+  // Las columnas en el orden del archivo, con sus nombres (D-261).
+  const columns = importColumns(numberFormat)
   const [soloProblemas, setSoloProblemas] = useState(false)
   const [pagina, setPagina] = useState(0)
 
@@ -142,8 +153,11 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
           <thead>
             <tr className="border-b">
               <th className="hidden h-10 px-3 text-left font-medium sm:table-cell">Fila</th>
-              <th className="h-10 px-3 text-left font-medium">Premio semanal</th>
-              <th className="h-10 px-3 text-left font-medium">Premio diario</th>
+              {columns.map((column) => (
+                <th key={column.slot} className="h-10 px-3 text-left font-medium">
+                  {column.header}
+                </th>
+              ))}
               <th className="h-10 px-3 text-left font-medium">Resultado</th>
               <th className="hidden h-10 px-3 text-left font-medium md:table-cell">Problema</th>
             </tr>
@@ -157,8 +171,11 @@ export function ImportPreview({ review, checked }: ImportPreviewProps) {
                 <td className="text-muted-foreground hidden px-3 py-2 text-xs tabular-nums sm:table-cell">
                   {row.rowNumber}
                 </td>
-                <td className="px-3 py-2 font-mono tabular-nums">{row.weeklyNumber || '—'}</td>
-                <td className="px-3 py-2 font-mono tabular-nums">{row.dailyNumber || '—'}</td>
+                {columns.map((column) => (
+                  <td key={column.slot} className="px-3 py-2 font-mono tabular-nums">
+                    {(column.slot === 'daily_number' ? row.dailyNumber : row.weeklyNumber) || '—'}
+                  </td>
+                ))}
                 <td className="px-3 py-2">
                   <EstadoBadge status={row.status} />
                   {/* En pantallas estrechas no hay columna «Problema»: el

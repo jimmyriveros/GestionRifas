@@ -4,9 +4,12 @@
 > especificaciones paralelas. En caso de conflicto se aplica la jerarquía de D-086 y se investiga la
 > diferencia antes de cambiar comportamiento.
 
-- **Versión del documento:** 1.18
+- **Versión del documento:** 1.20
 - **Fase que lo produce:** Fase 0 — Arquitectura y planificación
-- **Última actualización:** 2026-10-01 (§9.9: el cierre de cuentas, **en producción**). Antes, 2026-09-30, al final
+- **Última actualización:** 2026-10-19, más tarde (§9.10: liberar una venta que salió de un apartado devuelve la
+  boleta al inventario común —decisión del dueño, D-258, **solo en local**—). Antes, ese mismo día (§6, F3, **§9.10
+  nueva** y §10: el inventario común, la generación por rangos y los apartados, D-257, **solo en local**). Antes,
+  2026-10-01 (§9.9: el cierre de cuentas, **en producción**). Antes, 2026-09-30, al final
   (§9.9: **la puesta en marcha** del cierre de cuentas registra la
   historia real, D-242). Antes, ese mismo día (**§9.9 nueva**: el **cierre de cuentas** —D-241, `0080`, **solo en
   local**—; §9.1, §9.2 y §9.8 lo nombran). Antes, 2026-09-19, más tarde (§9.5: **Bre-B** y **Otros**, en producción). Antes, ese mismo día
@@ -132,7 +135,9 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 | `memberships` | Vínculo usuario ↔ organización + rol + estado activo | organización |
 | `raffles` | Rifas | organización |
 | `clients` | Clientes | organización + vendedor |
-| `tickets` | Boletas | organización + rifa + vendedor (+ cliente cuando se vende) |
+| `tickets` | Boletas | organización + rifa + vendedor (+ cliente cuando se vende). **Sin vendedor = inventario común** de la rifa (D-257, solo en local) |
+| `ticket_holds` | Apartados temporales de boletas del inventario común (D-257, solo en local) | organización + rifa + boleta + vendedor |
+| `ticket_generation_runs` | Generaciones de boletas por rangos (D-257, solo en local) | organización + rifa |
 | `payments` | Pagos recibidos | organización + vendedor + cliente |
 | `payment_allocations` | Reparto de un pago entre boletas | pago + boleta |
 | `audit_logs` | Bitácora de cambios críticos | organización |
@@ -162,6 +167,11 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 5. Puede guardar parcialmente como borrador (`draft`).
 6. Validación por fila en cliente, servidor y base de datos.
 7. Al completarse una fila válida y aprobada, la boleta queda `available`.
+
+**Desde D-257 (solo en local)** «Crear en lote» ofrece además **«Generar por rangos»**: un rango de números diarios y
+otro de semanales, todas sus combinaciones —hasta 100.000—, al **inventario común** de la rifa, sin vendedor. Hay vista
+previa, se crea por bloques y una interrupción se continúa (BR-N15..BR-N18). Después se **asignan** por lotes a los
+vendedores, o los vendedores las **apartan** (§9.10).
 
 ### F4 — Creación de boletas por vendedor
 1. Solo si la rifa tiene `allow_seller_ticket_creation = true`.
@@ -238,8 +248,11 @@ Resumen; el detalle normativo está en `docs/DATA_MODEL.md`.
 
 Detalle normativo con identificadores en `docs/BUSINESS_RULES.md`.
 
-1. `daily_number` y `weekly_number` son **texto**, 1 a 4 dígitos, con ceros iniciales conservados.
-2. La combinación (`organization_id`, `raffle_id`, `daily_number`, `weekly_number`) es **única**.
+1. `daily_number` y `weekly_number` son **texto**, 1 a 4 dígitos, con ceros iniciales conservados. **Desde D-261
+   (solo en local)** cada rifa define al crearse si sus boletas llevan uno o dos números, sus nombres y sus cifras
+   **exactas** (2, 3 o 4), y eso no cambia después (BR-N19..BR-N25); las que ya existían, «Diario» y «Semanal» de cuatro.
+2. La combinación (`organization_id`, `raffle_id`, `daily_number`, `weekly_number`) es **única**; en una rifa de un
+   solo número, ese número (BR-N22).
 3. La unicidad aplica **entre vendedores** y también a combinaciones **anuladas** (no se reutilizan en el MVP).
 4. La misma combinación **sí** puede existir en otra rifa.
 5. `sale_price` es lo que debe el cliente, fijado al vender: el precio de la rifa, o menos si el
@@ -567,6 +580,27 @@ cero, porque la cuenta suma todas las boletas pagadas de la rifa. Una cuenta con
 nada no se trata como definitiva hasta que el dueño confirme si hubo premios, y lo de un vendedor a cargo se registra
 antes de desactivarlo.
 
+### 9.10 Inventario común y apartados — **SOLO EN LOCAL** (D-257 y D-258, BR-N15..BR-N18, BR-I17..BR-I32)
+
+El **Dueño y el Administrador** **generan por rangos** —hasta 100.000 de una vez— boletas sin vendedor en el
+**inventario común** de una rifa (crear a mano y en lote sigue pidiendo vendedor), las **asignan** por lotes a un
+vendedor —sin vencimiento ni cupo— y
+**recuperan** las que un vendedor tiene sin vender, sin tocar ventas, clientes ni pagos. En «Boletas» un filtro dice qué
+hay en el inventario común, qué está apartado y por quién, y qué tiene cada vendedor; la ficha de la rifa lo resume.
+
+Cada **vendedor** busca en «Inventario común» (`/seller/inventory`) por número diario, semanal o los dos, ve los dos
+números antes de **apartar** una boleta libre —sin aprobación, 30 minutos, hasta 10 a la vez por rifa—, puede pedir
+**una vez** 30 minutos más, **devolverla** o **venderla** con la venta de siempre. Al vencer o devolverse vuelve sola al
+inventario común. De lo ajeno solo sabe «No disponible». La duración y el cupo los configura **solo el Dueño**, por
+rifa. La base decide disponibilidad, hora, permisos y cupos; las pantallas se refrescan solas.
+
+Si el vendedor **libera** una boleta que vendió desde un apartado —el cliente desistió antes de abonar—, la boleta
+**vuelve al inventario común**, libre para cualquiera; las demás se siguen quedando con su vendedor al liberarse
+(decisión del dueño, D-258, BR-I32).
+
+Las boletas que ya existían conservan su vendedor; nada pasa solo al inventario común. **La validación legal pendiente
+para comercializar y operar sigue sin resolverse**: esto es técnico.
+
 ---
 
 ## 10. Fuera de alcance del MVP
@@ -599,6 +633,11 @@ migraciones, el cron de Vercel y la producción (D-149). Desde el 2026-09-01, el
 del encargo `CorrecionesLoterias.txt` acota lo que un tick puede consultar hacia afuera
 (BR-L22, D-152, migración `0041`, **sin desplegar**). El resto de la lista sigue fuera
 de alcance.
+
+⚠️ **El inventario común y los apartados (D-257, 2026-10-19)** no sacan nada de esta lista: no hay carrito ni apartado
+**públicos**, ni pagos en línea, ni documentos de certificación legal, ni el Dueño como vendedor, ni planes o
+suscripciones. Un apartado es del **vendedor**, dentro de la aplicación; un carrito público futuro tendrá que usar esa
+misma disponibilidad (BR-I30).
 
 ---
 

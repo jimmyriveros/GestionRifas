@@ -216,7 +216,7 @@ async function fotografiarCoincidencia(ticketId: string) {
     ticket_id: ticketId,
     organization_id: ticket.organization_id,
     raffle_id: ticket.raffle_id,
-    seller_id: ticket.seller_id,
+    seller_id: ticket.seller_id!,
     client_id: ticket.client_id,
     match_field: 'daily_number',
     matched_number: ticket.daily_number!,

@@ -44,6 +44,9 @@ Reemplaza el control manual en papel y hojas de cálculo por un sistema con:
 - **Selección múltiple y acciones masivas**: se marcan varias boletas y se actúa sobre todas a la
   vez —venderlas al mismo cliente, aprobarlas, anularlas, cambiarles el vendedor o eliminar las que
   se cargaron por error—. En el teléfono hay un modo selección donde la fila entera es la diana.
+- **Inventario común y apartados** (D-257, migración `0081`, **solo en local**): el personal genera por
+  rangos hasta 100.000 boletas sin vendedor, las entrega por lotes y recupera lo no vendido; cada
+  vendedor aparta boletas libres 30 minutos y las vende con la venta de siempre.
 - **Operación desde el teléfono** para los vendedores.
 
 ---

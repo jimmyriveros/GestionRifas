@@ -16,7 +16,7 @@ import { formatCOP } from '@/lib/money'
 import { cn } from '@/lib/utils'
 
 import { ticketFinancials } from '../financials'
-import { hasBothNumbers, TICKET_NUMBERS_LEGEND, TicketNumbersLink } from './TicketNumbers'
+import { ticketNumbersLegend, TicketNumbersLink } from './TicketNumbers'
 
 import type { TicketListItem } from '../queries'
 
@@ -88,9 +88,9 @@ export function ClientTicketCardList({ tickets, basePath }: ClientTicketCardList
                     href={`${basePath}/${ticket.id}`}
                     className="text-lg"
                   />
-                  {hasBothNumbers(ticket) ? (
+                  {ticketNumbersLegend(ticket) !== null ? (
                     <p className="text-muted-foreground truncate text-xs">
-                      {TICKET_NUMBERS_LEGEND}
+                      {ticketNumbersLegend(ticket)}
                     </p>
                   ) : null}
                 </div>

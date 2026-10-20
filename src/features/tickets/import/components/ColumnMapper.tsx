@@ -4,6 +4,9 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
+
+import { importColumns } from '../sample'
 import {
   Select,
   SelectContent,
@@ -33,6 +36,8 @@ import type { ColumnMapping } from '../columns'
  */
 
 type ColumnMapperProps = {
+  /** D-261: qué números pide la rifa y cómo se llaman. */
+  numberFormat: RaffleNumberFormat
   headers: readonly string[]
   /** Primeras filas del archivo, para reconocer las columnas de un vistazo. */
   sampleRows: readonly (readonly string[])[]
@@ -44,6 +49,7 @@ type ColumnMapperProps = {
 const SIN_ELEGIR = 'sin-elegir'
 
 export function ColumnMapper({
+  numberFormat,
   headers,
   sampleRows,
   initial,
@@ -58,9 +64,16 @@ export function ColumnMapper({
   const reconocidas = [initial.clientName, initial.clientPhone, initial.abono]
     .filter((index) => index >= 0)
     .map(String)
-  const selected = [daily, weekly, ...reconocidas].filter((value) => value !== SIN_ELEGIR)
+  const [, secondGroup] = numberFormat.groups
+  const columns = importColumns(numberFormat)
+  const question = (slot: 'daily_number' | 'weekly_number') =>
+    columns.find((column) => column.slot === slot)?.question ?? ''
+  const selected = [daily, ...(secondGroup ? [weekly] : []), ...reconocidas].filter(
+    (value) => value !== SIN_ELEGIR,
+  )
   const noRepeatedColumns = new Set(selected).size === selected.length
-  const listo = daily !== SIN_ELEGIR && weekly !== SIN_ELEGIR && noRepeatedColumns
+  const listo =
+    daily !== SIN_ELEGIR && (!secondGroup || weekly !== SIN_ELEGIR) && noRepeatedColumns
 
   /** «Columna A — 7607, 3929…»: el nombre y un par de valores de muestra. */
   function etiqueta(index: number): string {
@@ -79,9 +92,9 @@ export function ColumnMapper({
         No reconocimos los nombres de las columnas. Dinos cuál es cada número y seguimos.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className={secondGroup ? 'grid gap-4 sm:grid-cols-2' : 'grid gap-4'}>
         <div className="space-y-1.5">
-          <Label htmlFor="map-daily">¿Cuál columna es el premio diario?</Label>
+          <Label htmlFor="map-daily">{question('daily_number')}</Label>
           <Select value={daily} onValueChange={setDaily}>
             <SelectTrigger id="map-daily" className="w-full">
               <SelectValue placeholder="Elige una columna" />
@@ -96,21 +109,23 @@ export function ColumnMapper({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="map-weekly">¿Cuál columna es el premio semanal?</Label>
-          <Select value={weekly} onValueChange={setWeekly}>
-            <SelectTrigger id="map-weekly" className="w-full">
-              <SelectValue placeholder="Elige una columna" />
-            </SelectTrigger>
-            <SelectContent>
-              {headers.map((_, index) => (
-                <SelectItem key={index} value={String(index)}>
-                  {etiqueta(index)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {secondGroup ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="map-weekly">{question('weekly_number')}</Label>
+            <Select value={weekly} onValueChange={setWeekly}>
+              <SelectTrigger id="map-weekly" className="w-full">
+                <SelectValue placeholder="Elige una columna" />
+              </SelectTrigger>
+              <SelectContent>
+                {headers.map((_, index) => (
+                  <SelectItem key={index} value={String(index)}>
+                    {etiqueta(index)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </div>
 
       {!noRepeatedColumns ? (
@@ -126,7 +141,7 @@ export function ColumnMapper({
           onClick={() =>
             onConfirm({
               daily: Number(daily),
-              weekly: Number(weekly),
+              weekly: secondGroup ? Number(weekly) : -1,
               clientName: initial.clientName,
               clientPhone: initial.clientPhone,
               abono: initial.abono,

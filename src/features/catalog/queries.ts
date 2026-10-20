@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { numberFormatFromRow, type RaffleNumberFormat } from '@/lib/ticket-number-format'
+
 import type { RaffleStatus } from '@/lib/constants'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeSearchTerm } from '@/lib/search'
@@ -54,7 +56,8 @@ export const CATALOG_PAGE_SIZE = 50
  */
 export type PublicCatalogTicket = {
   dailyNumber: string
-  weeklyNumber: string
+  /** `null` en una rifa de un solo número (D-261). */
+  weeklyNumber: string | null
 }
 
 export type PublicCatalog = {
@@ -64,6 +67,11 @@ export type PublicCatalog = {
   whatsappNumber: string
   raffleName: string
   ticketPrice: number
+  /**
+   * D-261: cuántos números tiene cada boleta y cómo se llaman. No es dato de
+   * nadie: es como se llama cada número de la boleta (BR-K07).
+   */
+  numberFormat: RaffleNumberFormat
   tickets: PublicCatalogTicket[]
   page: number
   hasNextPage: boolean
@@ -141,6 +149,7 @@ export async function getPublicCatalog({
     whatsappNumber: seller.whatsapp_number,
     raffleName: seller.raffle_name,
     ticketPrice: Number(seller.ticket_price),
+    numberFormat: numberFormatFromRow(seller),
     tickets: fetched.slice(0, CATALOG_PAGE_SIZE).map((row) => ({
       dailyNumber: row.daily_number,
       weeklyNumber: row.weekly_number,

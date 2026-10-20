@@ -17,6 +17,7 @@ import { AssignTicketsForm } from '@/features/tickets/assign/components/AssignTi
 import { useClientCreated } from '@/features/whatsapp/components/ClientCreatedProvider'
 import type { WhatsappSettings } from '@/features/whatsapp/invite'
 import { formatCOP } from '@/lib/money'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 import { ticketLabel } from '@/lib/tickets'
 
 import { allEligible, commonPriceRange, ineligibleFor, whyNot } from '../eligibility'
@@ -132,7 +133,7 @@ export function BulkAssignDialog({
                     <ul className="space-y-1">
                       {blocked.slice(0, 5).map((row) => (
                         <li key={row.ticketId}>
-                          <span className="font-mono tabular-nums">{ticketLabel(row)}</span>
+                          <span className="font-mono tabular-nums">{ticketLabel(row, row.numberFormat?.groups.length)}</span>
                           {' — '}
                           {whyNot(row, 'assign')}
                         </li>
@@ -232,7 +233,12 @@ function SelectionSummary({
 function SelectedNumbers({
   rows,
 }: {
-  rows: { ticketId: string; dailyNumber: string | null; weeklyNumber: string | null }[]
+  rows: {
+    ticketId: string
+    dailyNumber: string | null
+    weeklyNumber: string | null
+    numberFormat?: RaffleNumberFormat
+  }[]
 }) {
   if (rows.length === 0) {
     return <p className="text-muted-foreground text-sm">Ninguna boleta se puede asignar.</p>
@@ -244,7 +250,7 @@ function SelectedNumbers({
       <ul className="max-h-40 overflow-y-auto rounded-md border p-2 text-sm">
         {rows.map((row) => (
           <li key={row.ticketId} className="font-mono tabular-nums">
-            {ticketLabel(row)}
+            {ticketLabel(row, row.numberFormat?.groups.length)}
           </li>
         ))}
       </ul>

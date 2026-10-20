@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test'
 
-import { ACCOUNTS, addPrize, createRaffleWithPrize, expectToast, loginAs, unique } from './fixtures'
+import {
+  ACCOUNTS,
+  addPrize,
+  createRaffleWithPrize,
+  expectToast,
+  loginAs,
+  submitNewRaffle,
+  unique,
+} from './fixtures'
 import { DEFAULT_TICKET_PRICE } from '../../src/lib/constants'
 import { formatCOP } from '../../src/lib/money'
 
@@ -29,7 +37,14 @@ test.describe('Rifas', () => {
     )
     await expect(page.getByLabel('Precio de la boleta')).toHaveValue('$120.000')
 
+    // D-261: por omisión, los dos números de siempre; antes de crear se ve el
+    // resumen y se confirma, porque después no se cambian.
     await page.getByRole('button', { name: 'Crear rifa' }).click()
+    const resumen = page.getByRole('alertdialog', { name: 'Revisa los números de la boleta' })
+    await expect(resumen.getByText('Cada boleta tendrá dos números:')).toBeVisible()
+    await expect(resumen.getByText('Diario, de 4 cifras (0000 a 9999)')).toBeVisible()
+    await expect(resumen.getByText('Semanal, de 4 cifras (0000 a 9999)')).toBeVisible()
+    await resumen.getByRole('button', { name: 'Crear rifa' }).click()
 
     // D-202: la rifa nueva nace en borrador y el proceso sigue en sus premios.
     await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
@@ -68,7 +83,7 @@ test.describe('Rifas', () => {
       await page.getByLabel('Nombre de la rifa').fill(name)
       await page.getByLabel('Fecha de inicio').fill('2026-01-01')
       await page.getByLabel('Fecha de fin').fill('2026-12-31')
-      await page.getByRole('button', { name: 'Crear rifa' }).click()
+      await submitNewRaffle(page)
 
       if (attempt === 1) {
         await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)

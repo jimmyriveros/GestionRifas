@@ -228,6 +228,11 @@ export type DataEffectsResult = {
 
 export type DataMigration = {
   nombre: string
+  /**
+   * Qué hechos de la foto lee `comprobar` como `before` y `after`: `ganancias` (0078,
+   * 0079) o `numeros` (la 0084, D-262).
+   */
+  hechos: 'ganancias' | 'numeros'
   /** Tablas nuevas que NACEN CON FILAS: su contenido lo comprueba `comprobar`. */
   tablasConDatos: ReadonlySet<string>
   /** Tablas que la migración retira: adónde fue su contenido lo comprueba `comprobar`. */
@@ -602,17 +607,324 @@ export function earningMigrationEffects(input: DataEffectsInput): DataEffectsRes
   return { detener, explicadas, bitacoraUsada, resumen }
 }
 
+
+// -----------------------------------------------------------------------------
+// Los números de cada rifa (0084, D-261): los hechos y lo que la migración deja
+// -----------------------------------------------------------------------------
+
+/** Lo que una fila de raffles dice de sus números; todo nulo antes de la 0084. */
+export type NumberGroupConfig = {
+  number_group_count: number | null
+  first_group_name: string | null
+  first_group_digits: number | null
+  second_group_name: string | null
+  second_group_digits: number | null
+}
+
+/** Recuentos por clave —un estado, un ancho, un number_group_count— sin ningún número. */
+export type Counts = Record<string, number>
+
+/**
+ * Los hechos de números de una foto. POR RIFA, en agregado: cuántas boletas, cuántas con
+ * números, cuántas no tienen «Diario» 4 + «Semanal» 4 —con la MISMA definición que la
+ * auditoría de la 0084—, por estado, y los anchos que hay. Ningún número de boleta, ningún
+ * cliente. `grupos`: el number_group_count de las boletas, vacío antes de la 0084.
+ */
+export type NumberFacts = {
+  /** `antes`: las rifas todavía no tienen sus números (sin la 0084). */
+  forma: 'antes' | '0084'
+  rifas: Array<{ id: string; organization_id: string } & NumberGroupConfig>
+  boletas: Array<{
+    raffle_id: string
+    tickets_count: number
+    tickets_with_numbers: number
+    nonconforming_count: number
+    nonconforming_by_status: Counts
+    daily_lengths: Counts
+    weekly_lengths: Counts
+    grupos: Counts
+  }>
+  auditoria: Array<
+    {
+      raffle_id: string
+      organization_id: string
+      source: string
+      tickets_count: number
+      tickets_with_numbers: number
+      nonconforming_count: number
+      nonconforming_by_status: Counts
+      daily_lengths: Counts
+      weekly_lengths: Counts
+    } & NumberGroupConfig
+  > | null
+}
+
+/** Una boleta fuera de «Diario» 4 + «Semanal» 4: la definición de la auditoría de la 0084. */
+const NONCONFORMING_4X4 = `((t.daily_number is not null and t.daily_number !~ '^[0-9]{4}$')
+    or (t.weekly_number is not null and t.weekly_number !~ '^[0-9]{4}$'))`
+
+/**
+ * Los hechos de números, con el esquema de antes o con el de la 0084. Solo `select`; por
+ * rifa y en agregado, sin números de boleta ni datos de cliente.
+ */
+export async function readNumberFacts(query: Query): Promise<NumberFacts> {
+  const [shape] = await query<{ columnas: boolean; auditoria: boolean }>(
+    `select exists (select 1 from information_schema.columns
+                    where table_schema = 'public' and table_name = 'raffles'
+                      and column_name = 'number_group_count') as columnas,
+            to_regclass('public.raffle_number_format_audits') is not null as auditoria`,
+  )
+  const columnas = shape!.columnas === true
+  const counts = (rows: Array<{ raffle_id: string; k: string; n: number }>, id: string): Counts =>
+    Object.fromEntries(rows.filter((r) => r.raffle_id === id).map((r) => [r.k, Number(r.n)]))
+
+  const rifas = (
+    await query<Record<string, unknown>>(
+      `select r.id::text as id, r.organization_id::text as organization_id,
+              (to_jsonb(r) ->> 'number_group_count')::int as number_group_count,
+              to_jsonb(r) ->> 'first_group_name' as first_group_name,
+              (to_jsonb(r) ->> 'first_group_digits')::int as first_group_digits,
+              to_jsonb(r) ->> 'second_group_name' as second_group_name,
+              (to_jsonb(r) ->> 'second_group_digits')::int as second_group_digits
+         from raffles r order by r.id`,
+    )
+  ).map((r) => ({
+    id: String(r.id),
+    organization_id: String(r.organization_id),
+    number_group_count: (r.number_group_count as number | null) ?? null,
+    first_group_name: (r.first_group_name as string | null) ?? null,
+    first_group_digits: (r.first_group_digits as number | null) ?? null,
+    second_group_name: (r.second_group_name as string | null) ?? null,
+    second_group_digits: (r.second_group_digits as number | null) ?? null,
+  }))
+
+  const totals = await query<{
+    raffle_id: string
+    tickets_count: number
+    tickets_with_numbers: number
+    nonconforming_count: number
+  }>(
+    `select t.raffle_id::text as raffle_id, count(*)::int as tickets_count,
+            count(*) filter (where t.daily_number is not null or t.weekly_number is not null)::int
+              as tickets_with_numbers,
+            count(*) filter (where ${NONCONFORMING_4X4})::int as nonconforming_count
+       from tickets t group by 1 order by 1`,
+  )
+  const byStatus = await query<{ raffle_id: string; k: string; n: number }>(
+    `select t.raffle_id::text as raffle_id, t.inventory_status::text as k, count(*)::int as n
+       from tickets t where ${NONCONFORMING_4X4} group by 1, 2`,
+  )
+  const daily = await query<{ raffle_id: string; k: string; n: number }>(
+    `select t.raffle_id::text as raffle_id, char_length(t.daily_number)::text as k, count(*)::int as n
+       from tickets t where t.daily_number is not null group by 1, 2`,
+  )
+  const weekly = await query<{ raffle_id: string; k: string; n: number }>(
+    `select t.raffle_id::text as raffle_id, char_length(t.weekly_number)::text as k, count(*)::int as n
+       from tickets t where t.weekly_number is not null group by 1, 2`,
+  )
+  const grupos = columnas
+    ? await query<{ raffle_id: string; k: string; n: number }>(
+        `select t.raffle_id::text as raffle_id, (to_jsonb(t) ->> 'number_group_count') as k,
+                count(*)::int as n
+           from tickets t group by 1, 2`,
+      )
+    : []
+
+  const auditoria = shape!.auditoria
+    ? (
+        await query<Record<string, unknown>>(
+          `select raffle_id::text, organization_id::text, source, number_group_count::int,
+                  first_group_name, first_group_digits::int, second_group_name,
+                  second_group_digits::int, tickets_count, tickets_with_numbers, nonconforming_count,
+                  nonconforming_by_status, daily_lengths, weekly_lengths
+             from raffle_number_format_audits order by raffle_id`,
+        )
+      ).map((a) => ({
+        raffle_id: String(a.raffle_id),
+        organization_id: String(a.organization_id),
+        source: String(a.source),
+        number_group_count: (a.number_group_count as number | null) ?? null,
+        first_group_name: (a.first_group_name as string | null) ?? null,
+        first_group_digits: (a.first_group_digits as number | null) ?? null,
+        second_group_name: (a.second_group_name as string | null) ?? null,
+        second_group_digits: (a.second_group_digits as number | null) ?? null,
+        tickets_count: Number(a.tickets_count),
+        tickets_with_numbers: Number(a.tickets_with_numbers),
+        nonconforming_count: Number(a.nonconforming_count),
+        nonconforming_by_status: a.nonconforming_by_status as Counts,
+        daily_lengths: a.daily_lengths as Counts,
+        weekly_lengths: a.weekly_lengths as Counts,
+      }))
+    : null
+
+  return {
+    forma: columnas ? '0084' : 'antes',
+    rifas,
+    boletas: totals.map((t) => ({
+      raffle_id: t.raffle_id,
+      tickets_count: Number(t.tickets_count),
+      tickets_with_numbers: Number(t.tickets_with_numbers),
+      nonconforming_count: Number(t.nonconforming_count),
+      nonconforming_by_status: counts(byStatus, t.raffle_id),
+      daily_lengths: counts(daily, t.raffle_id),
+      weekly_lengths: counts(weekly, t.raffle_id),
+      grupos: counts(grupos, t.raffle_id),
+    })),
+    auditoria,
+  }
+}
+
+/** Lo que la 0084 les asigna a las rifas que ya existían (su sección 1): una regla, no un recuento. */
+export const EXISTING_RAFFLE_GROUPS = {
+  number_group_count: 2,
+  first_group_name: 'Diario',
+  first_group_digits: 4,
+  second_group_name: 'Semanal',
+  second_group_digits: 4,
+} as const
+
+function isNumberFacts(value: unknown): value is NumberFacts {
+  const v = value as NumberFacts | null | undefined
+  return (
+    !!v &&
+    (v.forma === 'antes' || v.forma === '0084') &&
+    Array.isArray(v.rifas) &&
+    Array.isArray(v.boletas)
+  )
+}
+
+/**
+ * Los efectos de datos de la publicación 0081–0084, comprobados (D-262). PURO.
+ *
+ * La 0081, la 0082 y la 0083 no tocan datos. La 0084 sí deja dos cosas, y nada más:
+ *   · `raffle_number_format_audits`, una tabla NUEVA con una fila por cada rifa que ya
+ *     existía: lo que encontró en sus boletas, derivado aquí de la foto de antes con la
+ *     misma definición, y la configuración que le asignó;
+ *   · las columnas nuevas de `raffles` y `tickets` con sus valores por omisión: cada rifa
+ *     de antes en «Diario» 4 + «Semanal» 4 y cada boleta de antes con number_group_count 2.
+ * Las filas de `raffles` y `tickets` no aparecen como cambiadas —la foto de después se
+ * toma con `--base` y sus huellas excluyen las columnas nuevas—, así que esta función no
+ * explica ninguna fila: solo comprueba lo que las huellas no ven.
+ */
+export function numberGroupMigrationEffects(input: DataEffectsInput): DataEffectsResult {
+  const detener: string[] = []
+  const resultado = (resumen: Record<string, number> = {}): DataEffectsResult => ({
+    detener,
+    explicadas: [],
+    bitacoraUsada: [],
+    resumen,
+  })
+  if (!isNumberFacts(input.before) || !isNumberFacts(input.after)) {
+    detener.push(
+      'Las fotos no traen los hechos de números (hechos.numeros): tómalas con el gate-snapshot del candidato.',
+    )
+    return resultado()
+  }
+  const before = input.before
+  const after = input.after
+  if (before.forma !== 'antes') {
+    detener.push('La foto de antes ya tiene la 0084: no es la línea base de esta publicación.')
+  }
+  if (after.forma !== '0084' || after.auditoria === null) {
+    detener.push('La foto de después no tiene la 0084: sus rifas no tienen números ni auditoría.')
+  }
+  if (detener.length > 0) return resultado()
+  const auditoria = after.auditoria!
+
+  const nuevas = input.tablasNuevas.raffle_number_format_audits
+  if (nuevas === undefined) {
+    detener.push('raffle_number_format_audits no es una tabla nueva de esta puerta.')
+  } else if (nuevas !== auditoria.length) {
+    detener.push(
+      `raffle_number_format_audits tiene ${nuevas} filas y los hechos describen ${auditoria.length}.`,
+    )
+  }
+
+  const compara = (quien: string, campo: string, es: unknown, esperado: unknown) => {
+    if (stableJson(es) !== stableJson(esperado)) {
+      detener.push(`${quien}: ${campo} es ${stableJson(es)} y se esperaba ${stableJson(esperado)}.`)
+    }
+  }
+  const vacio = {
+    tickets_count: 0,
+    tickets_with_numbers: 0,
+    nonconforming_count: 0,
+    nonconforming_by_status: {},
+    daily_lengths: {},
+    weekly_lengths: {},
+  }
+
+  const deAntes = new Set(before.rifas.map((r) => r.id))
+  for (const fila of auditoria) {
+    if (!deAntes.has(fila.raffle_id)) {
+      detener.push(`Auditoría de ${fila.raffle_id}: esa rifa no existía antes de la migración.`)
+    }
+  }
+
+  let boletas = 0
+  let fueraDeFormato = 0
+  for (const rifa of before.rifas) {
+    const b = before.boletas.find((x) => x.raffle_id === rifa.id) ?? { ...vacio, grupos: {} }
+    boletas += b.tickets_count
+    fueraDeFormato += b.nonconforming_count
+
+    const fila = auditoria.find((a) => a.raffle_id === rifa.id)
+    if (!fila) {
+      detener.push(`Rifa ${rifa.id}: sin su fila en raffle_number_format_audits.`)
+    } else {
+      const quien = `Auditoría de ${rifa.id}`
+      compara(quien, 'organization_id', fila.organization_id, rifa.organization_id)
+      compara(quien, 'source', fila.source, '0084')
+      for (const [campo, valor] of Object.entries(EXISTING_RAFFLE_GROUPS)) {
+        compara(quien, campo, fila[campo as keyof NumberGroupConfig], valor)
+      }
+      for (const campo of Object.keys(vacio) as Array<keyof typeof vacio>) {
+        compara(quien, campo, fila[campo], b[campo])
+      }
+    }
+
+    const ahora = after.rifas.find((r) => r.id === rifa.id)
+    if (!ahora) {
+      detener.push(`Rifa ${rifa.id}: no está en la foto de después.`)
+    } else {
+      for (const [campo, valor] of Object.entries(EXISTING_RAFFLE_GROUPS)) {
+        compara(`Rifa ${rifa.id}`, campo, ahora[campo as keyof NumberGroupConfig], valor)
+      }
+    }
+
+    const despues = after.boletas.find((x) => x.raffle_id === rifa.id)
+    const grupos = despues?.grupos ?? {}
+    const esperado = b.tickets_count > 0 ? { '2': b.tickets_count } : {}
+    if (stableJson(grupos) !== stableJson(esperado)) {
+      detener.push(
+        `Boletas de ${rifa.id}: number_group_count ${stableJson(grupos)} y se esperaba ${stableJson(esperado)}.`,
+      )
+    }
+  }
+
+  return resultado({ rifas: before.rifas.length, boletas, fuera_de_formato: fueraDeFormato })
+}
+
 /**
  * Qué migraciones migran datos, por la lista EXACTA de las que añade la puerta. Cualquier
- * otra lista —también `0078` sola— sigue con la exigencia de siempre: tablas nuevas
- * vacías y nada de lo que existía, tocado.
+ * otra lista —también `0078` sola, o la `0084` sin las otras tres— sigue con la
+ * exigencia de siempre: tablas nuevas vacías y nada de lo que existía, tocado.
  */
 export const DATA_MIGRATIONS: Record<string, DataMigration> = {
   '0078,0079': {
     nombre: 'configuración de ganancias (0078, 0079)',
+    hechos: 'ganancias',
     tablasConDatos: new Set(['commission_tier_lists', 'commission_tier_list_items']),
     tablasRetiradas: new Set(['commission_tiers']),
     comprobar: earningMigrationEffects,
+  },
+  // D-262: la publicación del inventario común y de los números de cada rifa, entera.
+  '0081,0082,0083,0084': {
+    nombre: 'inventario común y números de cada rifa (0081, 0082, 0083, 0084)',
+    hechos: 'numeros',
+    tablasConDatos: new Set(['raffle_number_format_audits']),
+    tablasRetiradas: new Set(),
+    comprobar: numberGroupMigrationEffects,
   },
 }
 

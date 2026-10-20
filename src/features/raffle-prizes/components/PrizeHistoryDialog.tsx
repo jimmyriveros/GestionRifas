@@ -14,15 +14,16 @@ import {
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDateTimeEs } from '@/lib/dates'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import { fetchPrizeHistory, type PrizeHistoryPage } from '../actions'
 import {
   PRIZE_CHANGE_LABELS,
   PRIZE_DIGITS_FULL_LABELS,
   PRIZE_HISTORY_COPY,
-  PRIZE_NUMBER_FIELD_LABELS,
   PRIZE_STATUS_LABELS,
   prizeActorLabel,
+  prizeNumberFieldName,
   rewardText,
   scheduleSummary,
   validityText,
@@ -42,10 +43,13 @@ export function PrizeHistoryDialog({
   open,
   onOpenChange,
   prize,
+  numberFormat,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   prize: { id: string; title: string; versionId: string } | null
+  /** D-261: el número con el que juega cada versión, con el nombre de la rifa. */
+  numberFormat?: RaffleNumberFormat
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -56,7 +60,9 @@ export function PrizeHistoryDialog({
         </DialogHeader>
 
         {/* Otro premio es otro historial: empieza en la página 1 y sin restos. */}
-        {prize ? <PrizeHistoryBody key={prize.id} prize={prize} /> : null}
+        {prize ? (
+          <PrizeHistoryBody key={prize.id} prize={prize} numberFormat={numberFormat} />
+        ) : null}
       </DialogContent>
     </Dialog>
   )
@@ -75,7 +81,13 @@ type HistorySettled = {
   outcome: { ok: true; data: PrizeHistoryPage } | { ok: false }
 }
 
-function PrizeHistoryBody({ prize }: { prize: { id: string; title: string; versionId: string } }) {
+function PrizeHistoryBody({
+  prize,
+  numberFormat,
+}: {
+  prize: { id: string; title: string; versionId: string }
+  numberFormat?: RaffleNumberFormat
+}) {
   const [request, setRequest] = useState<HistoryRequest>({ page: 1, attempt: 0 })
   const [settled, setSettled] = useState<HistorySettled | null>(null)
   const [, startTransition] = useTransition()
@@ -179,7 +191,7 @@ function PrizeHistoryBody({ prize }: { prize: { id: string; title: string; versi
             <dl className="grid gap-x-3 gap-y-1 sm:grid-cols-2">
               <Row label={PRIZE_HISTORY_COPY.reward}>{rewardText(entry.reward)}</Row>
               <Row label={PRIZE_HISTORY_COPY.number}>
-                {PRIZE_NUMBER_FIELD_LABELS[entry.numberField]}
+                {prizeNumberFieldName(numberFormat, entry.numberField)}
               </Row>
               <Row label={PRIZE_HISTORY_COPY.digits}>{PRIZE_DIGITS_FULL_LABELS[entry.digits]}</Row>
               <Row label={PRIZE_HISTORY_COPY.validity}>{validityText(entry.rules)}</Row>

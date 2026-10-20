@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { FormNoScriptNotice, HydratedSubmitButton } from '@/components/form/HydratedSubmitButton'
@@ -25,11 +25,20 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+import {
+  LEGACY_NUMBER_FORMAT,
+  numberGroupTitle,
+  ticketNumbersProblem,
+  type RaffleNumberFormat,
+} from '@/lib/ticket-number-format'
+
 import { createTicket } from '../actions'
 import { createTicketSchema, type CreateTicketInput } from '../schemas'
+import { ticketNumbersHelp } from './TicketNumberFields'
 
 type TicketFormProps = {
-  raffles: { id: string; name: string; shortCode: string }[]
+  /** D-261: cada rifa con sus números; los campos siguen a la elegida. */
+  raffles: { id: string; name: string; shortCode: string; numberFormat?: RaffleNumberFormat }[]
   sellers: { id: string; fullName: string }[]
   defaultRaffleId?: string
   defaultSellerId?: string
@@ -56,10 +65,21 @@ export function TicketForm({
     },
   })
 
+  const raffleId = useWatch({ control: form.control, name: 'raffleId' })
+  const format = raffles.find((raffle) => raffle.id === raffleId)?.numberFormat ?? LEGACY_NUMBER_FORMAT
+  const [firstGroup, secondGroup] = format.groups
+
   function onSubmit(values: CreateTicketInput) {
     setServerError(null)
+    // D-261: las cifras exactas de la rifa elegida, con la frase de la base.
+    const weekly = secondGroup ? values.weeklyNumber : ''
+    const problem = ticketNumbersProblem(format, values.dailyNumber, weekly || null, true)
+    if (problem) {
+      setServerError(problem)
+      return
+    }
     startTransition(async () => {
-      const result = await createTicket(values)
+      const result = await createTicket({ ...values, weeklyNumber: weekly })
       if ('error' in result) {
         setServerError(result.error)
         return
@@ -139,19 +159,20 @@ export function TicketForm({
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className={secondGroup ? 'grid grid-cols-2 gap-4' : 'grid grid-cols-1 gap-4'}>
           <FormField
             control={form.control}
             name="dailyNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Número diario</FormLabel>
+                <FormLabel>{numberGroupTitle(firstGroup.name)}</FormLabel>
                 <FormControl>
                   <TicketNumberInput
                     value={field.value}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     name={field.name}
+                    maxDigits={firstGroup.digits}
                     disabled={isPending}
                   />
                 </FormControl>
@@ -160,30 +181,35 @@ export function TicketForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="weeklyNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Número semanal</FormLabel>
-                <FormControl>
-                  <TicketNumberInput
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    disabled={isPending}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {secondGroup ? (
+            <FormField
+              control={form.control}
+              name="weeklyNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{numberGroupTitle(secondGroup.name)}</FormLabel>
+                  <FormControl>
+                    <TicketNumberInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      maxDigits={secondGroup.digits}
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null}
         </div>
 
         <p className="text-muted-foreground text-sm">
-          Entre 1 y 4 dígitos cada uno. Los ceros iniciales se conservan y la combinación completa
-          no puede repetirse dentro de la misma rifa, ni siquiera entre vendedores.
+          {ticketNumbersHelp(format)}{' '}
+          {secondGroup
+            ? 'La combinación completa no puede repetirse dentro de la misma rifa, ni siquiera entre vendedores.'
+            : 'El número no puede repetirse dentro de la misma rifa, ni siquiera entre vendedores.'}
         </p>
 
         <FormNoScriptNotice className="mb-5" />

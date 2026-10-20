@@ -17,15 +17,16 @@ import {
   PRIZE_CATEGORY_LABELS,
   PRIZE_DIGITS_FULL_LABELS,
   PRIZE_DIGITS_LABELS,
-  PRIZE_NUMBER_FIELD_LABELS,
-  PRIZE_NUMBER_FIELD_SHORT_LABELS,
   PRIZE_PANEL_COPY,
   PRIZE_STATUS_LABELS,
   prizeLotteryLabel,
+  prizeNumberFieldName,
   rewardText,
   scheduleSummary,
   validityText,
 } from '../copy'
+
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import type { PrizeListItem } from '../queries'
 
@@ -45,6 +46,8 @@ import type { PrizeListItem } from '../queries'
 
 export type PrizeListProps = {
   prizes: PrizeListItem[]
+  /** D-261: cada premio se nombra con el número de SU rifa («Diario», «Seco»…). */
+  numberFormat?: RaffleNumberFormat
   /** Los controles de cada fila. Sin esto, la lista es de solo lectura. */
   renderActions?: (prize: PrizeListItem, index: number) => ReactNode
   emptyTitle?: string
@@ -54,6 +57,7 @@ export type PrizeListProps = {
 
 export function PrizeList({
   prizes,
+  numberFormat,
   renderActions,
   emptyTitle = PRIZE_PANEL_COPY.empty.title,
   emptyDescription = PRIZE_PANEL_COPY.empty.description,
@@ -67,7 +71,12 @@ export function PrizeList({
     <>
       <div className="space-y-3 md:hidden">
         {prizes.map((prize, index) => (
-          <PrizeCard key={prize.id} prize={prize} actions={renderActions?.(prize, index)} />
+          <PrizeCard
+            key={prize.id}
+            prize={prize}
+            numberFormat={numberFormat}
+            actions={renderActions?.(prize, index)}
+          />
         ))}
       </div>
 
@@ -94,7 +103,7 @@ export function PrizeList({
                   <p className="text-body-small text-pretty">{rewardText(prize.reward)}</p>
                 </TableCell>
                 <TableCell className="align-top">
-                  {PRIZE_NUMBER_FIELD_LABELS[prize.numberField]}
+                  {prizeNumberFieldName(numberFormat, prize.numberField)}
                 </TableCell>
                 <TableCell className="align-top">
                   {/* Se abrevia lo VISIBLE; el término entero se oye (D-114). */}
@@ -130,7 +139,15 @@ export function PrizeList({
 }
 
 /** La misma información, en el mismo orden, repartida a lo alto (D-107). */
-function PrizeCard({ prize, actions }: { prize: PrizeListItem; actions?: ReactNode }) {
+function PrizeCard({
+  prize,
+  numberFormat,
+  actions,
+}: {
+  prize: PrizeListItem
+  numberFormat?: RaffleNumberFormat
+  actions?: ReactNode
+}) {
   return (
     <article className="space-y-3 rounded-lg border p-4">
       <div className="flex items-start justify-between gap-3">
@@ -149,8 +166,7 @@ function PrizeCard({ prize, actions }: { prize: PrizeListItem; actions?: ReactNo
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
         <CardField label={PRIZE_PANEL_COPY.columns.number}>
-          {PRIZE_NUMBER_FIELD_SHORT_LABELS[prize.numberField]}
-          <span className="sr-only"> ({PRIZE_NUMBER_FIELD_LABELS[prize.numberField]})</span>
+          {prizeNumberFieldName(numberFormat, prize.numberField)}
         </CardField>
         <CardField label={PRIZE_PANEL_COPY.columns.digits}>
           <span aria-hidden>{PRIZE_DIGITS_LABELS[prize.digits]}</span>

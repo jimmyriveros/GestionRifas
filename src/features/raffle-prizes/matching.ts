@@ -13,7 +13,17 @@ import type { LotteryMatchField } from '@/features/lottery/constants'
  * rellenan con ceros, ni se recortan: `0046` no es `46`.
  */
 
-export type PrizeDigits = 'four' | 'last_three'
+export type PrizeDigits = 'four' | 'last_three' | 'last_two'
+
+/** Cuantas cifras compara cada modalidad (D-261): la prioridad va por esto. */
+export const PRIZE_DIGITS_COUNT: Record<PrizeDigits, 2 | 3 | 4> = {
+  four: 4,
+  last_three: 3,
+  last_two: 2,
+}
+
+/** Las tres modalidades, de mas cifras a menos. */
+export const PRIZE_DIGITS_VALUES: readonly PrizeDigits[] = ['four', 'last_three', 'last_two']
 
 /** El numero mayor de una loteria colombiana son exactamente cuatro cifras. */
 const WINNING_NUMBER = /^[0-9]{4}$/
@@ -22,6 +32,8 @@ const WINNING_NUMBER = /^[0-9]{4}$/
  * `four`: igualdad textual exacta con el numero mayor.
  * `last_three`: las tres ultimas cifras, y el numero de la boleta tiene que
  * tener al menos tres caracteres — `46` no participa, `046` y `1046` si.
+ * `last_two` (D-261): las dos ultimas, con al menos dos caracteres — con 5307,
+ * `07` coincide y `7` no.
  */
 export function prizeNumberMatches(
   ticketNumber: string | null | undefined,
@@ -31,8 +43,9 @@ export function prizeNumberMatches(
   if (!ticketNumber || !WINNING_NUMBER.test(winningNumber)) return false
 
   if (digits === 'four') return ticketNumber === winningNumber
-  if (ticketNumber.length < 3) return false
-  return ticketNumber.slice(-3) === winningNumber.slice(-3)
+  const count = PRIZE_DIGITS_COUNT[digits]
+  if (ticketNumber.length < count) return false
+  return ticketNumber.slice(-count) === winningNumber.slice(-count)
 }
 
 /**
@@ -81,13 +94,14 @@ export class PrizeSignatureConflictError extends Error {
 }
 
 /**
- * LAS CUATRO CIFRAS MANDAN SOBRE LAS TRES, POR CLIENTE (BR-J07, D-203).
+ * MANDAN LAS MAS CIFRAS: 4 > 3 > 2, POR CLIENTE (BR-J07, D-203; D-261).
  *
- * Recibe las candidatas de UN resultado. Si quien reclama —ver
- * `prizeClaimantKey`— tiene al menos una coincidencia elegible de cuatro
- * cifras, pierde TODAS sus coincidencias de tres cifras en ese resultado:
- * las de sus otras boletas y las del otro numero de la misma boleta. Otro
- * cliente que solo coincide en las tres ultimas cifras conserva su premio.
+ * Recibe las candidatas de UN resultado. Quien reclama —ver
+ * `prizeClaimantKey`— conserva solo sus coincidencias de la MAYOR cantidad de
+ * cifras acertadas en ese resultado y pierde todas las de menos: las de sus
+ * otras boletas y las de sus otros numeros. Con una de cuatro, pierde las de
+ * tres y las de dos; si su mejor es de tres, pierde las de dos. Otro cliente
+ * conserva las suyas. Entre las de la misma cantidad no se elige ninguna.
  *
  * El valor economico, la categoria, el nombre y el orden NO deciden nada. Varias
  * coincidencias de cuatro cifras con numeros distintos de la boleta se
@@ -109,12 +123,13 @@ export function resolvePrizeLinks(candidates: PrizeCandidate[]): PrizeCandidate[
     bySignature.set(signature, candidate.prizeId)
   }
 
-  const claimantsWithFour = new Set(
-    candidates.filter((candidate) => candidate.digits === 'four').map(prizeClaimantKey),
-  )
+  const best = new Map<string, number>()
+  for (const candidate of candidates) {
+    const key = prizeClaimantKey(candidate)
+    best.set(key, Math.max(best.get(key) ?? 0, PRIZE_DIGITS_COUNT[candidate.digits]))
+  }
   return candidates.filter(
-    (candidate) =>
-      candidate.digits === 'four' || !claimantsWithFour.has(prizeClaimantKey(candidate)),
+    (candidate) => PRIZE_DIGITS_COUNT[candidate.digits] === best.get(prizeClaimantKey(candidate)),
   )
 }
 

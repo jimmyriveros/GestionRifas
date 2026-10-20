@@ -6,7 +6,11 @@ import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { BULK_TICKET_MAX } from '@/lib/constants'
 
-import { SAMPLE_CSV, SAMPLE_JSON } from '../sample'
+import { LEGACY_NUMBER_FORMAT, type RaffleNumberFormat } from '@/lib/ticket-number-format'
+
+import { importColumns } from '../sample'
+
+import { sampleCsv, sampleJson } from '../sample'
 
 /**
  * Primer paso: elegir el archivo.
@@ -27,6 +31,8 @@ type ImportDropzoneProps = {
   disabled?: boolean
   /** Mensaje del intento anterior, si el archivo no se pudo leer. */
   error?: string | null
+  /** D-261: qué columnas pide la rifa, y el ejemplo con sus números. */
+  numberFormat?: RaffleNumberFormat
 }
 
 /** 1 MB. Mil boletas ocupan unos 15 KB: nada legitimo se acerca a este tope. */
@@ -41,7 +47,14 @@ function descargar(nombre: string, contenido: string, tipo: string) {
   URL.revokeObjectURL(url)
 }
 
-export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps) {
+export function ImportDropzone({
+  onFile,
+  disabled,
+  error,
+  numberFormat = LEGACY_NUMBER_FORMAT,
+}: ImportDropzoneProps) {
+  const [firstGroup, secondGroup] = numberFormat.groups
+  const columns = importColumns(numberFormat)
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const [verJson, setVerJson] = useState(false)
@@ -63,8 +76,18 @@ export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps)
       <div className="space-y-1 text-sm">
         <p>Puedes subir un archivo CSV exportado desde Excel.</p>
         <p className="text-muted-foreground">
-          Necesitamos dos columnas: <strong>Premio semanal</strong> y <strong>Premio diario</strong>
-          . Hasta {BULK_TICKET_MAX} boletas por archivo.
+          {secondGroup ? (
+            <>
+              Necesitamos dos columnas: <strong>{columns[0]!.header}</strong> y{' '}
+              <strong>{columns[1]!.header}</strong>, cada número con todas sus cifras.
+            </>
+          ) : (
+            <>
+              Necesitamos una columna: <strong>{firstGroup.name}</strong>, con sus{' '}
+              {firstGroup.digits} cifras.
+            </>
+          )}{' '}
+          Hasta {BULK_TICKET_MAX} boletas por archivo.
         </p>
         <p className="text-muted-foreground">
           Solo los números: el cliente y los abonos se registran después, cuando se vende cada
@@ -136,7 +159,9 @@ export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps)
           type="button"
           variant="secondary"
           size="sm"
-          onClick={() => descargar('boletas-ejemplo.csv', SAMPLE_CSV, 'text/csv;charset=utf-8')}
+          onClick={() =>
+            descargar('boletas-ejemplo.csv', sampleCsv(numberFormat), 'text/csv;charset=utf-8')
+          }
         >
           Descargar archivo de ejemplo
         </Button>
@@ -151,7 +176,7 @@ export function ImportDropzone({ onFile, disabled, error }: ImportDropzoneProps)
             Opción avanzada. Escribe los números <strong>entre comillas</strong> para no perder los
             ceros de delante.
           </p>
-          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">{SAMPLE_JSON}</pre>
+          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">{sampleJson(numberFormat)}</pre>
         </div>
       ) : null}
     </div>

@@ -3,6 +3,7 @@ import { InfoIcon } from 'lucide-react'
 import { Notice } from '@/components/feedback/Notice'
 import type { ClientOption } from '@/features/clients/queries'
 import { ticketLabel } from '@/lib/tickets'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import { canReassignClient } from '../reassign-client'
 import { canReleaseTicket, ticketClientNotice, type ReleaseEligibility } from '../release-ticket'
@@ -17,6 +18,10 @@ type TicketClientActionsProps = {
     weeklyNumber: string | null
     clientName: string | null
     clientPhone: string | null
+    /** La venta salio de un apartado: liberarla la devuelve al inventario comun (D-258). */
+    soldFromHold: boolean
+    /** D-261: los números de su rifa. */
+    numberFormat?: RaffleNumberFormat
   }
   /** Primer bloque de la cartera del vendedor de la boleta, ya acotado en SQL. */
   clients: ClientOption[]
@@ -64,7 +69,7 @@ export function TicketClientActions({
 
   // BR-N11: la boleta se nombra por sus dos numeros, y con la MISMA funcion que
   // el resto de la aplicacion.
-  const numbers = ticketLabel(ticket)
+  const numbers = ticketLabel(ticket, ticket.numberFormat?.groups.length)
 
   return (
     <div className="space-y-2">
@@ -87,8 +92,10 @@ export function TicketClientActions({
             ticketNumbers={numbers}
             dailyNumber={ticket.dailyNumber}
             weeklyNumber={ticket.weeklyNumber}
+            numberFormat={ticket.numberFormat}
             currentClientId={ticket.clientId}
             currentClientName={ticket.clientName ?? 'Cliente'}
+            returnsToCommon={ticket.soldFromHold}
           />
         ) : null}
       </div>

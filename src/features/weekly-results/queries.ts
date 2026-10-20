@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { getCatalogSettings } from '@/features/catalog/queries'
+import { listRaffleNumberFormats } from '@/features/raffles/number-formats'
 import { LOTTERY_DASHBOARD_TIMEOUT_MS } from '@/features/lottery/dashboard'
 import { getActiveMembership } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
@@ -87,8 +88,16 @@ export async function getWeeklyResults(week: ResultsWeek): Promise<WeeklyResults
  */
 export async function getWeeklyResultsRaffle(profileId: string): Promise<WeeklyResultsRaffle> {
   try {
-    const name = weeklyResultsRaffleName(await getCatalogSettings(profileId))
-    return name === null ? { kind: 'none' } : { kind: 'ready', name }
+    const settings = await getCatalogSettings(profileId)
+    const name = weeklyResultsRaffleName(settings)
+    if (name === null) return { kind: 'none' }
+    // D-261: los números de ESA rifa, con su nombre, para la línea «Recuerda».
+    const formats = await listRaffleNumberFormats()
+    return {
+      kind: 'ready',
+      name,
+      numberFormat: settings?.raffleId ? formats.get(settings.raffleId) : undefined,
+    }
   } catch {
     return { kind: 'error' }
   }

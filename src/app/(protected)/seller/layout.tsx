@@ -1,6 +1,7 @@
 import {
   AwardIcon,
   BarChart3Icon,
+  BoxesIcon,
   HandCoinsIcon,
   LayoutDashboardIcon,
   TicketIcon,
@@ -33,6 +34,10 @@ const NAV_ITEMS: NavItem[] = [
     icon: <TicketIcon />,
     primary: true,
   },
+  // El catalogo interno (D-257): buscar boletas libres de la rifa y apartarlas.
+  // No es `primary`: la barra inferior sigue con sus cuatro (D-106); en el
+  // telefono se llega desde el menu de usuario y desde «Mis boletas».
+  { href: '/seller/inventory', label: 'Inventario común', icon: <BoxesIcon /> },
   {
     href: '/seller/clients',
     label: 'Mis clientes',

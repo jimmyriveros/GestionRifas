@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { SELLER_TICKET_MAX } from '@/lib/constants'
 
-import { ticketNumberSchema } from '../schemas'
+import { optionalTicketNumberSchema, ticketNumberSchema } from '../schemas'
 
 /**
  * Creacion de boletas por parte del VENDEDOR (CLAUDE.md 16, BR-I03).
@@ -14,7 +14,8 @@ import { ticketNumberSchema } from '../schemas'
 
 export const sellerTicketRowSchema = z.object({
   dailyNumber: ticketNumberSchema,
-  weeklyNumber: ticketNumberSchema,
+  // Vacio en una rifa de un solo numero (D-261).
+  weeklyNumber: optionalTicketNumberSchema,
 })
 export type SellerTicketRow = z.infer<typeof sellerTicketRowSchema>
 
@@ -26,7 +27,7 @@ export type SellerTicketRow = z.infer<typeof sellerTicketRowSchema>
 export const updateSellerTicketNumbersSchema = z.object({
   ticketId: z.uuid('Boleta no válida.'),
   dailyNumber: ticketNumberSchema,
-  weeklyNumber: ticketNumberSchema,
+  weeklyNumber: optionalTicketNumberSchema,
 })
 export type UpdateSellerTicketNumbersInput = z.infer<typeof updateSellerTicketNumbersSchema>
 

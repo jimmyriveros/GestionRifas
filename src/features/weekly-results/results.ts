@@ -12,6 +12,7 @@
  */
 
 import type { CatalogSettings } from '@/features/catalog/queries'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 import {
   LOTTERY_CODES,
   LOTTERY_LABELS,
@@ -125,7 +126,14 @@ export function buildWeeklyResults(
 
 /** La rifa que encabeza la imagen, o por qué no hay ninguna. */
 export type WeeklyResultsRaffle =
-  { kind: 'ready'; name: string } | { kind: 'none' } | { kind: 'error' }
+  | {
+      kind: 'ready'
+      name: string
+      /** D-261: los números de la rifa, para decir cuál se verifica con qué lotería. */
+      numberFormat?: RaffleNumberFormat
+    }
+  | { kind: 'none' }
+  | { kind: 'error' }
 
 /**
  * Los estados de una rifa que participa en los sorteos: activa o cerrada

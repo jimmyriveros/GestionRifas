@@ -42,7 +42,15 @@ function boleta(overrides: Partial<BoletaDelVendedor> = {}): BoletaDelVendedor {
     hasActivePayments: false,
     hasPayments: false,
     raffleActive: true,
-    can: { approve: false, assign: true, cancel: true, changeSeller: true, delete: true },
+    can: {
+      approve: false,
+      assign: true,
+      cancel: true,
+      changeSeller: true,
+      delete: true,
+      assignToSeller: false,
+      recover: false,
+    },
     // El precio se lee de la constante, no se escribe a mano: una cifra fija
     // aqui volveria a caerse el dia que cambie el precio (D-098). La mitad es
     // el suelo de quien no pertenece a un equipo (BR-G13).
@@ -57,7 +65,15 @@ describe('elegibilidad de las acciones masivas', () => {
     const filas = [
       boleta(),
       boleta({
-        can: { approve: false, assign: false, cancel: true, changeSeller: true, delete: false },
+        can: {
+          approve: false,
+          assign: false,
+          cancel: true,
+          changeSeller: true,
+          delete: false,
+          assignToSeller: false,
+          recover: false,
+        },
       }),
     ]
 

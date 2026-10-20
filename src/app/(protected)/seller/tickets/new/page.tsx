@@ -37,13 +37,14 @@ export default async function NewSellerTicketsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Crear boletas"
-        description="Escribe los dos números de cada boleta. Quedarán pendientes de aprobación hasta que tu administrador las revise."
+        description="Escribe los números de cada boleta. Quedarán pendientes de aprobación hasta que tu administrador las revise."
         backHref="/seller/tickets"
       />
       <SellerTicketForm
         raffles={allowed.map((raffle) => ({
           id: raffle.id,
           label: `${raffle.shortCode} — ${raffle.name}`,
+          numberFormat: raffle.numberFormat,
         }))}
       />
     </div>

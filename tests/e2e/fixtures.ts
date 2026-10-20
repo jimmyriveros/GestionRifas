@@ -171,6 +171,19 @@ export async function toggleCheckbox(box: Locator, expected: boolean): Promise<v
  * La fecha inicial NO puede caer en domingo: el período que trae el premio por
  * omisión es ese día, y el domingo no tiene lotería (BR-J04).
  */
+/**
+ * «Crear rifa» y la confirmación de sus números (D-261): antes de crearla se ve
+ * el resumen de los números de cada boleta y se confirma, porque después no se
+ * cambian. Un formulario que no valida no abre el resumen: para esos casos se
+ * pulsa el botón del formulario a secas.
+ */
+export async function submitNewRaffle(page: Page): Promise<Locator> {
+  await page.getByRole('button', { name: 'Crear rifa' }).click()
+  const resumen = page.getByRole('alertdialog', { name: 'Revisa los números de la boleta' })
+  await resumen.getByRole('button', { name: 'Crear rifa' }).click()
+  return resumen
+}
+
 export async function createRaffleWithPrize(
   page: Page,
   options: {
@@ -189,7 +202,7 @@ export async function createRaffleWithPrize(
   await page.getByLabel('Nombre de la rifa').fill(options.name)
   await page.getByLabel('Fecha de inicio').fill(startDate)
   await page.getByLabel('Fecha de fin').fill(endDate)
-  await page.getByRole('button', { name: 'Crear rifa' }).click()
+  await submitNewRaffle(page)
 
   await page.waitForURL(/\/owner\/raffles\/[0-9a-f-]+\/prizes$/)
   const raffleId = page.url().split('/owner/raffles/')[1]?.split('/')[0] ?? ''

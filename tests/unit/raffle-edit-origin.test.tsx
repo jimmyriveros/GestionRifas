@@ -14,6 +14,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { NUMBER_GROUP_FORM_DEFAULTS } from '@/features/raffles/number-groups'
+
 import {
   parseRaffleEditOrigin,
   raffleEditHref,
@@ -102,6 +104,7 @@ describe('el formulario vuelve al origen que le da la página', () => {
     startDate: '2026-11-02',
     endDate: '2026-12-31',
     allowSellerTicketCreation: false,
+    ...NUMBER_GROUP_FORM_DEFAULTS,
   }
 
   beforeEach(() => {

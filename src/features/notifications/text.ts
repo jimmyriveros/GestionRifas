@@ -292,10 +292,17 @@ export function notificationMessage(kind: string, data: NotificationData): strin
 
     case 'team.sale': {
       const seller = text(data, 'seller_name') ?? 'Un vendedor'
-      const numbers = ticketLabel({
-        dailyNumber: text(data, 'daily_number'),
-        weeklyNumber: text(data, 'weekly_number'),
-      })
+      // D-261: el aviso trae cuántos números tiene la boleta; los de antes no,
+      // y una boleta vendida tiene todos los suyos, así que sin segundo número
+      // es que su rifa tiene uno.
+      const count = data.number_group_count === 1 ? 1 : data.number_group_count === 2 ? 2 : undefined
+      const numbers = ticketLabel(
+        {
+          dailyNumber: text(data, 'daily_number'),
+          weeklyNumber: text(data, 'weekly_number'),
+        },
+        count,
+      )
       return `${seller} vendió la boleta ${numbers}.`
     }
 

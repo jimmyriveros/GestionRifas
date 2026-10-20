@@ -2,7 +2,7 @@
 
 import { AlertTriangleIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { TicketNumberInput } from '@/components/form/TicketNumberInput'
@@ -19,13 +19,19 @@ import {
 import { SELLER_TICKET_MAX } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
-import { comboKey, countErrors, validateBulkRows } from '../../bulk/duplicates'
+import { comboKeyFor, countErrors, validateBulkRows } from '../../bulk/duplicates'
+import {
+  LEGACY_NUMBER_FORMAT,
+  numberGroupTitle,
+  type RaffleNumberFormat,
+} from '@/lib/ticket-number-format'
 import { TicketImportDialog } from '../../import/components/TicketImportDialog'
 import { createSellerTickets } from '../actions'
 import type { SellerTicketRow } from '../schemas'
 
 type SellerTicketFormProps = {
-  raffles: { id: string; label: string }[]
+  /** D-261: cada rifa con sus números; la lista sigue a la elegida. */
+  raffles: { id: string; label: string; numberFormat?: RaffleNumberFormat }[]
 }
 
 function emptyRows(count: number): SellerTicketRow[] {
@@ -48,10 +54,15 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
   const [takenCombos, setTakenCombos] = useState<ReadonlySet<string>>(new Set())
   const [isPending, startTransition] = useTransition()
 
-  const validations = useMemo(
-    () => validateBulkRows(rows, { requireComplete: true, existingCombos: takenCombos }),
-    [rows, takenCombos],
-  )
+  const format = raffles.find((raffle) => raffle.id === raffleId)?.numberFormat ?? LEGACY_NUMBER_FORMAT
+  const [firstGroup, secondGroup] = format.groups
+  // Sin useMemo: el compilador de React lo memoriza solo, y el formato sale de
+  // una búsqueda en cada render que la regla no deja declarar como dependencia.
+  const validations = validateBulkRows(rows, {
+    requireComplete: true,
+    existingCombos: takenCombos,
+    format,
+  })
   const errorCount = countErrors(validations)
 
   function updateRow(index: number, patch: Partial<SellerTicketRow>) {
@@ -73,7 +84,11 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
     }
 
     startTransition(async () => {
-      const result = await createSellerTickets({ raffleId, rows })
+      // Con un solo número, la fila no lleva segundo (D-261).
+      const result = await createSellerTickets({
+        raffleId,
+        rows: secondGroup ? rows : rows.map((row) => ({ ...row, weeklyNumber: '' })),
+      })
 
       if ('error' in result) {
         toast.error(result.error)
@@ -95,10 +110,12 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
 
       // Errores parciales: se conservan solo las filas rechazadas, marcadas.
       const conflictSet = new Set(conflicts)
-      setRows(rows.filter((row) => conflictSet.has(comboKey(row.dailyNumber, row.weeklyNumber))))
+      setRows(rows.filter((row) => conflictSet.has(comboKeyFor(row, format))))
       setTakenCombos(conflictSet)
       toast.warning(
-        `Se crearon ${inserted} boleta(s). ${conflicts.length} combinación(es) ya estaban tomadas en la rifa.`,
+        secondGroup
+          ? `Se crearon ${inserted} boleta(s). ${conflicts.length} combinación(es) ya estaban tomadas en la rifa.`
+          : `Se crearon ${inserted} boleta(s). ${conflicts.length} número(s) ya estaban tomados en la rifa.`,
       )
       router.refresh()
     })
@@ -154,6 +171,7 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
         </p>
         <TicketImportDialog
           raffleId={raffleId}
+          numberFormat={format}
           disabled={isPending || !raffleId}
           successHref="/seller/tickets?inventoryStatus=pending_approval"
         />
@@ -177,10 +195,17 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
       </div>
 
       <div className="rounded-lg border">
-        <div className="text-muted-foreground grid grid-cols-[2.5rem_1fr_1fr] gap-2 border-b px-3 py-2 text-xs font-medium">
+        <div
+          className={cn(
+            'text-muted-foreground grid gap-2 border-b px-3 py-2 text-xs font-medium',
+            secondGroup ? 'grid-cols-[2.5rem_1fr_1fr]' : 'grid-cols-[2.5rem_1fr]',
+          )}
+        >
           <span>#</span>
-          <span>Número diario</span>
-          <span>Número semanal</span>
+          <span>{`${numberGroupTitle(firstGroup.name)} (${firstGroup.digits} cifras)`}</span>
+          {secondGroup ? (
+            <span>{`${numberGroupTitle(secondGroup.name)} (${secondGroup.digits} cifras)`}</span>
+          ) : null}
         </div>
 
         <ul className="divide-y">
@@ -193,37 +218,49 @@ export function SellerTicketForm({ raffles }: SellerTicketFormProps) {
               <li
                 key={index}
                 className={cn(
-                  'grid grid-cols-[2.5rem_1fr_1fr] items-start gap-2 px-3 py-2',
+                  'grid items-start gap-2 px-3 py-2',
+                  secondGroup ? 'grid-cols-[2.5rem_1fr_1fr]' : 'grid-cols-[2.5rem_1fr]',
                   rowHasError && 'bg-destructive/5',
                 )}
               >
                 <span className="text-muted-foreground pt-2 text-xs tabular-nums">{index + 1}</span>
                 <div>
                   <TicketNumberInput
-                    aria-label={`Número diario de la fila ${index + 1}`}
+                    aria-label={`${numberGroupTitle(firstGroup.name)} de la fila ${index + 1}`}
                     aria-invalid={Boolean(validation?.dailyError)}
                     value={row.dailyNumber}
                     onChange={(value) => updateRow(index, { dailyNumber: value })}
+                    maxDigits={firstGroup.digits}
                     disabled={isPending}
                   />
                   {validation?.dailyError ? (
                     <p className="text-destructive mt-1 text-xs">{validation.dailyError}</p>
                   ) : null}
                 </div>
-                <div>
-                  <TicketNumberInput
-                    aria-label={`Número semanal de la fila ${index + 1}`}
-                    aria-invalid={Boolean(validation?.weeklyError)}
-                    value={row.weeklyNumber}
-                    onChange={(value) => updateRow(index, { weeklyNumber: value })}
-                    disabled={isPending}
-                  />
-                  {validation?.weeklyError ? (
-                    <p className="text-destructive mt-1 text-xs">{validation.weeklyError}</p>
-                  ) : null}
-                </div>
+                {secondGroup ? (
+                  <div>
+                    <TicketNumberInput
+                      aria-label={`${numberGroupTitle(secondGroup.name)} de la fila ${index + 1}`}
+                      aria-invalid={Boolean(validation?.weeklyError)}
+                      value={row.weeklyNumber}
+                      onChange={(value) => updateRow(index, { weeklyNumber: value })}
+                      maxDigits={secondGroup.digits}
+                      disabled={isPending}
+                    />
+                    {validation?.weeklyError ? (
+                      <p className="text-destructive mt-1 text-xs">{validation.weeklyError}</p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {validation?.rowError ? (
-                  <p className="text-destructive col-span-3 text-xs">{validation.rowError}</p>
+                  <p
+                    className={cn(
+                      'text-destructive text-xs',
+                      secondGroup ? 'col-span-3' : 'col-span-2',
+                    )}
+                  >
+                    {validation.rowError}
+                  </p>
                 ) : null}
               </li>
             )

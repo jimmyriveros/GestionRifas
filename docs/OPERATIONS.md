@@ -55,9 +55,10 @@ Ya lo hace la aplicación — esto documenta el procedimiento, no código nuevo.
    una contraseña desde la aplicación.
    El correo dice «Tu invitación a Rifas» y su botón, «Crear mi contraseña»; sirve una sola vez y se
    puede abrir en cualquier navegador o teléfono. Si vence o ya se usó, «Reenviar acceso por correo» en
-   la fila de la persona manda otro («Elige tu contraseña de Rifas»). **En producción, para que el correo
-   llegue a alguien de fuera hace falta el SMTP propio** (I-206, `DEPLOYMENT` §2.1): el correo integrado de
-   Supabase solo entrega al equipo del proyecto.
+   la fila de la persona manda otro («Elige tu contraseña de Rifas»). El enlace dura **una hora**.
+   **En producción el correo sale por la cuenta de Gmail de Rifas** (SMTP propio desde el 2026-10-12; I-206,
+   `DEPLOYMENT` §2.1). **Si alguien cambia la contraseña de esa cuenta de Google, el correo deja de salir sin
+   avisar**: se genera otra contraseña de aplicación y se pega en Supabase (Emails → SMTP Settings).
 4. Para desactivar a alguien (deja de poder iniciar sesión, y si tenía una sesión abierta se le
    cierra): botón de activar/desactivar en su fila del listado. Reactivar es el mismo botón.
 

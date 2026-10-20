@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { PageHeader } from '@/components/data/PageHeader'
 import { RaffleForm } from '@/features/raffles/components/RaffleForm'
 import { parseRaffleEditOrigin, raffleEditReturnHref } from '@/features/raffles/edit-origin'
+import { numberGroupsFromFormat } from '@/features/raffles/number-groups'
 import { getAdminRaffleDetail } from '@/features/raffles/queries'
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -47,6 +48,8 @@ export default async function EditRafflePage({
           startDate: raffle.startDate,
           endDate: raffle.endDate,
           allowSellerTicketCreation: raffle.allowSellerTicketCreation,
+          // D-261: se leen, no se editan.
+          ...numberGroupsFromFormat(raffle.numberFormat),
         }}
         status={raffle.status}
         returnHref={returnHref}

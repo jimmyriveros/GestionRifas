@@ -1,4 +1,5 @@
 import { formatCOP } from '@/lib/money'
+import { ticketLabel } from '@/lib/tickets'
 
 /**
  * Todos los textos del cierre de cuentas (D-241), juntos (UX_COPY_GUIDELINES,
@@ -286,7 +287,7 @@ export const SETTLEMENT_COPY = {
     summary: (count: number, paid: number) =>
       `${count} ${count === 1 ? 'premio' : 'premios'} · ${formatCOP(paid)} pagados`,
     ticket: (daily: string | null, weekly: string | null) =>
-      `Boleta ${daily ?? '—'} / ${weekly ?? '—'}`,
+      `Boleta ${ticketLabel({ dailyNumber: daily, weeklyNumber: weekly })}`,
     draw: (date: string) => `Sorteo: ${date}`,
     paidBy: (name: string, date: string) => `${name} pagó el ${date}`,
     paidByOwner: (date: string) => `El dueño pagó el ${date}`,

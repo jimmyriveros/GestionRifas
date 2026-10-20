@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
 import { DEFAULT_TICKET_PRICE } from '@/lib/constants'
+import { NUMBER_GROUPS_MESSAGES } from '@/lib/ticket-number-format'
+
+import { NUMBER_GROUP_FORM_DEFAULTS, numberGroupsIssue } from './number-groups'
 
 /**
  * Unica fuente de validacion de rifas: la usan el formulario del navegador y la
@@ -41,7 +44,30 @@ const datesError = {
   path: ['endDate'],
 }
 
-export const createRaffleSchema = raffleFields.refine(datesInOrder, datesError)
+/**
+ * Los números de cada boleta (D-261): cuántos, sus nombres y sus cifras. Solo
+ * se escriben al CREAR la rifa; después no cambian, y la base lo impide aunque
+ * alguien los mande (`raffles_guard_number_groups`).
+ */
+const groupDigits = z.union([z.literal(2), z.literal(3), z.literal(4)], {
+  error: NUMBER_GROUPS_MESSAGES.digits,
+})
+
+const numberGroupFields = {
+  groupCount: z.union([z.literal(1), z.literal(2)], { error: NUMBER_GROUPS_MESSAGES.count }),
+  firstGroupName: z.string().trim(),
+  firstGroupDigits: groupDigits,
+  secondGroupName: z.string().trim(),
+  secondGroupDigits: groupDigits,
+}
+
+export const createRaffleSchema = raffleFields
+  .extend(numberGroupFields)
+  .refine(datesInOrder, datesError)
+  .superRefine((value, ctx) => {
+    const issue = numberGroupsIssue(value)
+    if (issue) ctx.addIssue({ code: 'custom', path: [issue.path], message: issue.message })
+  })
 export type CreateRaffleInput = z.infer<typeof createRaffleSchema>
 
 export const updateRaffleSchema = raffleFields
@@ -62,4 +88,5 @@ export const raffleFormDefaults: CreateRaffleInput = {
   startDate: '',
   endDate: '',
   allowSellerTicketCreation: false,
+  ...NUMBER_GROUP_FORM_DEFAULTS,
 }

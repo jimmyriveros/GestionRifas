@@ -6,6 +6,7 @@ import { useRef, useState, useTransition } from 'react'
 
 import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
+import { LEGACY_NUMBER_FORMAT, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,11 @@ import { ImportPreview } from './ImportPreview'
 type TicketImportDialogProps = {
   /** Rifa a la que van las boletas. La elige la pantalla, no el archivo. */
   raffleId: string
+  /**
+   * D-261: los números de esa rifa. Deciden qué columnas se piden, cómo se
+   * llaman y con cuántas cifras exactas se valida cada número.
+   */
+  numberFormat?: RaffleNumberFormat
   /** Solo el personal lo manda. En el portal del vendedor va sin definir. */
   sellerId?: string
   /** Se deshabilita el importador si falta contexto (sin rifa, sin vendedor). */
@@ -62,6 +68,7 @@ type Paso = 'archivo' | 'mapeo' | 'vista-previa' | 'resultado'
 
 export function TicketImportDialog({
   raffleId,
+  numberFormat = LEGACY_NUMBER_FORMAT,
   sellerId,
   disabled,
   successHref,
@@ -86,6 +93,14 @@ export function TicketImportDialog({
    */
   const [guardando, setGuardando] = useState(false)
   const [isPending, startTransition] = useTransition()
+  /** El archivo trae una segunda columna y la rifa tiene un solo número (D-261). */
+  const [segundaIgnorada, setSegundaIgnorada] = useState(false)
+
+  const groupCount = numberFormat.groups.length
+  const groupNames = {
+    daily: numberFormat.groups[0].name,
+    weekly: numberFormat.groups[1]?.name,
+  }
 
   /**
    * Cerrojo contra el doble envio.
@@ -107,14 +122,21 @@ export function TicketImportDialog({
     setError(null)
     setComprobado(false)
     setNombreArchivo('')
+    setSegundaIgnorada(false)
   }
 
   /** Contrasta las combinaciones con la rifa. Una sola llamada, nunca una por fila. */
-  function revisar(filas: ImportRow[]) {
+  function revisar(leidas: ImportRow[]) {
+    // D-261: con un solo número, una segunda columna del archivo no se usa, y se
+    // dice; nunca se mezcla con el primero ni se rellena nada.
+    const filas =
+      groupCount === 1 ? leidas.map((fila) => ({ ...fila, weeklyNumber: '' })) : leidas
+    setSegundaIgnorada(groupCount === 1 && leidas.some((fila) => fila.weeklyNumber !== ''))
+
     // Primera pasada, sin base de datos: formato, repeticiones dentro del
     // archivo y filas que traen cliente o abono. Se pinta ya, para no dejar la
     // pantalla en blanco esperando.
-    const primera = reviewRows(filas)
+    const primera = reviewRows(filas, { format: numberFormat })
     setReview(primera)
     setComprobado(false)
     setPaso('vista-previa')
@@ -141,7 +163,9 @@ export function TicketImportDialog({
         return
       }
 
-      setReview(reviewRows(filas, { existingCombos: new Set(respuesta.data.taken) }))
+      setReview(
+        reviewRows(filas, { existingCombos: new Set(respuesta.data.taken), format: numberFormat }),
+      )
       setComprobado(true)
     })
   }
@@ -157,20 +181,20 @@ export function TicketImportDialog({
       const texto = await file.text()
 
       if (esJson) {
-        revisar(parseJsonTickets(texto))
+        revisar(parseJsonTickets(texto, groupNames))
         return
       }
 
       const leida = parseCsv(texto)
       setTabla(leida)
 
-      const mapeo = detectMapping(leida.headers)
+      const mapeo = detectMapping(leida.headers, groupNames)
       // Desde D-198 solo se para a preguntar por los NUMEROS (BR-Q07). Pedir el
       // par del cliente, o un cliente para el abono —lo que añade
       // `needsManualMapping`—, mandaria a la persona por un camino que la vista
       // previa rechaza: las columnas de cliente y de abono que se reconozcan
       // entran igual en el mapeo y sus filas se apartan con su motivo.
-      if (!isMappingComplete(mapeo)) {
+      if (!isMappingComplete(mapeo, groupCount)) {
         setPaso('mapeo')
         return
       }
@@ -257,11 +281,17 @@ export function TicketImportDialog({
           </DialogHeader>
 
           {paso === 'archivo' ? (
-            <ImportDropzone onFile={leerArchivo} disabled={isPending} error={error} />
+            <ImportDropzone
+              onFile={leerArchivo}
+              disabled={isPending}
+              error={error}
+              numberFormat={numberFormat}
+            />
           ) : null}
 
           {paso === 'mapeo' && tabla ? (
             <ColumnMapper
+              numberFormat={numberFormat}
               headers={tabla.headers}
               sampleRows={tabla.rows.slice(0, 3)}
               initial={detectMapping(tabla.headers)}
@@ -274,7 +304,12 @@ export function TicketImportDialog({
             <div className="space-y-4">
               <p className="text-muted-foreground text-xs">Archivo: {nombreArchivo}</p>
 
-              <ImportPreview review={review} checked={comprobado} />
+              {segundaIgnorada ? (
+                <p className="text-muted-foreground text-sm">
+                  {`Esta rifa tiene un solo número por boleta («${groupNames.daily}»): la otra columna de números del archivo no se usa.`}
+                </p>
+              ) : null}
+              <ImportPreview review={review} checked={comprobado} numberFormat={numberFormat} />
 
               {error ? (
                 <p

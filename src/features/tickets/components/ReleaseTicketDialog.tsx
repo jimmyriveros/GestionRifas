@@ -9,6 +9,11 @@ import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  LEGACY_NUMBER_FORMAT,
+  numberGroupTitle,
+  type RaffleNumberFormat,
+} from '@/lib/ticket-number-format'
 
 import { releaseTicket } from '../actions'
 import { releaseTicketSchema } from '../schemas'
@@ -19,9 +24,17 @@ type ReleaseTicketDialogProps = {
   ticketNumbers: string
   dailyNumber: string | null
   weeklyNumber: string | null
+  /** D-261: cada número con el nombre que le dio la rifa; con uno solo, una fila. */
+  numberFormat?: RaffleNumberFormat
   /** A quien pertenece HOY la boleta. Viaja al servidor como `expectedClientId`. */
   currentClientId: string
   currentClientName: string
+  /**
+   * La venta salio de un apartado del inventario comun (D-258): al liberarla,
+   * la boleta vuelve alli y deja de ser de quien la libera. Decide el texto que
+   * se lee ANTES de confirmar; lo que paso de verdad lo devuelve la accion.
+   */
+  returnsToCommon: boolean
 }
 
 /**
@@ -44,8 +57,10 @@ export function ReleaseTicketDialog({
   ticketNumbers,
   dailyNumber,
   weeklyNumber,
+  numberFormat = LEGACY_NUMBER_FORMAT,
   currentClientId,
   currentClientName,
+  returnsToCommon,
 }: ReleaseTicketDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -71,8 +86,14 @@ export function ReleaseTicketDialog({
         setError(result.error)
         return
       }
-      toast.success(`La boleta ${ticketNumbers} quedó disponible.`)
       setOpen(false)
+      if (result.data.toCommonInventory ?? returnsToCommon) {
+        toast.success(`La boleta ${ticketNumbers} volvió al inventario común.`)
+        // Ya no es suya: este detalle no se podria volver a abrir (D-258).
+        router.replace('/seller/tickets')
+        return
+      }
+      toast.success(`La boleta ${ticketNumbers} quedó disponible.`)
       router.refresh()
     })
   }
@@ -104,13 +125,23 @@ export function ReleaseTicketDialog({
         }}
         title="Liberar boleta"
         // Lo unico que la pantalla no ensena: que el precio y la fecha de ESTA
-        // venta se borran, y que lo demas no se toca.
+        // venta se borran, y que lo demas no se toca. Si la venta salio de un
+        // apartado, ademas, a donde va la boleta: deja de ser suya (D-258).
         description={
-          <>
-            Dejará de estar asignada a <span className="font-medium">{currentClientName}</span> y
-            volverá a quedar disponible para venderla otra vez. Se borran el precio y la fecha de
-            esta venta; los números, el vendedor y la rifa no cambian.
-          </>
+          returnsToCommon ? (
+            <>
+              Dejará de estar asignada a <span className="font-medium">{currentClientName}</span> y
+              volverá al inventario común, de donde la apartaste: saldrá de tus boletas y cualquier
+              vendedor podrá apartarla otra vez, tú también. Se borran el precio y la fecha de esta
+              venta; los números y la rifa no cambian.
+            </>
+          ) : (
+            <>
+              Dejará de estar asignada a <span className="font-medium">{currentClientName}</span> y
+              volverá a quedar disponible para venderla otra vez. Se borran el precio y la fecha de
+              esta venta; los números, el vendedor y la rifa no cambian.
+            </>
+          )
         }
         confirmLabel="Confirmar liberación"
         pending={isPending}
@@ -131,8 +162,14 @@ export function ReleaseTicketDialog({
           {/* Que boleta y de quien, delante de los ojos: quien confirma no tiene
               por que recordarlo de memoria ni volver a la pantalla de atras. */}
           <dl className="bg-muted/40 space-y-1 rounded-lg border px-3 py-2 text-sm">
-            <ReleaseDetail label="Número diario" value={dailyNumber ?? '—'} mono />
-            <ReleaseDetail label="Número semanal" value={weeklyNumber ?? '—'} mono />
+            {numberFormat.groups.map((group) => (
+              <ReleaseDetail
+                key={group.slot}
+                label={numberGroupTitle(group.name)}
+                value={(group.slot === 'daily_number' ? dailyNumber : weeklyNumber) ?? '—'}
+                mono
+              />
+            ))}
             <ReleaseDetail label="Cliente actual" value={currentClientName} />
           </dl>
 

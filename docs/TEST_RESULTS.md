@@ -13,7 +13,14 @@ Un error corregido documentado es información; ocultarlo es deuda.
 
 | Fase | Unitarias | Base de datos | E2E | Verify | Estado |
 |---|---|---|---|---|---|
-| **Post-9 vigente (Preparación de D-253 y D-254 sobre `c13d831`: la rama integra `main` sin cambiar su árbol, 2026-10-11; nada publicado)** | **2.218/2.218** en 109 archivos, sobre la integración | Sin repetir: el árbol es el de `cc7e96a`, con **1.573 ✅ y 1 omitida** el 2026-10-08 | Acceso, invitaciones y el ojo, escritorio y móvil: **77/77**. La completa del mismo código, **1.061/1.063** el 2026-10-08 (I-090, I-075) | ✅ `verify` | Producción, solo leída: `c13d831` servido, `verify:remote` 58/58, registro público abierto |
+| **Post-9 vigente (Preparación de la publicación de D-257 a D-261, con D-262 —la `0084` toca `tickets` y `raffles` en un solo bloque final—, ensayada sobre una copia de producción; nada publicado, 2026-10-20, por la noche)** | **2.277/2.277** en 113 archivos (+10, `gate-number-groups`) | **1.659 ✅ y 1 omitida** (+1, G7-03). Ensayo: la `0084` de D-261 acababa en un **interbloqueo** con una boleta nueva y tiraba 3 creaciones; con D-262, ventanas de 0,93–1,62 s en directo, 1,41–1,49 s con 94 ms y 1,81–1,96 s con 200 ms, **0 caídas** en siete pasadas; `55P03` sin aplicar nada con `tickets` o `raffles` ocupadas; la `0083` y la `0084` juntas fallan; puerta **CONTINUAR**, 0 filas tocadas, también con 3 fuera de formato; `verify:remote` 57 + 4 → 60 + los cron | Código servido contra la base nueva: **1.059/1.063**, los 4 explicados; reversión con rifas nuevas, **3/3**; la candidata, 18 suites, **265/266** (I-106) | `verify` ✅ con `build` | ✅ Solo en local; sin push ni despliegue; I-216 resuelta en local |
+| Post-9 anterior (D-261: los números de cada boleta los define su rifa, `0083` y `0084`; solo en local, nada publicado, 2026-10-20) | **2.267/2.267** en 112 archivos (+30: `ticket-number-format` 28 y las ajustadas) | **1.658 ✅ y 1 omitida** en 67 archivos, sobre una base recién sembrada (+36: `raffle-number-groups` 34 y las adaptadas); dos defectos reales encontrados y corregidos —el `ON CONFLICT` ambiguo del generador y la llamada por candidata del motor— | **1.075/1.077**: `pausa-publicacion:185` espera el commit y `ventas-por-fecha:163` es I-090; la nueva `rifa-un-numero` 5/5 | `verify` ✅ con `build` | ✅ Solo en local; sin push ni despliegue; I-215 e I-216 abiertas, I-217 resuelta |
+| Post-9 anterior (I-214: la generación deja al día la estadística de `tickets`, D-260, dentro de la `0081`; solo en local, nada publicado, 2026-10-20) | **2.237/2.237** en 111 archivos | **1.622 ✅ y 1 omitida** (+4 de volumen; esa suite **falla con la `0081` de antes**). En la copia de producción, a un vendedor con equipo: antes, 200 boletas en 4,8 s y `57014` desde 350–500; ahora, 1.000 en 282 ms nada más generar y 293 ms a 50.000 interrumpidas. Estructura igual salvo una función; puerta **CONTINUAR** con el delta nuevo; cerrojos 0,68–0,72 s con 94 ms, 0 caídas | Inventario **8/8**; el recorrido por la pantalla con 100.000 y dos lotes de 1.000, **1/1** (sin versionar) | `verify` ✅ con `build` | ✅ Solo en local; sin push ni despliegue; I-214 resuelta en local |
+| Post-9 anterior (Preparación de la publicación de D-257, D-258 e I-211, con D-259 —la `0081` y la `0082` reordenadas—, ensayada sobre una copia de producción; nada publicado, 2026-10-19) | **2.237/2.237** en 111 archivos, sobre `a9622cc` y sobre `7c383ef` | **1.618 ✅ y 1 omitida** con las reordenadas. Ensayo: con 94 ms de ida y vuelta, `tickets` bloqueada **10,5 y 13,8 s** con las originales (3 caídas por pasada) y **0,47–0,62 s** con las reordenadas (0 caídas); puerta **CONTINUAR**, 0 filas tocadas; `verify:remote` 59 + 1 (los cron que apaga el ensayo) | Código servido contra la base nueva: **1.059/1.063**, los 4 explicados; reversión con inventario común, **3/3**; código final, **275/275** en 20 suites | `verify` ✅ dos veces, con `build` | ✅ Solo en local; sin push ni despliegue; I-214 abierta |
+| Post-9 anterior (I-211: «Aprobada» en el detalle del vendedor solo cuando dice algo, `ApprovalDetailLine`, solo en local, sin migración, 2026-10-19) | **2.237/2.237** en 111 archivos (+3: `ticket-approval-line`, **1 falla con la regla anterior**) | Sin repetir: sin cambio de esquema; la última, **1.618 ✅ y 1 omitida**, en D-258 | Nueva **1/1** —**falla con el código anterior**—; con `detalle-boleta-composicion`, `detalle-boleta-admin` y `privacidad-admin`, **76/76** | `tsc` y `eslint` ✅ (los 2 avisos de siempre); sin `build` | ✅ Solo en local; sin push ni despliegue |
+| Post-9 anterior (D-257: inventario común, generación por rangos y apartados, migración `0081`, solo en local, 2026-10-19) | **2.234/2.234** en 110 archivos (+16, `inventory-rules`) | **1.613 ✅ y 1 omitida** en 66 archivos (+40: `common-inventory` 36 y `common-inventory-volume` 4, con 100.000 boletas) sobre la base recreada con las 81 migraciones | Nuevas **7/7**; completa **1.066/1.070** en 1,1 h, con la huella igual antes y después: `pausa-publicacion:185` (la `0081` aún sin commit, como en D-241; después del commit, 4/4), I-179, I-148 e I-090, contrastadas | ✅ (los 2 avisos de siempre) | ✅ Solo en local; sin push ni despliegue |
+| Post-9 anterior (Publicación de D-253 y D-254: `b1f8dc1` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-11, 18:11–18:13 UTC; Auth sin tocar) | CI del PR (`38162104280`) sobre `b1f8dc1`: ✅ 2/2, 109 archivos; en `main`, run **`38162750164`** (`push`): ✅ **2/2** (18:11:13–18:19:08 UTC), **2.218/2.218** unitarias y **1.573 ✅ y 1 omitida** de base | En el CI: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | En vivo, todo en verde antes y después, con las huellas de D-253 y D-254 ausentes y presentes | ✅ | ✅ **Publicado**; P3–P8 pendientes |
+| Post-9 anterior (Preparación de D-253 y D-254 sobre `c13d831`: la rama integra `main` sin cambiar su árbol, 2026-10-11; nada publicado) | **2.218/2.218** en 109 archivos, sobre la integración | Sin repetir: el árbol es el de `cc7e96a`, con **1.573 ✅ y 1 omitida** el 2026-10-08 | Acceso, invitaciones y el ojo, escritorio y móvil: **77/77**. La completa del mismo código, **1.061/1.063** el 2026-10-08 (I-090, I-075) | ✅ `verify` | Producción, solo leída: `c13d831` servido, `verify:remote` 58/58, registro público abierto |
 | Post-9 anterior (Publicación de D-255 y D-256: `c13d831` EN PRODUCCIÓN, sin migración ni pausa, 2026-10-09, 00:09–00:13 UTC; desde una rama aislada, sin D-253 ni D-254) | Candidato aislado: **2.069/2.069**; CI del PR (`37862503137`) sobre `c13d831`: ✅ 2/2, **2.069/2.069**; CI de `main` (`37863343304`): ✅ **2/2** (00:09:55–00:17:54): **2.069/2.069** unitarias y **1.573 ✅ y 1 omitida** de base | Candidato y CI del PR: **1.573 ✅ y 1 omitida**. Producción en `0080`; `verify:remote` **58/58** antes y después | Candidato aislado, una sola pasada: **1.050/1.052**, con I-075 e I-090 contrastados; en vivo, el ojo en un navegador sin sesión, todo en verde | ✅ | **EN PRODUCCIÓN**; la revisión del dueño, **pendiente** |
 | Post-9 anterior (D-256: el ojo también en «Nueva contraseña» y «Cambiar contraseña», `PasswordInput`, solo en local, sin migración, 2026-10-08) | **2.218/2.218** en 109 archivos (+8: `mostrar-contrasena-nueva`, **las 8 fallan con los formularios anteriores**); las de D-255 e I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada | Nuevas **3/3** —**fallan con los anteriores**— y las 5 de D-255, **8/8**; completa **1.061/1.063** (56,0 min): I-075 e I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
 | Post-9 anterior (D-255: el ojo del campo de contraseña del ingreso, solo en local, sin migración, 2026-10-08) | **2.210/2.210** en 108 archivos (+6: `login-mostrar-contrasena`, **las 6 fallan con el formulario anterior**); las 12 de I-204, sin cambios | **1.573 ✅ y 1 omitida** sobre siembra recién restaurada: sin cambio de esquema | Nuevas **5/5** —escritorio 3, móvil 2; **2 fallan sin la corrección del cursor**—; con I-204 y D-253, **20/20**; completa **1.059/1.060** (55,4 min), el único fallo, I-090 | ✅ `verify` (los 2 avisos de lint de siempre) | ✅ Solo en local |
@@ -18879,3 +18886,687 @@ proveedor; escribirá él la contraseña de aplicación en Supabase.
 | `npm run verify:remote` | ✅ **58/58** | — | — |
 
 Sin repetir la E2E completa ni `test:db`: el árbol es el mismo que pasó las dos el 2026-10-08 (`TEST_RESULTS`, «D-256»).
+
+---
+
+## Publicación de D-253 y D-254 — EN PRODUCCIÓN: `b1f8dc1` (2026-10-11, 17:23–18:20 UTC)
+
+Autorización expresa del dueño para P1–P2 de `DEPLOYMENT` §3.3.h; el registro, en §3.2.aa. Auth, sin tocar.
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `build/publicacion-d253-d254/en-vivo.mjs` (copia del de §3.2.z con las huellas de esta entrega) contra el candidato en local, modo después | La primera versión de la huella de D-253 fallaba: `ejemplo.invalid` sale **siempre** en el HTML, porque la URL de la página viaja en la carga del RSC | Error del guion, no del producto | Se mide la **propiedad** `next` de `LoginForm` (`{"next":"…","initialError"…}`): en producción la tenía con el destino hostil y en el candidato no. Después, modo antes en producción y modo después en local, en verde |
+| P0 en vivo, modo antes (18:00:53 UTC) | ✅ Todo en verde: `c13d831` servido, el ojo, `/auth/confirm` inexistente y el `next` hostil **viajando** al formulario | — | — |
+| `p0-base.mts` (solo lectura), 18:01 y 18:10 UTC | `0080`, sin pausa; candado libre; 0 corridas sin terminar; 0 peticiones de la API en curso; el próximo recordatorio, el 2026-10-16 | — | — |
+| `git push origin feature/detalle-boleta-admin` y PR #15 | `783b08f..b1f8dc1`, sin `force` | — | — |
+| CI del PR, run `38162104280` | ✅ **2/2** (18:02:01–18:09:46): 109 archivos de unitarias; **1.573 ✅ y 1 omitida** de base | La vista previa de Vercel (`dpl_H6xz…`), en rojo | **D-066** exactamente: `check:env` sin las tres variables de Supabase |
+| `publicar-main.sh b1f8dc1…` (18:11:07) | `c13d831..b1f8dc1` en `main`; `60647d464acc` servido a los 71 s, desde las 18:12:20 | — | — |
+| Vercel | `dpl_8v5s7XDzSeYvNYJcohpKo4Ue5AWp` READY a las 18:12:08, alias sin error; `dpl_DpnW…`, candidato a reversión | — | — |
+| `en-vivo.mjs despues` (18:12) | ✅ **Todo en verde**, 43/43 rutas, 0 5xx; `/auth/confirm` → `/login?error=auth_callback`; el `next` hostil ya no llega al formulario; el ojo y lo anterior, en su sitio | — | — |
+| `npm run verify:remote` (18:13) | ✅ **58/58** | — | — |
+| `p0-base.mts` después (18:13) | `0080`, sin pausa; cierre igual: 0 entregas, 8 pagos de premios, 0 cierres | — | — |
+| Registros de `dpl_8v5s…` (18:11–18:13) y `get_runtime_errors` (1 h) | 8 líneas `info`, todas `[rifas:instancia] nueva`; 0 avisos, 0 errores; ningún error de ejecución | — | — |
+| P3, el dueño con su sesión (~18:24 UTC) | Con `/login?next=/%5Cejemplo.invalid`, llegó a `gestion-rifas.vercel.app/owner/dashboard` | — | — |
+| Registros de producción, 17:46–18:26 UTC, y `get_runtime_errors` (1 h) | 30 líneas `info`, todas `[rifas:instancia] nueva`; 0 avisos, 0 errores, ninguna `[rifas:supabase]` | — | — |
+| P0 del panel de Auth, leído por el dueño | Email OTP Expiration: **3.600 s** | — | — |
+| P4, el dueño en el panel (2026-10-11 y 12) | Site URL **sin barra final**; `https://gestion-rifas.vercel.app/**` añadida a Redirect URLs; `http://localhost:3000/` conservada, por decisión suya | — | — |
+| P5, el dueño en el panel (2026-10-12) | ❌ **No se pudo**: el panel no deja editar el código de las plantillas sin SMTP propio («Set up custom SMTP to edit the source»). Nada cambió | Requisito del panel que el plan no preveía | Orden corregido a P7 → P6 → P5 → P8 (`DEPLOYMENT` §3.3.h) |
+| P7, el dueño en el panel (2026-10-12) y `GET /auth/v1/settings` (solo lectura, 2026-10-13 00:39 UTC) | ✅ `disable_signup: true`; el proveedor de correo sigue activo (`external.email: true`), sin autoconfirmación ni usuarios anónimos | — | — |
+| Email OTP Expiration, el dueño en el panel (2026-10-12) | Subido de 3.600 a **86.400 s**; el panel avisa «OTP expiry exceeds recommended threshold» (recomienda menos de una hora) | Riesgo no considerado al recomendar 24 h: los códigos de 6 cifras se pueden probar más tiempo | Se le presentan dos salidas (`DEPLOYMENT` §2.1): volver a 1 h, o 24 h con Email OTP Length en 10 |
+| Email OTP Expiration, decisión del dueño (2026-10-12) | De vuelta a **3.600 s**; Email OTP Length, sin tocar | — | — |
+| P8, el dueño con correos reales (2026-10-13, 01:04–01:15 UTC) | ✅ Invitación a una dirección suya: correo de Rifas, en español; «Crear mi contraseña» → «Nueva contraseña» → panel del vendedor. «¿Olvidaste tu contraseña?» con esa dirección, abierto en **otro** dispositivo → «Nueva contraseña» → entra. Vendedor de prueba desactivado después | — | — |
+| `get_runtime_errors` (1 h) y registros de producción, 00:18–01:16 UTC | Ningún error. 13 líneas `info`, todas `[rifas:instancia] nueva` (una en `GET /auth/confirm`, 01:13:08); 1 aviso: `[rifas:supabase] POST /auth/v1/recover → 200 en 3313 ms` desde `POST /forgot-password`. Los registros no escriben estados ni usuarios, y la invitación (clave de servicio) no se cronometra | La recuperación tardó 3,3 s | Hipótesis: Auth envía el correo por Gmail antes de responder. Siguiente comprobación, si «¿Olvidaste tu contraseña?» se nota lenta: comparar más llamadas (solo se escriben las de 1 s o más) |
+| Comprobación de que todo sigue en producción (2026-10-16, ~22:24 UTC, solo lectura) | ✅ `list_deployments`: el de producción sigue siendo `dpl_8v5s7XD…` (`b1f8dc1`), sin despliegues después; candidato a reversión, `dpl_DpnW…`. `en-vivo.mjs despues`: todo en verde —`60647d464acc` servido, `/auth/confirm` → `/login?error=auth_callback`, el `next` hostil no llega al formulario, el ojo y lo anterior en su sitio—. `/auth/v1/settings`: `disable_signup: true`. `verify:remote`: **58/58**. Rate Limits: **30 por hora**, leído por el dueño | — | — |
+| P6 y P5, el dueño en el panel (2026-10-12) | SMTP propio con Gmail y, a continuación, las dos plantillas de D-254 pegadas. **Sin comprobación desde fuera**: `/auth/v1/settings` no enseña ni el SMTP ni las plantillas; las prueba P8 | — | — |
+| CI de `main` (run `38162750164`) | run **`38162750164`** (`push`): ✅ **2/2** (18:11:13–18:19:08 UTC), **2.218/2.218** unitarias y **1.573 ✅ y 1 omitida** de base | — | — |
+
+---
+
+## D-257: inventario común, generación por rangos y apartados (2026-10-19; solo en local, migración `0081`)
+
+Encargo del dueño. Pila local (Supabase en Docker, `next dev` en `localhost:3000`); producción, **sin tocar ni leer**.
+Las cuentas son las del seed.
+
+### a. Línea base, antes de tocar nada
+
+| Comando | Resultado |
+|---|---|
+| `npm run test:db` | ✅ **1.573 + 1 omitida** |
+| `npm run verify` | ✅ **2.218/2.218** unitarias; lint con los 2 avisos de siempre; build |
+
+### b. Errores encontrados, en orden
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| Docker apagado | `supabase start` no conectaba | Docker Desktop arrancado |
+| Git Bash reescribía las rutas de `docker cp` y de `psql` | Rutas `C:/Program Files/Git/…` dentro del contenedor | `MSYS_NO_PATHCONV=1` |
+| **La copia del motor de loterías corrompió la migración**: `String.replace` con un texto de reemplazo interpreta `$$` y `$'` | La `0081` no aplicaba; el cuerpo copiado tenía trozos repetidos | Reparada y vuelta a copiar con una **función** de reemplazo; comparada línea a línea con la `0064`: solo cambian los dos filtros `t.seller_id is not null` |
+| `column t.generation_run_id does not exist` al crear `admin_ticket_detail` | Una función `language sql` valida su cuerpo al crearse, y la columna se añade al final de la migración | Pasada a `plpgsql` |
+| Una sonda leía `ticket_holds` como `authenticated` | `permission denied` | Era lo esperado (I-111): la sonda se reescribió para leer por las funciones |
+| Los tipos generados por la CLI pierden el `\| null` y las relaciones de las vistas | Diferencias en `database.types.ts` | Mezcla solo de los bloques nuevos, con la nulabilidad escrita a mano |
+| `ticketLabel` llamado con argumentos sueltos, y un componente que no existía | `tsc` | `ticketLabel({…})` y `TicketNumbersCell` |
+| «1 boleta apartadas» | Al leer los textos | Una función para la concordancia, también en la frase de la base |
+| Limpieza de la suite de base: las coincidencias son inmutables (BR-L11); una programación de otra pasada chocaba; una búsqueda devolvía `0095/00` antes que `95/00`; el aviso de `pg` por consultas en paralelo en el mismo cliente | Fallos de la propia suite | Disparador apagado **solo** dentro de la transacción de limpieza; limpieza por la fecha propia de la suite; búsqueda exacta; consultas en serie (`idsDe`) |
+| Primer `test:db` completo: **5 fallos** fuera de la suite nueva —las columnas de `admin-privacy`, la lista de funciones `admin_*`, la lista blanca de I-078, la nota de reversión y J1-08— | `npm run test:db` | Las cinco listas ampliadas con lo nuevo; la nota de reversión, escrita; J1-08 fija que el Administrador **no** tiene `raffles.holds.manage` |
+| En el navegador: la vista previa decía «Se crearán hasta 8 boletas» y el botón, «Generar 2 boletas» | Generando 900–903 × 7–8 con 900–902 × 7–8 ya creadas | El título cuenta las que se crean y el aviso, de dónde salen (D-172) |
+| «Generar 0 boletas», desactivado, cuando no había nada nuevo | Al repetir los mismos rangos | Sin botón: el título ya lo dice |
+| «El apartado ahora vence a las 02:27 p. m..» | El aviso tras pedir los 30 minutos | Sin el punto de más; una unitaria lo vigila en todo el módulo |
+| **«Quedan 31 minutos»** en un apartado de 30 recién hecho | El reloj de la pantalla daba un tic cada 15 s y redondea hacia arriba | El reloj se ajusta a la hora de la base (`server_now`) en cada lectura y nunca pasa de la duración del apartado |
+| «Con vendedores» contaba solo las disponibles | Al leer la ficha de la rifa | «Con vendedores, sin vender»: las tres cifras suman las «Disponibles» |
+| Las tres acciones de cada apartado, y «Cambiar» en la ficha de la rifa, se oían igual | Revisión de nombres accesibles | `sr-only` con la boleta o con lo que se cambia (D-114) |
+| Cinco textos de error escritos sueltos en el código | Revisión del Anexo B | A `copy.ts` |
+| Las dos suites de base del inventario **no borraban su bitácora** | `audit_logs` después de correrlas | Borran la de sus boletas, rifas, generaciones, clientes y pagos, y los lotes que nombran sus boletas (D-233). Tras el arreglo solo quedan las 4 filas de membresías del seed que dejan también las demás suites |
+| El primer `npm run db:reset` falló: `dial tcp 127.0.0.1:54322: i/o timeout` al recrear la base | La base quedó recreada y **vacía** | Entorno, no código: repetido, aplicó las 81 migraciones desde cero, `0081` incluida |
+| En el panel del navegador (oculto), un desplegable cerrado tapaba el botón del diálogo | `elementFromPoint` devolvía la lista con `data-state="closed"` y su animación de salida sin terminar | Del panel, no de la aplicación: el panel no dibuja si está oculto. En Playwright no pasa |
+| **La primera E2E completa se quedó sin servidor** a los 7 min (19:04:28 UTC): `next dev` murió con un pánico de Turbopack —«Restore of All for task … failed in another thread: restoring failed»—, salida `3221226505` (`0xC0000409`) | 83 ✅ y, desde la prueba 85, `net::ERR_CONNECTION_REFUSED` en todas | Entorno, no código: la misma familia que el corte del 2026-10-02 y la trampa de `HANDOFF` sobre la compactación de la caché. Pasada detenida; servidor reiniciado y calentado (47 pantallas); base sembrada otra vez; E2E completa relanzada **sobre el código final** |
+| «Mis boletas» entera caía si fallaba la lectura del aviso del inventario común, y con el cupo en 0 ofrecía «Buscar y apartar» | Revisión del diff, mientras corría esa pasada | La lectura falla en silencio, como `getWhatsappSettings` —la llamada queda en el registro del servidor, D-251—, y el aviso cuenta solo las rifas donde se puede apartar. `tsc` y `eslint` de lo tocado, limpios |
+
+### c. Comprobaciones
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `npx vitest run tests/unit/inventory-rules.test.ts` | ✅ **16/16** | — | — |
+| `npx vitest run --config vitest.db.config.mts` de las dos suites del inventario | ✅ **40/40** (36 + 4) en 15 s | La bitácora sin borrar (arriba) | Corregido y repetido: 36/36 |
+| `npx playwright test` de las dos E2E nuevas | ✅ **7/7** a la primera (5 de escritorio y 2 de móvil, 1,1 min); después, 0 filas suyas en la base | — | — |
+| `npm run verify` | ✅ **2.234/2.234** en 110 archivos (+16); lint, 0 errores y los 2 avisos de siempre; build con las tres rutas nuevas | — | — |
+| `npm run db:reset` (segundo intento) + `npm run seed:local` + `npm run test:db` | ✅ **1.613 + 1 omitida** en 66 archivos, 277,6 s (+40) | — | — |
+| Primera E2E completa (18:57 UTC) | ❌ **Cortada por el entorno**: 83 ✅ y, desde la prueba 85, conexión rechazada (arriba). La primera, `back-navigation:25`, agotó su minuto con el servidor recién compilado: la firma de **I-075** | El pánico de Turbopack | Pasada detenida y relanzada entera |
+| `db:reset` + `seed:local`, `next dev` reiniciado y **calentado** (`build/inventario-comun/calentar.mjs`: las 45 pantallas de siempre más las dos nuevas; 3 por encima de 10 s, todas compilaciones), `db:reset` + `seed:local` y `npx playwright test` (19:17–20:22 UTC), con la huella del código **igual antes y después** (`61cd895b…`) | ⚠️ **1.066/1.070** en 1,1 h, una sola pasada. Las 7 nuevas, en verde; `back-navigation:25` (I-075), en verde | Los 4 fallos, uno por uno, abajo | — |
+| `pausa-publicacion.spec.ts:185` | «El código de 913cbe9 espera la base en 0080, y está en 0081: no son pareja». La prueba compara la última migración de la base con la del commit `HEAD`, y la `0081` todavía no estaba en ningún commit; el servidor, además, fija su build con `HEAD` al arrancar. **Es el mismo caso de D-241** con la `0080` | — | Se repite después del commit, con el servidor reiniciado (fila siguiente a las de este bloque) |
+| `premios-ganados.spec.ts:164` (vendedor) | Tras `reload()`, `goBack()` no navegó: la firma de **I-179**. Aislada, 1 de 3. **Medido en bloques sobre el mismo servidor**: con el código final, **0 de 10**; con el menú del vendedor de antes del encargo —el único archivo de esta entrega que pisa esa pantalla, por «Inventario común»—, **1 de 10**. Tasas equivalentes | — | Ninguna: anterior y ajena |
+| `premios-ganados.spec.ts:443` (personal) | El resumen se quedó en 3 premios en vez de 38 tras Atrás: la firma de **I-148** (dos entradas iguales en el historial). Aislada, 1 de 3. Recorre solo código que esta entrega no tocó: layout, página y componentes del portal administrativo | — | Ninguna: anterior y ajena |
+| `ventas-por-fecha.spec.ts:163` | «55 frente a < 26»: la firma de **I-090**, con las mismas cifras de siempre. **Sobre siembra limpia, en verde** | — | Ninguna: depende de lo que acumulan las demás suites |
+| Después de la completa, dos cambios de forma —el aviso de «Inventario común» no se pinta con 0 libres, y Prettier en `TicketGenerator.tsx` (una línea de `import`) y en la E2E nueva (espacios)— | Las 7 E2E del inventario, **7/7** sobre siembra limpia; `npm run verify` con el servidor de desarrollo detenido: ✅ **2.234/2.234**, lint 0 errores y los 2 avisos de siempre (`DataTable`, `BulkTicketCreator`), build | — | — |
+| `pausa-publicacion.spec.ts` entera, **después del commit de esta entrega**, con `next dev` reiniciado y siembra limpia | ✅ **4/4**, `:185` incluida | — | — |
+
+### d. Volumen: 100.000 boletas (`tests/db/common-inventory-volume.test.ts`)
+
+Dos pasadas el mismo día; el informe queda en `build/inventario-volumen/informe.md` (fuera de Git).
+
+| Medida | Primera pasada | Segunda pasada |
+|---|---:|---:|
+| Bloques de 5.000 | 20 | 20 |
+| El bloque más lento / el mediano | 482 / 420 ms | 523 / 448 ms |
+| Generación completa, con una interrupción y su continuación | 8.469 ms | 8.945 ms |
+| `tickets` creció | **72,9 MB** (≈767 bytes por boleta, con índices; tabla sin huecos) | **47,0 MB** (≈495; reutilizó el espacio de la primera) |
+| `audit_logs` creció | 8 kB | 0 kB (cabía en sus páginas) |
+| Catálogo interno: primera página de libres / página 3.980 | 18–129 ms | 158 / 162 ms |
+| Catálogo interno: un número diario / uno semanal (10.000) / una combinación | — | 22 / 33 / 20 ms |
+| Resumen del vendedor (el aviso de «Mis boletas») | — | 96 ms |
+| Lista del personal: primera página / página 3.980 / buscar 4321 | 39–312 ms | 250 / 297 / 40 ms |
+| Apartar una boleta | 17 ms | 20 ms |
+| Asignar 1.000 a un vendedor / recuperarlas | 314 / 268 ms | 321 / 284 ms |
+
+El tope de una sentencia de `authenticated` es de 8 s: el bloque más lento usa el 6,5 %. **Esto es local**: en el proyecto
+alojado cada bloque suma la red y el plan gratuito comparte CPU (I-210, y lo que no se comprobó, abajo).
+
+### e. Revisión en el navegador (`rifas-dev-local`, base local)
+
+Como Dueño: «Crear en lote» → «Generar por rangos»; 900–902 × 7–8 (6 creadas), y 900–903 × 7–8 (2 creadas, 6 que ya
+existían por otra generación); el detalle de la generación con «Las que ya existían» paginadas; el inventario común en
+«Boletas» con su filtro; tres asignadas a Julian Vargas; la ficha de la rifa y el cupo cambiado a 2. Como vendedor:
+«Mis boletas» con el aviso y sus tres boletas nuevas; «Inventario común»; dos apartadas (2 de 2, la tercera bloqueada con
+su frase), una con los 30 minutos (02:27 p. m.), una devuelta y vuelta a ver libre, y una vendida a Ana Torres
+—«Asignada», «Sin pagar», $120.000—; con «Todas», lo de otro vendedor solo como «No disponible». En el teléfono
+(375 × 812), «Inventario común» sin desbordes. Consola sin errores; registro del servidor sin errores.
+
+### f. Lo que no se comprobó
+
+El vencimiento real de 30 minutos (las pruebas lo fuerzan en la base); el instante exacto en que coinciden una
+extensión y un vencimiento; el tamaño y los tiempos en el proyecto alojado; Safari de iPhone. **Ni la migración ni la
+compatibilidad del código servido hoy con la `0081` se ensayaron contra producción**: no estaba autorizado.
+
+## D-258: liberar lo vendido desde un apartado lo devuelve al inventario común — I-209 (2026-10-19, más tarde; solo en local, migración `0082`)
+
+Decisión del dueño sobre I-209: «Que vuelva al inventario». Misma pila local; producción, **sin tocar ni leer**.
+
+### a. Errores encontrados, en orden
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| La marca de la venta, puesta **antes** de `assign_ticket_row` en `sell_ticket_hold` | Al escribir la migración: con la boleta todavía `available`, el CHECK `tickets_sold_from_hold_is_a_sale` la habría rechazado | Va **después** de la venta, en la misma transacción |
+| `release_ticket_client` comparaba el vendedor con `<>`: con una boleta sin vendedor el resultado es nulo y esa puerta no la paraba | Leyendo la función de la `0057` para copiarla | `is distinct from`; la comprobación siguiente ya la paraba, así que no había ningún efecto que corregir |
+| Prettier en `actions.ts` —la lectura posterior a la RPC, partida en cinco líneas— y en el texto nuevo del diálogo | `prettier --check` de lo tocado | Formateados. `queries.ts` ya estaba sin formatear en `HEAD` (dos líneas ajenas) y se dejó así |
+
+### b. Comprobaciones
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `npx supabase migration up --local` | `0082` aplicada sobre la base con la `0081` | — | — |
+| `npx vitest run --config vitest.db.config.mts` de `common-inventory`, `release-ticket` y `reassign-client` | ✅ **89/89** | — | — |
+| `common-inventory.test.ts` con la `release_ticket_client` de la `0057` puesta otra vez en la base | ❌ **3 de 41**, como se esperaba: las tres que liberan una venta desde un apartado, con `23514` (`tickets_sold_from_hold_is_a_sale`: la liberación de antes dejaba la marca en una boleta disponible). Pasan las otras dos nuevas —la entregada por el personal y la guarda—, que dan lo mismo con las dos versiones. Con la de la `0082` otra vez: ✅ **41/41** | — | — |
+| `npx tsc --noEmit` y `eslint` de lo tocado; unitarias de `release-ticket`, `admin-privacy` e `inventory-rules` | ✅; **61/61** | — | — |
+| `npm run verify` | ✅ **2.234/2.234** en 110 archivos, sin cambios; lint 0 errores y los 2 avisos de siempre; build | — | — |
+| `npm run db:reset` + `seed:local` + `npm run test:db` | ✅ **1.618 + 1 omitida** en 66 archivos, 220,8 s (+5); las 82 migraciones desde cero | — | — |
+| `db:reset` + `seed:local`, `next dev` arrancado y calentado (47 pantallas, ninguna por encima de 10 s) y `npx playwright test` de los 13 archivos que pasan por el detalle de la boleta del vendedor, liberar o el inventario común —`inventario-comun` y su gemela móvil, `liberar-boleta`, `cambiar-cliente`, `paz-y-salvo` y `precio-venta-editar` con las suyas, `detalle-boleta-composicion`, `boleta-cliente` y `privacidad-admin`— | ✅ **100/100** en 6,1 min, con la prueba nueva del recorrido (4,5 s) y la comprobación nueva de `liberar-boleta` | — | — |
+| `pausa-publicacion.spec.ts` entera, **después del commit de D-258**, con `next dev` reiniciado y calentado y siembra limpia | ✅ **4/4**, `:185` incluida: la base en `0082` y el commit `HEAD` también. Antes del commit habría fallado igual que con la `0081` en D-257 —la prueba compara las dos— y por eso se corre aquí | — | — |
+
+### c. Revisión en el navegador (`rifas-dev-local`, base local)
+
+Preparada por el camino real, con la sesión de cada uno: el Dueño genera la `42 / 7` en «Rifa Navidad 2026» y
+vendedor1 la aparta y se la vende a Ana Torres. Como vendedor1, en su detalle: «Liberar boleta» dice «Dejará de estar
+asignada a Ana Torres y volverá al inventario común, de donde la apartaste: saldrá de tus boletas…», con los dos números
+y el cliente debajo; con el motivo escrito, «Liberando...» y la pantalla vuelve a «Mis boletas», cuyo aviso pasa a
+«Hay 1 boleta libre en el inventario común.». En la base: sin vendedor ni cliente, `available`, la marca en `false` y
+`ticket.release_client` con `to_common_inventory: true` y el motivo. En «Inventario común», «Apartar la boleta 42 / 7»
+otra vez.
+
+**Visto de paso, anterior a este encargo y sin tocar (I-211):** ese mismo detalle dice «Aprobada: Todavía no» en una
+boleta que creó el personal, y las del personal nunca se aprueban.
+
+### d. Lo que no se comprobó
+
+Producción, ni la duración del bloqueo de la `0082` con escrituras de boletas en curso —su CHECK recorre `tickets`—: se
+ensaya con la `0081` al preparar la publicación, que no está autorizada.
+
+## I-211: «Aprobada» en el detalle del vendedor, solo cuando dice algo (2026-10-19, más tarde aún; solo en local, sin migración)
+
+Encargo de la sesión de D-258, que vio I-211 al revisarlo. Misma pila local; producción, **sin tocar ni leer**. Se hizo
+en el *worktree* `claude/suspicious-burnell-99e02b`, avanzado sin cambios hasta `1c9a90f` (D-258).
+
+### a. Errores encontrados, en orden
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| El puerto 3000 lo ocupaba el `next dev` de la copia principal, que sirve `feature/inventario-comun` desde otra carpeta, y `playwright.config.ts` reutiliza el servidor que encuentre ahí | Antes de arrancar nada, mirando qué proceso escuchaba: las E2E habrían probado el código de la copia principal, no el arreglo | `next dev` de este árbol en el **3100** (`npm run dev:local -- -p 3100`, preview `rifas-dev-local-3100`) y una configuración de Playwright temporal que apunta ahí y no arranca otro; ninguna de las dos se versiona |
+| La copia de `node_modules` quedó como «fallida» | `robocopy` devuelve 1 cuando copia bien | Comprobada con una pasada en seco: 32.439 archivos y ninguno distinto. La *junction* no sirve con Turbopack (`HANDOFF`) |
+| La primera comprobación inversa de la unitaria no encontró el texto que tenía que cambiar | La copia de trabajo tiene CRLF (`core.autocrlf`) y el guion buscaba LF | Un guion que detecta el fin de línea; el archivo, restaurado y comparado byte a byte |
+| `prettier --check` marcó los seis archivos tocados | También marca archivos sin tocar: son los CRLF de la copia de trabajo | Con `--end-of-line auto`, los seis pasan; Git guarda LF |
+| La comprobación de si el arreglo entra en `main` dio «aplica» en las dos páginas sin haberlas mirado | `git apply --include` toma un patrón, y `[ticketId]` se lee como una clase de caracteres | Repetida con el parche entero sobre un índice temporal de `main`: entra todo salvo el bloque de *imports* de la página del personal, que choca con el de D-257 |
+
+### b. Comprobaciones
+
+| Comando | Resultado | Errores encontrados | Correcciones |
+|---|---|---|---|
+| `npm run db:reset` + `npm run seed:local` | ✅ las 82 migraciones en 46 s; 33 boletas, **ninguna con fecha de aprobación**, 2 de ellas pendientes | — | — |
+| `npx vitest run tests/unit/ticket-approval-line.test.tsx` con la regla anterior del vendedor dentro de `ApprovalDetailLine` | ❌ **1 de 3**, como se esperaba: un borrador sin fecha escribía «Aprobada: Todavía no». Con la regla nueva, ✅ **3/3** | — | — |
+| `npx playwright test` de la prueba nueva (`--grep "I-211"`) contra el detalle del vendedor **sin arreglar** | ❌ como se esperaba: la boleta del personal enseñaba la fila «Aprobada» (1 en vez de 0). Con el arreglo, ✅ **1/1** | — | — |
+| `npx playwright test` de `detalle-boleta-composicion`, `detalle-boleta-admin` y `privacidad-admin`, escritorio, contra el `next dev` de este árbol | ✅ **76/76** en 3,9 min (21, 37 y 18) | — | — |
+| `npx tsc --noEmit` | ✅ | — | — |
+| `npx eslint .` | ✅ 0 errores y los 2 avisos de siempre (`useVirtualizer`); los archivos tocados, sin ninguno | — | — |
+| `npx vitest run` | ✅ **2.237/2.237** en 111 archivos (+3) | — | — |
+| `prettier --check --end-of-line auto` de lo tocado | ✅ | Ver «a» | — |
+
+### c. Revisión en el navegador (`rifas-dev-local-3100`, base local)
+
+Como vendedor1, con el seed recién puesto: «0100 / 2000», disponible y creada por el Dueño — «Detalles de la boleta»
+dice Rifa, Creada, Asignada «Todavía no» y Código interno, **sin** «Aprobada»; «0301 / 3001», pendiente de aprobación —
+«Aprobada: Todavía no». Consola y registro del servidor, sin errores. Ningún texto de la pantalla cambió: §14 de
+`UX_COPY_GUIDELINES`, revisada; «Aprobada» y «Todavía no» viven ahora en `ApprovalDetailLine` (Anexo B).
+
+### d. Lo que no se comprobó
+
+`npm run build`, `verify` entero y `test:db`: el encargo pide `tsc`, `eslint`, las unitarias y las E2E afectadas, y no
+hay cambio de base ni de configuración; el `next dev` compiló y sirvió las dos páginas en las E2E. Tampoco la E2E
+completa ni el proyecto móvil: el cambio es una fila de «Detalles», que las suites de escritorio miden de 320 a 1.920
+px. Producción.
+
+## Preparación de la publicación de D-257, D-258 e I-211 — ensayada en local, con D-259 (2026-10-19, por la noche; nada publicado)
+
+Encargo del dueño: integrar I-211, verificar el conjunto, ensayar la `0081` y la `0082` juntas —datos existentes y
+escrituras en curso—, medir el almacenamiento de 100.000 boletas y preparar la publicación y la recuperación. **Producción,
+sin tocar ni leer**; sin push ni despliegue. La base local es compartida: antes del primer restablecimiento, ningún
+`next dev` escuchando, ninguna petición a Kong desde las 22:02:17 UTC y las dos sesiones hermanas en reposo; la nota «base
+local en uso» quedó en la carpeta compartida de las sesiones.
+
+### a. Git
+
+| Paso | Resultado |
+|---|---|
+| Relación de las ramas | `claude/suspicious-burnell-99e02b` = `a9622cc` (I-211), hija directa de `1c9a90f`, la cabeza de `feature/inventario-comun` |
+| Integración | `git merge --ff-only` en la copia principal: `1c9a90f..a9622cc`, 11 archivos. Los tres archivos del usuario (`DesignFix.txt`, `PublicarProduccion.txt`, `prueba-abono.csv`), intactos |
+| Árboles de trabajo | El de esta sesión, avanzado sin cambios hasta `a9622cc`; uno aparte, separado, en `b1f8dc1` —el código servido— para su E2E y para aplicar la `0080` como producción |
+
+### b. Errores encontrados, en orden
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| **I-212.** Con la latencia de producción, la `0081` bloqueaba `tickets` 10,5–13,8 s y hacía caer peticiones por los 8 s | En local, sin latencia, solo 1,5 s y ningún fallo; con el proxy de 94 ms, 3 caídas `57014` en cada pasada (§d) | **D-259**: privilegios antes y cerrojos en un bloque `do` en las dos migraciones; mismo esquema (§d) |
+| **I-213.** `verify:remote` seguía en rojo después de migrar | «search_tickets y admin_list_tickets con la firma de orden: 1 (esperado 2)»: `admin_list_tickets` tiene once argumentos | La comprobación pide diez y once, una versión de cada una (D-259) |
+| **I-214.** Recién generadas 100.000, un lote de 500 cayó por los 8 s | El ensayo de almacenamiento se detuvo en «entregar»; medido por tamaño de lote, ≈23 ms por boleta hasta un `ANALYZE` (§e) | **Sin corregir**: registrada con la propuesta |
+| Mío: `cerrar` la pausa local se negaba en la copia | La copia trae 2 recordatorios vencidos —sus cron, apagados para el ensayo— | En local, la pausa se cierra con su fila de estado, como §5.2 la abre |
+| Mío: la CLI por el proxy exigía TLS | Con otro puerto la trata como remota: «The server does not support SSL connections» | `sslmode=disable` en la dirección del ensayo |
+| Mío: `npx supabase` desde una carpeta sin `node_modules` | npm **descargó `supabase@2.121.0`** (el paquete oficial) y lo ejecutó; falló al leer la configuración, antes de conectar | Las herramientas llaman a `node_modules/.bin/supabase` (2.111.0, el del proyecto) |
+| Mío: una edición con `node -e` | Git Bash estropea las barras invertidas | Los guiones, escritos con la herramienta de archivos |
+| Entorno: la caché del catálogo de la CLI | Tras cada `db push` por el proxy: «failed to cache migrations catalog … ECONNREFUSED 127.0.0.1:55432» —el contenedor no ve el proxy— | Ninguna: es un aviso posterior a «Finished»; la migración ya estaba aplicada |
+
+### c. El código integrado (`a9622cc`) y el final
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` sobre `a9622cc` —la compilación que I-211 dejó pendiente— | ✅ `tsc`; `eslint`, 0 errores y los 2 avisos de siempre; **2.237/2.237** unitarias en 111 archivos; `next build` compilado en 7,6 s, 44 páginas. 1 min 43 s. Con un `.env.local` **solo local** en este árbol: el build no lleva la dirección de producción |
+| `npm run db:reset` + `seed:local` + `npm run test:db` con la `0081` y la `0082` **reordenadas** | ✅ **1.618 y 1 omitida** en 66 archivos, 215 s: las mismas que D-258 |
+
+### d. La `0081` y la `0082` juntas, con escrituras en curso (D-259)
+
+**La base: una copia de producción.** El respaldo `Rifas-backups/2026-10-01-antes-0080` (C3 del cierre de cuentas, en
+`0079`) restaurado con `restore-backup.ts` —los cinco pasos en 1,2 s—, el historial reparado a `0079` y la `0080` aplicada
+**con la CLI desde el árbol de `b1f8dc1`** (8,7 s): exactamente lo que tiene producción, con sus datos del 2026-10-01
+(1.321 boletas, 6.795 filas de bitácora, 580 pagos). **Privilegios alojados:** `schema.sql` trae los privilegios por
+defecto de producción —`postgres` da `EXECUTE` a `service_role` en toda función nueva (I-132)— y
+`gate-mirror-privileges.ts` con la foto de producción del 2026-10-05 aplicó **0 sentencias**: ya eran iguales. Los cron
+de recordatorios, apagados en la copia (§5.2); el Vault, sin secretos. Cada corrida empieza de cero con
+`reset-antes.sh` (~21 s).
+
+**Las sondas** (`lock-probe.mjs`): tres conexiones en bucle, cada operación en su transacción como una petición de
+PostgREST —rol `authenticated`, `request.jwt.claims` y 8 s de `statement_timeout`— y con **ROLLBACK**, para que la foto
+de después siga comparando 0 filas: el Dueño crea una boleta (`tickets_insert_staff`), un vendedor vende una suya
+disponible (`bulk_assign_tickets`) y lee sus 25 últimas. Otra conexión muestrea cada ~25 ms qué sentencia ejecuta la CLI
+y qué cerrojos tiene sobre `tickets`. **La latencia:** un proxy TCP (`latency-proxy.mjs`) que retrasa cada fragmento 45 ms
+por sentido —`select 1` en 94 ms de mediana, frente a 90,3 ms desde el equipo del dueño hasta producción en P0 de D-240— o
+100 ms. Las sondas van directas a la base: en producción, PostgREST está junto a ella.
+
+**Lo que vio el muestreo:** la CLI envía el archivo **sentencia a sentencia** —entre una y otra, `idle in transaction` y
+`wait_event_type = Client`—, cada archivo en su propia transacción con su fila de historial, y un cerrojo dura hasta
+confirmar.
+
+| Corrida | `db push` | ACCESS EXCLUSIVE sobre `tickets` (`0081` / `0082`) | Operaciones | Mediana (crear/vender/leer, ms) | Más lenta con éxito (ms) | Caídas |
+|---|---|---|---|---|---|---|
+| r1 — originales, local | 11,3 s | 1,48 / 0,12 s | 10.243 | 5,3 / 6,3 / 4,2 | 1.518 | 0 |
+| r2 — originales, 94 ms | 31,2 s | **10,48 / 1,00 s** | 16.631 | 5,2 / 6,1 / 4,2 | 2.537 | **3 × `57014`** a los 8.004 ms |
+| r2b — originales, 94 ms | 38,3 s | **13,75 / 1,34 s** | 17.853 | 5,2 / 6,1 / 4,2 | 5.755 | **3 × `57014`** a los 8.004 ms |
+| r3 — reordenadas, 94 ms | 31,4 s | 0,47 / 0,47 s | 22.578 | 5,2 / 6,1 / 4,2 | 505 | 0 |
+| r5 — reordenadas, 94 ms | 39,3 s | 0,62 / 0,59 s | 24.934 | 5,4 / 6,4 / 4,3 | 647 | 0 |
+| r7 — reordenadas, ~200 ms | 61,8 s | 1,18 / 0,96 s | 33.655 | 5,9 / 6,7 / 4,7 | 1.223 | 0 |
+| r4 — reordenadas, local, **con la puerta** | 17,8 s | 0,21 / 0,18 s | 14.574 | 5,4 / 6,2 / 4,3 | 245 | 0 |
+| r6 — reordenadas, local, **con una lectura larga abierta** | **falla** a los 27,2 s: `55P03` en la sentencia 131 | — | 17.127 | 6,0 / 6,9 / 4,6 | 902 | 0 |
+| r6b — el reintento | 38,3 s | 0,46 / 0,45 s | 21.108 | 6,1 / 7,4 / 4,9 | 505 | 0 |
+
+En r6, con la `0081` rendida: historial en `0080`, `ticket_holds` sin crear y `seller_id` todavía `NOT NULL` —**no quedó
+nada aplicado**—, y las sondas esperaron como mucho los 900 ms de `lock_timeout`. El `db push` por el proxy tarda más
+entero, pero eso no bloquea a nadie: lo que cuenta es la columna de cerrojos.
+
+**La puerta, con las reordenadas (r4)** —`RUNBOOK` §11.3 aplicado a estas dos—:
+
+| Paso | Resultado |
+|---|---|
+| `verify:remote` contra la copia, **antes** | **57 OK y 3 en rojo**: las 16 funciones del inventario (0 de 16) y la firma de orden (1 de 2), las dos a propósito, y los cron de avisos, que el ensayo apaga. En producción se esperan **58 OK y 2 en rojo** |
+| `db push --dry-run` | **Exactamente** `0081` y `0082`, sin semillas ni roles |
+| `db push … ?lock_timeout=900ms --yes` | Salida 0 |
+| `verify:remote` **después** | **59 OK y 1 en rojo**, los cron apagados. En producción, **60/60**. Con el `verify-remote.ts` de `a9622cc`, la firma de orden seguía en rojo (I-213) |
+| Estructura después de migrar: originales (r1) frente a reordenadas (r4) | `{}` —**ninguna diferencia**— |
+| El delta de estructura | El mismo **byte a byte** con las originales y con las reordenadas (34.455 bytes): tablas +3; columnas +37 ~1 (`tickets.seller_id` admite nulo); restricciones +28; índices +13; disparadores +5 ~1; funciones +33 −1 ~10; migraciones +2. Guardado como `build/gate/delta-esperado-0081-0082.json` |
+| `gate-compare --operation migrations --migrations 0081,0082` | **CONTINUAR**: 0 diferencias con lo ensayado, **0 filas tocadas** —ninguna de las filas reales de la copia cambió, con 14.574 operaciones de las sondas en curso— y las tres tablas nuevas vacías |
+| Quién ejecuta las 43 funciones nuevas o redefinidas: privilegios alojados (la foto de después) frente a los locales (la base sembrada) | **41 iguales**. Las otras dos, `assign_ticket_row` y `bulk_change_ticket_seller`, llevan `service_role=X` en la copia porque **ya lo tenían** en producción antes de la `0081` —la foto del 2026-10-05 lo dice— y `create or replace` conserva el ACL: es la parte abierta de I-132, no algo que traiga esta entrega |
+
+### e. Almacenamiento de 100.000 boletas (I-210) y los lotes (I-214)
+
+Sobre la copia de producción **recién restaurada** —tablas sin huecos, el peor caso— y con las reordenadas, con las mismas
+funciones que la aplicación y la identidad de quien las usa (`storage.mjs`).
+
+| Paso | La base crece | Detalle |
+|---|---|---|
+| Generar 100.000 (10.000 diarios × 10 semanales), una rifa nueva | **65,9 MB** (0,67 KB por boleta) | `tickets`: 16,6 MB de tabla y **49,2 MB en 21 índices** —con la tabla entera al final del ensayo, los tres de trigramas suman 15,5 MB y los cinco únicos, clave incluida, 26,4 MB—, sin TOAST. Bitácora: **21 filas** (inicio y 20 bloques). 8,4 s en 20 bloques: mediana 410 ms, el más lento 511 ms |
+| Entregar 1.000 a un vendedor (lotes de 500) | 1,23 MB (1,26 KB por boleta) | La versión nueva de cada boleta 0,66 KB; una fila de bitácora por boleta, 0,61 KB |
+| Venderlas (de a 50) | 1,90 MB (1,94 KB) | Bitácora 0,94 KB —dos filas por boleta—; **dos avisos por venta**, 0,58 KB; la boleta 0,35 KB |
+| Un abono por el total de cada una | 1,45 MB (1,48 KB) | El pago y su reparto, 0,35 KB cada uno; el movimiento de comisión, 0,30 KB; bitácora 0,46 KB |
+| `VACUUM (ANALYZE)` | +0,3 MB | No devuelve espacio al sistema |
+
+**Total: 4,7 KB por boleta entregada, vendida y cobrada en un abono; cada abono más, ~1,5 KB.** El tamaño que cuenta en
+Supabase es la suma de `pg_database_size`, y por encima de **500 MB** un proyecto Free pasa a **solo lectura**: ninguna
+escritura —ventas, abonos, recordatorios— se guarda (`25006`) hasta ampliar el plan o liberar espacio (documentación de
+Supabase, leída el 2026-10-19). **El margen**, con los 31 MB de producción del 2026-10-02: tras una generación de 100.000
+quedan ~403 MB, que alcanzan para ~**86.000** boletas vendidas y cobradas en un abono, o ~**65.000** con dos abonos.
+Una rifa de 100.000 vendida entera no cabe en el plan gratuito.
+
+**Los lotes, justo después de generar (I-214):**
+
+| Lote | Recién generadas | Tras `ANALYZE tickets` (126 ms) |
+|---|---|---|
+| 10 | 259 ms | 14 ms |
+| 50 | 1.167 ms | 44 ms |
+| 100 | 2.357 ms | 77 ms |
+| 200 | 4.779 ms | 144 ms |
+| 500 | (el primero cayó por los 8 s) | 252 ms |
+| 1.000 | — | 556–767 ms |
+
+Con 100 boletas y el perfil de funciones (`track_functions = 'all'`) **ya** tras el análisis automático, la llamada
+entera tardó 55 ms: no es una función cara, es el plan con la estadística vieja de `tickets`, que el `autovacuum`
+corrige solo. En el ensayo, el último análisis automático había caído **durante** la generación.
+
+### f. El código servido (`b1f8dc1`) contra la base con la `0081` y la `0082`
+
+Desde el árbol aparte de `b1f8dc1`, con su propia suite y su `dev:local`, contra la base local recién restablecida con
+las 82 migraciones —las reordenadas— y el seed: **ninguna boleta sin vendedor**, como estará producción al publicar.
+
+| Comando | Resultado |
+|---|---|
+| `npx playwright test` (completa, escritorio y teléfono) | **1.059/1.063** en 57,1 min, en una sola pasada |
+| `back-navigation:25` | **I-075**, la primera de la pasada con `.next/dev` frío; sola, ✅ |
+| `pausa-publicacion:185` | **Esperado, no es un fallo del código**: «El código de b1f8dc1 espera la base en 0080, y está en 0082: no son pareja. La pausa sigue como estaba.» Es la guarda de D-239 haciendo su trabajo; esta publicación no usa la pausa |
+| `ventas-por-fecha:163` | **I-090**: cuenta «las ventas de hoy» sobre lo que la suite acumuló; sola tras la pasada, otra vez roja; sobre el seed recién puesto, ✅ |
+| `ventas-por-fecha:257` | **I-090/I-164**: «Las fechas están al revés» encontró dos elementos, uno oculto —la copia del `Suspense`—; sola, ✅ |
+
+**Y la reversión con inventario común ya generado** —lo que vería el personal si se volviera a `b1f8dc1` después de
+generar—: una prueba **sin versionar** en ese árbol genera 30 boletas sin vendedor con el generador de la `0081` y
+recorre el código viejo. **3/3**: el personal ve esas boletas en «Boletas» y las encuentra buscando; su detalle se
+pinta; el panel, los reportes, los vendedores y las rifas, sin errores ni respuestas 5xx; el vendedor no las ve en sus
+boletas ni buscándolas, y la dirección de una le dice «no encontrada». **Lo que se ve raro:** el código viejo escribe
+**«Vendedor»** donde no hay vendedor —`sellerNames.get(…) ?? 'Vendedor'`— y su tarjeta lleva a `/owner/sellers/null`,
+que responde **404**. Engaña a la vista, no rompe nada: las reglas de la base siguen en pie.
+
+### g. El código final (`7c383ef`, con D-259)
+
+| Comando | Resultado |
+|---|---|
+| `npm run verify` | ✅ `tsc`; `eslint`, 0 errores y los 2 avisos de siempre; **2.237/2.237**; `next build` compilado. 2 min 24 s |
+| `npx playwright test` de las 20 suites que pasan por el inventario, la venta, liberar, cambiar el cliente, el detalle de los dos portales, la privacidad del personal, la selección y los lotes, «Boletas» de los dos portales, los abonos, la pausa, el orden y el buscador, y el panel —escritorio y teléfono—, sobre el seed recién puesto y **después del commit** (`pausa-publicacion:185` compara la última migración con la de `HEAD`) | ✅ **275/275** en 14,2 min (264 de escritorio y 11 de teléfono), en una sola pasada y sin reintentos |
+
+### h. Lo que no se comprobó
+
+| Qué | Por qué |
+|---|---|
+| Producción | No se tocó ni se leyó: el tamaño de hoy de la base, las versiones y la actividad se leen en I0 de `RUNBOOK` §13, con autorización |
+| La red real hacia la base, el tiempo de un `db push` en el proyecto alojado y su CPU | El proxy reproduce la ida y vuelta medida, no la variación ni lo que tarde la base alojada en cada sentencia. Con 200 ms, el doble de lo medido, el bloqueo sigue en 1,2 s |
+| La E2E completa del código final | La pasó el de D-257 (1.066/1.070); de D-258 a D-259 cambian el detalle, liberar y el orden de dos migraciones con el mismo esquema, y se corrieron las 20 suites que pasan por ahí (§g) |
+| El generador y los lotes con la base alojada | I-210 e I-214 se midieron en local |
+
+### i. Entorno al terminar
+
+Base local restablecida con las 82 migraciones —las reordenadas— y el seed, sin pausa y con los cron de siempre; la copia
+de producción, borrada con ese restablecimiento. Sin servidor de desarrollo. Los proxys del ensayo, parados. El árbol de
+`b1f8dc1` en la carpeta temporal de la sesión, con la prueba de reversión **sin versionar**. Las herramientas y los
+resultados, en `build/publicacion-inventario/` de la copia principal; el delta esperado, en su `build/gate/`. La nota
+«base local en uso» de la carpeta compartida, cambiada a **LIBRE**.
+
+---
+
+## I-214 — la generación deja al día la estadística de `tickets` (D-260), solo en local (2026-10-20)
+
+Encargo de la sesión que prepara la publicación de D-257, D-258 e I-211, con las condiciones del dueño: corregir I-214
+sobre `feature/inventario-comun` (`7d5f341`) sin subir el tiempo de espera ni pedir que se espere, conservando la
+atomicidad, los permisos, la bitácora y la protección frente a ventas y apartados en paralelo. **Producción, sin tocar
+ni leer**; sin push ni despliegue. Antes de tocar la base local compartida: ningún `next dev` escuchando, ninguna
+petición a Kong desde las 00:37:20 UTC —el `seed:local` de la sesión anterior— y `pg_stat_activity` en reposo; la nota
+«base local en uso», en las dos carpetas compartidas.
+
+### a. La causa, confirmada en la copia de producción
+
+**La base:** el respaldo `Rifas-backups/2026-10-01-antes-0080` más la `0080` —1.321 boletas reales— y la `0081` y la
+`0082` de `7d5f341`, con una copia de `reset-antes.sh` que llama a la CLI del proyecto con `--workdir` sobre la carpeta
+`supabase/` de `b1f8dc1` (sacada con `git archive`): nunca `npx supabase` desde una carpeta sin `node_modules` (§b de la
+preparación). **Las condiciones:** el análisis automático de `tickets`, apagado durante cada corrida, para que la
+estadística solo la cambie lo que se mide; la generación (0000–9999 × 00–09) y los lotes, como el Dueño
+(`authenticated`, 8 s), con `admin_process_ticket_generation` y `admin_assign_inventory_tickets`. La herramienta, fuera
+de Git, en la carpeta temporal de la sesión (`exp.mjs`), con la idea de `lots.mjs` y `profile-assign.mjs`.
+
+| A quién, nada más generar 100.000 | 10 | 50 | 100 | Por boleta |
+|---|---|---|---|---|
+| Vendedor **con equipo**, el principal de producción | 272 ms | 1.200 ms | 2.453 ms | 24–27 ms |
+| El mismo, con `jit = off` | 270 ms | 1.206 ms | 2.331 ms | 23–27 ms |
+| Vendedor sin equipo | 38 ms | 56 ms | 86 ms | 0,9 ms |
+| Integrante de un equipo | 34 ms | 38 ms | 58 ms | 0,6 ms |
+
+**Dónde se va el tiempo** (un lote de 20, deshecho, con `auto_explain` sobre las sentencias anidadas y `track_functions`,
+desde `supabase_admin`): 512 ms, de los que **470** son de `recalc_seller_commission` —40 llamadas, dos por boleta: la del
+vendedor de antes, nulo, que sale enseguida, y la del nuevo—. Dentro, la cuenta de las boletas pagadas del equipo en la
+rifa, **23,6–25,8 ms por ejecución**: `Index Scan using tickets_org_raffle_weekly_idx`, con `Index Cond` solo sobre
+organización y rifa, `Rows Removed by Filter: 100000` y de 21.387 a 21.503 bloques, para encontrar cero. El `UPDATE` del
+lote recorría `tickets_common_inventory_idx` entero (`Rows Removed by Filter: 99980`, 16,8 ms), una vez por lote.
+**Tras `analyze tickets`** (129 ms): el lote de 20, en 33 ms; la cuenta del equipo, 0,03–0,04 ms por
+`tickets_commission_count_idx` y de 3 a 11 bloques; el `UPDATE`, por `tickets_pkey`.
+
+| Vendedor con equipo, lotes de | 200 | 350 | 500 | 1.000 |
+|---|---|---|---|---|
+| Nada más generar 100.000, deshechos | 4.847 ms | `57014` a los 8.005 ms | `57014` a los 8.007 ms | — |
+| Lo mismo, confirmados uno detrás de otro | 4.056 ms | 7.078 ms | `57014` | `57014` |
+| Tras `analyze tickets` a mano | 67 ms | 121 ms | 158 ms | 312 ms |
+| Generación **interrumpida** a 50.000, sin analizar | 1.867 ms | 3.203 ms | 4.539 ms | `57014` a los 8.007 ms |
+| Lo mismo, con un `analyze` a mano solo tras el primer bloque (21 ms) | 62 ms | 109 ms | 165 ms | 283 ms |
+
+**Un error no deja nada a medias:** después de los lotes confirmados de 200 y 350 —550 boletas del vendedor, 2 filas
+`ticket.inventory_assign` y 550 `ticket.update`—, los de 500 y 1.000 cayeron por los 8 s y todo siguió igual: 550, 2 y
+550, y una sola fila de `seller_commissions` en la rifa. Tras analizar, el mismo lote de 500, en 164 ms: 1.050.
+
+**Lo que decía la preparación** («el último análisis automático había caído durante la generación»): no. Con la
+estadística congelada, `n_mod_since_analyze` marca exactamente 100.000, y la hora del análisis es la de la restauración.
+**Y por qué la suite de volumen no lo veía:** en el seed, con el vendedor1 al frente de un equipo con el vendedor2 y la
+misma estadística vieja, el planificador elige `tickets_org_raffle_payment_status_idx` —organización, rifa y estado de
+pago—, que da cero filas sin recorrer nada: 1.000 boletas en 722 ms. Depende del reparto de los datos, y el seed no tiene
+ningún vendedor con equipo.
+
+### b. El arreglo (D-260), en la misma copia
+
+| Medida | Con la `0081` de D-260 |
+|---|---|
+| Generar 100.000 | 7,7–9,1 s; el primer bloque, 387–478 ms, y el último, 507–553 ms, frente a 348–371 y 429–451 sin analizar |
+| La estadística al terminar, sin análisis automático | `last_analyze` del propio generador; `reltuples` 101.321; `seller_id` nulo en el 98,7 % |
+| Lotes al vendedor con equipo: 10 / 50 / 100 / 200 / 350 / 500 / 1.000 | **20 / 20 / 34 / 61 / 106 / 144 / 282 ms** |
+| 1.000 a un vendedor sin equipo y a un integrante | 299 y 276 ms |
+| Generación interrumpida a 50.000: la estadística | `reltuples` 6.321 y el 79 % sin vendedor: el primer bloque se analizó con sus propias filas, antes de confirmar |
+| Lo mismo, lotes confirmados de 10 / 350 / 1.000 | 29 / 107 / 293 ms |
+| El `UPDATE` del lote | `Bitmap Index Scan on tickets_pkey`, 0,04 ms |
+| Sondas en paralelo con la generación de 100.000 —crear, vender y leer como `authenticated`, 6.838 operaciones— | Máxima **31 ms**, ninguna por encima de 100 ms y 0 errores |
+| Los cerrojos del generador sobre `tickets`, cada ~5 ms durante una generación | `AccessShareLock`, `RowExclusiveLock`, `ShareUpdateExclusiveLock` —el análisis, 24 de 1.634 muestras— y `extend/ExclusiveLock` —ampliar el archivo al insertar, 3—. Ninguno choca con lecturas, escrituras ni `FOR UPDATE` |
+
+### c. Las pruebas, en el seed
+
+| Comando | Resultado |
+|---|---|
+| `tests/db/common-inventory-volume.test.ts` con la `0081` de **antes**, sobre `db:reset` + `seed:local` | ❌ **4 de 8**: «la estadística conoce la rifa tras el primer bloque: expected false to be true», y las tres que dependen de la generación entera. Con esa comprobación quitada en una copia sin versionar, falla la del final —«la estadística cuenta las 100.000: expected 33 to be greater than or equal to 100000»— y los lotes pasan, de 37 a 633 ms: en el seed el plan no se tuerce (§a) |
+| La misma con D-260 | ✅ **8/8** en 12,9 s. Lotes al vendedor con equipo de la prueba: 18 / 21 / 35 / 63 / 106 / 151 / 287 ms. Un lote de 1.000 cortado a los 50 ms: `57014`, ninguna boleta entregada y ninguna fila de bitácora; el reintento, 1.000 entregadas y 1.000 `ticket.update`; repetirlo, `{assigned: 0, already: 1000}`, una fila de lote más y ni un `ticket.update` ni un movimiento de ganancia; con una boleta apartada, ninguna |
+| `npm run verify` | ✅ `tsc`; `eslint`, 0 errores y los 2 avisos de siempre; **2.237/2.237** en 111 archivos; `next build`, 44 páginas, con el `.env.local` **solo local** de este árbol: el build no lleva la dirección de producción. 1 min 26 s |
+| `npm run db:reset` + `seed:local` + `npm run test:db` | ✅ **1.622 y 1 omitida** en 66 archivos (+4, las de volumen), 220 s. Dentro de la batería, los lotes: 17 / 22 / 38 / 70 / 109 / 158 / 316 ms. Al terminar, `tickets` sin opciones de almacenamiento: el análisis automático, encendido otra vez |
+| `npx playwright test inventario-comun.spec.ts inventario-comun-movil.spec.ts`, sobre el seed recién puesto | ✅ **8/8** en 1,1 min: 6 de escritorio y 2 de teléfono |
+| El recorrido por la pantalla, **sin versionar** —una prueba temporal, borrada al terminar—, sobre el seed recién puesto y con el análisis automático apagado: el Dueño genera 100.000 en «Generar por rangos» y entrega, sin esperar, a un vendedor con equipo desde «Boletas» | ✅ **1/1**. Generar, 12,6 s; un lote de 10 buscando «0001», 0,7 s; dos de 1.000 con «Seleccionar las 1000 boletas del filtro», 1,1 s cada uno —del clic en «Asignar 1.000 boletas» al aviso «Se asignaron 1.000 boletas al vendedor.»—; 2.010 boletas suyas al final |
+
+### d. La publicación, ensayada otra vez (`RUNBOOK` §13.3)
+
+| Paso | Resultado |
+|---|---|
+| La estructura que dejan las de D-259 (`7d5f341`) frente a la de D-260, en la misma copia | `gate-compare --structure-only`: `{"funciones":"+0 −0 ~1"}`, **solo** `admin_process_ticket_generation(uuid,integer)` |
+| El delta esperado | Del mismo tamaño que el de D-259 (34.455 bytes) y con **una** diferencia: la huella del cuerpo de esa función. Guardado como `build/gate/delta-esperado-0081-0082.json` de la copia principal; el de D-259, como `delta-esperado-0081-0082-d259.json` |
+| `gate-compare --operation migrations --migrations 0081,0082` | Con el delta de D-260, **CONTINUAR**: 0 diferencias con lo ensayado, **0 filas tocadas** y las tres tablas nuevas vacías. Con el de D-259, **DETENER**: «se creó con otra definición» |
+| `db push --dry-run` | Exactamente `0081` y `0082` |
+| `verify:remote` contra la copia | Antes, **57 OK y 3 en rojo** —las 16 funciones y la firma de orden, a propósito, y los cron que apaga el ensayo—; después, **59 OK** y los cron |
+| Los cerrojos con 94 ms de ida y vuelta (`select 1`, 93,9 ms por el proxy) y tres sondas | **r8**: ACCESS EXCLUSIVE sobre `tickets` 0,72 / 0,68 s; máxima 748 ms; 28.556 operaciones y 0 caídas. **r9**: 0,72 / 0,72 s; máxima 776 ms; 30.039 y 0. **r10**, control con la `0081` de D-259 ese mismo día: 0,81 / 0,78 s; máxima 854 ms; 31.921 y 0 |
+
+Los cerrojos de hoy duran algo más que los de D-259 (0,47–0,62 s) **con las dos versiones**: es el equipo, no el cambio,
+que va en el cuerpo de una función creada antes del bloque `do`.
+
+### e. Errores encontrados, en orden
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| Mío: la primera reproducción, en el seed, no reproducía nada | Con la estadística congelada y 100.000 generadas, 0,7 ms por boleta: el seed no tiene vendedor con equipo, y con uno el plan tampoco se tuerce (§a) | La causa se buscó y se midió en la copia de producción. La prueba versionada comprueba la estadística, que falla con el código de antes en cualquier base |
+| Mío: una copia temporal de la suite para ver solo los lotes con el código de antes | Una de sus dos sustituciones no entró —el archivo es CRLF y el patrón llevaba `\n`— y esa copia volvió a fallar en la estadística | Se leyó igual: los lotes pasaron en el seed. La copia se borró |
+| Entorno: `supabase_vector_Rifas` se reinicia sin parar (523 reinicios) | `docker ps` | Ninguna: es el colector de registros de la CLI, no interviene y ya estaba así |
+| La preparación: «el análisis automático cayó durante la generación» | `n_mod_since_analyze` = 100.000 con la estadística congelada | Corregido en I-214 y D-260 |
+
+### f. Lo que no se comprobó
+
+| Qué | Por qué |
+|---|---|
+| Producción | No se tocó ni se leyó. Cuánto tarda el análisis en el proyecto alojado —129 ms aquí con 101.321 filas— se verá en la primera generación real: `pg_stat_user_tables.last_analyze` de `tickets` lo dice, en solo lectura |
+| Que el análisis se salte por `SKIP_LOCKED` | Hace falta otro análisis o un vacuum sobre `tickets` en ese mismo instante; no se forzó. Si pasa, el bloque termina igual y la estadística la pone el análisis automático |
+| La E2E completa | El cambio es el cuerpo de una función de la base y una prueba de base; pasaron las suites que la usan por la pantalla y el recorrido con 100.000 |
+
+### g. Entorno al terminar
+
+Base local restablecida con las 82 migraciones —la `0081` de D-260— y el seed, sin pausa, con los cron de siempre y el
+análisis automático de `tickets` encendido; la copia de producción, borrada con ese restablecimiento. Sin servidor de
+desarrollo y sin el proxy de latencia. Las fotos de puerta de este ensayo y el delta nuevo, en `build/gate/` de la copia
+principal; los resultados de los cerrojos y de las sondas, en su `build/publicacion-inventario/out/` (`r8`, `r9`, `r10`
+y `g1`). La nota «base local en uso», cambiada a **LIBRE**.
+
+## D-261 — los números de cada boleta los define su rifa, solo en local (2026-10-20)
+
+Encargo del dueño: configurar por rifa uno o dos números —nombre, cifras exactas y orden— e integrarlos con las
+boletas, la generación, los catálogos y los premios, **solo en local**, con migraciones nuevas y sin reescribir la
+`0081` ni la `0082`. **Producción, sin tocar.** La auditoría de producción se hizo sobre la copia local del respaldo
+del 2026-10-01 (`Rifas-backups/2026-10-01-antes-0080`), leída en agregado. Antes de tocar la base local: ningún
+`next dev` escuchando y `pg_stat_activity` sin sesiones de cliente; los datos de revisión del dueño, respaldados con
+`pg_dump -Fc` en `build/grupos-numeros/respaldo-local-antes/local-antes-0083.dump` (fuera de Git) y devueltos al final.
+
+### a. Lo que había antes de migrar
+
+| Base | Rifas | Boletas | Fuera de Diario 4 + Semanal 4 |
+|---|---|---|---|
+| Copia de producción del 2026-10-01 | 2 («SORTEO CAMIONETA KIA 2027», configurable, 1.318; «Rifa Control 2026», 3) | 1.321 | **0** (una en borrador, sin números) |
+| Local, revisión del dueño | 2 («Rifa Navidad 2026», 42; «Rifa Control 2026», 3) | 45 | **14** en «Rifa Navidad 2026»: 12 disponibles —las 12 de prueba, R001-000031 a R001-000042, diarios 0000–0005 por semanales 00–01, del inventario común, creadas por una generación el 2026-10-20— y 2 vendidas del seed antiguo, «7» y «007» (I-215) |
+
+### b. Pruebas
+
+| Comando | Resultado | Errores encontrados y corrección |
+|---|---|---|
+| `npx vitest run --config vitest.db.config.mts tests/db/raffle-number-groups.test.ts` | ✅ **34/34** | Primera corrida: 13 en rojo. **Real:** el destino `ON CONFLICT (organization_id, raffle_id, daily_number)` del índice parcial era **ambiguo** dentro de `admin_process_ticket_generation`, porque `raffle_id` también es un parámetro de salida → `#variable_conflict use_column` (todo lo demás del cuerpo va calificado). **De la prueba:** un ayudante con `savepoint` fuera de transacción, una coincidencia forzada sin su premio en la misma sentencia (lo exige la `0061`) y una boleta heredada sin `number_group_count` en modo réplica |
+| `npm run test:db`, primera vez | ❌ 61 en 11 archivos | Lo esperado —suites que escribían números de menos cifras en rifas de cuatro, listas exactas que no conocían la función nueva, el mensaje de antes— y dos **reales**: el motor llamaba a `raffle_prize_digits_count` por cada candidata (**424 llamadas** en M10, que exige ninguna por boleta) → un `CASE` en línea; y a la `0083` le faltaba su nota de reversión (`catalog.test.ts`, DB-15). La suite nueva falló dos pruebas solo en la corrida completa: precio de $50.000 contra el equipo que deja otra suite (D-237) → $120.000 |
+| `npm run test:db` sobre una base recién sembrada | ✅ **1.658 + 1 omitida** en 67 archivos (234 s) | — Volumen **8/8** con su rifa en 4+2. Antes, en una base con sobrantes de corridas parciales, la de volumen falló por su umbral de estadística, que supone una base sembrada |
+| `npx vitest run` | ✅ **2.267/2.267** en 112 archivos | +28 de `ticket-number-format` |
+| `npx eslint . --ignore-pattern ".claude/**"`, y después `npm run lint` con la configuración nueva | ✅ 0 errores, 2 advertencias de antes | `npm run lint` daba **13.427 errores** de las copias de trabajo de otras sesiones en `.claude/worktrees/` (I-217) → ignoradas. Un `useMemo` de `SellerTicketForm` que el compilador de React no podía conservar → quitado |
+| `npx tsc --noEmit` | ✅ | — |
+| SQL de la comprobación nueva de `verify:remote` en la base local | ✅ 5/5 | `verify:remote` no se ejecutó entero: exige SSL y la base local no lo tiene, y su `.env.local` apunta a producción |
+| E2E | **1.075/1.077** | Ver §c |
+
+### c. E2E
+
+Sobre una base recién preparada (`db:reset` y `seed:local`), con `next dev` contra la base local:
+`npx playwright test` → **1.075 ✅ y 2 ❌ de 1.077**, en 59,8 min.
+
+| Prueba | Por qué | Qué se hace |
+|---|---|---|
+| `pausa-publicacion.spec.ts:185` | «El código de 782a222 espera la base en 0082, y está en 0084»: la prueba toma la migración esperada de `git ls-tree HEAD`, y la `0083` y la `0084` todavía no están en ningún commit. **Es la puerta funcionando** | Se repite después del commit local |
+| `ventas-por-fecha.spec.ts:163` | «Las ventas de HOY»: 55 donde espera menos de 26, por lo que la suite completa vende ese mismo día. **I-090**, abierto desde 2026-09-01 y ajeno a esta entrega | Nada: es el defecto conocido de la prueba |
+
+**Antes**, una tanda corta sobre la base que dejó `test:db` falló 14 de 45 por **el estado de esa base** —rifas activas
+más recientes que la del seed, que la interfaz elige por omisión, y el equipo de D-237 que rechaza un precio de
+$50.000— y por cuatro expectativas mías: el aviso de duplicado y la pista del buscador del personal, que dejaron de
+nombrar «diario y semanal» (en otra rifa serían otros nombres); una boleta «7» que ya no cabe en una rifa de cuatro
+cifras (pasa a «0070»); y la tarjeta del detalle, que no es una `region`. Corregidas antes de la corrida completa. La
+primera vez, Playwright no levantó el servidor en sus 180 s (sistema de archivos lento): se arrancó desde el panel.
+
+### d. Los datos de revisión del dueño, devueltos
+
+`npx supabase db reset --version 0082 --no-seed`, vaciar las 61 tablas de `public` y `auth` que trae el volcado y
+`pg_restore --data-only --disable-triggers -n public -n auth` como `supabase_admin`; después, `npx supabase migration
+up --local` aplicó la `0083` y la `0084`. Restaurado: **45 boletas, 2 rifas, 6 usuarios y 1 generación**, lo mismo
+que había. La auditoría de la `0084`: «Rifa Control 2026», 3 boletas y 0 fuera de formato; «Rifa Navidad 2026», 42 y
+**14** —`{"assigned": 2, "available": 12}`, diarios de 1, 3 y 4 cifras y semanales de 2 y 4—. Las 14, comparadas una a
+una: **intactas** (I-215). `admin_raffle_nonconforming_tickets`, llamada con la sesión del dueño en una transacción
+deshecha, devuelve las 14 con su frase. Auth responde.
+
+## Preparación de la publicación de D-257 a D-261 — las cuatro migraciones ensayadas en local, con D-262 (2026-10-20, por la noche; nada publicado)
+
+Encargo del dueño: preparar otra vez la publicación del conjunto D-257 a D-261 con la `0081`, la `0082`, la `0083` y la
+`0084`, en local sobre una copia de producción. **Producción, sin tocar ni leer**; sin push ni despliegue. Los datos de
+revisión del dueño, respaldados antes del primer restablecimiento (`pg_dump -Fc` como `supabase_admin`, en
+`build/publicacion-d261/respaldo-revision-local/`, fuera de Git: 45 boletas, 14 fuera de formato) y devueltos al final
+(§i). Las herramientas de esta preparación, en `build/publicacion-d261/` (`LEEME.md`).
+
+### a. Git y entorno
+
+| Paso | Resultado |
+|---|---|
+| Base | `be4e1a7` (D-261) en `feature/inventario-comun`. Los tres archivos del usuario (`DesignFix.txt`, `PublicarProduccion.txt`, `prueba-abono.csv`), intactos y fuera de los commits |
+| El código servido | Árbol aparte en `b1f8dc1`, para restaurar la copia y para su E2E. Con `node_modules` como unión a la copia principal, Turbopack no arrancó («Symlink [project]/node_modules is invalid, it points out of the filesystem root»); con `npm ci` propio, sí |
+| La copia de producción | `reset-antes.sh`: el respaldo del 2026-10-01 (`0079`), la `0080` desde `b1f8dc1` y los privilegios de la foto del 2026-10-05. 1.321 boletas en dos rifas; ~1 min cada vez |
+| Commits | `af5654a` (la `0084`, las herramientas de la puerta y las pruebas) y el de documentos |
+
+### b. Errores encontrados, en orden
+
+| Qué | Cómo se vio | Corrección |
+|---|---|---|
+| La puerta no conocía la auditoría de la `0084` | r1, con el comparador de `b1f8dc1`: DETENER, «La tabla nueva raffle_number_format_audits tiene 2 filas y tenía que nacer vacía» | D-262: la lista exacta `0081,0082,0083,0084` en `gate-data-effects.ts`, con sus hechos en la foto. 10 pruebas escritas antes y vistas fallar («numberGroupMigrationEffects is not a function») |
+| **La `0084` de D-261 acababa en un interbloqueo con una boleta nueva** | r2, con las sondas: `40P01` en la sentencia 41 (`ALTER TABLE raffles`): la migración esperaba ACCESS EXCLUSIVE sobre `raffles`, bloqueada por una creación de boleta que esperaba ROW EXCLUSIVE, bloqueada por la migración. Tres creaciones cayeron con `57014` a los 8,0 s y otras tres esperaron 3,1 s | D-262: lo que toca `tickets` y `raffles` en un solo bloque final, con la auditoría y su clave foránea dentro; el esquema, el mismo (`--structure-only`: `{}`) |
+| La CLI no enseña los avisos de la auditoría | Ninguna pasada trae los `raise notice` en su salida | El comentario de la `0084` lo dice; `gate-snapshot` imprime una línea «Números (fuera de «Diario» 4 + «Semanal» 4)» |
+| `test:db`: «todo pago cuadra con sus asignaciones» (`catalog.test.ts`), rojo | Un pago de $20.000, anulado y **sin asignaciones**: `limpiar()` de `raffle-number-groups` borraba las asignaciones de sus boletas y no el pago. Lo creó G7-03, la primera prueba de esa suite que cobra | `limpiar()` borra también esos pagos, su bitácora y sus avisos |
+| `verify`, `tsc`: `Type 'string \| null' is not assignable to type 'string'` | `pago.data` en G7-03 | El identificador se toma una vez, después de comprobar que no hay error |
+| Mío: en r1 las sondas no corrieron | `export MSYS_NO_PATHCONV=1` convertía las rutas `/d/...` de `run-push.sh` en «D:\d\Claude…» | La variable, solo para `docker` |
+| Mío: la estructura difería en `public_catalog_seller` | Dentro del bloque, su cuerpo ganó sangría, y su huella es el texto | El cuerpo, sin la sangría del bloque |
+| Mío: el `db push` del subconjunto `0001`–`0083` | Faltaba `supabase/templates` en la carpeta de trabajo | Copiada |
+| Mío: la prueba de reversión llamaba a `create_raffle_prize` por posición | `function create_raffle_prize(unknown, …) does not exist` | Argumentos con nombre |
+| Entorno: la CLI, más lenta que el día anterior | ~300 ms de su lado por sentencia: la base estuvo activa 16 ms en 60 sentencias; el 2026-10-19 eran ~65 ms | Ninguna: es del equipo. Las ventanas solo se comparan entre pasadas seguidas (D-262) |
+
+### c. Las cuatro migraciones con escrituras en curso
+
+`run-push.sh`, con `lock_timeout=900ms`, mientras tres conexiones `authenticated` crean, venden y leen boletas, cada una
+en su transacción y con `ROLLBACK`; la ventana es ACCESS EXCLUSIVE sobre `tickets`, muestreada cada ~25 ms.
+
+| Pasada | `0084` | Red | `db push` | Ventanas (`0081` / `0082` / `0084`) | Operaciones | Errores | La más lenta |
+|---|---|---|---|---|---|---|---|
+| r2 | la de D-261 | directo | ❌ `40P01` a los 67 s | 0,78 / 0,78 s / — | 34.240 | **3 × `57014`** | 8,0 s |
+| r3 | D-262 | directo | 86,7 s | 0,94 / 0,93 / 1,00 s | 49.646 | 0 | 1,06 s |
+| r4 | D-262 | directo | 92,2 s | 1,03 / 1,03 / 1,09 s | 51.056 | 0 | 1,12 s |
+| r5 | D-262 | 94 ms | 127,1 s | 1,49 / 1,41 / 1,48 s | 66.401 | 0 | 1,53 s |
+| r6 | D-262 | 200 ms | 148,9 s | 1,81 / 1,96 / 1,88 s | 81.915 | 0 | 2,05 s |
+| r10 | la del commit | directo | 140,4 s | 1,62 / 1,57 / 1,62 s | 78.072 | 0 | 1,67 s |
+
+| Caso | Resultado |
+|---|---|
+| Una lectura abierta 30 s sobre `tickets`, con la copia en `0083` | `55P03` en la sentencia 39 —el bloque final— a los 24,9 s. Historial en `0083`; ni la tabla de auditoría, ni las columnas, ni `ticket_numbers_problem`. El reintento, aplicado en 27,1 s |
+| Una lectura abierta 60 s sobre `raffles`, con las sondas (r7) | `55P03` en la sentencia 39; `tickets`, cerrada 0,87 s mientras esperaba `raffles`; 22.256 operaciones, 0 errores, la más lenta 0,91 s. El reintento con las sondas (r8): 1,34 s, 23.591 operaciones, 0 errores |
+| La `0081`–`0084` en una sola transacción (`psql`, desde `0080`) | `ERROR: unsafe use of new value "last_two" of enum type raffle_prize_digits`, al crear `raffle_prize_digits_count`; nada aplicado |
+| El bloque de la `0084` en el servidor (`psql \timing`, tres veces, sobre `0083`) | 14,6 / 13,8 / 13,6 ms; la `0084` entera, 32,9 ms en 42 sentencias |
+
+### d. La puerta, la auditoría y `verify:remote`
+
+| Comprobación | Resultado |
+|---|---|
+| El delta (r4, `--save-delta build/gate/delta-esperado-0081-0084.json`) | tablas +4, columnas +58 ~1, restricciones +36 ~1, índices +15, disparadores +7 ~1, funciones +43 −1 ~17, tipos ~1, migraciones +4; 48 KB |
+| La estructura que deja la `0084` de D-262 frente a la de D-261 | `{}` |
+| r4 y r10 | **CONTINUAR**, 0 diferencias con lo ensayado, **0 filas tocadas**; `efectos_de_datos` `{"rifas": 2, "boletas": 1321, "fuera_de_formato": 0}`; tablas nuevas `raffle_hold_settings` 0, `raffle_number_format_audits` 2, `ticket_generation_runs` 0, `ticket_holds` 0 |
+| La auditoría en la copia | La rifa principal, 1.318 boletas, diarios `{"4": 1317}` —un borrador sin números— y 0 fuera de formato; la de control, 3 y 0 |
+| r9: tres fuera de formato sembradas en `0080` —disponible 7 / 0123, borrador 12 / —, vendida 4697 / 972 con $80.000 abonados— | **CONTINUAR**, 0 filas tocadas, `{"rifas": 2, "boletas": 1323, "fuera_de_formato": 3}`; la auditoría, `{"draft": 1, "assigned": 1, "available": 1}`, diarios `{"1": 1, "2": 1, "4": 1317}` y semanales `{"3": 1, "4": 1317}`. Las tres conservan sus números y la vendida su abono |
+| `gate-snapshot`, la línea nueva | Antes, `{"forma":"antes","rifas":2,"boletas":1321,"fuera_de_formato":0,"auditoria":null}`; después, `{"forma":"0084",…,"auditoria":2}` |
+| `verify:remote` en la copia, en r1 y en r10 | Antes, **57 OK y 4 en rojo**: las 16 RPC del inventario («0 (esperado 16)»), la firma de orden («1 (esperado 2)»), «Los grupos de numeros de cada rifa y su formato exacto (0084): 1 (esperado 5)» y los cron que el ensayo apaga. Después, **60 OK** y los cron |
+| Las pruebas de la puerta | `gate-number-groups` 10/10 y `gate-data-effects` 28/28 |
+
+### e. El código servido (`b1f8dc1`) contra la base nueva
+
+Desde el árbol aparte, con su suite, su `dev:local` y su `npm ci`, contra la base local restablecida con las 84
+migraciones y el seed de la candidata —todas sus boletas «Diario» 4 + «Semanal» 4, como producción—. El seed de
+`b1f8dc1` ya no entra en esa base: trae «007» y «7».
+
+| Comando | Resultado |
+|---|---|
+| `npx playwright test` (completa, escritorio y teléfono) | **1.059/1.063** en 56,2 min, en una sola pasada |
+| `back-navigation:25` | **I-075**, la primera de la pasada; sola, ✅ en 3,4 s |
+| `owner-tickets:236` | Su preparación crea una boleta con el diario «7» y la base la rechaza: `23514`, «El número «Diario» lleva exactamente 4 cifras: escribe 0007.». Es la regla de D-261 (BR-N21), no un fallo de compatibilidad; la candidata ya adaptó la prueba |
+| `pausa-publicacion:185` | **Esperado**: «El código de b1f8dc1 espera la base en 0080, y está en 0084: no son pareja. La pausa sigue como estaba.» |
+| `ventas-por-fecha:163` | **I-090**: 55 ventas «de hoy», acumuladas por la suite |
+
+**Y la reversión con rifas nuevas** —lo que vería cada uno si se volviera a `b1f8dc1` después de crear rifas con otros
+números—: una prueba **sin versionar** (`build/publicacion-d261/zz-reversion-d261.spec.ts.txt`), en ese árbol, crea una
+rifa de un número de 3 cifras y otra «Mayor» 4 + «Seco» 2 con boletas vendidas —una con $50.000 abonados— y un premio
+de las dos últimas cifras, y recorre el código viejo. **3/3** en 38 s, sin «Algo salió mal», sin 5xx y sin errores de la
+página: rifas, premios, «Boletas», los dos detalles, el panel, los reportes, el cliente, los pagos y «Premios ganados»; y
+el vendedor **vende** con el diálogo viejo una boleta de un número, que queda asignada a $120.000 y sin segundo número.
+**Lo que se ve mal**: «387 / —» y «Número semanal: Sin número» en una boleta de un número; «Número diario» y «Número
+semanal» en la rifa «Mayor» / «Seco»; y la columna «Cifras» del premio de las dos últimas, **vacía**. Razonado sobre el
+código y no recorrido: el código viejo pide los dos números para crear una boleta o corregirlos, y su formulario de
+premios solo conoce `four` y `last_three`.
+
+### f. El almacenamiento
+
+| Medida | Resultado |
+|---|---|
+| La `0084` sobre la copia (`0083` → `0084`) | `public` +40 KB (12.345.344 → 12.386.304 bytes): el índice parcial de `tickets`, 8 KB, y la auditoría, 32 KB. La base, +112 KB |
+| 100.000 boletas `0000`–`9999` × `0000`–`0009` con la `0082` —sin D-261— (`storage-4x4.mjs`) | `tickets` +74,0 MB (tabla 17,4 MB, índices 56,6 MB); la base, de 47,0 a 120,9 MB |
+| Lo mismo con la `0084` (`storage.mjs`: pide de «00» a «09», y desde D-261 el generador los escribe con las cuatro cifras de la rifa) | `tickets` +74,2 MB (tabla 17,4 MB, índices 56,8 MB); la base, de 46,1 a 120,2 MB. Entregar, vender y cobrar 1.000 con un abono: 4,8 MB |
+| La medición de I-210 (2026-10-19) | 65,9 MB: generaba semanales de **dos** cifras, «00» a «09», y los índices de trigramas y de unicidad crecen con el largo |
+
+### g. La candidata
+
+| Comando | Resultado |
+|---|---|
+| `npm run db:reset` + `seed:local` + `npm run test:db` | ✅ **1.659 y 1 omitida** en 67 archivos, 242 s (+1: G7-03). La primera pasada, 1.658 y 1 roja, la de §b |
+| `raffle-number-groups` y `catalog`, tras la corrección de tipos | ✅ 58/58 |
+| `npm run verify` | ✅ `tsc`; `eslint`, 0 errores y los 2 avisos de siempre; **2.277/2.277** unitarias en 113 archivos (+10); `next build` compilado en 91 s |
+| `npx playwright test` de 18 suites —`rifa-un-numero`, `inventario-comun` (y móvil), `owner-raffles`, `owner-tickets`, `premios` (y móvil), `pausa-publicacion`, `detalle-boleta-composicion`, `detalle-boleta-admin`, `boleta-cliente`, `liberar-boleta` (y móvil), `catalogo-publico` (y móvil), `importar-boletas`, `seller-tickets` y `payments`— sobre `af5654a` y el seed recién puesto | ✅ **265/266** en 17,2 min. La roja, `catalogo-publico-movil:103`, es **I-106** —depende de lo que corre antes—; sola, ✅. `pausa-publicacion:185`, en verde: la base y el commit son pareja |
+
+### h. Lo que no se comprobó
+
+| Qué | Por qué |
+|---|---|
+| Producción | No se tocó ni se leyó: el tamaño de la base, las versiones, la actividad y las boletas fuera de formato se leen en I0 e I3 de `RUNBOOK` §13 |
+| La red real hacia la base, el tiempo de un `db push` en el proyecto alojado y su CPU | El proxy reproduce la ida y vuelta, no la variación ni la CLI de ese momento: con 200 ms, la ventana más larga fue de 1,96 s |
+| La E2E completa sobre el commit final | La de la candidata es la de D-261 (**1.075/1.077**): el mismo código y el mismo esquema que deja la `0084` —la comparación de estructura da `{}`—. Sobre `af5654a`, las 18 suites de §g |
+| Crear o corregir boletas de una rifa de un número, y guardar un premio de dos cifras, con el código viejo | Razonado sobre el código (§e), no recorrido en pantalla |
+
+### i. Los datos de revisión del dueño, devueltos
+
+`supabase db reset --no-seed` —las 84 migraciones—, vaciar las **62** tablas de `public` y `auth` que trae el volcado
+(las 61 de D-261 y la auditoría) y `pg_restore --data-only --disable-triggers -n public -n auth` como `supabase_admin`.
+Restaurado: **45 boletas, 2 rifas, 6 usuarios, 1 generación y 2 filas de auditoría**, lo mismo que había. Las **14**
+fuera de formato de «Rifa Navidad 2026» —R001-000003 («007» / 1003) y R001-000004 («7» / 1004), vendidas, y R001-000031
+a R001-000042, disponibles, diarios 0000–0005 por semanales 00 y 01—, **intactas** (I-215). Auth responde.

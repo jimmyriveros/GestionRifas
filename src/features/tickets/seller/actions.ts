@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
+import { numberFormatFromRow, RAFFLE_NUMBER_FORMAT_COLUMNS } from '@/lib/ticket-number-format'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult, ActionResultWith } from '@/lib/action-result'
 
@@ -43,22 +44,25 @@ export async function createSellerTickets(
   }
   const { raffleId, rows } = parsed.data
 
-  // Segunda capa de la validacion por fila (BR-N10): el navegador ya la hizo,
-  // pero una Server Action puede invocarse sin pasar por la interfaz.
-  if (hasErrors(validateBulkRows(rows, { requireComplete: true }))) {
-    return { error: 'Hay filas con números inválidos o repetidos entre sí.' }
-  }
-
   const supabase = await createClient()
 
   const { data: raffle, error: raffleError } = await supabase
     .from('raffles')
-    .select('id, status, allow_seller_ticket_creation')
+    .select(`id, status, allow_seller_ticket_creation, ${RAFFLE_NUMBER_FORMAT_COLUMNS}`)
     .eq('id', raffleId)
     .maybeSingle()
 
   if (raffleError) return { error: mapPgError(raffleError) }
   if (!raffle) return { error: 'La rifa no existe o no tienes acceso a ella.' }
+
+  // Segunda capa de la validacion por fila (BR-N10), con los números de LA rifa
+  // (D-261): el navegador ya la hizo, pero una Server Action puede invocarse
+  // sin pasar por la interfaz.
+  const format = numberFormatFromRow(raffle)
+  const single = format.groups.length === 1
+  if (hasErrors(validateBulkRows(rows, { requireComplete: true, format }))) {
+    return { error: 'Hay filas con números inválidos o repetidos entre sí.' }
+  }
 
   if (raffle.status !== 'active') {
     return { error: 'La rifa no está activa. No se pueden crear boletas.' }
@@ -68,6 +72,8 @@ export async function createSellerTickets(
       error: 'Esta rifa no permite que los vendedores creen boletas. Pídelas a tu administrador.',
     }
   }
+
+  if (single) return createSingleGroupTickets(supabase, auth.membership, raffleId, rows)
 
   // ON CONFLICT DO NOTHING: una combinacion ya tomada no tumba el lote entero,
   // se informa por fila. El vendedor no puede consultar las boletas de otros
@@ -115,6 +121,61 @@ export async function createSellerTickets(
 }
 
 /**
+ * Las boletas de una rifa de UN solo número (D-261).
+ *
+ * El `upsert` de arriba no sirve: su destino de conflicto es la combinación, y
+ * con el segundo número nulo la unicidad la pone otro índice,
+ * `tickets_single_group_unique`, que PostgREST no sabe nombrar. Se pregunta
+ * primero cuáles ya están tomados —`taken_ticket_combinations` solo dice cuáles,
+ * no de quién (BR-U07)— y se insertan las demás. Si alguien toma una en el
+ * medio, el índice la rechaza y se dice con su frase.
+ */
+async function createSingleGroupTickets(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  membership: { organizationId: string; profileId: string },
+  raffleId: string,
+  rows: { dailyNumber: string }[],
+): Promise<ActionResultWith<SellerTicketsResult>> {
+  const { data: taken, error: takenError } = await supabase.rpc('taken_ticket_combinations', {
+    p_raffle_id: raffleId,
+    p_combos: rows.map((row) => ({ daily_number: row.dailyNumber, weekly_number: '' })),
+  })
+  if (takenError) return { error: mapPgError(takenError) }
+
+  const takenNumbers = new Set((taken ?? []).flatMap((row) => (row.daily_number ? [row.daily_number] : [])))
+  const fresh = rows.filter((row) => !takenNumbers.has(row.dailyNumber))
+
+  if (fresh.length > 0) {
+    const { error } = await supabase.from('tickets').insert(
+      fresh.map((row) => ({
+        organization_id: membership.organizationId,
+        raffle_id: raffleId,
+        seller_id: membership.profileId,
+        daily_number: row.dailyNumber,
+        weekly_number: null,
+        inventory_status: 'pending_approval' as const,
+        created_by: membership.profileId,
+      })),
+    )
+    if (error) return { error: mapPgError(error) }
+  }
+
+  revalidatePath('/seller/tickets')
+  revalidatePath('/seller/dashboard')
+  revalidatePath('/owner/tickets')
+  revalidatePath('/owner/dashboard')
+
+  return {
+    ok: true,
+    data: {
+      requested: rows.length,
+      inserted: fresh.length,
+      conflicts: rows.filter((row) => takenNumbers.has(row.dailyNumber)).map((row) => comboKey(row.dailyNumber, '')),
+    },
+  }
+}
+
+/**
  * Correccion de los numeros por parte del vendedor, solo mientras la boleta no
  * este aprobada.
  *
@@ -136,7 +197,8 @@ export async function updateSellerTicketNumbers(input: unknown): Promise<ActionR
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tickets')
-    .update({ daily_number: dailyNumber, weekly_number: weeklyNumber })
+    // Con un solo numero, el segundo va nulo (D-261); las cifras las exige la base.
+    .update({ daily_number: dailyNumber, weekly_number: weeklyNumber === '' ? null : weeklyNumber })
     .eq('id', ticketId)
     .select('id')
 

@@ -1,6 +1,18 @@
 # ESTRATEGIA DE PRUEBAS
 
-- **Versión:** 2.44 · **Actualizado:** 2026-10-08, más tarde (§4.18, D-256, **solo en local**: el ojo en «Nueva
+- **Versión:** 2.49 · **Actualizado:** 2026-10-20, más tarde (**§4.20 nueva**, D-261, **solo en local**: los números
+  de cada rifa —34 pruebas de base, 28 unitarias y 5 E2E nuevas— y las suites que escribían números cortos en rifas de
+  cuatro cifras, adaptadas; §4.19 al día). Antes, ese mismo día (§4.19, D-260, **solo en local**: la suite de volumen pasa de 4 a 8 —la
+  estadística que deja el generador, lotes de 10 a 1.000 a un vendedor con equipo justo después de generar, un lote
+  cortado, su reintento y uno con una boleta apartada— y **controla la estadística** apagando el análisis automático de
+  `tickets` mientras corre). Antes, 2026-10-19, por la noche (§4.19, D-259: **cómo se ensaya una migración con la
+  latencia de producción** y con escrituras en curso, al preparar la publicación de la `0081` y la `0082`; I-210, medida
+  sobre una copia de producción). Antes, ese mismo día, más tarde (§4.19, D-258, **solo en local**: liberar lo vendido
+  desde un apartado lo devuelve al inventario común —5 de base más, 41 en total; 1 E2E más, 6 de escritorio; y
+  `liberar-boleta.spec.ts` comprueba que una venta que no salió de un apartado sigue diciendo lo de siempre—).
+  Antes, ese mismo día (**§4.19 nueva**, D-257, **solo en local**: el inventario común, la
+  generación por rangos y los apartados —36 + 4 de base, 16 unitarias y 7 E2E, 5 de escritorio y 2 de móvil—).
+  Antes, 2026-10-08, más tarde (§4.18, D-256, **solo en local**: el ojo en «Nueva
   contraseña» y «Cambiar contraseña» —8 unitarias y 3 E2E, 2 de escritorio y 1 de móvil—). Antes, ese mismo día
   (**§4.18 nueva**, D-255, **solo en local**: el ojo del campo de
   contraseña del ingreso —6 unitarias y 5 E2E, 3 de escritorio y 2 de móvil— y lo que no se automatiza). Antes,
@@ -234,6 +246,7 @@ para poder ir directo a la prueba en vez de buscarla.
 | 21 | Bloqueo de cambio de cliente con pagos | BR-I12 | `db/payments-phase5.test.ts` | 5 |
 | 21.b | Corrección del cliente de una boleta vendida, y sus siete puertas cerradas | BR-I13 | `db/reassign-client.test.ts`, `unit/reassign-client.test.ts`, `e2e/cambiar-cliente*.spec.ts` | post-9 |
 | 21.c | Liberación de una boleta vendida sin abonos, y sus siete puertas cerradas | BR-I14 | `db/release-ticket.test.ts`, `unit/release-ticket.test.ts`, `e2e/liberar-boleta*.spec.ts` | post-9 |
+| 21.d | Liberar una venta que salió de un apartado la devuelve al inventario común; las demás se quedan con su vendedor (solo en local) | BR-I32 | `db/common-inventory.test.ts` (D-258), `e2e/inventario-comun.spec.ts`, `e2e/liberar-boleta.spec.ts` | post-9 |
 | 22 | Aprobación de boletas creadas por vendedor | BR-I09 | `e2e/seller-tickets.spec.ts` | 3 |
 | 23 | Restricciones de rifas cerradas | BR-R08, BR-R09 | `db/phase3-admin.test.ts` | 3 |
 | 24 | RLS | SECURITY §4 | `db/catalog.test.ts`, `db/rls-isolation.test.ts`, `db/security-phase7.test.ts` | 2 |
@@ -1430,7 +1443,8 @@ restauración completa con su conciliación. El arnés vivió en `build/ensayo/`
 
 | Suite | Pruebas | Qué comprueba |
 |---|---|---|
-| `tests/unit/gate-data-effects.test.ts` | **28** (E1..E5) | Los efectos de datos de la `0078` y la `0079`, sin base: **acepta** la transformación correcta —con otros tamaños, con una organización sin tramos— y **rechaza** una tarifa o un límite alterados, tramos cruzados entre organizaciones, una lista que no es la versión 1, de más o de menos; una membresía en la lista de **otra organización**, una modificación de más, una columna de antes cambiada, un acuerdo que no es la mitad y cada variante de la bitácora; una cifra de comisión, **dos diferencias que se compensan** y una sola fila tocada en las tablas de dinero. El registro solo existe para la lista exacta `0078,0079` |
+| `tests/unit/gate-data-effects.test.ts` | **28** (E1..E5) | Los efectos de datos de la `0078` y la `0079`, sin base: **acepta** la transformación correcta —con otros tamaños, con una organización sin tramos— y **rechaza** una tarifa o un límite alterados, tramos cruzados entre organizaciones, una lista que no es la versión 1, de más o de menos; una membresía en la lista de **otra organización**, una modificación de más, una columna de antes cambiada, un acuerdo que no es la mitad y cada variante de la bitácora; una cifra de comisión, **dos diferencias que se compensan** y una sola fila tocada en las tablas de dinero. El registro solo existe para la lista exacta `0078,0079` —y, desde D-262, para `0081,0082,0083,0084`— |
+| `tests/unit/gate-number-groups.test.ts` | **10** (N1..N4, D-262) | Los efectos de datos de la `0081`–`0084`, sin base: **acepta** una fila de auditoría por rifa con los recuentos de la foto de antes —también con boletas fuera de formato y con una rifa sin boletas— y las rifas y boletas en «Diario» 4 + «Semanal» 4; **rechaza** una rifa sin auditoría, una auditoría de una rifa que no existía, filas de más o de menos, la tabla declarada como nueva sin serlo, cada recuento o configuración alterados, una rifa con otros números, una que falta después, boletas con otro `number_group_count`, hechos ausentes y fotos de la forma equivocada. El registro existe solo para la lista exacta, con `raffle_number_format_audits` como única tabla nueva con datos. Escritas antes que el código, y vistas fallar |
 | `tests/unit/earning-recovery.test.ts` | **18** (V1..V5) | Las funciones que se tocan salen del propio script; la foto de referencia tiene que ser completa, del mismo destino y de `0077`; **ningún `grant` de algo que la foto no tenía**, lo que sobra se revoca, y una función que no es la de la foto no se toca; la comprobación final de todas las funciones; la orden |
 | `tests/unit/restore-backup.test.ts` | **14** (B1..B5) | El orden de los cinco pasos y sus guardas; `roles.sql` sentencia por sentencia; la única excepción —esa sentencia **con** ese código, y ninguno de los dos por separado—; el respaldo que se rechaza antes de conectar; la orden |
 | `tests/e2e/busqueda-en-camino.spec.ts`, `busqueda-en-camino-movil.spec.ts` y `catalogo-busqueda-en-camino.spec.ts` | **6 + 1 + 2** | I-200 (D-252): la búsqueda sale y se retiene 1,5 s, y en ese rato se elige un orden, un filtro o «Siguiente»; tienen que quedar las dos, en una navegación más y ninguna con lo elegido sin `q`. Con ratón, teclado y dedo, y Atrás/Adelante. Bloquean los service workers para que la retención sea real también en un build de producción |
@@ -1574,6 +1588,55 @@ cambiaría la contraseña de la cuenta que usan las demás suites.
 ⚠️ **Lo que no se automatiza** y queda para una revisión a mano: el autocompletado de un gestor de contraseñas real, una
 extensión que pinte su icono dentro del campo y Safari de iPhone. El ojo nativo de Edge se comprobó una vez, con una
 sonda en un perfil temporal (`TEST_RESULTS`, «D-255»), no en la batería.
+
+### 4.19 Inventario común, generación por rangos y apartados (BR-N15..BR-N18, BR-I17..BR-I32; D-257 y D-258, `0081` y `0082`)
+
+| Suite | Pruebas | Qué comprueba |
+|---|---|---|
+| `tests/db/common-inventory.test.ts` | **41** | Las constantes y las frases de un rango, **iguales en SQL y en TypeScript**; el generador —todas las combinaciones en orden, los ceros, el ancho, el tope de 100.000, lo que ya existía y las anuladas sin tocar, la misma solicitud, un bloque repetido y la continuación—; asignar y recuperar —todo o nada, sin tocar ventas, y **una venta contra una recuperación, en paralelo, seis veces**—; los apartados —el plazo, **dos vendedores y el cupo en paralelo**, la solicitud repetida, la única extensión, devolver y volver a apartar, la pantalla vieja, la venta con el apartado vencido, el cupo rebajado, la desactivación y la rifa no activa—; la privacidad de lo ajeno, lo que ve el personal, otra organización; el catálogo público y el motor de loterías. **Y liberar lo vendido desde un apartado (D-258, cinco):** vuelve al inventario común y la bitácora lo dice; una entregada por el personal se queda; corregir el cliente no cambia la marca; otra venta desde un apartado la marca otra vez y una entregada después, no; ninguna sesión escribe la marca y la base no la admite fuera de una venta. Limpia lo suyo **y su bitácora** (D-233) |
+| `tests/db/common-inventory-volume.test.ts` | **8** | **100.000 boletas** en bloques bajo el tope de 8 s de la sesión, con una interrupción y su continuación, sin duplicados, y el último bloque repetido sin crear nada; el catálogo interno y la lista del personal paginan sin traerlas; apartar, asignar 1.000 y recuperarlas. **Y justo después de generar (I-214, D-260):** la estadística de `tickets` conoce la rifa tras el primer bloque y su tamaño al terminar —**falla con la `0081` de antes**—; lotes de 10 a 1.000 a un vendedor **con equipo** que crea la prueba, cada uno bajo los 8 s; un lote cortado a los 50 ms no deja ninguna boleta ni fila de bitácora, el reintento las entrega una vez y repetirlo no duplica; un lote con una boleta apartada no entrega ninguna. **Controla la estadística:** analiza `tickets` antes de generar y apaga su análisis automático hasta el `afterAll`, para que solo el generador la pueda poner al día; si el proceso muere a medias, queda apagado hasta el siguiente `db:reset`. Escribe sus tiempos en `build/inventario-volumen/informe.md` |
+| `tests/unit/inventory-rules.test.ts` | **16** | Los rangos, el orden y el ancho calculados en el navegador, la muestra, los recuentos con puntos de miles, el esquema que rechaza más de 100.000, por qué el personal no puede una acción de lote, y los textos: ningún término prohibido del glosario, ninguna promesa de envío y **ninguna hora seguida de otro punto** |
+| `tests/e2e/inventario-comun.spec.ts` | **6** (escritorio, en serie) | El Dueño genera desde «Crear en lote» —con la vista previa y sin repetir lo que ya existe—, entrega un lote y lo recupera; el Administrador ve los apartados y no los cambia; el vendedor aparta viendo los dos números, pide los 30 minutos, devuelve, vuelve a apartar y vende; **libera esa venta y la boleta vuelve al inventario común**, con el aviso antes de confirmar y la salida a «Mis boletas» (D-258); otro vendedor ve «No disponible» y el Dueño, quién la tiene |
+| `tests/e2e/inventario-comun-movil.spec.ts` | **2** (móvil, en serie) | El Dueño genera desde el teléfono y el vendedor llega desde «Mis boletas», aparta y vende, con las tres acciones del apartado dentro de la pantalla y sin desbordar |
+
+**Cómo no se pisan con las demás suites.** Todo ocurre en la rifa del seed, que desde D-261 tiene dos números de
+**cuatro** cifras: el diario se sortea entre 1000 y 8999 y el semanal se **escribe** «3» y «4» (en el teléfono, «5» y «6»)
+y se guarda «0003» y «0004», que es lo que prueba el generador. Hasta D-261 se usaban números de tres cifras. `purgeCommonInventory` (`tests/e2e/db-setup.ts`)
+borra las boletas de sus generaciones, sus apartados, sus ventas, los clientes que crearon, la configuración de los
+apartados que cambiaron y su bitácora; `purgeTestRaffles` y `purgeSellers` se ampliaron para no fallar si una prueba
+futura deja apartados o generaciones.
+
+**Lo que no se automatiza.** El vencimiento real de 30 minutos: las pruebas lo fuerzan en la base. El instante exacto en
+que una extensión y un vencimiento coinciden: lo decide la fila bloqueada con la hora de la base. Y el tamaño en un
+proyecto alojado: el de I-210 es local —medido también sobre una copia de producción en D-259—.
+
+**La publicación, ensayada con la latencia de producción (D-259).** Una migración que bloquea una tabla viva no se
+mide bien en local: la CLI la envía sentencia a sentencia, cada una paga una ida y vuelta, y en local esa ida y vuelta
+es casi cero. Con la `0081`, 1,5 s en local y 10–14 s con la de producción, con peticiones caídas (I-212). El método,
+para esta y las siguientes: una copia de producción restaurada en local con la `0080` aplicada desde el código servido;
+sondas que crean, venden y leen boletas como `authenticated`, cada operación en su transacción y con ROLLBACK —la puerta
+sigue comparando 0 filas—; y un proxy TCP que da a la CLI 90–200 ms de ida y vuelta. Las herramientas, fuera de Git, en
+`build/publicacion-inventario/`, y las órdenes en `RUNBOOK` §13.3. No es una suite: se ejecuta al preparar una
+publicación con cerrojos sobre tablas vivas.
+
+### 4.20 Los números de cada rifa (BR-N19..BR-N25, BR-J24..BR-J26; D-261, `0083` y `0084`)
+
+| Suite | Pruebas | Qué comprueba |
+|---|---|---|
+| `tests/db/raffle-number-groups.test.ts` | **35** (G7-03, D-262: una vendida fuera de formato recibe abonos, se corrige, se anula, cambia de cliente y se libera, sin que cambie un número; liberada, no se vende hasta corregirla) | Las frases de los grupos, de los números y del rango de cada número, **iguales en SQL y en TypeScript**; la estructura creada por la sesión del Dueño y rechazada con su frase; que **no cambia** ni en borrador, ni con la service role, ni por SQL, mientras el nombre y el precio sí; uno y dos números con **todas** las combinaciones de 2, 3 y 4 cifras; los ceros de delante; que una rifa de un número no admite segundo —ni vacío, ni cero—; corregir, crear en lote, crear como vendedor y aprobar con la misma regla; la unicidad de un número aunque el segundo sea nulo, **con dos conexiones a la vez**, en otra rifa y con una anulada; el generador —un número de 0 a 5 en 0000…0005, dos anchos distintos, el rechazo sin recortar, el tope, la continuación, la solicitud y el bloque repetidos y lo que ya existía—; un lote de 1.000 nada más generar; vender, apartar y liberar una boleta de un número; lo que ya existía fuera de formato, sin tocar, que no se aprueba ni se vende, listado solo para el personal y corregible con su bitácora; el catálogo público con los nombres; premios que no usan un número que no existe ni más cifras; `last_two` con 5307 → 07 y no 7; **4 > 3 > 2** entre números y boletas de un cliente, los empates enteros, sin cruzar clientes, rifas ni sorteos, en una rifa de un número y con la defensa de la tabla de enlaces; y el aislamiento |
+| `tests/unit/ticket-number-format.test.ts` | **28** | Las reglas puras de la pantalla, los títulos y frases de cada número, los rangos del generador y las columnas del importador |
+| `tests/e2e/rifa-un-numero.spec.ts` | **5** (escritorio, en serie) | El Dueño crea una rifa de un número de tres cifras con su resumen, la edición solo lo lee, una boleta lleva ese número solo —«7» se rechaza con «escribe 007»—, el generador crea 008 y 009 y la lista nombra «Ver la boleta 008», y un premio no ofrece cuatro cifras |
+
+**Adaptadas, no reescritas.** Las suites que escribían números de menos cifras en rifas de cuatro —`tickets-numbering`,
+`ticket-search`, `lottery-results`, `raffle-prize-matching`, `common-inventory` y su volumen, y las E2E del inventario
+común— conservan lo que probaban: donde un número corto era el **dato** de la prueba —el motor comparando «46» con
+«0046», la búsqueda ordenando «123», «1239» y «9123»— se siembra **como una boleta de antes de la `0084`**, sin
+disparadores, que es la única forma de que exista; donde solo era un número cualquiera, se escribe con sus cifras, o la
+rifa de la prueba se crea con las cifras que la prueba usa (`common-inventory` en 2+2, su volumen en 4+2). Crear una
+rifa por la interfaz pasa por `submitNewRaffle` (`tests/e2e/fixtures.ts`), que confirma el resumen.
+
+**Lo que no se automatiza.** El ensayo de cerrojos de la `0084` sobre una copia de producción con su latencia: es parte
+de revisar la publicación (I-216).
 
 ## 5. Pruebas unitarias clave
 

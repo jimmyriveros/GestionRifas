@@ -30,9 +30,12 @@
  *               tipo, cifras de control, sincronizador, cron y recordatorios próximos;
  *               y `ganancias` (D-240): los tramos, los acuerdos de cada membresía y el
  *               dinero POR ENTIDAD —comisiones, movimientos, pagos y boletas—, leídos en
- *               la forma que tenga el esquema. Con ellos `gate-compare` comprueba lo que
- *               una migración de datos debía hacer (`gate-data-effects.ts`). Importes,
- *               recuentos e identificadores internos; ningún dato de cliente
+ *               la forma que tenga el esquema; y `numeros` (D-262): por rifa, cómo son
+ *               sus números y cuántas boletas tiene y cuántas quedan fuera de «Diario» 4
+ *               + «Semanal» 4, con la auditoría de la `0084` si ya existe. Con ellos
+ *               `gate-compare` comprueba lo que una migración de datos debía hacer
+ *               (`gate-data-effects.ts`). Importes, recuentos e identificadores
+ *               internos; ningún dato de cliente
  *
  * No imprime datos personales, identificadores de clientes ni la cadena de conexión.
  * La comparan `scripts/gate-compare.ts` y `scripts/gate-mirror-privileges.ts`.
@@ -54,7 +57,7 @@ import {
   type Query,
   type Snapshot,
 } from './gate-db'
-import { readEarningFacts } from './gate-data-effects'
+import { readEarningFacts, readNumberFacts, type NumberFacts } from './gate-data-effects'
 import { foreignTarget, SNAPSHOT_FORMAT, snapshotDigest, snapshotProblems } from './gate-diff'
 
 const USAGE =
@@ -299,6 +302,9 @@ async function facts(query: Query): Promise<Snapshot['hechos']> {
   // ANTES, lo que una migración de datos tiene que dejar después. Identificadores, modos
   // y cifras; ningún dato de cliente.
   h.ganancias = await readEarningFacts(query)
+  // D-262: los números de cada rifa —configuración, auditoría de la 0084 y, por rifa, los
+  // anchos y lo que no tiene «Diario» 4 + «Semanal» 4—, en agregado.
+  h.numeros = await readNumberFacts(query)
   return h
 }
 
@@ -442,6 +448,18 @@ async function main(): Promise<void> {
   console.log('Últimas corridas:', JSON.stringify((h.sincronizador_ultimas as Row[]).slice(0, 3)))
   console.log('Cron:', JSON.stringify(h.cron_ultimas))
   console.log('Recordatorios:', JSON.stringify(h.recordatorios))
+  // D-262: lo que la auditoría de la 0084 tendrá que encontrar. La CLI no enseña sus avisos.
+  const numeros = h.numeros as NumberFacts
+  console.log(
+    'Números (fuera de «Diario» 4 + «Semanal» 4):',
+    JSON.stringify({
+      forma: numeros.forma,
+      rifas: numeros.rifas.length,
+      boletas: numeros.boletas.reduce((s, b) => s + b.tickets_count, 0),
+      fuera_de_formato: numeros.boletas.reduce((s, b) => s + b.nonconforming_count, 0),
+      auditoria: numeros.auditoria?.length ?? null,
+    }),
+  )
   console.log(`Guardada en ${file}`)
 }
 

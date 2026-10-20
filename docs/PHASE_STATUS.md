@@ -3,7 +3,177 @@
 Estado del producto y registro de lo entregado por fase. El relevo del último agente, el arranque y
 las advertencias operativas viven en [`HANDOFF.md`](HANDOFF.md); no se duplican aquí.
 
-- **Actualizado:** 2026-10-11 — **D-253 y D-254, PREPARADOS sobre lo servido (`c13d831`), sin publicar.** La rama integró
+- **Actualizado:** 2026-10-20, por la noche — **La publicación de D-257 a D-261, PREPARADA y ensayada en local, con
+  D-262** (las cuatro migraciones sobre una copia de producción; nada publicado, empujado ni leído en producción).
+  Encargo del dueño; sin fase ni etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna nueva para el usuario. La `0084` toca `tickets` y `raffles` en un solo bloque final
+  —la de D-261 acababa en un interbloqueo con una boleta nueva— y deja el mismo esquema; la puerta de publicación
+  comprueba lo que escribe su auditoría; `RUNBOOK` §13 y `DEPLOYMENT` §3.3.j, vigentes para las cuatro migraciones y
+  **sin autorizar**; la rama B, `publicar/inventario-comun-d261`.
+  **(2) Pruebas:** unitarias ✅ 2.277/2.277 (+10 de la puerta); `test:db` ✅ **1.659 + 1 omitida** (+1, G7-03; la primera
+  pasada, roja por la limpieza de esa prueba, corregida); `verify` ✅ con `build`. Ensayo: 0 caídas en siete pasadas
+  con escrituras en curso —ventanas de 0,93–1,62 s en directo, 1,41–1,49 s con 94 ms y 1,81–1,96 s con 200 ms—; `55P03`
+  sin aplicar nada con una tabla ocupada; la `0083` y la `0084` juntas fallan; puerta **CONTINUAR**, 0 filas tocadas,
+  con 0 y con 3 boletas fuera de formato; `verify:remote` 57 + 4 → 60 + los cron. Código servido contra la base nueva
+  **1.059/1.063** y con rifas nuevas **3/3**; la candidata, 18 suites E2E **265/266** (I-106). Detalle en
+  `TEST_RESULTS`, «Preparación de la publicación de D-257 a D-261».
+  **(3) Migraciones:** `0084` reordenada (D-262), sin publicar en ningún sitio. Local, `0001`–`0084`; producción,
+  `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-210**, el plan antes de la primera generación grande (100.000 boletas ocupan
+  ~74 MB); **I-215**, las 14 boletas fuera de formato de la base de revisión del dueño, intactas; la validación legal
+  pendiente (D-257). I-216, resuelta en local.
+  **(6) Antes de empezar:** leer D-262 y `RUNBOOK` §13; I5 usa `delta-esperado-0081-0084.json`; nada de producción sin
+  la autorización del dueño, puerta por puerta.
+- **Antes:** 2026-10-20, más tarde — **D-261, SOLO EN LOCAL: los números de cada boleta los define su rifa**
+  (migraciones `0083` y `0084`; nada publicado, empujado ni cambiado en producción). Encargo del dueño, que amplía el
+  inventario común; sin fase ni etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** al crear una rifa, el Dueño o el Administrador eligen si cada boleta lleva **uno o dos**
+  números, su nombre y sus cifras exactas (2, 3 o 4), revisan un resumen y confirman; después no cambia. Cada boleta
+  tiene exactamente los números de su rifa, con sus ceros, en la creación manual, en lote, la importación, la edición, la
+  aprobación, el generador por rangos —que pone el ancho de la rifa—, el inventario común y la API. Los nombres se ven en
+  los dos portales, el catálogo, WhatsApp, premios, reportes y CSV; una boleta de un número se escribe con ese número
+  solo. Los premios eligen el número de la rifa con el que juegan, comparan como mucho sus cifras y pueden comparar las
+  **dos últimas**; el motor aplica **4 > 3 > 2** por cliente, rifa y resultado. Las rifas existentes, Diario 4 + Semanal 4,
+  sin cambiar datos; el personal ve en la ficha de la rifa las boletas que ya existían fuera de formato.
+  **(2) Pruebas:** unitarias ✅ 2.267/2.267; `test:db` ✅ **1.658 + 1 omitida** sobre una base recién sembrada (34
+  nuevas, más las suites adaptadas; volumen 8/8); lint y tipos ✅; E2E **1.075/1.077** en 59,8 min sobre una base recién sembrada; los 2 fallos, explicados: `pausa-publicacion.spec.ts:185` lee las migraciones **del commit** (`git ls-tree HEAD`) y la `0083` y la `0084` todavía no estaban en ninguno —se repite después del commit—, y `ventas-por-fecha.spec.ts:163` es I-090, que depende del orden de la suite completa; `npm run verify` ✅. Errores encontrados y corregidos:
+  el `ON CONFLICT` ambiguo del generador, la llamada por candidata en el motor, la nota de reversión de la `0083`, un
+  `useMemo` rechazado por el compilador y los rótulos «Diario» donde iba «Número diario». Detalle en `TEST_RESULTS`,
+  «D-261».
+  **(3) Migraciones:** `0083`, el valor `last_two` de `raffle_prize_digits`, sola; `0084`, la estructura de cada
+  rifa, el formato y la unicidad en `tickets`, el generador, los premios, el motor, el catálogo y la auditoría. Local,
+  `0001`–`0084`; producción, `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-215**, 14 boletas fuera de formato en la base de revisión del dueño —12 de prueba y
+  2 del seed antiguo—, intactas, para que decida; **I-216**, la preparación de la publicación **no está vigente** hasta
+  incorporar la `0083` y la `0084` y ensayar sus cerrojos; **I-210**, el plan antes de la primera generación grande.
+  **(6) Antes de empezar:** leer D-261, I-215 e I-216; no ejecutar `RUNBOOK` §13 tal como está; ejecutar las E2E sobre
+  una base recién sembrada, nunca justo después de `test:db`.
+- **Antes:** 2026-10-20 — **I-214, SOLO EN LOCAL: la generación por rangos deja al día la estadística de
+  `tickets` (D-260)**, dentro de la `0081` (nada publicado, empujado ni leído en producción). Encargo de la sesión que
+  prepara la publicación de D-257, D-258 e I-211, con las condiciones del dueño; sin fase ni etiqueta nuevas. Los seis
+  puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna pantalla nueva. El dueño puede entregar lotes de hasta 1.000 en cuanto termina una
+  generación —o aunque se haya interrumpido—, también a un vendedor con equipo, sin esperar al análisis automático de
+  PostgreSQL: `admin_process_ticket_generation` ejecuta `analyze (skip_locked) tickets` en su primer bloque y en el
+  último. Sin tope ni espera nuevos.
+  **(2) Pruebas:** la causa, confirmada en la copia de producción —solo con un vendedor con equipo: la cuenta de su equipo
+  en `recalc_seller_commission` recorría las 100.000 de la rifa por cada boleta—; a ese vendedor, antes 200 boletas en
+  4,8 s y `57014` desde 350–500, ahora 1.000 en 282 ms nada más generar y 293 ms con 50.000 interrumpidas, sin dejar
+  nada a medias cuando un lote cae. `verify` ✅ (2.237/2.237 y el build); `test:db` ✅ **1.622 + 1** (+4 de volumen; la
+  suite **falla con la `0081` de antes**); E2E del inventario **8/8**; el recorrido por la pantalla con 100.000 y dos
+  lotes de 1.000, 1/1 sin versionar; la estructura, igual salvo esa función; la puerta, CONTINUAR con el delta nuevo; los
+  cerrojos con 94 ms, 0,68–0,72 s y 0 caídas. Detalle en `TEST_RESULTS`, «I-214».
+  **(3) Migraciones:** ninguna nueva; la `0081` cambia el cuerpo de `admin_process_ticket_generation`, sin publicar.
+  Local, `0001`–`0082`; producción, `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-210**, el plan antes de la primera generación grande; la validación legal para
+  comercializar, sin resolver. **I-214**, resuelta en local.
+  **(6) Antes de empezar:** leer D-260 y `RUNBOOK` §13.3: I5 usa el **delta nuevo** —con el de D-259 da DETENER—;
+  `feature/inventario-comun` y `publicar/inventario-comun` vuelven a tener el mismo árbol; una base local con la `0081`
+  de antes se recrea con `db:reset`. Publicar sigue exigiendo la autorización del dueño.
+- **Antes:** 2026-10-19, por la noche — **La publicación de D-257, D-258 e I-211, PREPARADA Y ENSAYADA EN LOCAL,
+  con D-259** (nada publicado, empujado ni leído en producción). Encargo del dueño; sin fase ni etiqueta nuevas. Los seis
+  puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** ninguna nueva para el usuario. I-211, integrada en `feature/inventario-comun`. La `0081` y la
+  `0082`, **reordenadas** para que lo que bloquea `tickets` viaje en una sola sentencia —con la latencia de producción
+  pasaban de 10–14 s de bloqueo a 0,5–0,6 s—, con el esquema que dejan idéntico (D-259, I-212); `verify:remote` conoce la
+  firma nueva de `admin_list_tickets` (I-213). El procedimiento de publicación y recuperación, en `RUNBOOK` §13 y
+  `DEPLOYMENT` §3.3.j, **sin autorizar**.
+  **(2) Pruebas:** `verify` sobre lo integrado ✅ (2.237/2.237 y el build); `test:db` ✅ **1.618 + 1** con las
+  reordenadas; el ensayo sobre una copia de producción —nueve corridas, con escrituras en curso, privilegios alojados y
+  94 o 200 ms de ida y vuelta—, la puerta **CONTINUAR** con 0 filas tocadas y `verify:remote` contra la copia; el
+  almacenamiento de 100.000 boletas; el código servido (`b1f8dc1`) contra la base nueva, E2E completa **1.059/1.063**
+  con los 4 fallos explicados y la reversión con inventario común ya generado, 3/3; y la E2E del código integrado:
+  **275/275** en las 20 suites que pasan por lo cambiado. Detalle en
+  `TEST_RESULTS`, «Preparación de la publicación de D-257, D-258 e I-211».
+  **(3) Migraciones:** ninguna nueva; la `0081` y la `0082`, reordenadas sin cambiar lo que dejan. Local, `0001`–`0082`;
+  producción, `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-210**, ahora con su margen —una rifa de 100.000 vendida entera no cabe en el plan
+  gratuito, que pasa a solo lectura por encima de 500 MB—; **I-214**, nueva: el primer lote grande justo después de
+  generar cae por los 8 s hasta que PostgreSQL analiza la tabla; la validación legal para comercializar, sin resolver.
+  **I-212** e **I-213**, resueltas en local.
+  **(6) Antes de empezar:** leer D-259, `RUNBOOK` §13 y `HANDOFF` §1.a; publicar exige la autorización del dueño y su
+  elección de cómo empujar (A o B, `DEPLOYMENT` §3.3.j); no empujar solos los 8 commits de documentos.
+- **Antes:** 2026-10-19, más tarde aún — **I-211, SOLO EN LOCAL: el detalle de una boleta del vendedor escribe
+  «Aprobada» solo cuando dice algo** (sin migración, push ni despliegue). Encargo de la sesión de D-258, que la vio al
+  revisarlo; sin fase ni etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** la fila «Aprobada» de «Detalles de la boleta» dice la fecha si la boleta se aprobó, «Todavía
+  no» solo en una pendiente de aprobación y, en las demás —las que crea el personal, que nunca se aprueban—, no se
+  escribe. Es la regla del detalle del personal (D-234), que ahora vive en una sola pieza para los dos portales,
+  `ApprovalDetailLine` (`TicketDetailParts.tsx`); el detalle del personal no cambia.
+  **(2) Pruebas:** unitarias **2.237/2.237** en 111 archivos (+3, `ticket-approval-line`, que falla con la regla
+  anterior); una E2E nueva en `detalle-boleta-composicion` —una boleta del personal sin fila, una pendiente con «Todavía
+  no» y una aprobada con su fecha—, roja con el código anterior; `detalle-boleta-composicion`, `detalle-boleta-admin` y
+  `privacidad-admin`, **76/76**; `tsc` y `eslint` en verde. Detalle en `TEST_RESULTS`, «I-211».
+  **(3) Migraciones:** ninguna nueva. Local, `0001`–`0082`; producción, `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-211, resuelta en local**; los demás, como en D-258.
+  **(6) Antes de empezar:** el arreglo es un commit encima de D-258 en la rama `claude/suspicious-burnell-99e02b`, y
+  `feature/inventario-comun` lo recibe con un avance rápido; no empujar ninguna de las dos (`HANDOFF` §1.a).
+- **Antes:** 2026-10-19, más tarde — **D-258, SOLO EN LOCAL: liberar una venta que salió de un apartado
+  devuelve la boleta al inventario común** (migración `0082`; sin push, despliegue ni cambios en el Supabase de
+  producción). Decisión del dueño sobre I-209 —«Que vuelva al inventario»—, dentro del mismo encargo de D-257; sin fase
+  ni etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** liberar (BR-I14) una boleta vendida desde un apartado la deja **sin vendedor**, libre en el
+  inventario común para cualquiera —también para quien la liberó—; el diálogo lo dice antes de confirmar y, al terminar,
+  la pantalla vuelve a «Mis boletas». Una boleta entregada por el personal o creada por el vendedor se sigue quedando
+  con él (BR-I32, D-258).
+  **(2) Pruebas:** `verify` **2.234/2.234**, sin cambios; `test:db` **1.618 + 1 omitida** (+5, las de D-258, que fallan
+  con la liberación de antes); las E2E de los 13 archivos que pasan por el detalle de la boleta, liberar o el
+  inventario común, **100/100**; y la revisión a ojo en el navegador. Detalle en `TEST_RESULTS`, «D-258».
+  **(3) Migraciones:** **`0082_release_from_hold_to_common.sql`**, nueva y **solo en local**: `tickets.sold_from_hold`
+  con su CHECK, `sell_ticket_hold` que la pone, `release_ticket_client` que la quita y devuelve la boleta al
+  inventario común, y `tickets_guard_inventory` que no deja escribirla a ninguna sesión. Se publica con la `0081`,
+  nunca después. Producción sigue en `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-209, resuelta en local**. Siguen **I-210**; la compatibilidad del código
+  servido con la `0081` y la `0082`, razonada pero sin ensayar; la validación legal pendiente para comercializar, sin
+  resolver; e **I-211**, anterior y sin tocar: el detalle del vendedor dice «Aprobada: Todavía no» en las boletas del
+  personal.
+  **(6) Antes de empezar:** leer D-257, D-258 y `HANDOFF` §1.a; no empujar esta rama; publicar exige autorización y un
+  ensayo de la `0081` y la `0082` juntas.
+- **Antes:** 2026-10-19 — **D-257, SOLO EN LOCAL: inventario común, generación por rangos y apartados**
+  (migración `0081`; sin push, despliegue ni cambios en el Supabase de producción). Mantenimiento posterior a la Fase 9,
+  sin fase ni etiqueta nuevas. Los seis puntos de `CLAUDE.md` §34.3:
+  **(1) Funcionalidades:** el **inventario común** de cada rifa —boletas sin vendedor, una sola identidad—; **«Generar
+  por rangos»** en «Crear en lote» —todas las combinaciones de dos rangos, hasta 100.000, con vista previa, por bloques
+  y continuable—; **asignar** lotes a un vendedor y **recuperar** lo no vendido, desde «Boletas», con un filtro
+  «Inventario»; la ficha de la rifa con su inventario y sus apartados, configurables **solo por el Dueño**; y, para el
+  vendedor, **«Inventario común»** —buscar, apartar 30 minutos, pedir 30 más una vez, devolver y vender con la venta de
+  siempre— y un aviso en «Mis boletas». Lo ajeno solo se ve «No disponible». Nada de lo existente cambia de dueño ni de
+  situación (BR-N15..BR-N18, BR-I17..BR-I31, BR-B09, D-257).
+  **(2) Pruebas:** `verify` **2.234/2.234** (+16); `test:db` **1.613 + 1 omitida** (+40: 36 de la suite y 4 de volumen,
+  con 100.000 boletas en ~9 s locales); las 7 E2E nuevas, 7/7; E2E completa **1.066/1.070** en 1,1 h, en una sola
+  pasada con el código inmóvil —la primera la cortó un fallo de Turbopack y se relanzó entera—; los 4 fallos:
+  `pausa-publicacion:185`, que exige la `0081` en un commit (como en D-241) —después del commit, con el servidor
+  reiniciado, la suite entera 4/4—, e **I-179**,
+  **I-148** e **I-090**, con su firma de siempre y contrastadas (I-179, 1 de 10 sin el único archivo de esta entrega que
+  pisa su pantalla y 0 de 10 con él). Errores encontrados y corregidos
+  —la copia del motor corrompida por `String.replace`, cinco listas de pruebas que no conocían lo nuevo, la cuenta
+  atrás que decía 31 minutos, la limpieza sin bitácora, «Mis boletas» que caía con su aviso— en `TEST_RESULTS`,
+  «D-257».
+  **(3) Migraciones:** **`0081_common_inventory_and_holds.sql`**, nueva y **solo en local**: `tickets.seller_id` admite
+  nulo (con su CHECK) y `generation_run_id`; `ticket_generation_runs`, `ticket_holds` y `raffle_hold_settings`; la
+  capacidad `raffles.holds.manage`; 16 RPC y 16 funciones internas; dos guardas sobre `tickets`; las proyecciones
+  `admin_*` con la custodia; y el motor de loterías sin las boletas sin vendedor. Producción sigue en `0001`–`0080`.
+  **(4) Variables de entorno:** ninguna nueva.
+  **(5) Problemas que permanecen:** **I-209**, decisión del dueño —una boleta vendida desde un apartado y liberada se
+  queda con su vendedor—; **I-210**, el espacio de 100.000 boletas frente a los 500 MB del plan gratuito; la
+  compatibilidad del código servido con la `0081`, razonada pero sin ensayar; la validación legal pendiente para
+  comercializar, sin resolver.
+  **(6) Antes de empezar:** leer D-257 y `HANDOFF` §1.a; no empujar esta rama —lleva encima los 8 commits de
+  documentos de D-253 y D-254 sin empujar—; publicar exige autorización y un ensayo de la `0081`.
+- **Antes:** 2026-10-11, 18:20 UTC — **D-253 y D-254 EN PRODUCCIÓN** (`b1f8dc1`, desde las 18:12 UTC; sin migración
+  ni pausa; `DEPLOYMENT` §3.2.aa). Con el ojo (D-255, D-256) intacto. **(1)** Un `next` manipulado ya no saca a nadie de
+  Rifas tras ingresar (I-207); `/auth/confirm` servida, lista para las plantillas; `check:env` exige `NEXT_PUBLIC_SITE_URL`
+  (I-049). **(2)** CI 2/2 en el PR; en vivo, todo en verde; `verify:remote` 58/58; registros sin errores. **(3)** Ninguna
+  migración: `0001`–`0080`. **(4)** Ninguna variable nueva. **(5)** **Supabase Auth, configurado por el dueño el 2026-10-12**: registro
+  cerrado, SMTP de Gmail y plantillas en español; enlace de 1 h. **(6)** P3–P8, hechas; P8 conforme con correos reales:
+  I-206, I-208 e I-023, resueltas en producción.
+- **Antes:** 2026-10-11 — **D-253 y D-254, PREPARADOS sobre lo servido (`c13d831`), sin publicar.** La rama integró
   `main` sin cambiar su árbol; frente a producción, el código difiere solo en los 22 archivos de D-253 y D-254 y conserva
   el ojo (D-255, D-256). `verify` 2.218/2.218 y acceso, invitaciones y el ojo 77/77; producción, solo leída: `c13d831`
   servido, `verify:remote` 58/58, registro público abierto. Proveedor de correo elegido por el dueño: **Gmail**. Falta su

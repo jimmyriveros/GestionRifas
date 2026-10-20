@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { listRaffleNumberFormats } from '@/features/raffles/number-formats'
+
 import { BULK_SELECTION_MAX } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/server'
 
@@ -28,7 +30,9 @@ export async function listTicketEligibility(
 
   if (error) throw error
 
+  const formats = await listRaffleNumberFormats()
   return (data ?? []).map((row) => ({
+    numberFormat: formats.get(row.raffle_id),
     audience: 'seller' as const,
     ticketId: row.ticket_id,
     dailyNumber: row.daily_number,
@@ -46,6 +50,9 @@ export async function listTicketEligibility(
       cancel: row.can_cancel,
       changeSeller: row.can_change_seller,
       delete: row.can_delete,
+      // El inventario comun es del personal (D-257).
+      assignToSeller: false,
+      recover: false,
     },
     basePrice: Number(row.base_price ?? 0),
     minSalePrice: Number(row.min_sale_price ?? 0),

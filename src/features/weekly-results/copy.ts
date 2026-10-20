@@ -28,6 +28,12 @@ import { LOTTERY_DASHBOARD_COPY } from '@/features/lottery/dashboard'
 import { LOTTERY_NOMINAL_WEEKDAY } from '@/features/lottery/sources'
 import { REMINDER_COPY } from '@/features/payment-reminders/reminders'
 import { WEEKDAY_LABELS } from '@/lib/constants'
+import {
+  LEGACY_NUMBER_FORMAT,
+  numberGroupPhrase,
+  numberGroupTitle,
+  type RaffleNumberFormat,
+} from '@/lib/ticket-number-format'
 
 import type { WeeklyLotteryStatus } from './results'
 import { formatWeekLong, type ResultsWeek } from './week'
@@ -200,6 +206,20 @@ export function missingLotteriesText(codes: readonly LotteryCode[]): string {
 }
 
 /**
+ * Qué número de la rifa se verifica con una lotería, como rótulo de su fila:
+ * «Número diario» en la rifa de siempre, «Número mayor» en otra (D-261). La
+ * ranura la da la lotería (`LOTTERY_MATCH_FIELD`); el nombre, la rifa. Con un
+ * solo número, la lotería del segundo no verifica ninguno y la fila no lo dice.
+ */
+export function weeklyResultsFieldLabel(
+  format: RaffleNumberFormat | undefined,
+  field: LotteryMatchField,
+): string {
+  const group = (format ?? LEGACY_NUMBER_FORMAT).groups.find((item) => item.slot === field)
+  return group ? numberGroupTitle(group.name) : ''
+}
+
+/**
  * El mensaje predeterminado para el grupo (BR-H06).
  *
  * VIVE AQUÍ Y NO EN LA BASE: es el mismo razonamiento de `DEFAULT_INVITE_MESSAGE`
@@ -213,8 +233,14 @@ export function missingLotteriesText(codes: readonly LotteryCode[]): string {
  * Los días y la lotería del número semanal salen de las constantes, no se
  * escriben: si mañana el número semanal se verificara con otra lotería, el
  * mensaje lo diría solo.
+ *
+ * D-261: los números se nombran como los nombró la rifa —«el número diario» en
+ * la de siempre, igual que antes—. Qué número va con qué lotería sale de su
+ * RANURA (`LOTTERY_MATCH_FIELD`), nunca de su nombre. Una rifa de un solo
+ * número no recibe esa línea: no tiene un segundo número que verificar el sábado
+ * y el reparto real lo deciden sus premios.
  */
-export function weeklyResultsMessage(week: ResultsWeek): string {
+export function weeklyResultsMessage(week: ResultsWeek, format?: RaffleNumberFormat): string {
   const daily = LOTTERY_CODES.filter((code) => LOTTERY_MATCH_FIELD[code] === 'daily_number')
   const weekly = LOTTERY_CODES.find((code) => LOTTERY_MATCH_FIELD[code] === 'weekly_number')
   const firstDaily = daily[0]
@@ -225,9 +251,16 @@ export function weeklyResultsMessage(week: ResultsWeek): string {
 
   const day = (code: LotteryCode) => lotteryWeekdayLabel(code).toLocaleLowerCase('es-CO')
 
-  return [
+  const groups = format?.groups ?? LEGACY_NUMBER_FORMAT.groups
+  const lines = [
     `🎉 ${WEEKLY_RESULTS_COPY.title}`,
     `Estos fueron los números mayores ${formatWeekLong(week)}. Revisa tu boleta en la imagen. 🍀`,
-    `Recuerda: de ${day(firstDaily)} a ${day(lastDaily)} se verifica el número diario. El ${day(weekly)} se verifica el número semanal con ${LOTTERY_LABELS[weekly]}.`,
-  ].join('\n\n')
+  ]
+  const [first, second] = groups
+  if (second) {
+    lines.push(
+      `Recuerda: de ${day(firstDaily)} a ${day(lastDaily)} se verifica el ${numberGroupPhrase(first.name)}. El ${day(weekly)} se verifica el ${numberGroupPhrase(second.name)} con ${LOTTERY_LABELS[weekly]}.`,
+    )
+  }
+  return lines.join('\n\n')
 }

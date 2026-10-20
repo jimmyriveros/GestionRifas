@@ -333,6 +333,12 @@ describe('proyeccion publica: lo que sale y lo que no (BR-K08)', () => {
       ticket_price: '120000',
       available_count: String(DISPONIBLES.length),
       taken_count: String(TOMADAS.length),
+      // D-261: cómo se llaman los números de la rifa publicada, para pintarlos.
+      number_group_count: 2,
+      first_group_name: 'Diario',
+      first_group_digits: 4,
+      second_group_name: 'Semanal',
+      second_group_digits: 4,
     })
     // Ninguna columna de la proyeccion es un uuid.
     for (const value of Object.values(rows[0])) {

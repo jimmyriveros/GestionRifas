@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { BULK_TICKET_MAX, BULK_TICKET_MIN } from '@/lib/constants'
 import { clientFormSchema } from '@/features/clients/schemas'
 
-import { ticketNumberSchema } from '../schemas'
+import { optionalTicketNumberSchema, ticketNumberSchema } from '../schemas'
 
 /**
  * Lo que el navegador manda al servidor al confirmar una importacion.
@@ -41,7 +41,8 @@ const importAbonoSchema = z
 export const importTicketRowSchema = z
   .object({
     dailyNumber: ticketNumberSchema,
-    weeklyNumber: ticketNumberSchema,
+    // Vacio en una rifa de un solo numero (D-261); obligatorio en una de dos.
+    weeklyNumber: optionalTicketNumberSchema,
     clientName: importClientSchema.shape.name.optional(),
     clientPhone: importClientSchema.shape.phone.optional(),
     abono: importAbonoSchema.optional(),

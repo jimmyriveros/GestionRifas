@@ -1,6 +1,18 @@
 # SEGURIDAD
 
-- **Versión:** 2.38 · **Estado:** implementado · **Actualizado:** 2026-10-02, 17:45 UTC (**EN PRODUCCIÓN** con
+- **Versión:** 2.43 · **Estado:** implementado · **Actualizado:** 2026-10-20, más tarde (§4.29 nueva: los **números
+  de cada rifa** —la estructura que no cambia por ninguna vía, el formato exacto en la base, las reglas puras cerradas a
+  toda sesión y la lista de boletas fuera de formato solo para el personal—, D-261, migraciones `0083` y `0084`, **solo
+  en local**). Antes, ese mismo día (§4.28: el generador analiza `tickets` en su
+  primer bloque y en el último con los privilegios de su dueño, sin dar `MAINTAIN` a ninguna sesión —D-260, I-214,
+  **solo en local**—). Antes, 2026-10-19, por la noche (§4.28: la `0081` y la
+  `0082`, **ensayadas con los privilegios del proyecto alojado** sobre una copia de producción, y `verify:remote` con la
+  firma nueva de `admin_list_tickets` —D-259, I-213, **solo en local**—). Antes, ese mismo día, más tarde (§4.28: la marca
+  `tickets.sold_from_hold`, que solo escriben la venta desde un apartado y la liberación, y la guarda que la protege
+  —D-258, migración `0082`, **solo en local**—). Antes, ese mismo día (§2 y **§4.28 nueva**: el inventario
+  común, la generación por rangos y los apartados —D-257, migración `0081`, **solo en local**—: tres tablas sin
+  políticas, 16 RPC, dos guardas sobre `tickets`, la capacidad `raffles.holds.manage` solo del Dueño y lo ajeno solo
+  como «No disponible»). Antes, 2026-10-02, 17:45 UTC (**EN PRODUCCIÓN** con
   `0490d69`: §3 —«Formularios con credenciales» y «Usuario inactivo»—, §5.0 y §5.3 están publicadas, `DEPLOYMENT`
   §3.2.x). Antes, ese mismo día, más tarde (§3, «Usuario inactivo»,
   §5.0 y §5.3: un fallo al leer la membresía no cierra la sesión y las dos rutas responden 503 —I-115, D-248—, **solo
@@ -175,6 +187,16 @@ defensas no se relajan: se duplican.
 | Importar boletas, **solo sin vender**: sin cliente y sin abono (BR-Q07) | ✓ | ✓ | P, solo si `allow_seller_ticket_creation` |
 | **Eliminar boletas físicamente** (solo sin cliente, sin venta y sin abonos — BR-B05) | ✓ | ✓ | ✗ |
 | Seleccionar varias boletas y actuar sobre todas (BR-B01) | ✓ | ✓ | P, solo asignar a un cliente |
+| **Inventario común** (`0081`, §4.28 — **solo en local**) |
+| Generar boletas por rangos al inventario común (BR-N15) | ✓ | ✓ | ✗ |
+| Asignar boletas del inventario común a un vendedor y recuperarlas (BR-I18, BR-I19) | ✓ | ✓ | ✗ |
+| Ver quién tiene apartada una boleta y hasta cuándo — inventario, no cartera (BR-I21) | ✓ | ✓ | ✗ (lo ajeno solo como «No disponible») |
+| Cambiar la duración y el cupo de los apartados de una rifa — por la **capacidad** `raffles.holds.manage` (BR-I27) | ✓ | ✗ | ✗ |
+| Buscar en el inventario común y apartar, pedir 30 minutos más, devolver y vender desde un apartado (BR-I20..BR-I26) | ✗ | ✗ | P (sus apartados, en rifas activas) |
+| **Números de cada rifa** (`0084`, §4.29 — **solo en local**) |
+| Definir cuántos números lleva cada boleta, sus nombres y sus cifras, **al crear la rifa** (BR-N19) | ✓ | ✓ | ✗ |
+| Cambiarlos después (BR-N20) | ✗ | ✗ | ✗ — nadie, tampoco la service role |
+| Ver las boletas que no tienen el formato de su rifa (BR-N23) | ✓ | ✓ | ✗ |
 | **Clientes** |
 | Ver todos los clientes de la organización | ✗ | ✗ | ✗ |
 | Ver / crear / editar clientes (BR-Q06) | ✗ | ✗ | P |
@@ -234,8 +256,8 @@ diferido `memberships_require_active_owner` (`0016`, D-071). Ver `AUDIT_REPORT.m
 | Formularios con credenciales | Los cuatro —ingresar, recuperar, definir y cambiar la contraseña— traen la protección **en el HTML del servidor**: `method="post"` y el botón desactivado hasta que React hidrata (`AuthSubmitButton`), que impide también el envío con Enter. Antes de I-204, pulsar antes de hidratar mandaba la contraseña en la dirección (`/login?email=…&password=…`). Ninguna credencial viaja en una URL (D-247). **El ojo de los campos de contraseña** (`PasswordInput`, D-255 y D-256, solo en local: ingresar, definir y cambiar la contraseña) es un `type="button"` desactivado hasta hidratar y mientras se envía, que solo cambia el `type` del mismo campo: sin red, sin copia de la contraseña fuera de react-hook-form y sin guardar nada. Con la contraseña a la vista se apagan el corrector y el autocorrector (`spellCheck`, `autoCorrect`, `autoCapitalize`), y mientras el formulario se envía el campo se tapa y se queda tapado |
 | Formularios con datos de clientes o de la organización | Los de **cliente** (alta y edición), **rifa** (alta y edición) y **boleta** llevan la misma protección desde D-249 (`HydratedSubmitButton` y `method="post"`): antes, un envío antes de hidratar ponía en la dirección el nombre, el teléfono y el correo de un cliente —en la edición, sin escribir nada—. La lista general de tramos no tiene campos con nombre y el diálogo de asignar boletas no existe antes de hidratar: no hay nada que proteger, y `formularios-pagina-sin-hidratar.test.tsx` lo vigila |
 | Destino tras ingresar (`next`) | Solo una ruta de Rifas: `safeNextPath` (`features/auth/safe-next-path.ts`) la resuelve con `new URL` contra un origen propio —como la resuelve el router de Next y un navegador— y exige el mismo origen y una sola barra inicial; rechaza barras invertidas, espacios y caracteres de control. Lo usan `login`, su página y `/auth/callback`; si no sirve, el panel del rol o la portada. Antes, `/\evil.test` o `/<TAB>/evil.test` llevaban a otro sitio tras ingresar (I-207, D-253) |
-| Alta de usuarios | Invitación por correo mediante `SERVICE_ROLE` solo en servidor; la persona define su contraseña desde el enlace. **El registro público está cerrado** en local (`[auth] enable_signup = false`) y debe cerrarse en producción —«Allow new users to sign up», hoy abierto— (I-206, D-254) |
-| Enlaces de los correos de Auth | La invitación, su reenvío y «¿Olvidaste tu contraseña?» llevan a `/auth/confirm?token_hash=…&type=…` (plantillas de `supabase/templates/`): `verifyOtp` **en el servidor** abre la sesión en cookies. Solo `invite` y `recovery`, destino fijo `/reset-password`. Ningún token viaja en el fragmento de la dirección ni depende del navegador que pidió el correo. `/auth/callback` queda para los enlaces de la plantilla por defecto (I-208, D-254) |
+| Alta de usuarios | Invitación por correo mediante `SERVICE_ROLE` solo en servidor; la persona define su contraseña desde el enlace. **El registro público está cerrado** en local (`[auth] enable_signup = false`) y en producción desde el 2026-10-12 —«Allow new users to sign up», apagado; `disable_signup: true`— (I-206, D-254) |
+| Enlaces de los correos de Auth | La invitación, su reenvío y «¿Olvidaste tu contraseña?» llevan a `/auth/confirm?token_hash=…&type=…` (plantillas de `supabase/templates/`): `verifyOtp` **en el servidor** abre la sesión en cookies. Solo `invite` y `recovery`, destino fijo `/reset-password`. Ningún token viaja en el fragmento de la dirección ni depende del navegador que pidió el correo. `/auth/callback` queda para los enlaces de la plantilla por defecto. En producción, con las plantillas pegadas el 2026-10-12 (I-208, D-254) |
 | Cierre de sesión | Invalida la sesión en el servidor y limpia cookies. `signOut()` va sin alcance, que en `auth-js` es **global**: cierra la sesión en **todos** los dispositivos de esa persona, también al rechazar una cuenta inactiva. Si debe cerrar solo este dispositivo es una decisión **pendiente del dueño** (D-236) |
 
 ---
@@ -1581,6 +1603,63 @@ es de la base, que conoce la relación de hoy. Un rechazo de la base se muestra 
 `admin_audit_redact` es una **lista blanca** que la `0080` no amplía: esas filas le llegan **sin valores**. Es el lado
 seguro —el personal ya ve esas cifras en el cierre— y lo completo sigue en `audit_logs`, para `service_role`.
 
+### 4.28 El inventario común y los apartados (`0081` y `0082`; BR-N15..BR-N18, BR-I17..BR-I32; D-257 y D-258)
+
+> 🟡 **Solo en local.** Nada de esto está en el proyecto real.
+
+**Solo por funciones.** Las tres tablas nuevas (`DATA_MODEL` §4.27) tienen RLS forzada **sin ninguna política** y
+ningún privilegio para `anon` ni `authenticated`; `service_role` solo lee. Todo pasa por **16 RPC** `SECURITY DEFINER`
+con `search_path` fijo —ejecutables por `authenticated`, nunca por `anon`— y por 16 funciones internas, cuatro de
+ellas de disparador, que no ejecuta ninguna sesión (I-132, I-020, I-078). Ninguna recibe el actor: sale de
+`auth.uid()`, y la organización, de la fila.
+
+| Riesgo | Cómo se cierra |
+|---|---|
+| Un vendedor ve la cartera de otro a través del catálogo interno | `seller_inventory_tickets` decide la disponibilidad en la base y devuelve **nulos** el identificador y el vencimiento de lo ajeno; nunca su vendedor, su cliente ni su venta (BR-I21). Probado con sesiones reales, también que la boleta vendida de otro sale solo como «no disponible» |
+| El personal recupera la cartera por la custodia | Las proyecciones `admin_*` (§4.19) ganan **solo** la custodia: quién tiene apartada una boleta y hasta cuándo. La prueba que lista sus columnas y la de las funciones `admin_*` que no pueden declarar una columna de cartera se ampliaron con las siete nuevas |
+| Una sesión crea inventario común a mano, o le quita el vendedor a una boleta | `tickets_guard_inventory` rechaza con `42501` a `authenticated` y `anon` crear una boleta sin vendedor, poner nulo el vendedor o escribir `generation_run_id` —desde la `0082`, también `sold_from_hold`—; las políticas de `tickets` no cambiaron |
+| Un vendedor se queda para siempre una boleta del inventario común: la vende desde un apartado y la libera | Desde la `0082` (D-258, BR-I32), liberar esa venta la devuelve al inventario común. La marca la pone **solo** `sell_ticket_hold` y la quita **solo** `release_ticket_client`; un CHECK no la admite fuera de una venta. Probado con sesiones reales, también que una sesión no puede escribirla ni con un `UPDATE` directo |
+| Dos vendedores con la misma boleta, o un cupo superado con peticiones en paralelo | La fila de la boleta, bloqueada en cada operación, y un cerrojo de aviso por (rifa, vendedor) para el cupo (BR-I28). Probado en paralelo con sesiones distintas |
+| Una pantalla vieja vende o devuelve una boleta que ya es de otro apartado | Extender, devolver y vender exigen el identificador del apartado **vigente**; uno terminado o vencido se rechaza con su frase (BR-I25) |
+| Una boleta apartada se anula, se elimina o se entrega por otra vía | `tickets_guard_hold`, sobre la tabla: vale para cualquier RPC presente o futura y para la service role (BR-I23) |
+| La configuración de los apartados la cambia quien no debe | Capacidad `raffles.holds.manage`, solo del Dueño por defecto, en `app_role_default_capabilities` y en su espejo `capabilities.ts`; la prueba J1-08 de `raffle-prizes.test.ts` compara las dos y fija que el Administrador **no** la tiene (el encargo lo pedía así) |
+| Una persona desactivada sigue apartando | `take_ticket_hold` exige membresía de vendedor activa (BR-A04), y desactivarla cierra sus apartados en el acto |
+| El generador sirve para tener la base ocupada analizando `tickets` | Desde D-260 (I-214), `admin_process_ticket_generation` ejecuta `analyze (skip_locked) tickets` con los privilegios de su dueño, y **solo** en el primer bloque y en el último de una generación del personal: ninguna sesión gana `MAINTAIN` (`authenticated` sigue con `arw`), un bloque repetido o de una generación terminada no vuelve a analizar y, con `SKIP_LOCKED`, nunca espera por la tabla. El análisis toma SHARE UPDATE EXCLUSIVE, que no bloquea lecturas ni escrituras |
+| Otra organización toca el inventario | Todas las funciones toman la organización de la fila y comprueban la membresía de quien llama; probado con las sesiones de «Rifas Control» |
+| Una función nace ejecutable por quien no debe | Revocadas de `public`, `anon`, `authenticated` y `service_role`, y concedidas una a una. Las 16 están en la lista blanca de `tests/db/catalog.test.ts` (I-078) y `verify:remote` comprueba que son de `authenticated` y no de `anon`, y que las tres tablas no tienen privilegios para las sesiones. **Ensayado con los privilegios del proyecto alojado** —`service_role` con `EXECUTE` en toda función nueva (I-132)— sobre una copia de producción: las 33 funciones nuevas y 8 de las 10 redefinidas quedan con el mismo `EXECUTE` efectivo que en local; las otras dos, `assign_ticket_row` y `bulk_change_ticket_seller`, conservan el de `service_role` que **ya tenían** en producción (la parte abierta de I-132): `create or replace` no lo cambia. `verify:remote` exige además la firma de once argumentos de `admin_list_tickets` y que no quede la de diez (D-259, I-213) |
+
+**La aplicación.** Las páginas del generador y de sus generaciones viven bajo el layout del portal administrativo
+(`requireRole(['owner', 'admin'])`), como «Crear en lote»; la del catálogo interno, bajo el del vendedor. Las Server
+Actions de `src/features/inventory/actions.ts` siguen el orden de siempre —autorizar, Zod, RPC, `mapPgError`,
+revalidar— y la de la configuración usa `authorizeCapability('raffles.holds.manage')`. **Ninguna decide**: la base
+revalida rol, organización, estado, cupo y hora.
+
+**La bitácora.** `admin_audit_redact` filtra por **tipo de entidad** y no se tocó. De las filas nuevas sobre una boleta
+(`ticket.inventory_assign`, `ticket.hold_take`, `ticket.hold_sell`…) al personal le llegan solo las claves de su lista
+—`count`, `ticket_ids`, `seller_id`, `requested`—: el `client_id` que anota la venta desde un apartado se queda fuera.
+La liberación (`ticket.release_client`) anota desde la `0082` `sold_from_hold` y `to_common_inventory`, que tampoco
+están en la lista: al personal le llega el `seller_id` que pasa a nulo.
+Las de la configuración (`raffle.hold_settings`) pasan enteras, como cualquier cambio de una rifa: son la duración y
+el cupo. Las del generador (`ticket_generation`) le llegan **sin valores**. Lo completo sigue en `audit_logs`.
+
+### 4.29 Los números de cada rifa (`0083` y `0084`; BR-N19..BR-N25, BR-J24..BR-J26; D-261)
+
+> 🟡 **Solo en local.** Nada de esto está en el proyecto real.
+
+| Riesgo | Cómo se cierra |
+|---|---|
+| Alguien cambia la estructura de una rifa ya creada —por la API, con la service role o por SQL— y deja sus boletas con un formato que no es el suyo | `raffles_guard_number_groups` rechaza **cualquier** `UPDATE` de las cinco columnas, también en borrador. No depende de la aplicación ni del rol: es un disparador sobre la tabla. Probado con la sesión del Dueño, con la service role y con `postgres` |
+| Una boleta entra con otro formato por una vía que la pantalla no ve —PostgREST directo, una RPC nueva, la importación— | `tickets_enforce_number_format` está sobre la tabla: vale para todas las vías presentes y futuras. Las RPC que crean o cambian números (`bulk_create_tickets`, `admin_update_ticket_numbers`, el generador) validan además antes, con las **mismas** frases |
+| Una boleta de un solo número se repite porque su segundo número es nulo | Índice único parcial `tickets_single_group_unique`, que no depende de nulos; `number_group_count` lo pone el disparador desde la rifa y escribirlo a mano no cambia nada. Probado con dos conexiones a la vez: entra una |
+| Las reglas puras sirven para sondear la base desde el navegador | `raffle_number_groups_problem`, `ticket_numbers_problem`, `raffle_ticket_numbers_problem`, `raffle_prize_digits_count`, `ticket_generation_group_range_problem`, `ticket_generation_padded_ranges` y las dos funciones de disparador están **revocadas** de `public`, `anon`, `authenticated` y `service_role`. Los dos disparadores son `SECURITY DEFINER` con `search_path` fijo, porque la boleta la escribe la sesión de un vendedor y la regla no se le concede; solo leen la rifa de la fila. `verify:remote` lo comprueba |
+| El personal ve la cartera al listar las boletas fuera de formato | `admin_raffle_nonconforming_tickets` (`SECURITY DEFINER`, solo personal de la organización de la rifa, paginada) devuelve **solo** identificador, código interno, números, estado y la frase del problema: está en la lista de `admin-privacy.test.ts`, que comprueba que ninguna `admin_*` declara una columna de la cartera. Un vendedor o otra organización reciben cero filas |
+| La auditoría de la `0084` expone datos de la organización | `raffle_number_format_audits` tiene RLS forzada y solo la lee la service role. Guarda recuentos y anchos, ningún número de boleta ni ningún cliente |
+| El catálogo público revela algo nuevo | `public_catalog_seller` gana solo **cómo se llaman** los números de la rifa publicada y sus cifras. Sigue siendo ejecutable solo por la service role (BR-K07) |
+| Un premio compara un número que la rifa no tiene, o más cifras de las suyas, y el motor premia lo que no debe | `raffle_prize_version_problem` lo rechaza al publicar la versión, en la base. La prioridad 4 > 3 > 2 la defiende `lottery_ticket_match_prizes_check` sobre la tabla de enlaces: un enlace escrito a mano que la rompa se rechaza, también con `postgres` |
+
+**Las boletas que ya existían** no se tocan: una fila fuera de formato se sigue leyendo y gestionando, pero el disparador
+no la deja aprobar ni vender (BR-N23). Corregirla es `admin_update_ticket_numbers`, del personal y auditada.
+
 ## 5. Protección de Server Actions y Route Handlers
 
 Toda Server Action parametrizada de negocio debe seguir esta secuencia. Las acciones públicas de
@@ -1844,7 +1923,7 @@ Controles:
 | T20 | **Registrar dinero a nombre de otra persona en el cierre de cuentas** | Una sesión confirma una entrega que no recibió, o registra como pagado por otro un premio, eligiendo un nombre en el formulario o llamando a la RPC con otro pagador | Solo confirma quien recibe; el pagador solo puede ser el vendedor de la boleta, su vendedor a cargo de hoy o el dueño, y lo registra quien recibe las entregas de ese pagador (`0080`, §4.27, BR-Z05, BR-Z07) | `tests/db/settlements.test.ts` Z5-07, Z5-09, Z6-02 y Z7-02 |
 | T21 | **Descontar dos veces un premio o pisar un saldo** | Dos pestañas, dos personas o un reintento confirman a la vez | Cerrojo de la cuenta, saldo esperado comparado con el de ahora, `request_id` único e índice único de pagos vigentes (BR-Z08, BR-Z12) | Z5-04, Z5-05, Z6-04, Z6-05 y Z6-06 |
 | T22 | **Redirección abierta tras ingresar** | Un enlace a `/login?next=/%5Cotro-sitio` o `?next=/%09/otro-sitio`: la persona escribe su contraseña en Rifas y acaba en una página ajena que puede imitarla | `safeNextPath` resuelve el destino con el parser del navegador y exige el mismo origen (§3, D-253, I-207) | `tests/unit/destino-tras-ingresar.test.ts`, `safe-next-path.test.ts` y `tests/e2e/destino-tras-ingresar.spec.ts` |
-| T23 | **Cuentas creadas por cualquiera** | `POST /auth/v1/signup` con la clave publicable, que es pública por diseño: crea una cuenta y un perfil sin membresía —la RLS no le deja leer nada—, y en producción cada alta gasta el cupo de correos que necesitan las invitaciones | Registro público cerrado: Auth responde `422 signup_disabled` y no crea nada; las altas son solo por invitación (I-206, D-254). **En producción, pendiente de aplicar** | `tests/e2e/invitaciones.spec.ts` y `GET /auth/v1/settings` (`disable_signup`) |
+| T23 | **Cuentas creadas por cualquiera** | `POST /auth/v1/signup` con la clave publicable, que es pública por diseño: crea una cuenta y un perfil sin membresía —la RLS no le deja leer nada—, y en producción cada alta gasta el cupo de correos que necesitan las invitaciones | Registro público cerrado: Auth responde `422 signup_disabled` y no crea nada; las altas son solo por invitación (I-206, D-254). **En producción, aplicado el 2026-10-12** (`disable_signup: true`) | `tests/e2e/invitaciones.spec.ts` y `GET /auth/v1/settings` (`disable_signup`) |
 
 ---
 

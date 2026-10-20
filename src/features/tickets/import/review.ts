@@ -1,6 +1,12 @@
 import type { TicketPaymentStatus } from '@/lib/constants'
 
-import { comboKey, validateBulkRows, type RowValidation } from '../bulk/duplicates'
+import {
+  comboKeyFor,
+  isCompleteFor,
+  validateBulkRows,
+  type RowValidation,
+} from '../bulk/duplicates'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 import { parseAbono } from './abono'
 import {
   clientIdentityKey,
@@ -75,6 +81,8 @@ export type ImportReview = {
 
 export type ReviewOptions = {
   existingCombos?: ReadonlySet<string>
+  /** D-261: los números de la rifa —cuántos y con cuántas cifras exactas—. */
+  format?: RaffleNumberFormat
   clientResolutions?: ReadonlyMap<string, ClientResolution>
   /**
    * Importar boletas ya vendidas, con cliente y abono.
@@ -98,12 +106,28 @@ export type ReviewOptions = {
 function describeTicket(validation: RowValidation | undefined): string {
   if (!validation) return ''
 
+  // D-261: con el formato de la rifa, cada número trae ya su frase —la de la
+  // base—; sin él, la de antes.
   const parts: string[] = []
-  if (validation.dailyError) parts.push('El número diario debe tener entre 1 y 4 dígitos.')
-  if (validation.weeklyError) parts.push('El número semanal debe tener entre 1 y 4 dígitos.')
+  if (validation.dailyError) {
+    parts.push(
+      validation.dailyError.startsWith('El número')
+        ? validation.dailyError
+        : 'El número diario debe tener entre 1 y 4 dígitos.',
+    )
+  }
+  if (validation.weeklyError) {
+    parts.push(
+      validation.weeklyError.startsWith('El número')
+        ? validation.weeklyError
+        : 'El número semanal debe tener entre 1 y 4 dígitos.',
+    )
+  }
 
   if (validation.problem === 'incomplete') {
-    return 'A esta fila le falta uno de los dos números.'
+    return validation.rowError?.startsWith('Escribe el número')
+      ? validation.rowError
+      : 'A esta fila le falta uno de los dos números.'
   }
   if (parts.length > 0) return parts.join(' ')
   if (validation.rowError) return validation.rowError
@@ -232,6 +256,7 @@ export function reviewRows(rows: readonly ImportRow[], options: ReviewOptions = 
   const validations = validateBulkRows(rows, {
     requireComplete: true,
     existingCombos: options.existingCombos,
+    format: options.format,
   })
   const identitiesByPhone = new Map<string, Set<string>>()
   for (const row of rows) {
@@ -349,8 +374,6 @@ export function importableRows(review: ImportReview): ImportableRow[] {
 }
 
 /** Las combinaciones de un conjunto de filas, en el formato `daily/weekly`. */
-export function rowKeys(rows: readonly ImportRow[]): string[] {
-  return rows
-    .filter((row) => row.dailyNumber !== '' && row.weeklyNumber !== '')
-    .map((row) => comboKey(row.dailyNumber, row.weeklyNumber))
+export function rowKeys(rows: readonly ImportRow[], format?: RaffleNumberFormat): string[] {
+  return rows.filter((row) => isCompleteFor(row, format)).map((row) => comboKeyFor(row, format))
 }

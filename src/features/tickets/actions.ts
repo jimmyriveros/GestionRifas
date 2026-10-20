@@ -6,6 +6,11 @@ import { listClientOptions, type ClientOption } from '@/features/clients/queries
 import { searchTermSchema, toClientRow } from '@/features/clients/schemas'
 import { authorizeAction } from '@/lib/auth/guards'
 import { mapPgError } from '@/lib/errors'
+import {
+  numberFormatFromRow,
+  RAFFLE_NUMBER_FORMAT_COLUMNS,
+  ticketNumbersProblem,
+} from '@/lib/ticket-number-format'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult, ActionResultWith } from '@/lib/action-result'
 
@@ -78,7 +83,7 @@ export async function createTicket(input: unknown): Promise<ActionResultWith<{ i
 
   const { data: raffle, error: raffleError } = await supabase
     .from('raffles')
-    .select('id, status')
+    .select(`id, status, ${RAFFLE_NUMBER_FORMAT_COLUMNS}`)
     .eq('id', values.raffleId)
     .maybeSingle()
 
@@ -92,6 +97,11 @@ export async function createTicket(input: unknown): Promise<ActionResultWith<{ i
     return { error: 'La rifa está cerrada o anulada y no admite boletas nuevas.' }
   }
 
+  // D-261: las cifras exactas de la rifa, con la misma frase que la base.
+  const weekly = values.weeklyNumber === '' ? null : values.weeklyNumber
+  const problem = ticketNumbersProblem(numberFormatFromRow(raffle), values.dailyNumber, weekly, true)
+  if (problem) return { error: problem }
+
   // El id lo pone el servidor y NO se lee de vuelta (D-198). El personal ya no
   // tiene lectura sobre `tickets`, asi que un `insert ... returning` fallaria:
   // `tickets_insert_staff` le deja crear la boleta sin venta, y con el id ya
@@ -104,8 +114,8 @@ export async function createTicket(input: unknown): Promise<ActionResultWith<{ i
     raffle_id: values.raffleId,
     seller_id: values.sellerId,
     daily_number: values.dailyNumber,
-    weekly_number: values.weeklyNumber,
-    // BR-I04: creada por el personal, con ambos numeros y sin cliente.
+    weekly_number: weekly,
+    // BR-I04: creada por el personal, con todos sus numeros y sin cliente.
     inventory_status: 'available',
     created_by: auth.membership.profileId,
     // internal_code lo genera un trigger (D-039).
@@ -135,6 +145,7 @@ export async function updateTicketNumbers(input: unknown): Promise<ActionResult>
   const { error } = await supabase.rpc('admin_update_ticket_numbers', {
     p_ticket_id: values.ticketId,
     p_daily_number: values.dailyNumber,
+    // Con un solo numero, vacio: la funcion lo guarda nulo (D-261).
     p_weekly_number: values.weeklyNumber,
   })
 
@@ -342,7 +353,9 @@ export async function searchTicketClientOptions(
     .maybeSingle()
 
   if (error) return { error: mapPgError(error) }
-  if (!ticket) return { ok: true, data: [] }
+  // Bajo RLS el vendedor solo ve las suyas, que siempre tienen vendedor; una del
+  // inventario comun (D-257) no tiene cartera en la que buscar.
+  if (!ticket?.seller_id) return { ok: true, data: [] }
 
   try {
     return {
@@ -417,7 +430,7 @@ export async function reassignTicketToNewClient(input: unknown): Promise<ActionR
     .maybeSingle()
 
   if (ticketError) return { error: mapPgError(ticketError) }
-  if (!ticket) return { error: 'La boleta no existe o no tienes acceso a ella.' }
+  if (!ticket?.seller_id) return { error: 'La boleta no existe o no tienes acceso a ella.' }
 
   const { data: created, error: clientError } = await supabase
     .from('clients')
@@ -460,8 +473,18 @@ export async function reassignTicketToNewClient(input: unknown): Promise<ActionR
  * No hace falta leer la boleta antes: el cliente que hay que revalidar es el
  * mismo `expectedClientId` que la RPC exige que siga siendo el suyo, asi que si
  * la llamada tuvo exito ese es, con certeza, el cliente que la tenia.
+ *
+ * DESPUES si se lee (D-258): una boleta vendida desde un apartado vuelve al
+ * inventario comun y deja de ser de quien la libera, y eso lo decide la base,
+ * no la pantalla. Se pregunta con la misma sesion: `tickets_select` solo ensena
+ * las boletas propias, asi que si ya no aparece, ya no es suya, y la pantalla
+ * tiene que salir de un detalle que no podria volver a abrir. Si esa lectura
+ * falla, `null`: la liberacion ya quedo hecha, y la pantalla usa lo que sabia al
+ * abrir el dialogo.
  */
-export async function releaseTicket(input: unknown): Promise<ActionResult> {
+export async function releaseTicket(
+  input: unknown,
+): Promise<ActionResultWith<{ toCommonInventory: boolean | null }>> {
   const auth = await authorizeAction(['seller'])
   if ('error' in auth) return auth
 
@@ -480,8 +503,15 @@ export async function releaseTicket(input: unknown): Promise<ActionResult> {
 
   if (error) return { error: mapPgError(error) }
 
+  const after = await supabase.from('tickets').select('id').eq('id', values.ticketId).maybeSingle()
+
   revalidateTicketClient(values.ticketId, values.expectedClientId, null)
-  return { ok: true }
+  // La boleta vuelve a contar como disponible —con su vendedor o en el
+  // inventario comun—: cambian el catalogo interno y las cifras de la rifa.
+  revalidatePath('/seller/inventory')
+  revalidatePath('/owner/raffles', 'layout')
+  revalidatePath('/owner/sellers', 'layout')
+  return { ok: true, data: { toCommonInventory: after.error ? null : after.data === null } }
 }
 
 /**

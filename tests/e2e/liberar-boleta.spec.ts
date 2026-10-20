@@ -97,6 +97,9 @@ test.describe('Liberar una boleta — portal del vendedor', () => {
     const dialogo = page.getByRole('alertdialog')
     await expect(dialogo.getByRole('heading', { name: 'Liberar boleta' })).toBeVisible()
     await expect(dialogo.getByText(new RegExp(`Dejará de estar asignada a`))).toBeVisible()
+    // No salió de un apartado: se queda con su vendedor (D-258).
+    await expect(dialogo.getByText(/los números, el vendedor y la rifa no cambian/)).toBeVisible()
+    await expect(dialogo.getByText(/inventario común/)).toHaveCount(0)
     await expect(dialogo.getByText('Número diario')).toBeVisible()
     await expect(dialogo.getByText(ticket.daily, { exact: true })).toBeVisible()
     await expect(dialogo.getByText('Número semanal')).toBeVisible()

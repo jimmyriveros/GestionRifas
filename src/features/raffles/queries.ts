@@ -12,6 +12,13 @@ import type { ListSort } from '@/lib/list-sort'
 import { fetchAllRows } from '@/lib/supabase/paginate'
 import { createClient } from '@/lib/supabase/server'
 import type { RaffleStatus } from '@/lib/constants'
+import type { Database } from '@/types/database.types'
+import {
+  numberFormatFromRow,
+  RAFFLE_NUMBER_FORMAT_COLUMNS,
+  type RaffleNumberFormat,
+  type RaffleNumberFormatRow,
+} from '@/lib/ticket-number-format'
 
 /**
  * Lecturas de rifas para RSC. Todas pasan por el cliente de servidor sujeto a
@@ -81,12 +88,13 @@ export type AdminRaffleDetail = AdminRaffleSummary & {
   closedAt: string | null
   /** BR-J13: `legacy` es el comparador de siempre; `configurable`, sus propios premios. */
   prizeMode: 'legacy' | 'configurable'
+  /** D-261: cuantos numeros tiene cada boleta, como se llaman y sus cifras. */
+  numberFormat: RaffleNumberFormat
 }
 
-const ADMIN_RAFFLE_COLUMNS =
-  'id, short_code, name, status, ticket_price, start_date, end_date, allow_seller_ticket_creation, description, created_at, closed_at, prize_mode'
+const ADMIN_RAFFLE_COLUMNS = `id, short_code, name, status, ticket_price, start_date, end_date, allow_seller_ticket_creation, description, created_at, closed_at, prize_mode, ${RAFFLE_NUMBER_FORMAT_COLUMNS}`
 
-type AdminRaffleRow = {
+type AdminRaffleRow = RaffleNumberFormatRow & {
   id: string
   short_code: string
   name: string
@@ -125,6 +133,7 @@ function mapAdminRaffle(row: AdminRaffleRow, counts: InventoryCounts): AdminRaff
     createdAt: row.created_at,
     closedAt: row.closed_at,
     prizeMode: row.prize_mode,
+    numberFormat: numberFormatFromRow(row),
     ...counts,
   }
 }
@@ -178,6 +187,8 @@ export type RaffleOption = {
   status: RaffleStatus
   ticketPrice: number
   allowSellerTicketCreation: boolean
+  /** D-261: los formularios piden y validan los numeros con la estructura de la rifa. */
+  numberFormat: RaffleNumberFormat
 }
 
 /**
@@ -198,7 +209,7 @@ export async function listRaffleOptions(): Promise<RaffleOption[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('raffles')
-    .select('id, name, short_code, status, ticket_price, allow_seller_ticket_creation')
+    .select(`id, name, short_code, status, ticket_price, allow_seller_ticket_creation, ${RAFFLE_NUMBER_FORMAT_COLUMNS}`)
     .order('short_code', { ascending: false })
 
   if (error) throw error
@@ -211,8 +222,45 @@ export async function listRaffleOptions(): Promise<RaffleOption[]> {
       status: row.status,
       ticketPrice: row.ticket_price,
       allowSellerTicketCreation: row.allow_seller_ticket_creation,
+      numberFormat: numberFormatFromRow(row),
     }))
     .sort((a, b) => RAFFLE_STATUS_ORDER[a.status] - RAFFLE_STATUS_ORDER[b.status])
+}
+
+export type NonconformingTicket = {
+  ticketId: string
+  dailyNumber: string | null
+  weeklyNumber: string | null
+  inventoryStatus: Database['public']['Enums']['ticket_inventory_status']
+  problem: string
+}
+
+/**
+ * Las boletas de una rifa que no tienen su formato (D-261): las que ya existian
+ * antes de la 0084. Solo el personal; la lista blanca de D-198 —numeros y
+ * estado—. Pocas: se piden las primeras y el total.
+ */
+export async function listNonconformingTickets(
+  raffleId: string,
+  limit = 10,
+): Promise<{ total: number; tickets: NonconformingTicket[] }> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('admin_raffle_nonconforming_tickets', {
+    p_raffle_id: raffleId,
+    p_limit: limit,
+  })
+  if (error) throw error
+  const rows = data ?? []
+  return {
+    total: rows[0]?.total_count ?? 0,
+    tickets: rows.map((row) => ({
+      ticketId: row.ticket_id,
+      dailyNumber: row.daily_number,
+      weeklyNumber: row.weekly_number,
+      inventoryStatus: row.inventory_status,
+      problem: row.problem,
+    })),
+  }
 }
 
 type SummaryRow = Partial<{

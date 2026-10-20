@@ -245,6 +245,13 @@ describe('la rifa de la imagen sale del catálogo de quien pregunta (BR-H04, BR-
     expect(await getWeeklyResultsRaffle(ctx.ids.seller1)).toEqual({
       kind: 'ready',
       name: ctx.demoRaffle.name,
+      // D-261: los números de la rifa, para nombrarlos en el mensaje.
+      numberFormat: {
+        groups: [
+          { slot: 'daily_number', name: 'Diario', digits: 4 },
+          { slot: 'weekly_number', name: 'Semanal', digits: 4 },
+        ],
+      },
     })
   })
 

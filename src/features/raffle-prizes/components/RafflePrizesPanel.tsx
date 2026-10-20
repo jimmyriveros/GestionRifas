@@ -135,6 +135,7 @@ export function RafflePrizesPanel({
 
       <PrizeList
         prizes={active}
+        numberFormat={raffle.numberFormat}
         emptyAction={
           readOnly ? undefined : (
             <Button size="touch" onClick={openCreate}>
@@ -219,6 +220,7 @@ export function RafflePrizesPanel({
           <p className="text-muted-foreground text-body-small">{PRIZE_PANEL_COPY.archivedHelp}</p>
           <PrizeList
             prizes={archived}
+            numberFormat={raffle.numberFormat}
             renderActions={(prize) => (
               <>
                 <Button
@@ -248,7 +250,12 @@ export function RafflePrizesPanel({
       <PrizeDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        raffle={{ id: raffle.id, startDate: raffle.startDate, endDate: raffle.endDate }}
+        raffle={{
+          id: raffle.id,
+          startDate: raffle.startDate,
+          endDate: raffle.endDate,
+          numberFormat: raffle.numberFormat,
+        }}
         prize={editing}
       />
 
@@ -258,6 +265,7 @@ export function RafflePrizesPanel({
           if (!open) setHistoryPrize(null)
         }}
         prize={historyPrize}
+        numberFormat={raffle.numberFormat}
       />
 
       <ConfirmDialog

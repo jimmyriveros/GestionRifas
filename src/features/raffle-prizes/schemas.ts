@@ -46,7 +46,7 @@ const isoDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, PRIZE_COPY.ruleProblems.invalid_date)
   .refine((value) => !Number.isNaN(Date.parse(value)), PRIZE_COPY.ruleProblems.invalid_date)
 
-export const prizeDigitsSchema = z.enum(['four', 'last_three'])
+export const prizeDigitsSchema = z.enum(['four', 'last_three', 'last_two'])
 export const prizeNumberFieldSchema = z.enum(['daily_number', 'weekly_number'])
 export const prizeCategorySchema = z.enum(PRIZE_CATEGORY_VALUES)
 export const prizeLotteryModeSchema = z.enum(['corresponding', 'fixed'])

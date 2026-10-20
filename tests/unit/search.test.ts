@@ -198,7 +198,18 @@ describe('ticketLabel (BR-N11)', () => {
 
   it('una boleta en borrador puede no tener numeros todavia', () => {
     expect(ticketLabel({ dailyNumber: null, weeklyNumber: null })).toBe('Sin números')
-    expect(ticketLabel({ dailyNumber: '0400', weeklyNumber: null })).toBe('0400 / —')
+    // Con la rifa de dos números, un borrador a medias dice lo que le falta.
+    expect(ticketLabel({ dailyNumber: '0400', weeklyNumber: null }, 2)).toBe('0400 / —')
+  })
+
+  it('D-261: una boleta de un solo número se nombra sin separador ni raya', () => {
+    expect(ticketLabel({ dailyNumber: '387', weeklyNumber: null }, 1)).toBe('387')
+    expect(ticketLabel({ dailyNumber: '07', weeklyNumber: null }, 1)).toBe('07')
+    expect(ticketLabel({ dailyNumber: null, weeklyNumber: null }, 1)).toBe('Sin números')
+    // Sin saber su rifa —abonos, avisos, coincidencias, que nunca son borradores—
+    // una boleta sin segundo número es de una rifa de un número.
+    expect(ticketLabel({ dailyNumber: '387', weeklyNumber: null })).toBe('387')
+    expect(ticketLabel({ dailyNumber: '0017', weeklyNumber: '0042' }, 2)).toBe('0017 / 0042')
   })
 })
 

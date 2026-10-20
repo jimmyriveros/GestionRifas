@@ -165,6 +165,7 @@ export async function resolveTicketSelection(
           inventoryStatus: parsed.data.inventoryStatus,
           paymentState: paymentState.success ? paymentState.data : undefined,
           search: parsed.data.search,
+          custody: parsed.data.custody,
         },
         BULK_SELECTION_MAX,
       ),

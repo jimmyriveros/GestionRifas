@@ -78,7 +78,8 @@ export default async function SellerDetailPage({
   const counted = new Set([sellerId, ...team.map((member) => member.profileId)])
   const paidByRaffle = new Map<string, number>()
   for (const row of inventory) {
-    if (!counted.has(row.sellerId) || row.ticketsPaid === 0) continue
+    // La fila del inventario comun (sin vendedor, D-257) no tiene nada cobrado.
+    if (row.sellerId === null || !counted.has(row.sellerId) || row.ticketsPaid === 0) continue
     paidByRaffle.set(row.raffleId, (paidByRaffle.get(row.raffleId) ?? 0) + row.ticketsPaid)
   }
   const recalculated: RecalculatedRaffle[] = raffles

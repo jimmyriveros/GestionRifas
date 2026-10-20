@@ -1,9 +1,15 @@
 import { StatusBadge } from '@/components/data/StatusBadge'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
 import { Notice } from '@/components/feedback/Notice'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { formatDayMonthEs } from '@/lib/dates'
 
-import { WEEKLY_RESULTS_COPY as COPY, lotteryWeekdayLabel, missingLotteriesText } from '../copy'
+import {
+  WEEKLY_RESULTS_COPY as COPY,
+  lotteryWeekdayLabel,
+  missingLotteriesText,
+  weeklyResultsFieldLabel,
+} from '../copy'
 import type { WeeklyResults } from '../results'
 import { formatWeekLong } from '../week'
 
@@ -23,10 +29,13 @@ import { formatWeekLong } from '../week'
 export function WeeklyResultsSummary({
   results,
   raffleName,
+  numberFormat,
 }: {
   results: Exclude<WeeklyResults, { kind: 'error' }>
   /** `null` cuando el catálogo no tiene una rifa que pueda encabezar la imagen. */
   raffleName: string | null
+  /** D-261: el número de la rifa que se verifica con cada lotería, por su nombre. */
+  numberFormat?: RaffleNumberFormat
 }) {
   const confirmed = results.results.filter((result) => result.status === 'confirmed').length
   const ready = results.kind === 'ready'
@@ -69,7 +78,7 @@ export function WeeklyResultsSummary({
                   {COPY.row.detail(
                     lotteryWeekdayLabel(result.code),
                     formatDayMonthEs(result.referenceDate),
-                    COPY.row.field[result.matchField],
+                    weeklyResultsFieldLabel(numberFormat, result.matchField),
                   )}
                 </p>
               </div>

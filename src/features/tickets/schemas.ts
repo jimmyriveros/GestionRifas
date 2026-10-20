@@ -12,10 +12,15 @@ import { BULK_TICKET_MAX, BULK_TICKET_MIN, TICKET_NUMBER_REGEX } from '@/lib/con
  * ceros iniciales y `007` dejaria de ser distinto de `7` (BR-N03).
  */
 
+/**
+ * La FORMA de un numero de cualquier boleta: solo cifras, cuatro como mucho.
+ * Las cifras EXACTAS las pone la rifa (D-261): `ticketNumbersProblem` con su
+ * formato en el navegador y en la accion, y la base al guardar.
+ */
 export const ticketNumberSchema = z
   .string()
   .trim()
-  .regex(TICKET_NUMBER_REGEX, 'Debe tener entre 1 y 4 dígitos, sin letras ni símbolos.')
+  .regex(TICKET_NUMBER_REGEX, 'Escribe solo cifras, cuatro como mucho, sin letras ni símbolos.')
 
 /** Numero que puede quedar vacio: solo valido en boletas en borrador (BR-N09). */
 export const optionalTicketNumberSchema = z.union([z.literal(''), ticketNumberSchema])
@@ -42,14 +47,16 @@ export const createTicketSchema = z.object({
   raffleId: z.uuid('Selecciona una rifa.'),
   sellerId: z.uuid('Selecciona un vendedor.'),
   dailyNumber: ticketNumberSchema,
-  weeklyNumber: ticketNumberSchema,
+  // Vacio en una rifa de un solo numero (D-261); obligatorio en una de dos, lo
+  // dice `ticketNumbersProblem` con el formato de la rifa.
+  weeklyNumber: optionalTicketNumberSchema,
 })
 export type CreateTicketInput = z.infer<typeof createTicketSchema>
 
 export const updateTicketNumbersSchema = z.object({
   ticketId: z.uuid('Boleta no válida.'),
   dailyNumber: ticketNumberSchema,
-  weeklyNumber: ticketNumberSchema,
+  weeklyNumber: optionalTicketNumberSchema,
 })
 export type UpdateTicketNumbersInput = z.infer<typeof updateTicketNumbersSchema>
 

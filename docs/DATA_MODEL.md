@@ -1,6 +1,17 @@
 # MODELO DE DATOS
 
-- **Versión:** 2.35 · **Estado:** implementado · **Actualizado:** 2026-10-01 (**`0080` APLICADA EN PRODUCCIÓN**, sin
+- **Versión:** 2.38 · **Estado:** implementado · **Actualizado:** 2026-10-20 (§4.4, §4.6, §4.27, §4.28 nueva, §5 y §7:
+  **los números de cada boleta los define su rifa** —cinco columnas en `raffles`, `tickets.number_group_count`, el
+  índice único parcial de un solo número, los disparadores de formato e inmutabilidad, `last_two` y la auditoría de
+  la `0084`—, D-261, migraciones `0083` y `0084`, **solo en local**). Antes, 2026-10-19, más tarde (§4.6, §4.27, §6.g.3 y §7:
+  **`tickets.sold_from_hold`** con su CHECK, la liberación que devuelve al inventario común lo vendido desde un
+  apartado y la guarda que protege la marca —D-258, migración `0082`, **solo en local**—). Antes, ese mismo día
+  (**§4.27 nueva** y §4.6, §5 y §7: el
+  **inventario común**, la generación por rangos y los apartados —D-257, migración `0081`, **solo en local**—:
+  `tickets.seller_id` admite nulo con su CHECK, `tickets.generation_run_id`, tres tablas —`ticket_generation_runs`,
+  `ticket_holds` y `raffle_hold_settings`—, la capacidad `raffles.holds.manage`, 16 RPC, dos guardas sobre `tickets`, la
+  auditoría de inserciones partida en dos y el motor de loterías sin las boletas sin vendedor). Antes, 2026-10-01
+  (**`0080` APLICADA EN PRODUCCIÓN**, sin
   pausa: §4.26 está publicada, `DEPLOYMENT` §3.2.v). Antes, 2026-09-30, más tarde (**§4.26 nueva**: el
   **cierre de cuentas** —D-241, migración `0080`, **solo en local**—: tres tablas de hechos inmutables salvo la
   anulación, cuatro tipos, la cuenta calculada por `settlement_account_rows` desde `seller_commissions` y 14 RPC; §5
@@ -539,6 +550,9 @@ organización, incluso con `SERVICE_ROLE` o con un error de programación.
 | `status` | `raffle_status` | `NOT NULL DEFAULT 'draft'` |
 | `allow_seller_ticket_creation` | `boolean` | `NOT NULL DEFAULT false` |
 | `ticket_counter` | `bigint` | `NOT NULL DEFAULT 0` — genera `tickets.internal_code` |
+| `number_group_count` | `smallint` | `NOT NULL DEFAULT 2`, `CHECK IN (1, 2)` (`0084`, BR-N19): cuántos números lleva cada boleta |
+| `first_group_name` / `first_group_digits` | `text` / `smallint` | `NOT NULL`, `DEFAULT 'Diario'` / `4`: el nombre visible (2–20 caracteres, sin espacios exteriores) y las cifras exactas (2, 3 o 4) del primer número, que vive en `tickets.daily_number` |
+| `second_group_name` / `second_group_digits` | `text` / `smallint` | `DEFAULT 'Semanal'` / `4`; los dos `NULL` con un solo número y los dos llenos con dos (`raffles_number_groups_shape_check`); con dos, nombres distintos sin importar mayúsculas. Vive en `tickets.weekly_number` |
 | `created_by` | `uuid` | `NOT NULL`, FK → `profiles(id)` |
 | `created_at` / `updated_at` | `timestamptz` | `NOT NULL DEFAULT now()` |
 | `closed_at` | `timestamptz` | `NULL` |
@@ -551,6 +565,11 @@ organización, incluso con `SERVICE_ROLE` o con un error de programación.
   silencio (§36.1 de `CLAUDE.md`).
 - Cambiar `ticket_price` **no** afecta boletas ya vendidas (§4.6, `sale_price`). La única excepción es
   corregir un precio que nunca fue correcto, por migración versionada y sin tocar pagos (BR-P07).
+- **Los números de la boleta no cambian después de crear la rifa** (`0084`, BR-N20): `raffles_guard_number_groups`
+  rechaza cualquier `UPDATE` de esas cinco columnas —también en borrador y con la service role— y, al crear, quita los
+  espacios de los nombres y valida con `raffle_number_groups_problem` (las frases de `NUMBER_GROUPS_MESSAGES`). La
+  identidad de cada número es su **ranura** (`daily_number` / `weekly_number`), la misma de `lottery_match_field`; el
+  nombre solo se pinta. Las rifas que ya existían quedaron con `Diario` 4 + `Semanal` 4 (BR-N23, §4.28).
 - Transiciones de estado válidas: `draft → active → closed`; cualquier estado → `cancelled`.
   `closed → active` se permite solo a Owner (reapertura documentada en auditoría).
 
@@ -583,11 +602,14 @@ Adicional: `UNIQUE (id, organization_id)`, `UNIQUE (id, seller_id)` (habilitan F
 | `id` | `uuid` | PK |
 | `organization_id` | `uuid` | `NOT NULL`, FK → `organizations(id)` |
 | `raffle_id` | `uuid` | `NOT NULL`, FK compuesta → `raffles(id, organization_id)` |
-| `seller_id` | `uuid` | `NOT NULL`, FK compuesta → `memberships(profile_id, organization_id)` |
+| `seller_id` | `uuid` | FK compuesta → `memberships(profile_id, organization_id)`. **`NULL` = inventario común** desde `0081` (BR-I17): solo `available` o `cancelled` y sin venta, por `tickets_without_seller_is_inventory` (§4.27) |
 | `client_id` | `uuid` | `NULL`, FK compuesta → `clients(id, organization_id)` `ON DELETE RESTRICT` |
+| `generation_run_id` | `uuid` | `NULL`; la generación por rangos que la creó (`0081`, BR-N18). FK compuesta → `ticket_generation_runs(id, raffle_id)` `ON DELETE RESTRICT`. Solo la escriben las funciones del generador |
+| `sold_from_hold` | `boolean` | `NOT NULL DEFAULT false` (`0082`, BR-I32): la venta **vigente** salió de un apartado. La pone `sell_ticket_hold` y la quita `release_ticket_client`, que entonces devuelve la boleta al inventario común. CHECK `tickets_sold_from_hold_is_a_sale`: solo con vendedor y en `assigned` o `cancelled`. Ninguna sesión la escribe (§7) |
 | `internal_code` | `text` | `NOT NULL`, `UNIQUE (organization_id, internal_code)` — `R001-000123` |
-| `daily_number` | `text` | `NULL` solo en `draft`; `CHECK (daily_number ~ '^[0-9]{1,4}$')` |
-| `weekly_number` | `text` | `NULL` solo en `draft`; `CHECK (weekly_number ~ '^[0-9]{1,4}$')` |
+| `daily_number` | `text` | `NULL` solo en `draft`; `CHECK (daily_number ~ '^[0-9]{1,4}$')`. Desde `0084`, además, **exactamente** las cifras del primer número de su rifa (§4.6.1) |
+| `weekly_number` | `text` | `NULL` solo en `draft` **o** en una rifa de un solo número, donde es siempre `NULL` (`tickets_single_group_has_one_number`); `CHECK (weekly_number ~ '^[0-9]{1,4}$')` |
+| `number_group_count` | `smallint` | `NOT NULL DEFAULT 2`, `CHECK IN (1, 2)` (`0084`, D-261): copia de `raffles.number_group_count` que pone `tickets_enforce_number_format` —escribirla a mano no cambia nada—. Existe para el índice único parcial de un solo número (§4.6.3) |
 | `sale_price` | `bigint` | `NULL` hasta la venta; `CHECK (sale_price > 0)`. Es **lo que debe el cliente** |
 | `base_price` | `bigint` | `NULL` hasta la venta y en toda boleta vendida antes de `0028`; `CHECK (base_price > 0)`. Precio de la rifa congelado al vender (BR-P10) |
 | `inventory_status` | `ticket_inventory_status` | `NOT NULL DEFAULT 'draft'` |
@@ -618,6 +640,15 @@ CONSTRAINT tickets_weekly_number_format CHECK (weekly_number ~ '^[0-9]{1,4}$'),
 - Válidos: `1`, `25`, `007`, `0000`, `9999`. Inválidos: `12345`, `12A4`, `-123`, `12.5`, `''`.
 - Una boleta en `draft` puede tener números `NULL` (aún no capturados). Fuera de `draft` son
   obligatorios (§4.6.3).
+- **Desde `0084` (D-261, BR-N21) el formato lo pone la rifa.** `tickets_enforce_number_format` (`BEFORE INSERT OR
+  UPDATE OF daily_number, weekly_number, raffle_id, inventory_status, number_group_count`, `SECURITY DEFINER`) valida
+  con `ticket_numbers_problem` que cada número tenga **exactamente** las cifras de su grupo, que una rifa de un número
+  no lleve segundo y que, fuera de borrador, estén los que la rifa tiene. Lo hace **al crear, al cambiar los números o
+  la rifa, y al entrar en una venta o una aprobación** (`draft`/`pending_approval` → `available`/`assigned`, y
+  `available` → `assigned`). Una fila que ya existía fuera de formato **no se revalida** mientras no cambie: se lee, se
+  anula, se elimina si nunca se vendió y conserva su paz y salvo, pero no se aprueba ni se vende (BR-N23). La lista
+  la da `admin_raffle_nonconforming_tickets` (solo personal, paginada, con lista blanca de columnas).
+- Los ejemplos de arriba son de **antes** de `0084`: en un número de tres cifras `007` vale y `7` no.
 
 #### 4.6.2 Snapshot de precio
 
@@ -653,11 +684,19 @@ rebaja se calcula **siempre** contra `base_price`.
 ALTER TABLE tickets ADD CONSTRAINT tickets_combo_unique
   UNIQUE (organization_id, raffle_id, daily_number, weekly_number);
 
+-- 0084 (D-261, BR-N22): en una rifa de UN número, el número es la identidad. No se
+-- puede confiar en tickets_combo_unique con weekly_number NULL: dos NULL son
+-- distintos y entrarían dos «387». ON CONFLICT lo nombra con su predicado.
+CREATE UNIQUE INDEX tickets_single_group_unique
+  ON tickets (organization_id, raffle_id, daily_number) WHERE number_group_count = 1;
+
 -- Coherencia de estado ↔ datos
+-- Desde 0084 (D-261): con un solo número, solo el primero.
 CONSTRAINT tickets_numbers_required_unless_draft CHECK (
   inventory_status = 'draft'
-  OR (daily_number IS NOT NULL AND weekly_number IS NOT NULL)
+  OR (daily_number IS NOT NULL AND (number_group_count = 1 OR weekly_number IS NOT NULL))
 ),
+CONSTRAINT tickets_single_group_has_one_number CHECK (number_group_count = 2 OR weekly_number IS NULL),
 CONSTRAINT tickets_assigned_requires_sale CHECK (
   inventory_status <> 'assigned'
   OR (client_id IS NOT NULL AND sale_price IS NOT NULL
@@ -1508,6 +1547,55 @@ cada llamada desde el rol, **ninguna fila cambia**: los administradores de hoy l
 **Revertir** es una migración nueva y, sin filas, exacta (la nota del final de la `0080`). Con filas, primero se
 exportan: son la historia del dinero entregado.
 
+### 4.27 Inventario común y apartados (`0081` y `0082`, BR-N15..BR-N18, BR-I17..BR-I32, D-257 y D-258)
+
+> 🟡 **Solo en local.** La `0081` no está en el proyecto real; su publicación no está autorizada (D-257,
+> Consecuencias).
+
+**Tener vendedor es custodia, no estado.** Una boleta sin vendedor (`seller_id` nulo) es del inventario común de su
+rifa, y el CHECK `tickets_without_seller_is_inventory` la deja solo `available` o `cancelled`, sin cliente, sin
+`sale_price` ni `base_price`, sin `sale_date` ni `assigned_at` y con `paid_amount = 0`. `inventory_status` y su
+máquina de estados no cambian.
+
+| Tabla | Qué guarda |
+|---|---|
+| `ticket_generation_runs` | Una generación por rangos: rifa, los dos rangos como texto (con su ancho, BR-N15), `request_id` (`unique (organization_id, request_id)`: confirmar dos veces devuelve la misma), `total_count`, el avance **confirmado** `processed_count`, `created_count`, `existing_count` y `existing_generated_count` (las que ya existían y había creado otra generación), `status` (`in_progress` o `completed`), `created_by` y sus fechas. CHECK de los dos rangos con `ticket_generation_range_problem` y del total, 1..100.000 |
+| ↳ desde `0084` | En una rifa de un solo número, `weekly_from` y `weekly_to` son `NULL` (los dos o ninguno) y `total_count` es el tamaño del único rango. Los extremos se guardan **ya rellenados** con las cifras de su número (BR-N24): repetir con «0» o con «0000» es la misma generación |
+| `ticket_holds` | Un apartado: boleta, rifa, vendedor (FK compuesta a su membresía), `request_id` (`unique (organization_id, seller_id, request_id)`, BR-I25), `started_at`, `expires_at`, `extended_at` (la única extensión), `ended_at` y `end_reason` (`returned`, `expired`, `sold` o `seller_inactive`), los dos juntos o ninguno. **Vigente = `ended_at is null and expires_at > now()`** (BR-I22). Un índice parcial único deja **uno abierto por boleta**. La boleta no se modifica al apartar |
+| `raffle_hold_settings` | La duración (5..180 min) y el cupo (0..100) de una rifa (BR-I27), con `updated_by`. Sin fila valen los de siempre, 30 y 10. La escribe solo `set_raffle_hold_settings` |
+
+Las tres tienen RLS **forzada y sin políticas**, y ningún privilegio para `authenticated` ni `anon`: todo pasa por las
+funciones (I-111). Sus FK a `raffles` y a `memberships` son RESTRICT; la de `ticket_holds` a `tickets`, CASCADE.
+
+**Las funciones.** Del personal: `admin_ticket_generation_preview`, `admin_start_ticket_generation`,
+`admin_process_ticket_generation` (un bloque de 5.000 por llamada, desde el avance confirmado; BR-N18; el primero y el
+último ejecutan `analyze (skip_locked) tickets` antes de confirmar, para que los lotes se entreguen nada más generar,
+I-214 y D-260),
+`admin_ticket_generation_runs`, `admin_ticket_generation_existing` (paginada), `admin_assign_inventory_tickets` y
+`admin_recover_inventory_tickets` (lotes, todo o nada, con `lock_ticket_batch`). Del Dueño: `set_raffle_hold_settings`
+(capacidad `raffles.holds.manage`); de lectura para la organización, `raffle_hold_settings_for`. Del vendedor:
+`seller_inventory_summary`, `seller_inventory_tickets` (disponibilidad `free`, `held_by_me`, `mine` o `unavailable`, y
+nulos el identificador y el vencimiento de lo ajeno; BR-I21), `seller_ticket_holds` (con el precio de la rifa, lo
+mínimo que puede cobrar quien pregunta y `server_now`), `take_ticket_hold`, `extend_ticket_hold`, `return_ticket_hold`
+y `sell_ticket_hold` (que llama a `assign_ticket_row`). Todas `security definer` con `search_path` fijo; ninguna recibe
+el actor, que sale de `auth.uid()`.
+
+**Lo que se amplió.** `admin_list_tickets` (nuevo filtro `p_custody`, y `held_by` y `hold_expires_at`),
+`admin_ticket_detail`, `admin_ticket_bulk_eligibility` (`held_by`, `can_assign_to_seller`, `can_recover`) y
+`admin_ticket_inventory` (`tickets_held`), recreadas con `drop`/`create` y sus privilegios; `assign_ticket_row` y
+`bulk_change_ticket_seller` exigen boleta con vendedor; `tickets_enforce_seller_role` admite el nulo; y
+`match_lottery_result` deja fuera las boletas sin vendedor (§6.h).
+
+**Revertir** es una migración nueva, exacta mientras no exista ninguna boleta sin vendedor ni ningún apartado (la
+nota del final de la `0081`). Con boletas generadas, primero hay que decidir qué pasa con ellas.
+
+**De dónde salió la venta (`0082`, BR-I32, D-258; también solo en local).** `tickets.sold_from_hold` dice que la venta
+vigente salió de un apartado. `sell_ticket_hold` la pone **después** de `assign_ticket_row`, en la misma transacción
+—el CHECK `tickets_sold_from_hold_is_a_sale` no la admite en una boleta todavía disponible—, y `release_ticket_client`
+la quita: si estaba puesta, la liberación deja también `seller_id` nulo y la boleta vuelve al inventario común
+(§6.g.3). Corregir el cliente o el precio no la tocan. Ninguna venta anterior a la `0082` la lleva. La `0082` se
+publica con la `0081`, nunca después (D-258).
+
 ---
 
 ## 4.bis Lo que falta del encargo de cobro — **NADA: LAS CINCO TABLAS EXISTEN**
@@ -1521,6 +1609,22 @@ exportan: son la historia del dinero entregado.
 Handler. Es el **único** sitio del encargo que habla hacia afuera desde la base, y lo que manda no
 es ese toque sino la cola.
 
+
+### 4.28 `raffle_number_format_audits` (`0084`, BR-N23, D-261)
+
+Una fila por rifa que **ya existía** al aplicar la `0084`: qué estructura se le asignó y cómo estaban sus boletas. Es
+la evidencia de que la compatibilidad no se dedujo de los datos, sino que se asignó y se midió.
+
+| Columna | Qué guarda |
+|---|---|
+| `raffle_id` (PK) / `organization_id` | La rifa, con FK compuesta a `raffles` |
+| `audited_at` / `source` | Cuándo y qué migración (`'0084'`) |
+| Las cinco de la estructura | Lo que se le asignó: `Diario` 4 + `Semanal` 4 |
+| `tickets_count` / `tickets_with_numbers` | Sus boletas, y cuántas tenían números |
+| `nonconforming_count` / `nonconforming_by_status` | Cuántas no cumplían ese formato, y por estado (`jsonb`) |
+| `daily_lengths` / `weekly_lengths` | Los anchos que había en cada número |
+
+RLS forzada y **solo la lee la service role**: ninguna sesión la ve. La migración no la vuelve a escribir.
 
 ---
 
@@ -1543,6 +1647,11 @@ es ese toque sino la cola.
 | `tickets` | `(organization_id, raffle_id, weekly_number)` | Comparación exacta y por prefijo del número semanal |
 | `tickets` | `(organization_id, internal_code)` (único) | Unicidad del código; ya no lo usa ninguna búsqueda de la interfaz |
 | `tickets` | `(client_id) WHERE client_id IS NOT NULL` | Perfil de cliente; también los saldos de `v_client_balances` desde `0030` |
+| `tickets` | `tickets_common_inventory_idx (raffle_id, daily_number, weekly_number) WHERE seller_id IS NULL` (`0081`) | El inventario común de una rifa, en el orden del catálogo interno (BR-I20) |
+| `tickets` | `tickets_generation_run_idx (generation_run_id) WHERE generation_run_id IS NOT NULL` (`0081`) | Las que creó una generación: las que ya existían, distinguidas (BR-N17) |
+| `ticket_holds` | `ticket_holds_one_open_per_ticket (ticket_id) WHERE ended_at IS NULL`, **único** (`0081`) | Un apartado abierto por boleta, como mucho |
+| `ticket_holds` | `(seller_id, raffle_id) WHERE ended_at IS NULL` y `(raffle_id) WHERE ended_at IS NULL` (`0081`) | El cupo de un vendedor y los apartados de una rifa |
+| `ticket_generation_runs` | `(raffle_id, created_at desc)` y `(organization_id, created_at desc)` (`0081`) | Las generaciones recientes |
 | `tickets` | `(organization_id, raffle_id, payment_status)` | Métricas y reportes |
 | `tickets` | `(created_at DESC)` (`0030`) | Orden por defecto del listado de boletas (D-102) |
 | `tickets` | `(assigned_at DESC) WHERE inventory_status = 'assigned'` (`0030`) | «Ventas recientes» del panel (D-102) |
@@ -1585,6 +1694,9 @@ bastan para el matching: no se añadió otro sobre los números.
 
 La unicidad de `tickets_combo_unique` genera su propio índice, que además sirve para detectar
 duplicados durante la carga masiva.
+
+`tickets_single_group_unique` (`0084`, §4.6.3) es **parcial**: solo indexa las boletas de rifas de un número, así que
+no pesa en las de dos. El generador y la creación en lote lo usan de árbitro de `ON CONFLICT` con su predicado.
 
 **`clients.search_text`** (`0017`, D-079) es una columna **generada** con nombre, alias, teléfono
 —con separadores y sin ellos— y correo, todo en minúsculas y sin acentos mediante
@@ -1846,6 +1958,13 @@ transición **a** `assigned`. `tickets_sync_commission` sí se dispara, pero
 contaba antes ni cuenta después. Deja `ticket.release_client` con cliente, precio, precio base, fecha
 de venta, `assigned_at` y números anteriores más el motivo, además de la `ticket.update` automática
 de la fila (D-169, BR-I14).
+
+**Desde la `0082` (D-258, BR-I32; solo en local).** Si la venta salió de un apartado (`sold_from_hold`), la misma
+sentencia deja también `seller_id` nulo y quita la marca: la boleta vuelve al **inventario común**, y el CHECK
+`tickets_without_seller_is_inventory` se cumple porque exige justo lo que la liberación ya borraba. La comparación
+del vendedor pasó a `is distinct from`. La bitácora añade la marca anterior a `old_values` y `to_common_inventory` a
+`new_values`. Solo libera el vendedor de la boleta desde D-198 (`0057`); la puerta del personal descrita arriba ya no
+existe.
 
 ### 6.g.4 Entrega del paz y salvo (migración `0049`)
 
@@ -2191,6 +2310,10 @@ temprana entre la original y la oficial— en vez de en `original_scheduled_at`.
 es NULL; como un sorteo sin hora oficial ya se rechazaba antes de llegar ahí, en la práctica sigue
 siendo el sorteo sin hora original. La firma, lo que devuelve y la rama heredada no cambian.
 
+**Desde la `0081` (D-257)** las dos ramas dejan fuera las boletas **sin vendedor** (`t.seller_id is not null`): la
+fotografía exige vendedor y una boleta del inventario común no es de nadie todavía (BR-I17). El cuerpo es el de la
+`0064` con ese filtro y nada más, comparado línea a línea.
+
 ### 6.i Sincronización de lotería (migraciones `0037`, `0038`)
 
 | Función | Devuelve | Consumidor |
@@ -2322,6 +2445,19 @@ sobre las fotografías. Valen también con la service role.
 **Los del cierre de cuentas** (`0080`, §4.26): `settlement_transfers_guard`, `settlement_prize_payments_guard` y
 `settlement_closings_guard`, los tres `BEFORE UPDATE OR DELETE` con `settlement_rows_guard`: nada se borra, de una
 entrega o de un pago solo se escribe la anulación, y un cierre no se toca. Valen también con la service role.
+
+**Los de los números de cada rifa** (`0084`, D-261). `raffles_guard_number_groups` (`BEFORE INSERT OR UPDATE OF` las
+cinco columnas, §4.4) y `tickets_enforce_number_format` (§4.6.1), los dos `SECURITY DEFINER` porque las reglas puras
+que llaman no las ejecuta ninguna sesión.
+
+**Los del inventario común** (`0081`, §4.27). Sobre `tickets`: `tickets_guard_inventory` (`BEFORE INSERT OR UPDATE OF
+seller_id, generation_run_id, sold_from_hold` desde la `0082`, `security invoker`) rechaza con `42501` que una sesión
+`authenticated` o `anon` cree una boleta sin vendedor, le quite el vendedor a una, escriba `generation_run_id` (BR-I19)
+o escriba `sold_from_hold` (BR-I32); `tickets_guard_hold` (`BEFORE
+UPDATE OR DELETE`, solo cuando la boleta no tiene vendedor) rechaza tocar una apartada y cierra los vencidos (BR-I23).
+`audit_tickets` quedó en dos: `AFTER UPDATE OR DELETE` como siempre y `audit_tickets_insert` (`AFTER INSERT`, **salvo
+las que traen `generation_run_id`**, BR-I31). Sobre `memberships` y `profiles`: `memberships_end_ticket_holds` y
+`profiles_end_ticket_holds` cierran los apartados de quien deja de vender (BR-I26).
 
 ---
 

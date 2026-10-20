@@ -1,3 +1,5 @@
+import { LEGACY_NUMBER_FORMAT, type RaffleNumberFormat } from '@/lib/ticket-number-format'
+
 /**
  * Lo que solo entiende el catalogo publico: el saludo al vendedor y la peticion
  * de una boleta (BR-K09).
@@ -51,12 +53,23 @@ export function shortSellerName(fullName: string, alias: string | null): string 
 export function catalogWhatsappMessage(params: {
   sellerShortName: string
   dailyNumber: string
-  weeklyNumber: string
+  weeklyNumber: string | null
+  /**
+   * D-261: los números se nombran como los nombró la rifa —«con diario 1234 y
+   * semanal 5678» en la de siempre, igual que antes—. Con un solo número, el
+   * número basta: en esa rifa ya es único (BR-N04).
+   */
+  numberFormat?: RaffleNumberFormat
 }): string {
   const { sellerShortName, dailyNumber, weeklyNumber } = params
+  const [first, second] = (params.numberFormat ?? LEGACY_NUMBER_FORMAT).groups
+  if (!second || weeklyNumber === null) {
+    return `Hola, ${sellerShortName}. Quiero solicitar la boleta ${dailyNumber} de la rifa. ¿Sigue disponible?`
+  }
+  const name = (text: string) => text.toLocaleLowerCase('es-CO')
   return (
-    `Hola, ${sellerShortName}. Quiero solicitar la boleta con diario ${dailyNumber} ` +
-    `y semanal ${weeklyNumber} de la rifa. ¿Sigue disponible?`
+    `Hola, ${sellerShortName}. Quiero solicitar la boleta con ${name(first.name)} ${dailyNumber} ` +
+    `y ${name(second.name)} ${weeklyNumber} de la rifa. ¿Sigue disponible?`
   )
 }
 

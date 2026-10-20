@@ -25,6 +25,9 @@ const eslintConfig = defineConfig([
     'supabase/.branches/**',
     'supabase/.temp/**',
     'src/components/ui/**',
+    // Las copias de trabajo de otras sesiones viven dentro del repositorio y
+    // traen su propio `.next`: no son este código (I-217).
+    '.claude/**',
   ]),
 ])
 

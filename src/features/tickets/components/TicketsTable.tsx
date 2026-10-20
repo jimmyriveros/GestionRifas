@@ -18,12 +18,11 @@ import {
   type TicketSelectionContextValue,
 } from '@/features/tickets/selection/TicketSelectionContext'
 import { formatCOP } from '@/lib/money'
-import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
 import { ticketFinancials } from '../financials'
 import { ClearanceReceiptIndicator } from './ClearanceReceiptIndicator'
-import { TicketNumbersCell } from './TicketNumbers'
+import { TicketNumbersCell, ticketNumbersLabel } from './TicketNumbers'
 
 import type { AdminTicketListItem } from '../admin-queries'
 import type { TicketListItem } from '../queries'
@@ -383,7 +382,7 @@ function selectColumn<T extends TicketTableRow>(
         <SelectionCheckbox
           checked={selection.isSelected(row.original.id)}
           onCheckedChange={() => selection.toggle(row.original.id)}
-          label={`Seleccionar la boleta ${ticketLabel(row.original)}`}
+          label={`Seleccionar la boleta ${ticketNumbersLabel(row.original)}`}
         />
       ),
     },

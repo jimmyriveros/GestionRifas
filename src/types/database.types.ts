@@ -1497,6 +1497,48 @@ export type Database = {
           },
         ]
       }
+      raffle_hold_settings: {
+        Row: {
+          duration_minutes: number
+          max_active_per_seller: number
+          organization_id: string
+          raffle_id: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          duration_minutes: number
+          max_active_per_seller: number
+          organization_id: string
+          raffle_id: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          duration_minutes?: number
+          max_active_per_seller?: number
+          organization_id?: string
+          raffle_id?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raffle_hold_settings_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "raffle_hold_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       raffle_prize_reward_options: {
         Row: {
           amount: number | null
@@ -1867,10 +1909,15 @@ export type Database = {
           currency: string
           description: string | null
           end_date: string
+          first_group_digits: number
+          first_group_name: string
           id: string
           name: string
+          number_group_count: number
           organization_id: string
           prize_mode: Database["public"]["Enums"]["raffle_prize_mode"]
+          second_group_digits: number | null
+          second_group_name: string | null
           short_code: string
           start_date: string
           status: Database["public"]["Enums"]["raffle_status"]
@@ -1886,10 +1933,15 @@ export type Database = {
           currency?: string
           description?: string | null
           end_date: string
+          first_group_digits?: number
+          first_group_name?: string
           id?: string
           name: string
+          number_group_count?: number
           organization_id: string
           prize_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
+          second_group_digits?: number | null
+          second_group_name?: string | null
           short_code?: string
           start_date: string
           status?: Database["public"]["Enums"]["raffle_status"]
@@ -1905,10 +1957,15 @@ export type Database = {
           currency?: string
           description?: string | null
           end_date?: string
+          first_group_digits?: number
+          first_group_name?: string
           id?: string
           name?: string
+          number_group_count?: number
           organization_id?: string
           prize_mode?: Database["public"]["Enums"]["raffle_prize_mode"]
+          second_group_digits?: number | null
+          second_group_name?: string | null
           short_code?: string
           start_date?: string
           status?: Database["public"]["Enums"]["raffle_status"]
@@ -2522,6 +2579,148 @@ export type Database = {
           },
         ]
       }
+      ticket_generation_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          created_count: number
+          daily_from: string
+          daily_to: string
+          existing_count: number
+          existing_generated_count: number
+          id: string
+          organization_id: string
+          processed_count: number
+          raffle_id: string
+          request_id: string
+          status: string
+          total_count: number
+          updated_at: string
+          weekly_from: string | null
+          weekly_to: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          created_count?: number
+          daily_from: string
+          daily_to: string
+          existing_count?: number
+          existing_generated_count?: number
+          id?: string
+          organization_id: string
+          processed_count?: number
+          raffle_id: string
+          request_id: string
+          status?: string
+          total_count: number
+          updated_at?: string
+          weekly_from?: string | null
+          weekly_to?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          created_count?: number
+          daily_from?: string
+          daily_to?: string
+          existing_count?: number
+          existing_generated_count?: number
+          id?: string
+          organization_id?: string
+          processed_count?: number
+          raffle_id?: string
+          request_id?: string
+          status?: string
+          total_count?: number
+          updated_at?: string
+          weekly_from?: string | null
+          weekly_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_generation_runs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_generation_runs_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      ticket_holds: {
+        Row: {
+          end_reason: string | null
+          ended_at: string | null
+          expires_at: string
+          extended_at: string | null
+          id: string
+          organization_id: string
+          raffle_id: string
+          request_id: string
+          seller_id: string
+          started_at: string
+          ticket_id: string
+        }
+        Insert: {
+          end_reason?: string | null
+          ended_at?: string | null
+          expires_at: string
+          extended_at?: string | null
+          id?: string
+          organization_id: string
+          raffle_id: string
+          request_id: string
+          seller_id: string
+          started_at?: string
+          ticket_id: string
+        }
+        Update: {
+          end_reason?: string | null
+          ended_at?: string | null
+          expires_at?: string
+          extended_at?: string | null
+          id?: string
+          organization_id?: string
+          raffle_id?: string
+          request_id?: string
+          seller_id?: string
+          started_at?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_holds_raffle_org_fk"
+            columns: ["raffle_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "raffles"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "ticket_holds_seller_org_fk"
+            columns: ["seller_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["profile_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "ticket_holds_ticket_org_fk"
+            columns: ["ticket_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           approved_at: string | null
@@ -2536,9 +2735,11 @@ export type Database = {
           created_at: string
           created_by: string
           daily_number: string | null
+          generation_run_id: string | null
           id: string
           internal_code: string
           inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
+          number_group_count: number
           organization_id: string
           paid_amount: number
           payment_status:
@@ -2547,7 +2748,8 @@ export type Database = {
           raffle_id: string
           sale_date: string | null
           sale_price: number | null
-          seller_id: string
+          seller_id: string | null
+          sold_from_hold: boolean
           updated_at: string
           weekly_number: string | null
         }
@@ -2564,9 +2766,11 @@ export type Database = {
           created_at?: string
           created_by: string
           daily_number?: string | null
+          generation_run_id?: string | null
           id?: string
           internal_code?: string
           inventory_status?: Database["public"]["Enums"]["ticket_inventory_status"]
+          number_group_count?: number
           organization_id: string
           paid_amount?: number
           payment_status?:
@@ -2575,7 +2779,8 @@ export type Database = {
           raffle_id: string
           sale_date?: string | null
           sale_price?: number | null
-          seller_id: string
+          seller_id?: string | null
+          sold_from_hold?: boolean
           updated_at?: string
           weekly_number?: string | null
         }
@@ -2592,9 +2797,11 @@ export type Database = {
           created_at?: string
           created_by?: string
           daily_number?: string | null
+          generation_run_id?: string | null
           id?: string
           internal_code?: string
           inventory_status?: Database["public"]["Enums"]["ticket_inventory_status"]
+          number_group_count?: number
           organization_id?: string
           paid_amount?: number
           payment_status?:
@@ -2603,7 +2810,8 @@ export type Database = {
           raffle_id?: string
           sale_date?: string | null
           sale_price?: number | null
-          seller_id?: string
+          seller_id?: string | null
+          sold_from_hold?: boolean
           updated_at?: string
           weekly_number?: string | null
         }
@@ -2614,6 +2822,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_generation_run_fk"
+            columns: ["generation_run_id", "raffle_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_generation_runs"
+            referencedColumns: ["id", "raffle_id"]
           },
           {
             foreignKeyName: "tickets_client_org_fk"
@@ -3153,6 +3368,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_assign_inventory_tickets: {
+        Args: { p_seller_id: string; p_ticket_ids: string[] }
+        Returns: Json
+      }
       admin_list_raffles: {
         Args: {
           p_limit?: number
@@ -3244,6 +3463,7 @@ export type Database = {
       }
       admin_list_tickets: {
         Args: {
+          p_custody?: string
           p_inventory_status?: Database["public"]["Enums"]["ticket_inventory_status"]
           p_limit?: number
           p_offset?: number
@@ -3251,20 +3471,22 @@ export type Database = {
           p_raffle_id?: string
           p_search?: string
           p_seller_id?: string
-          p_ticket_ids?: string[]
           p_sort_column?: string
           p_sort_direction?: string
+          p_ticket_ids?: string[]
         }
         Returns: {
           clearance_state: string | null
           daily_number: string | null
+          held_by: string | null
+          hold_expires_at: string | null
           id: string
           inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
           payment_state: string | null
           raffle_id: string
           raffle_name: string | null
           raffle_short_code: string | null
-          seller_id: string
+          seller_id: string | null
           total_count: number
           weekly_number: string | null
         }[]
@@ -3340,18 +3562,80 @@ export type Database = {
           winning_number: string | null
         }[]
       }
+      admin_process_ticket_generation: {
+        Args: { p_processed_count: number; p_run_id: string }
+        Returns: {
+          created_count: number
+          daily_from: string
+          daily_to: string
+          existing_count: number
+          existing_generated_count: number
+          outcome: string
+          processed_count: number
+          raffle_id: string
+          run_id: string
+          status: string
+          total_count: number
+          weekly_from: string | null
+          weekly_to: string | null
+        }[]
+      }
+      admin_raffle_nonconforming_tickets: {
+        Args: { p_limit?: number; p_offset?: number; p_raffle_id: string }
+        Returns: {
+          daily_number: string | null
+          internal_code: string
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
+          problem: string
+          ticket_id: string
+          total_count: number
+          weekly_number: string | null
+        }[]
+      }
+      admin_recover_inventory_tickets: {
+        Args: { p_ticket_ids: string[] }
+        Returns: Json
+      }
+      admin_start_ticket_generation: {
+        Args: {
+          p_daily_from: string
+          p_daily_to: string
+          p_raffle_id: string
+          p_request_id: string
+          p_weekly_from: string
+          p_weekly_to: string
+        }
+        Returns: {
+          created_count: number
+          daily_from: string
+          daily_to: string
+          existing_count: number
+          existing_generated_count: number
+          outcome: string
+          processed_count: number
+          raffle_id: string
+          run_id: string
+          status: string
+          total_count: number
+          weekly_from: string | null
+          weekly_to: string | null
+        }[]
+      }
       admin_ticket_bulk_eligibility: {
         Args: { p_ticket_ids: string[] }
         Returns: {
           can_approve: boolean
+          can_assign_to_seller: boolean
           can_cancel: boolean
           can_change_seller: boolean
           can_delete: boolean
+          can_recover: boolean
           daily_number: string | null
+          held_by: string | null
           inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
           raffle_active: boolean
           raffle_id: string
-          seller_id: string
+          seller_id: string | null
           ticket_id: string
           weekly_number: string | null
         }[]
@@ -3366,6 +3650,10 @@ export type Database = {
           clearance_state: string | null
           created_at: string
           daily_number: string | null
+          generation_run_id: string | null
+          held_by: string | null
+          hold_expires_at: string | null
+          hold_extended: boolean
           id: string
           internal_code: string
           inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
@@ -3375,19 +3663,68 @@ export type Database = {
           raffle_short_code: string
           raffle_status: Database["public"]["Enums"]["raffle_status"]
           sale_date: string | null
-          seller_id: string
+          seller_id: string | null
           weekly_number: string | null
+        }[]
+      }
+      admin_ticket_generation_existing: {
+        Args: { p_limit?: number; p_offset?: number; p_run_id: string }
+        Returns: {
+          daily_number: string
+          inventory_status: Database["public"]["Enums"]["ticket_inventory_status"]
+          other_generation: boolean
+          ticket_id: string
+          total_count: number
+          weekly_number: string
+        }[]
+      }
+      admin_ticket_generation_preview: {
+        Args: {
+          p_daily_from: string
+          p_daily_to: string
+          p_raffle_id: string
+          p_weekly_from: string
+          p_weekly_to: string
+        }
+        Returns: {
+          existing_count: number
+          existing_generated_count: number
+          in_progress_run_id: string | null
+          total_count: number
+        }[]
+      }
+      admin_ticket_generation_runs: {
+        Args: { p_limit?: number; p_raffle_id?: string; p_run_id?: string }
+        Returns: {
+          completed_at: string | null
+          created_at: string
+          created_by_name: string | null
+          created_count: number
+          daily_from: string
+          daily_to: string
+          existing_count: number
+          existing_generated_count: number
+          id: string
+          processed_count: number
+          raffle_id: string
+          raffle_name: string
+          raffle_short_code: string
+          status: string
+          total_count: number
+          weekly_from: string | null
+          weekly_to: string | null
         }[]
       }
       admin_ticket_inventory: {
         Args: { p_raffle_id?: string }
         Returns: {
           raffle_id: string
-          seller_id: string
+          seller_id: string | null
           tickets_assigned: number
           tickets_available: number
           tickets_cancelled: number
           tickets_draft: number
+          tickets_held: number
           tickets_not_paid: number
           tickets_paid: number
           tickets_pending_approval: number
@@ -3828,7 +4165,17 @@ export type Database = {
         Args: { p_endpoint: string }
         Returns: boolean
       }
+      extend_ticket_hold: {
+        Args: { p_hold_id: string }
+        Returns: {
+          expires_at: string
+          extended: boolean
+          hold_id: string
+          outcome: string
+        }[]
+      }
       format_cop: { Args: { p_amount: number }; Returns: string }
+      format_count: { Args: { p_value: number }; Returns: string }
       has_org_capability: {
         Args: { p_capability: string; p_org: string }
         Returns: boolean
@@ -3961,7 +4308,12 @@ export type Database = {
         Args: { p_slug: string }
         Returns: {
           available_count: number
+          first_group_digits: number
+          first_group_name: string
+          number_group_count: number
           raffle_name: string
+          second_group_digits: number | null
+          second_group_name: string | null
           seller_alias: string
           seller_name: string
           taken_count: number
@@ -4003,6 +4355,25 @@ export type Database = {
       push_claim_timeout: { Args: never; Returns: string }
       push_max_attempts: { Args: never; Returns: number }
       push_retry_delay: { Args: { p_attempts: number }; Returns: string }
+      raffle_hold_policy: {
+        Args: { p_raffle_id: string }
+        Returns: {
+          duration_minutes: number
+          is_default: boolean
+          max_active_per_seller: number
+        }[]
+      }
+      raffle_hold_settings_for: {
+        Args: { p_raffle_id: string }
+        Returns: {
+          can_manage: boolean
+          duration_minutes: number
+          extension_minutes: number
+          is_default: boolean
+          max_active_per_seller: number
+          raffle_id: string
+        }[]
+      }
       raffle_prize_applicable_version: {
         Args: { p_cutoff: string; p_prize_id: string }
         Returns: string
@@ -4298,6 +4669,10 @@ export type Database = {
         Args: { p_weekdays: number[] }
         Returns: boolean
       }
+      raffle_status_word: {
+        Args: { p_status: Database["public"]["Enums"]["raffle_status"] }
+        Returns: string
+      }
       reassign_ticket_client: {
         Args: {
           p_expected_client_id: string
@@ -4487,6 +4862,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      return_ticket_hold: {
+        Args: { p_hold_id: string }
+        Returns: {
+          hold_id: string
+          outcome: string
+          ticket_id: string
+        }[]
+      }
       revoke_push_subscription: {
         Args: { p_endpoint: string; p_reason: string }
         Returns: boolean
@@ -4582,6 +4965,48 @@ export type Database = {
           sale_date: string
           sale_price: number
           seller_id: string
+          total_count: number
+          weekly_number: string
+        }[]
+      }
+      sell_ticket_hold: {
+        Args: {
+          p_client_id: string
+          p_hold_id: string
+          p_sale_date?: string
+          p_sale_price?: number
+        }
+        Returns: string
+      }
+      seller_inventory_summary: {
+        Args: never
+        Returns: {
+          duration_minutes: number
+          extension_minutes: number
+          free_count: number
+          max_active_per_seller: number
+          my_active_holds: number
+          raffle_id: string
+          raffle_name: string
+          raffle_short_code: string
+          ticket_price: number
+        }[]
+      }
+      seller_inventory_tickets: {
+        Args: {
+          p_daily?: string
+          p_limit?: number
+          p_offset?: number
+          p_only_free?: boolean
+          p_raffle_id: string
+          p_weekly?: string
+        }
+        Returns: {
+          availability: string
+          daily_number: string
+          hold_expires_at: string | null
+          hold_id: string | null
+          ticket_id: string | null
           total_count: number
           weekly_number: string
         }[]
@@ -4698,6 +5123,22 @@ export type Database = {
           voided_by_name: string
         }[]
       }
+      seller_ticket_holds: {
+        Args: { p_raffle_id?: string }
+        Returns: {
+          base_price: number
+          daily_number: string
+          expires_at: string
+          extended: boolean
+          hold_id: string
+          min_sale_price: number
+          raffle_id: string
+          server_now: string
+          started_at: string
+          ticket_id: string
+          weekly_number: string
+        }[]
+      }
       set_payment_reminder_status: {
         Args: {
           p_id: string
@@ -4723,6 +5164,21 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_raffle_hold_settings: {
+        Args: {
+          p_duration_minutes: number
+          p_max_active_per_seller: number
+          p_raffle_id: string
+        }
+        Returns: {
+          can_manage: boolean
+          duration_minutes: number
+          extension_minutes: number
+          is_default: boolean
+          max_active_per_seller: number
+          raffle_id: string
+        }[]
       }
       set_seller_weekly_results_message: {
         Args: { p_custom_message?: string; p_use_custom_message: boolean }
@@ -5113,6 +5569,22 @@ export type Database = {
         Args: { p_draws: Json; p_source: Json }
         Returns: Json
       }
+      take_ticket_hold: {
+        Args: { p_request_id: string; p_ticket_id: string }
+        Returns: {
+          active_count: number
+          daily_number: string
+          expires_at: string
+          extended: boolean
+          hold_id: string
+          is_active: boolean
+          max_active: number
+          outcome: string
+          started_at: string
+          ticket_id: string
+          weekly_number: string
+        }[]
+      }
       taken_ticket_combinations: {
         Args: { p_combos: Json; p_raffle_id: string }
         Returns: {
@@ -5206,8 +5678,23 @@ export type Database = {
           weekly_number: string
         }[]
       }
+      ticket_generation_chunk_size: { Args: never; Returns: number }
+      ticket_generation_max: { Args: never; Returns: number }
+      ticket_generation_range_problem: {
+        Args: { p_from: string; p_to: string }
+        Returns: string | null
+      }
+      ticket_hold_close_expired: {
+        Args: { p_ticket_id: string }
+        Returns: number
+      }
+      ticket_hold_default_max_active: { Args: never; Returns: number }
+      ticket_hold_default_minutes: { Args: never; Returns: number }
+      ticket_hold_extension_minutes: { Args: never; Returns: number }
+      ticket_hold_is_active: { Args: { p_ticket_id: string }; Returns: boolean }
       ticket_import_name_key: { Args: { value: string }; Returns: string }
       ticket_import_phone_key: { Args: { value: string }; Returns: string }
+      ticket_internal_code_capacity: { Args: never; Returns: number }
       ticket_sale_price_limits: {
         Args: { p_ticket_id: string }
         Returns: {
@@ -5409,7 +5896,7 @@ export type Database = {
       payment_reminder_status: "active" | "paused" | "archived"
       push_outbox_status: "queued" | "sending" | "sent" | "failed"
       raffle_prize_category: "main" | "daily" | "weekly" | "special"
-      raffle_prize_digits: "four" | "last_three"
+      raffle_prize_digits: "four" | "last_three" | "last_two"
       raffle_prize_lottery_mode: "corresponding" | "fixed"
       raffle_prize_mode: "legacy" | "configurable"
       raffle_prize_reward_mode: "fixed" | "winner_choice"
@@ -5616,7 +6103,7 @@ export const Constants = {
       payment_reminder_status: ["active", "paused", "archived"],
       push_outbox_status: ["queued", "sending", "sent", "failed"],
       raffle_prize_category: ["main", "daily", "weekly", "special"],
-      raffle_prize_digits: ["four", "last_three"],
+      raffle_prize_digits: ["four", "last_three", "last_two"],
       raffle_prize_lottery_mode: ["corresponding", "fixed"],
       raffle_prize_mode: ["legacy", "configurable"],
       raffle_prize_reward_mode: ["fixed", "winner_choice"],

@@ -7,17 +7,22 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { RaffleStatusBadge } from '@/components/data/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { RaffleInventorySection } from '@/features/inventory/components/RaffleInventorySection'
 import { PrizeList } from '@/features/raffle-prizes/components/PrizeList'
 import { PRIZE_PANEL_COPY } from '@/features/raffle-prizes/copy'
 import { listRafflePrizes } from '@/features/raffle-prizes/queries'
 import { draftActivation } from '@/features/raffle-prizes/review'
 import { RaffleStatusActions } from '@/features/raffles/components/RaffleStatusActions'
 import { raffleEditHref } from '@/features/raffles/edit-origin'
-import { getAdminRaffleDetail } from '@/features/raffles/queries'
+import { NONCONFORMING_COPY } from '@/features/raffles/number-groups'
+import { getAdminRaffleDetail, listNonconformingTickets } from '@/features/raffles/queries'
+import { InventoryStatusBadge } from '@/components/data/StatusBadge'
 import { hasCapability } from '@/lib/auth/capability-resolver'
 import { requireStaff } from '@/lib/auth/guards'
 import { formatDateEs } from '@/lib/dates'
 import { formatCOP } from '@/lib/money'
+import { numberGroupDescription } from '@/lib/ticket-number-format'
+import { ticketLabel } from '@/lib/tickets'
 
 /**
  * Detalle de una rifa. Sus datos y los recuentos de sus boletas; lo vendido, lo
@@ -41,8 +46,13 @@ export default async function RaffleDetailPage({
   // la decide el resolvedor central con la membresia completa, no el rol.
   const canManagePrizes = await hasCapability(membership, 'raffles.prizes.manage')
   const showPrizes = raffle.prizeMode === 'configurable' && canManagePrizes
-  const prizes = showPrizes ? await listRafflePrizes(raffle.id) : []
+  const [prizes, nonconforming] = await Promise.all([
+    showPrizes ? listRafflePrizes(raffle.id) : Promise.resolve([]),
+    // D-261: las que ya existian sin el formato de la rifa. Casi siempre ninguna.
+    listNonconformingTickets(raffle.id),
+  ])
   const activePrizes = prizes.filter((prize) => prize.status === 'active')
+  const groupCount = raffle.numberFormat.groups.length
 
   return (
     <div className="space-y-6">
@@ -91,8 +101,46 @@ export default async function RaffleDetailPage({
           <Field label="Los vendedores pueden crear boletas">
             {raffle.allowSellerTicketCreation ? 'Si' : 'No'}
           </Field>
+          {/* D-261: para siempre desde que la rifa existe. */}
+          <Field label="Números de cada boleta">
+            <ul className="space-y-0.5">
+              {raffle.numberFormat.groups.map((group) => (
+                <li key={group.slot}>{numberGroupDescription(group)}</li>
+              ))}
+            </ul>
+          </Field>
         </CardContent>
       </Card>
+
+      {nonconforming.total > 0 ? (
+        <section
+          aria-labelledby="raffle-nonconforming"
+          className="bg-status-warning-surface text-status-warning-text border-status-warning-border space-y-2 rounded-lg border p-4 text-sm"
+        >
+          <h2 id="raffle-nonconforming" className="font-semibold">
+            {NONCONFORMING_COPY.title}
+          </h2>
+          <p>{NONCONFORMING_COPY.body(nonconforming.total)}</p>
+          <ul className="my-2 space-y-1">
+            {nonconforming.tickets.map((ticket) => (
+              <li key={ticket.ticketId} className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/owner/tickets/${ticket.ticketId}`}
+                  className="font-mono underline-offset-2 hover:underline"
+                >
+                  {ticketLabel(ticket, groupCount)}
+                </Link>
+                <InventoryStatusBadge status={ticket.inventoryStatus} />
+                <span className="text-body-small">{ticket.problem}</span>
+              </li>
+            ))}
+          </ul>
+          {nonconforming.total > nonconforming.tickets.length ? (
+            <p>{NONCONFORMING_COPY.more(nonconforming.tickets.length, nonconforming.total)}</p>
+          ) : null}
+          <p>{NONCONFORMING_COPY.action}</p>
+        </section>
+      ) : null}
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">Boletas de esta rifa</h2>
@@ -105,6 +153,9 @@ export default async function RaffleDetailPage({
         </div>
       </div>
 
+      {/* El inventario comun y los apartados de esta rifa (D-257). */}
+      <RaffleInventorySection raffleId={raffle.id} editable={editable} />
+
       {showPrizes ? (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -113,7 +164,7 @@ export default async function RaffleDetailPage({
               <Link href={`/owner/raffles/${raffle.id}/prizes`}>Configurar premios</Link>
             </Button>
           </div>
-          <PrizeList prizes={activePrizes} />
+          <PrizeList prizes={activePrizes} numberFormat={raffle.numberFormat} />
         </section>
       ) : null}
 

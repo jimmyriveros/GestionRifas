@@ -193,7 +193,7 @@ function TicketList({ rows, emptyLabel }: { rows: TicketEligibility[]; emptyLabe
         <ul className="max-h-48 overflow-y-auto rounded-md border p-2 text-sm">
           {rows.map((row) => (
             <li key={row.ticketId} className="font-mono tabular-nums">
-              {ticketLabel(row)}
+              {ticketLabel(row, row.numberFormat?.groups.length)}
             </li>
           ))}
         </ul>
@@ -212,7 +212,7 @@ function BlockedList({ rows, action }: { rows: TicketEligibility[]; action: Bulk
       <ul className="space-y-1">
         {visible.map((row) => (
           <li key={row.ticketId}>
-            <span className="font-mono tabular-nums">{ticketLabel(row)}</span>
+            <span className="font-mono tabular-nums">{ticketLabel(row, row.numberFormat?.groups.length)}</span>
             {' — '}
             {whyNot(row, action)}
           </li>

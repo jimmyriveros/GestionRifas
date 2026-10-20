@@ -1,5 +1,8 @@
 import 'server-only'
 
+import { listRaffleNumberFormats } from '@/features/raffles/number-formats'
+import type { RaffleNumberFormat } from '@/lib/ticket-number-format'
+
 import { PAGE_SIZE } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/server'
 import type { Database, Json } from '@/types/database.types'
@@ -88,6 +91,8 @@ export type PrizeAwardBase = {
   knownAmount: number | null
   /** Su valor completo no se conoce: alternativas excluyentes o algo en especie. */
   valuePending: boolean
+  /** D-261: los números de la rifa del premio, para nombrar con cuál jugó. */
+  numberFormat?: RaffleNumberFormat
 }
 
 /** Un premio del historial del vendedor: con su cliente. */
@@ -274,13 +279,14 @@ export async function readSellerPrizeAwards(
   try {
     const supabase = await createClient()
     // La página y los indicadores, a la vez: dos lecturas fijas, ninguna por fila.
-    const [list, totals] = await Promise.all([
+    const [list, totals, formats] = await Promise.all([
       supabase.rpc('seller_prize_awards', {
         ...scope,
         p_limit: pageSize,
         p_offset: (filters.page - 1) * pageSize,
       }),
       supabase.rpc('seller_prize_award_totals', scope),
+      listRaffleNumberFormats(),
     ])
     if (list.error || totals.error) return { kind: 'error' }
 
@@ -292,6 +298,7 @@ export async function readSellerPrizeAwards(
       kind: 'ready',
       rows: rows.map((row) => ({
         ...mapBase(row),
+        numberFormat: formats.get(row.raffle_id),
         clientId: row.client_id,
         clientName: row.client_name,
       })),
@@ -338,13 +345,14 @@ export async function readAdminPrizeAwards(
 
   try {
     const supabase = await createClient()
-    const [list, totals] = await Promise.all([
+    const [list, totals, formats] = await Promise.all([
       supabase.rpc('admin_prize_awards', {
         ...scope,
         p_limit: pageSize,
         p_offset: (filters.page - 1) * pageSize,
       }),
       supabase.rpc('admin_prize_award_totals', scope),
+      listRaffleNumberFormats(),
     ])
     if (list.error || totals.error) return { kind: 'error' }
 
@@ -356,6 +364,7 @@ export async function readAdminPrizeAwards(
       kind: 'ready',
       rows: rows.map((row) => ({
         ...mapBase(row),
+        numberFormat: formats.get(row.raffle_id),
         sellerId: row.seller_id,
         sellerName: row.seller_name,
       })),

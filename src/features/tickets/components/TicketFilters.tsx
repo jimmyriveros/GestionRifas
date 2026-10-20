@@ -16,6 +16,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { INVENTORY_COPY } from '@/features/inventory/copy'
+import { TICKET_CUSTODY_VALUES } from '@/features/inventory/rules'
 import { SearchInput } from '@/features/search/components/SearchInput'
 import { adminTicketSearchHint, ticketSearchHint } from '@/features/search/hints'
 import { useUrlSearch } from '@/features/search/use-url-search'
@@ -64,6 +66,11 @@ type TicketFiltersProps = {
   /** Solo el portal del vendedor filtra por cliente. */
   clients?: Option[]
   /**
+   * Solo el portal administrativo: quien tiene la boleta —el inventario comun,
+   * apartada por un vendedor o con un vendedor— (D-257).
+   */
+  custody?: boolean
+  /**
    * Segundo boton de la fila del telefono, a la derecha de «Filtros» (D-108).
    * Hoy lo ocupa `TicketSelectionModeButton`, que necesita el contexto de
    * seleccion y por eso no puede dibujarse desde aqui.
@@ -85,6 +92,7 @@ const FILTER_KEYS = [
   'raffleId',
   'sellerId',
   'clientId',
+  'custody',
   'inventoryStatus',
   'paymentStatus',
 ] as const
@@ -123,6 +131,7 @@ export function TicketFilters({
   raffles,
   sellers,
   clients,
+  custody,
   secondaryAction,
 }: TicketFiltersProps) {
   const router = useRouter()
@@ -171,6 +180,7 @@ export function TicketFilters({
       inventoryStatus: null,
       paymentStatus: null,
       clientId: null,
+      custody: null,
     })
   }
 
@@ -183,6 +193,7 @@ export function TicketFilters({
     // El personal no filtra por cliente, y un estado de pago que no es de los
     // suyos no esta aplicado.
     if (key === 'clientId') return false
+    if (key === 'custody') return Boolean(custody)
     if (key === 'paymentStatus') return paymentValue !== ALL
     return true
   }).length
@@ -214,6 +225,20 @@ export function TicketFilters({
             onChange={(value) => apply({ sellerId: value })}
             options={sellers}
             allLabel="Todos los vendedores"
+            disabled={isPending}
+          />
+        ) : null}
+        {custody ? (
+          <FilterSelect
+            id={`${idPrefix}-custody`}
+            label={INVENTORY_COPY.staff.custodyLabel}
+            value={searchParams.get('custody') ?? ALL}
+            onChange={(value) => apply({ custody: value })}
+            options={TICKET_CUSTODY_VALUES.map((value) => ({
+              value,
+              label: INVENTORY_COPY.staff.custodyOptions[value],
+            }))}
+            allLabel={INVENTORY_COPY.staff.custodyAll}
             disabled={isPending}
           />
         ) : null}

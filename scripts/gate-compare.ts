@@ -17,7 +17,8 @@
  *       delta de estructura es EXACTAMENTE el ensayado en local con los privilegios de
  *       producción (`--expected-delta`) y las tablas nuevas nacen vacías. Una migración
  *       que MUEVE DATOS no cabe en esa regla, y no se le hace un hueco: solo la lista
- *       exacta registrada en `gate-data-effects.ts` —hoy `0078,0079`— tiene sus efectos
+ *       exacta registrada en `gate-data-effects.ts` —hoy `0078,0079` y
+ *       `0081,0082,0083,0084` (D-262)— tiene sus efectos
  *       comprobados uno por uno contra lo que se deriva de la foto de antes y de las
  *       reglas de la migración (D-240, I-191). Lo que coincide queda explicado; cualquier
  *       otra fila sigue deteniendo, igual que para el resto de migraciones;
@@ -191,8 +192,8 @@ async function classify(q: Query, ctx: Context): Promise<Outcome> {
   let efectos: Record<string, number> | null = null
   if (ctx.efectos) {
     const r = ctx.efectos.comprobar({
-      before: (ctx.before.hechos as Row).ganancias,
-      after: (ctx.after.hechos as Row).ganancias,
+      before: (ctx.before.hechos as Row)[ctx.efectos.hechos],
+      after: (ctx.after.hechos as Row)[ctx.efectos.hechos],
       cambios: ctx.cambios,
       tablasNuevas: ctx.tablasNuevas,
       filasAntes: Object.fromEntries(Object.entries(ctx.before.filas).map(([t, f]) => [t, f.n])),

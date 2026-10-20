@@ -62,6 +62,7 @@ export function AssignTicketsForm({
   onUnitPriceChange,
   ticketLabel = null,
   onClientCreated,
+  holdId,
 }: {
   ticketIds: string[]
   /** Suma del precio vigente de la rifa de cada boleta. */
@@ -92,6 +93,12 @@ export function AssignTicketsForm({
    * siempre: cerrar y refrescar.
    */
   onClientCreated?: (outcome: ClientCreatedOutcome) => void
+  /**
+   * El apartado con el que se vende UNA boleta del inventario comun (D-257). Lo
+   * pasa quien abre la venta desde «Tus apartados»; la base solo vende con el
+   * apartado vigente.
+   */
+  holdId?: string
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<'existing' | 'new'>(clients.length > 0 ? 'existing' : 'new')
@@ -158,6 +165,7 @@ export function AssignTicketsForm({
         clientId: selectedId,
         saleDate,
         salePrice: priceToSend,
+        holdId,
       })
       if ('error' in result) {
         setError(result.error)
@@ -181,6 +189,7 @@ export function AssignTicketsForm({
         saleDate,
         salePrice: priceToSend,
         client: values,
+        holdId,
       })
       if ('error' in result) {
         setError(result.error)

@@ -6,7 +6,6 @@ import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog'
-import { TicketNumberInput } from '@/components/form/TicketNumberInput'
 import { CompactActionSlot } from '@/components/layout/CompactHeader'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,11 +26,16 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
+import { assignInventoryTickets, recoverInventoryTickets } from '@/features/inventory/actions'
+import { INVENTORY_COPY } from '@/features/inventory/copy'
+import type { TicketCustody } from '@/features/inventory/rules'
 import type { TicketInventoryStatus } from '@/lib/constants'
+import { ticketNumbersProblem, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import { approveTickets, cancelTicket, reassignTicketSeller, updateTicketNumbers } from '../actions'
 import { cancelTicketSchema, updateTicketNumbersSchema } from '../schemas'
 import { bulkDeleteTickets } from '../selection/actions'
+import { TicketNumberFields, ticketNumbersHelp } from './TicketNumberFields'
 
 /**
  * Lo UNICO que estas acciones necesitan de la boleta (D-198). Es un componente
@@ -43,7 +47,12 @@ export type TicketActionsTicket = {
   dailyNumber: string | null
   weeklyNumber: string | null
   inventoryStatus: TicketInventoryStatus
-  sellerId: string
+  /** `null` en el inventario comun (D-257). */
+  sellerId: string | null
+  /** Quien la tiene: decide que acciones de inventario se ofrecen (D-257). */
+  custody: TicketCustody
+  /** D-261: cuantos numeros pide la boleta y con cuantas cifras. */
+  numberFormat?: RaffleNumberFormat
 }
 
 type TicketActionsProps = {
@@ -61,7 +70,10 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
   const [numbersError, setNumbersError] = useState<string | null>(null)
 
   const [sellerOpen, setSellerOpen] = useState(false)
-  const [sellerId, setSellerId] = useState(ticket.sellerId)
+  const [sellerId, setSellerId] = useState(ticket.sellerId ?? '')
+
+  const [recoverOpen, setRecoverOpen] = useState(false)
+  const [recoverError, setRecoverError] = useState<string | null>(null)
 
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
@@ -86,9 +98,19 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
     ticket.inventoryStatus === 'draft' ||
     ticket.inventoryStatus === 'pending_approval' ||
     ticket.inventoryStatus === 'available'
-  const canChangeSeller = isUnsold
-  const canCancel = isUnsold
-  const canDelete = isUnsold
+  /**
+   * D-257. Una APARTADA no se toca hasta que la vendan, la devuelvan o venza
+   * (BR-I23): ninguna accion de inventario se ofrece. Una del inventario comun
+   * no «cambia» de vendedor, se ASIGNA a uno; y una disponible con vendedor se
+   * puede RECUPERAR al inventario comun.
+   */
+  const held = ticket.custody === 'held'
+  const common = ticket.custody === 'common'
+  const canChangeSeller = isUnsold && ticket.custody === 'seller'
+  const canAssignToSeller = common && ticket.inventoryStatus === 'available'
+  const canRecover = ticket.custody === 'seller' && ticket.inventoryStatus === 'available'
+  const canCancel = isUnsold && !held
+  const canDelete = isUnsold && !held
 
   function saveNumbers() {
     const parsed = updateTicketNumbersSchema.safeParse({
@@ -99,6 +121,14 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
     if (!parsed.success) {
       setNumbersError(parsed.error.issues[0]?.message ?? 'Revisa los números.')
       return
+    }
+    // D-261: las cifras exactas de la rifa, con la frase de la base.
+    if (ticket.numberFormat) {
+      const problem = ticketNumbersProblem(ticket.numberFormat, daily, weekly || null, true)
+      if (problem) {
+        setNumbersError(problem)
+        return
+      }
     }
     setNumbersError(null)
 
@@ -116,6 +146,17 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
 
   function saveSeller() {
     startTransition(async () => {
+      if (common) {
+        const assigned = await assignInventoryTickets({ ticketIds: [ticket.id], sellerId })
+        if ('error' in assigned) {
+          toast.error(assigned.error)
+          return
+        }
+        toast.success(assigned.data.message)
+        setSellerOpen(false)
+        router.refresh()
+        return
+      }
       const result = await reassignTicketSeller({ ticketId: ticket.id, sellerId })
       if ('error' in result) {
         toast.error(result.error)
@@ -123,6 +164,20 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
       }
       toast.success('Boleta reasignada.')
       setSellerOpen(false)
+      router.refresh()
+    })
+  }
+
+  function confirmRecover() {
+    setRecoverError(null)
+    startTransition(async () => {
+      const result = await recoverInventoryTickets({ ticketIds: [ticket.id] })
+      if ('error' in result) {
+        setRecoverError(result.error)
+        return
+      }
+      toast.success(result.data.message)
+      setRecoverOpen(false)
       router.refresh()
     })
   }
@@ -204,7 +259,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
         </CompactActionSlot>
       ) : null}
 
-      {!isCancelled ? (
+      {!isCancelled && !held ? (
         <Button
           type="button"
           variant="outline"
@@ -213,6 +268,30 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
           onClick={() => setNumbersOpen(true)}
         >
           Editar números
+        </Button>
+      ) : null}
+
+      {canAssignToSeller ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="grow sm:grow-0"
+          onClick={() => setSellerOpen(true)}
+        >
+          {INVENTORY_COPY.staff.assignAction}
+        </Button>
+      ) : null}
+
+      {canRecover ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          className="grow sm:grow-0"
+          onClick={() => setRecoverOpen(true)}
+        >
+          {INVENTORY_COPY.staff.recoverAction}
         </Button>
       ) : null}
 
@@ -256,9 +335,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar números</DialogTitle>
-            <DialogDescription>
-              Entre 1 y 4 dígitos. Los ceros iniciales importan: 007 no es lo mismo que 7.
-            </DialogDescription>
+            <DialogDescription>{ticketNumbersHelp(ticket.numberFormat)}</DialogDescription>
           </DialogHeader>
 
           {numbersError ? (
@@ -270,16 +347,12 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
             </p>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="daily-number">Número diario</Label>
-              <TicketNumberInput id="daily-number" value={daily} onChange={setDaily} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="weekly-number">Número semanal</Label>
-              <TicketNumberInput id="weekly-number" value={weekly} onChange={setWeekly} />
-            </div>
-          </div>
+          <TicketNumberFields
+            format={ticket.numberFormat}
+            values={{ daily, weekly }}
+            onChange={(slot, value) => (slot === 'daily_number' ? setDaily(value) : setWeekly(value))}
+            idPrefix="ticket-number"
+          />
 
           <DialogFooter>
             <Button
@@ -300,9 +373,13 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
       <Dialog open={sellerOpen} onOpenChange={setSellerOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Cambiar vendedor</DialogTitle>
+            <DialogTitle>
+              {common ? INVENTORY_COPY.staff.assignTitle : 'Cambiar vendedor'}
+            </DialogTitle>
             <DialogDescription>
-              Solo es posible mientras la boleta no este asignada a un cliente.
+              {common
+                ? INVENTORY_COPY.staff.assignDescription
+                : 'Solo es posible mientras la boleta no este asignada a un cliente.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -310,7 +387,7 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
             <Label htmlFor="ticket-seller">Vendedor</Label>
             <Select value={sellerId} onValueChange={setSellerId}>
               <SelectTrigger id="ticket-seller" className="w-full">
-                <SelectValue />
+                <SelectValue placeholder={INVENTORY_COPY.staff.assignSellerPlaceholder} />
               </SelectTrigger>
               <SelectContent>
                 {sellers.map((seller) => (
@@ -334,13 +411,36 @@ export function TicketActions({ ticket, sellers }: TicketActionsProps) {
             <Button
               size="touch"
               onClick={saveSeller}
-              disabled={isPending || sellerId === ticket.sellerId}
+              disabled={isPending || sellerId === '' || sellerId === ticket.sellerId}
             >
-              {isPending ? 'Guardando...' : 'Guardar'}
+              {isPending
+                ? 'Guardando...'
+                : common
+                  ? INVENTORY_COPY.staff.assignConfirm(1)
+                  : 'Guardar'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={recoverOpen}
+        onOpenChange={(open) => {
+          setRecoverOpen(open)
+          if (!open) setRecoverError(null)
+        }}
+        title={INVENTORY_COPY.staff.recoverTitle}
+        description={INVENTORY_COPY.staff.recoverDescription}
+        confirmLabel={INVENTORY_COPY.staff.recoverConfirm(1)}
+        pending={isPending}
+        onConfirm={confirmRecover}
+      >
+        {recoverError ? (
+          <p role="alert" className="text-destructive text-sm">
+            {recoverError}
+          </p>
+        ) : null}
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={cancelOpen}

@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
-import { TicketNumberInput } from '@/components/form/TicketNumberInput'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+import { TicketNumberFields, ticketNumbersHelp } from '@/features/tickets/components/TicketNumberFields'
+import { ticketNumbersProblem, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import { updateSellerTicketNumbers } from '../actions'
 import { updateSellerTicketNumbersSchema } from '../schemas'
@@ -23,6 +23,8 @@ type SellerTicketActionsProps = {
   ticketId: string
   dailyNumber: string | null
   weeklyNumber: string | null
+  /** D-261: cuantos numeros pide la boleta y con cuantas cifras. */
+  numberFormat?: RaffleNumberFormat
 }
 
 /** Correccion de numeros antes de la aprobacion (matriz de permisos). */
@@ -30,6 +32,7 @@ export function SellerTicketActions({
   ticketId,
   dailyNumber,
   weeklyNumber,
+  numberFormat,
 }: SellerTicketActionsProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -47,6 +50,14 @@ export function SellerTicketActions({
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Revisa los números.')
       return
+    }
+    // D-261: las cifras exactas de la rifa, con la frase de la base.
+    if (numberFormat) {
+      const problem = ticketNumbersProblem(numberFormat, daily, weekly || null, true)
+      if (problem) {
+        setError(problem)
+        return
+      }
     }
     setError(null)
 
@@ -73,8 +84,7 @@ export function SellerTicketActions({
           <DialogHeader>
             <DialogTitle>Corregir números</DialogTitle>
             <DialogDescription>
-              Solo puedes hacerlo mientras la boleta no este aprobada. Los ceros iniciales importan:
-              007 no es lo mismo que 7.
+              Solo puedes hacerlo mientras la boleta no esté aprobada. {ticketNumbersHelp(numberFormat)}
             </DialogDescription>
           </DialogHeader>
 
@@ -87,16 +97,12 @@ export function SellerTicketActions({
             </p>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="seller-daily">Número diario</Label>
-              <TicketNumberInput id="seller-daily" value={daily} onChange={setDaily} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="seller-weekly">Número semanal</Label>
-              <TicketNumberInput id="seller-weekly" value={weekly} onChange={setWeekly} />
-            </div>
-          </div>
+          <TicketNumberFields
+            format={numberFormat}
+            values={{ daily, weekly }}
+            onChange={(slot, value) => (slot === 'daily_number' ? setDaily(value) : setWeekly(value))}
+            idPrefix="seller"
+          />
 
           <DialogFooter>
             <Button

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { authorizeAction } from '@/lib/auth/guards'
 import type { ActionResultWith } from '@/lib/action-result'
 import { mapPgError } from '@/lib/errors'
+import { numberFormatFromRow, RAFFLE_NUMBER_FORMAT_COLUMNS } from '@/lib/ticket-number-format'
 import { createClient } from '@/lib/supabase/server'
 
 import { comboKey, hasErrors, validateBulkRows } from '../bulk/duplicates'
@@ -103,7 +104,7 @@ export async function checkImportPreview(
 
   const { data: raffle, error: raffleError } = await supabase
     .from('raffles')
-    .select('id')
+    .select(`id, ${RAFFLE_NUMBER_FORMAT_COLUMNS}`)
     .eq('id', raffleId)
     .maybeSingle()
 
@@ -112,11 +113,13 @@ export async function checkImportPreview(
 
   if (rows.length === 0) return { ok: true, data: { taken: [] } }
 
+  // D-261: con un solo número se compara ese número; el segundo no existe.
+  const single = numberFormatFromRow(raffle).groups.length === 1
   const { data, error } = await supabase.rpc('taken_ticket_combinations', {
     p_raffle_id: raffleId,
     p_combos: rows.map((row) => ({
       daily_number: row.dailyNumber,
-      weekly_number: row.weeklyNumber,
+      weekly_number: single ? '' : row.weeklyNumber,
     })),
   })
 
@@ -124,7 +127,11 @@ export async function checkImportPreview(
 
   return {
     ok: true,
-    data: { taken: (data ?? []).map((row) => comboKey(row.daily_number, row.weekly_number)) },
+    data: {
+      taken: (data ?? []).map((row) =>
+        comboKey(row.daily_number, single ? '' : (row.weekly_number ?? '')),
+      ),
+    },
   }
 }
 
@@ -140,11 +147,22 @@ export async function importTickets(
   }
   const { raffleId, source, rows } = parsed.data
 
+  // D-261: las filas, con los números de LA rifa. Leerla es de todo miembro.
+  const { data: raffleRow } = await (await createClient())
+    .from('raffles')
+    .select(RAFFLE_NUMBER_FORMAT_COLUMNS)
+    .eq('id', raffleId)
+    .maybeSingle()
+  if (!raffleRow) return { error: 'La rifa no existe o no tienes acceso a ella.' }
+  const format = numberFormatFromRow(raffleRow)
+
   // Segunda capa (BR-N10): formato y repeticiones dentro del propio envio. El
   // choque con la rifa lo resuelve la restriccion unica al escribir.
-  if (hasErrors(validateBulkRows(rows, { requireComplete: true }))) {
+  if (hasErrors(validateBulkRows(rows, { requireComplete: true, format }))) {
     return { error: 'El archivo tiene filas con números inválidos o repetidos entre sí.' }
   }
+  const single = format.groups.length === 1
+  const cleanRows = single ? rows.map((row) => ({ ...row, weeklyNumber: '' })) : rows
 
   const unsupported = unsupportedRowsError(rows)
   if (unsupported) return { error: unsupported }
@@ -156,8 +174,8 @@ export async function importTickets(
   if (!sellerId) return { error: 'Selecciona un vendedor.' }
 
   const result = isSeller
-    ? await insertAsSeller(raffleId, rows, auth.membership.organizationId, sellerId)
-    : await insertAsStaff(raffleId, sellerId, rows)
+    ? await insertAsSeller(raffleId, cleanRows, auth.membership.organizationId, sellerId, single)
+    : await insertAsStaff(raffleId, sellerId, cleanRows, single)
 
   if ('error' in result) return result
 
@@ -209,6 +227,7 @@ async function insertAsStaff(
   raffleId: string,
   sellerId: string,
   rows: readonly { dailyNumber: string; weeklyNumber: string }[],
+  single: boolean,
 ): Promise<ActionResultWith<{ inserted: number; conflicts: string[] }>> {
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('bulk_create_tickets', {
@@ -216,7 +235,8 @@ async function insertAsStaff(
     p_seller_id: sellerId,
     p_rows: rows.map((row) => ({
       daily_number: row.dailyNumber,
-      weekly_number: row.weeklyNumber,
+      // D-261: con un solo número, el segundo no existe.
+      weekly_number: single ? null : row.weeklyNumber,
     })),
   })
 
@@ -228,8 +248,8 @@ async function insertAsStaff(
     data: {
       inserted: rpc.inserted ?? 0,
       conflicts: (rpc.conflicts ?? []).flatMap((conflict) =>
-        conflict.daily_number && conflict.weekly_number
-          ? [comboKey(conflict.daily_number, conflict.weekly_number)]
+        conflict.daily_number && (single || conflict.weekly_number)
+          ? [comboKey(conflict.daily_number, single ? '' : (conflict.weekly_number ?? ''))]
           : [],
       ),
     },
@@ -254,6 +274,7 @@ async function insertAsSeller(
   rows: readonly { dailyNumber: string; weeklyNumber: string }[],
   organizationId: string,
   sellerId: string,
+  single: boolean,
 ): Promise<ActionResultWith<{ inserted: number; conflicts: string[] }>> {
   const supabase = await createClient()
 
@@ -273,6 +294,9 @@ async function insertAsSeller(
       error: 'Esta rifa no permite que los vendedores creen boletas. Pídelas a tu administrador.',
     }
   }
+
+  // D-261: el `upsert` no sabe nombrar la unicidad de un solo número.
+  if (single) return insertSingleGroupAsSeller(supabase, raffleId, rows, organizationId, sellerId)
 
   const { data, error } = await supabase
     .from('tickets')
@@ -308,6 +332,55 @@ async function insertAsSeller(
       conflicts: rows
         .map((row) => comboKey(row.dailyNumber, row.weeklyNumber))
         .filter((key) => !insertedKeys.has(key)),
+    },
+  }
+}
+
+/**
+ * El vendedor importa a una rifa de UN solo número (D-261): se pregunta cuáles
+ * ya están tomados —`taken_ticket_combinations`, que solo dice cuáles— y se
+ * insertan las demás. Si alguien toma una en el medio, el índice
+ * `tickets_single_group_unique` la rechaza con su frase.
+ */
+async function insertSingleGroupAsSeller(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  raffleId: string,
+  rows: readonly { dailyNumber: string }[],
+  organizationId: string,
+  sellerId: string,
+): Promise<ActionResultWith<{ inserted: number; conflicts: string[] }>> {
+  const { data: taken, error: takenError } = await supabase.rpc('taken_ticket_combinations', {
+    p_raffle_id: raffleId,
+    p_combos: rows.map((row) => ({ daily_number: row.dailyNumber, weekly_number: '' })),
+  })
+  if (takenError) return { error: mapPgError(takenError) }
+
+  const takenNumbers = new Set(
+    (taken ?? []).flatMap((row) => (row.daily_number ? [row.daily_number] : [])),
+  )
+  const fresh = rows.filter((row) => !takenNumbers.has(row.dailyNumber))
+  if (fresh.length > 0) {
+    const { error } = await supabase.from('tickets').insert(
+      fresh.map((row) => ({
+        organization_id: organizationId,
+        raffle_id: raffleId,
+        seller_id: sellerId,
+        daily_number: row.dailyNumber,
+        weekly_number: null,
+        inventory_status: 'pending_approval' as const,
+        created_by: sellerId,
+      })),
+    )
+    if (error) return { error: mapPgError(error) }
+  }
+
+  return {
+    ok: true,
+    data: {
+      inserted: fresh.length,
+      conflicts: rows
+        .filter((row) => takenNumbers.has(row.dailyNumber))
+        .map((row) => comboKey(row.dailyNumber, '')),
     },
   }
 }

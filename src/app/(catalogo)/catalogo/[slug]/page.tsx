@@ -145,6 +145,7 @@ export default async function PublicCatalogPage({
             <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
               {tickets.map((ticket) => (
                 <CatalogTicketCard
+                  numberFormat={catalog.numberFormat}
                   key={`${ticket.dailyNumber}-${ticket.weeklyNumber}`}
                   ticket={ticket}
                   sellerShortName={sellerShortName}

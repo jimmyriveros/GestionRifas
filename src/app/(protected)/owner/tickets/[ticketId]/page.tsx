@@ -6,11 +6,13 @@ import { PageHeader } from '@/components/data/PageHeader'
 import { RecordLinkCard } from '@/components/data/RecordLinkCard'
 import { AdminPaymentStateBadge, InventoryStatusBadge } from '@/components/data/StatusBadge'
 import { CardContent } from '@/components/ui/card'
+import { INVENTORY_COPY } from '@/features/inventory/copy'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
-import { getAdminTicketDetail, type AdminTicketDetail } from '@/features/tickets/admin-queries'
+import { getAdminTicketDetail } from '@/features/tickets/admin-queries'
 import { ClearanceReceiptReadOnly } from '@/features/tickets/components/ClearanceReceiptReadOnly'
 import { TicketActions } from '@/features/tickets/components/TicketActions'
 import {
+  ApprovalDetailLine,
   DateTime,
   DetailLine,
   InternalCodeNote,
@@ -51,8 +53,6 @@ export default async function TicketDetailPage({
 
   if (!ticket) notFound()
 
-  const approval = approvalValue(ticket)
-
   return (
     <div className="space-y-5 md:space-y-6">
       {/* EL ENCABEZADO SOLO DICE DONDE ESTAS (D-126). Los dos numeros estan en
@@ -76,6 +76,8 @@ export default async function TicketDetailPage({
               weeklyNumber: ticket.weeklyNumber,
               inventoryStatus: ticket.inventoryStatus,
               sellerId: ticket.sellerId,
+              custody: ticket.custody,
+              numberFormat: ticket.numberFormat,
             }}
             sellers={sellers.map((seller) => ({ id: seller.id, fullName: seller.fullName }))}
           />
@@ -108,7 +110,11 @@ export default async function TicketDetailPage({
           columna `auto` no baja del minimo de su contenido. */}
       <div className="grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-[minmax(0,22.5rem)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4 md:gap-5">
-          <TicketNumbersCard dailyNumber={ticket.dailyNumber} weeklyNumber={ticket.weeklyNumber} />
+          <TicketNumbersCard
+            dailyNumber={ticket.dailyNumber}
+            weeklyNumber={ticket.weeklyNumber}
+            numberFormat={ticket.numberFormat}
+          />
 
           {/* DE QUIEN ES Y DE QUE RIFA. Son la otra respuesta a «que boleta es
               esta» para el personal, que ve varias rifas a la vez (D-126), y
@@ -120,11 +126,24 @@ export default async function TicketDetailPage({
           <TicketDetailCard title="Vendedor y rifa">
             <CardContent className="@container">
               <div className="grid grid-cols-1 gap-2 @min-[36rem]:grid-cols-2">
+                {/* Sin vendedor no hay ficha a la que ir (D-257): la fila dice
+                    «Inventario común» o quien la tiene apartada y hasta cuando,
+                    quieta. El dueño puede saber quien la aparto; nada de su
+                    cartera viaja con eso. */}
                 <RecordLinkCard
-                  href={`/owner/sellers/${ticket.sellerId}`}
+                  href={ticket.sellerId ? `/owner/sellers/${ticket.sellerId}` : null}
                   icon={<UserRoundIcon className="size-5" />}
                   label="Vendedor"
-                  title={ticket.sellerName}
+                  title={
+                    ticket.custody === 'held'
+                      ? INVENTORY_COPY.staff.commonInventory
+                      : ticket.sellerName
+                  }
+                  detail={
+                    ticket.custody === 'held' && ticket.heldByName && ticket.holdExpiresAt
+                      ? INVENTORY_COPY.staff.heldUntil(ticket.heldByName, ticket.holdExpiresAt)
+                      : null
+                  }
                   wrap
                 />
                 <RecordLinkCard
@@ -201,7 +220,10 @@ export default async function TicketDetailPage({
             <CardContent>
               <dl className="divide-y text-sm">
                 <DetailLine label="Creada" value={<DateTime value={ticket.createdAt} />} />
-                {approval !== null ? <DetailLine label="Aprobada" value={approval} /> : null}
+                <ApprovalDetailLine
+                  approvedAt={ticket.approvedAt}
+                  inventoryStatus={ticket.inventoryStatus}
+                />
                 {ticket.cancelledAt ? (
                   <DetailLine label="Anulada" value={<DateTime value={ticket.cancelledAt} />} />
                 ) : null}
@@ -217,21 +239,6 @@ export default async function TicketDetailPage({
       </div>
     </div>
   )
-}
-
-/**
- * Que decir en «Aprobada», o `null` para no escribir la fila.
- *
- * Aprobar es el paso de una boleta `pending_approval`, la que crea un VENDEDOR
- * (CLAUDE.md §16, BR-I09). Las que crea el personal nacen listas y no tienen
- * fecha de aprobacion: escribir «Todavía no» en ellas diria que falta algo que
- * no falta. Por eso «Todavía no» solo se
- * dice de una pendiente de aprobacion, que es la unica que la espera.
- */
-function approvalValue(ticket: AdminTicketDetail): ReactNode | null {
-  if (ticket.approvedAt) return <DateTime value={ticket.approvedAt} />
-  if (ticket.inventoryStatus === 'pending_approval') return 'Todavía no'
-  return null
 }
 
 /**

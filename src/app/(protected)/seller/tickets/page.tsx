@@ -4,8 +4,11 @@ import Link from 'next/link'
 import { DataTablePagination } from '@/components/data/DataTablePagination'
 import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
+import { Notice } from '@/components/feedback/Notice'
 import { Button } from '@/components/ui/button'
 import { CLIENT_FILTER_OPTIONS_LIMIT, listClientOptions } from '@/features/clients/queries'
+import { INVENTORY_COPY } from '@/features/inventory/copy'
+import { getSellerInventorySummary } from '@/features/inventory/queries'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { ticketSearchEmptyDescription } from '@/features/search/hints'
 import { TicketFilters } from '@/features/tickets/components/TicketFilters'
@@ -42,22 +45,33 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
   // La configuracion de WhatsApp viaja con el HTML de esta pagina (D-176): el
   // dialogo de exito de la venta masiva no consulta nada al abrirse. Va en el
   // mismo `Promise.all` para no anadir un viaje en serie.
-  const [{ rows, total, page, pageSize }, raffles, clients, whatsappSettings] = await Promise.all([
-    listTickets({
-      raffleId: single(params.raffleId),
-      clientId: single(params.clientId),
-      inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
-      paymentStatus: paymentStatus.success ? paymentStatus.data : undefined,
-      search: single(params.q),
-      page: Number.isNaN(requestedPage) ? 1 : requestedPage,
-      sort,
-    }),
-    listRaffleOptions(),
-    // Alimenta el desplegable «Cliente» de los filtros, que no tiene buscador:
-    // su tope es el de siempre, no el pequeno de los selectores con busqueda.
-    listClientOptions(undefined, CLIENT_FILTER_OPTIONS_LIMIT),
-    getWhatsappSettings(),
-  ])
+  const [{ rows, total, page, pageSize }, raffles, clients, whatsappSettings, inventory] =
+    await Promise.all([
+      listTickets({
+        raffleId: single(params.raffleId),
+        clientId: single(params.clientId),
+        inventoryStatus: inventoryStatus.success ? inventoryStatus.data : undefined,
+        paymentStatus: paymentStatus.success ? paymentStatus.data : undefined,
+        search: single(params.q),
+        page: Number.isNaN(requestedPage) ? 1 : requestedPage,
+        sort,
+      }),
+      listRaffleOptions(),
+      // Alimenta el desplegable «Cliente» de los filtros, que no tiene buscador:
+      // su tope es el de siempre, no el pequeno de los selectores con busqueda.
+      listClientOptions(undefined, CLIENT_FILTER_OPTIONS_LIMIT),
+      getWhatsappSettings(),
+      // Lo libre del inventario comun de sus rifas activas (D-257): un aviso con
+      // enlace, solo si hay algo que apartar. Un fallo de esta lectura NO tumba
+      // «Mis boletas», como `getWhatsappSettings`: sin ella solo falta el aviso,
+      // y la llamada fallida ya queda en el registro del servidor (D-251).
+      getSellerInventorySummary().catch(() => []),
+    ])
+  // Solo cuenta donde se puede apartar: con el cupo en 0, «Buscar y apartar»
+  // llevaria a una pantalla en la que no se puede (BR-I27).
+  const freeInCommon = inventory
+    .filter((item) => item.maxActivePerSeller > 0)
+    .reduce((sum, item) => sum + item.freeCount, 0)
 
   const canCreate = raffles.some(
     (raffle) => raffle.status === 'active' && raffle.allowSellerTicketCreation,
@@ -108,6 +122,20 @@ export default async function SellerTicketsPage({ searchParams }: { searchParams
           ) : undefined
         }
       />
+
+      {freeInCommon > 0 ? (
+        <Notice
+          tone="info"
+          density="compact"
+          action={
+            <Button asChild size="touch" variant="outline">
+              <Link href="/seller/inventory">{INVENTORY_COPY.seller.myTicketsNoticeAction}</Link>
+            </Button>
+          }
+        >
+          {INVENTORY_COPY.seller.myTicketsNotice(freeInCommon)}
+        </Notice>
+      ) : null}
 
       {/* La seleccion multiple envuelve filtros y tabla a la vez: buscar
           varias veces y quedarse con boletas de cada busqueda es justo el caso

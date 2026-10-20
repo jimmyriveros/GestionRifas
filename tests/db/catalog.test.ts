@@ -323,6 +323,30 @@ describe('funciones privilegiadas', () => {
       'staff_settlement_overview',
       'staff_settlement_prizes',
       'staff_settlement_transfers',
+      // 0081 (D-257): el inventario comun. Las siete del personal autorizan por
+      // `is_org_staff` —la de ajustes, por la capacidad raffles.holds.manage—
+      // y ninguna devuelve cartera; las del vendedor deciden por su cuenta con la
+      // fila bloqueada y lo ajeno solo lo dicen como «no disponible». Ninguna
+      // recibe actor: sale de auth.uid().
+      'admin_assign_inventory_tickets',
+      'admin_process_ticket_generation',
+      'admin_recover_inventory_tickets',
+      'admin_start_ticket_generation',
+      'admin_ticket_generation_existing',
+      'admin_ticket_generation_preview',
+      'admin_ticket_generation_runs',
+      // 0084 (D-261): las boletas que no tienen el formato de su rifa. Solo el
+      // personal obtiene filas, y solo la lista blanca de D-198.
+      'admin_raffle_nonconforming_tickets',
+      'extend_ticket_hold',
+      'raffle_hold_settings_for',
+      'return_ticket_hold',
+      'sell_ticket_hold',
+      'seller_inventory_summary',
+      'seller_inventory_tickets',
+      'seller_ticket_holds',
+      'set_raffle_hold_settings',
+      'take_ticket_hold',
       // Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
       'current_org_ids',
       'current_profile_id',

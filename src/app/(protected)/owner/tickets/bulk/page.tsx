@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { EmptyState } from '@/components/data/EmptyState'
 import { PageHeader } from '@/components/data/PageHeader'
 import { Button } from '@/components/ui/button'
+import { CreationModeSwitch } from '@/features/inventory/components/CreationModeSwitch'
 import { listRaffleOptions } from '@/features/raffles/queries'
 import { listActiveSellerOptions } from '@/features/sellers/queries'
 import { BulkTicketCreator } from '@/features/tickets/bulk/components/BulkTicketCreator'
@@ -28,6 +29,8 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
     return (
       <div className="space-y-6">
         <PageHeader title="Crear boletas en lote" />
+        {/* Sin vendedores todavia se puede GENERAR al inventario comun (D-257). */}
+        {openRaffles.length > 0 ? <CreationModeSwitch current="write" /> : null}
         <EmptyState
           title={
             openRaffles.length === 0
@@ -57,10 +60,12 @@ export default async function BulkTicketsPage({ searchParams }: { searchParams: 
         title="Crear boletas en lote"
         description={`Hasta ${BULK_TICKET_MAX} boletas por lote. Las filas sin números se guardan como borrador para completarlas después.`}
       />
+      <CreationModeSwitch current="write" raffleId={single(params.raffleId)} />
       <BulkTicketCreator
         raffles={openRaffles.map((raffle) => ({
           id: raffle.id,
           label: `${raffle.shortCode} — ${raffle.name}`,
+          numberFormat: raffle.numberFormat,
         }))}
         sellers={sellers.map((seller) => ({ id: seller.id, label: seller.fullName }))}
         defaultRaffleId={single(params.raffleId)}

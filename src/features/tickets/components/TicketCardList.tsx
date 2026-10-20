@@ -19,12 +19,11 @@ import { useLongPress } from '@/components/data/use-long-press'
 import { SelectionCheckbox } from '@/components/form/SelectionCheckbox'
 import { useOptionalTicketSelection } from '@/features/tickets/selection/TicketSelectionContext'
 import { formatCOP } from '@/lib/money'
-import { ticketLabel } from '@/lib/tickets'
 import { cn } from '@/lib/utils'
 
 import { ticketFinancials } from '../financials'
 import { ClearanceReceiptIndicator } from './ClearanceReceiptIndicator'
-import { hasBothNumbers, TICKET_NUMBERS_LEGEND, TicketNumbersLink } from './TicketNumbers'
+import { ticketNumbersLabel, ticketNumbersLegend, TicketNumbersLink } from './TicketNumbers'
 
 import type { AdminTicketListItem } from '../admin-queries'
 import type { TicketListItem } from '../queries'
@@ -223,7 +222,7 @@ function TicketCards<T extends CardRow>({
       >
         {tickets.map((ticket) => {
           const selected = selection?.isSelected(ticket.id) ?? false
-          const label = ticketLabel(ticket)
+          const label = ticketNumbersLabel(ticket)
 
           return (
             <li
@@ -313,9 +312,9 @@ function SellerCardBody({
         </div>
       </div>
 
-      {hasBothNumbers(ticket) || meta !== '' ? (
+      {ticketNumbersLegend(ticket) !== null || meta !== '' ? (
         <div className="text-muted-foreground flex items-baseline justify-between gap-2 text-xs">
-          <span className="shrink-0">{hasBothNumbers(ticket) ? TICKET_NUMBERS_LEGEND : ''}</span>
+          <span className="shrink-0">{ticketNumbersLegend(ticket) ?? ''}</span>
           {meta === '' ? null : (
             // El codigo corto de la rifa no dice de que rifa se trata: el nombre
             // completo se queda a un toque largo, igual que en la columna «Rifa»
@@ -383,7 +382,7 @@ function StaffCardBody({
       </div>
 
       <div className="text-muted-foreground flex items-baseline justify-between gap-2 text-xs">
-        <span className="shrink-0">{hasBothNumbers(ticket) ? TICKET_NUMBERS_LEGEND : ''}</span>
+        <span className="shrink-0">{ticketNumbersLegend(ticket) ?? ''}</span>
         <span className="truncate" title={ticket.raffleName}>
           {`${ticket.raffleShortCode} · ${ticket.sellerName}`}
         </span>

@@ -196,17 +196,18 @@ const OWNER_TOURS: Tour[] = [
         target: 'page-actions',
         side: 'bottom',
         title: 'Crea las boletas de la rifa',
-        body: 'Con «Crear en lote» generas hasta 1.000 boletas de una vez y las repartes a un vendedor. La opción individual sirve para casos sueltos.',
+        // D-257: «Crear en lote» ofrece ahora las dos formas.
+        body: 'Con «Crear en lote» escribes hasta 1.000 boletas para un vendedor o generas por rangos hasta 100.000 en el inventario común. La opción individual sirve para casos sueltos.',
       },
       ticketFilterStep(
-        'Escribe aquí el número diario o el semanal de la boleta. También puedes acotar la lista por rifa, por vendedor y por estado, y dejarla completa otra vez cuando quieras.',
+        'Escribe aquí uno de los números de la boleta. También puedes acotar la lista por rifa, por vendedor y por estado, y dejarla completa otra vez cuando quieras.',
       ),
       {
         id: 'table',
         target: 'data-table',
         side: 'top',
         title: 'Todas las boletas de tu organización',
-        body: 'Cada boleta trae sus dos números, su vendedor y si ya está pagada. Tócala para aprobarla, cambiarle el vendedor o anularla.',
+        body: 'Cada boleta trae sus números, su vendedor y si ya está pagada. Tócala para aprobarla, cambiarle el vendedor o anularla.',
       },
       closingStep(),
     ],

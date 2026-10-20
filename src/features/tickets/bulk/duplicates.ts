@@ -1,4 +1,5 @@
 import { TICKET_NUMBER_REGEX } from '@/lib/constants'
+import { groupNumberProblem, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import type { BulkTicketRow } from '../schemas'
 
@@ -55,6 +56,13 @@ export function isEmptyRow(row: BulkTicketRow): boolean {
 }
 
 export type ValidateOptions = {
+  /**
+   * D-261: los numeros de la rifa —cuantos y con cuantas cifras exactas—. Con
+   * el, cada numero se valida contra su grupo con la frase de la base, y en una
+   * rifa de un solo numero la fila esta completa con ese numero. Sin el, la
+   * regla de antes (1 a 4 cifras, los dos numeros): solo la usan pruebas viejas.
+   */
+  format?: RaffleNumberFormat
   /** Combinaciones que ya existen en la rifa, en formato `daily/weekly`. */
   existingCombos?: ReadonlySet<string>
   /**
@@ -69,6 +77,7 @@ export function validateBulkRows(
   rows: readonly BulkTicketRow[],
   options: ValidateOptions = {},
 ): RowValidation[] {
+  if (options.format) return validateWithFormat(rows, options.format, options)
   const existing = options.existingCombos ?? new Set<string>()
 
   // Primera pasada: donde aparecio por primera vez cada combinacion completa.
@@ -126,6 +135,102 @@ export function validateBulkRows(
     // vendedor sea ni si esa boleta fue anulada.
     if (existing.has(key)) {
       validation.rowError = 'Esa combinación ya existe en esta rifa.'
+      validation.problem = 'taken'
+    }
+
+    return validation
+  })
+}
+
+/** Una fila tiene TODOS los numeros de su rifa. */
+export function isCompleteFor(row: BulkTicketRow, format: RaffleNumberFormat | undefined): boolean {
+  if (format?.groups.length === 1) return row.dailyNumber !== ''
+  return isComplete(row)
+}
+
+/** La clave de unicidad de una fila: con un numero, el numero solo (D-261). */
+export function comboKeyFor(row: BulkTicketRow, format: RaffleNumberFormat | undefined): string {
+  return format?.groups.length === 1 ? comboKey(row.dailyNumber, '') : comboKey(row.dailyNumber, row.weeklyNumber)
+}
+
+/**
+ * La validacion con la estructura de la rifa (D-261). El mismo orden que la de
+ * siempre —formato, completitud, repetida, tomada— y las mismas salidas; las
+ * frases del formato son las de la base (`ticket_numbers_problem`).
+ */
+function validateWithFormat(
+  rows: readonly BulkTicketRow[],
+  format: RaffleNumberFormat,
+  options: ValidateOptions,
+): RowValidation[] {
+  const existing = options.existingCombos ?? new Set<string>()
+  const single = format.groups.length === 1
+  const [first, second] = format.groups
+
+  const firstSeen = new Map<string, number>()
+  rows.forEach((row, index) => {
+    if (!isCompleteFor(row, format)) return
+    const key = comboKeyFor(row, format)
+    if (!firstSeen.has(key)) firstSeen.set(key, index)
+  })
+
+  return rows.map((row, index) => {
+    const validation: RowValidation = { index }
+    const dailyFilled = row.dailyNumber !== ''
+    const weeklyFilled = !single && row.weeklyNumber !== ''
+
+    const dailyError = groupNumberProblem(first, dailyFilled ? row.dailyNumber : null, false)
+    if (dailyError) {
+      validation.dailyError = dailyError
+      validation.problem = 'format'
+    }
+    if (second) {
+      const weeklyError = groupNumberProblem(second, weeklyFilled ? row.weeklyNumber : null, false)
+      if (weeklyError) {
+        validation.weeklyError = weeklyError
+        validation.problem = 'format'
+      }
+    }
+
+    if (single) {
+      if (options.requireComplete && !dailyFilled) {
+        validation.rowError = `Escribe el número «${first.name}».`
+        validation.problem = 'incomplete'
+        return validation
+      }
+    } else {
+      // BR-N09: o los dos numeros, o ninguno (fila en borrador).
+      if (dailyFilled !== weeklyFilled) {
+        validation.rowError = options.requireComplete
+          ? 'Escribe los dos números.'
+          : 'Completa los dos números o deja la fila vacía para guardarla como borrador.'
+        validation.problem = 'incomplete'
+        return validation
+      }
+      if (options.requireComplete && !dailyFilled) {
+        validation.rowError = 'Escribe los dos números.'
+        validation.problem = 'incomplete'
+        return validation
+      }
+    }
+
+    if (validation.dailyError || validation.weeklyError) return validation
+    if (!isCompleteFor(row, format)) return validation
+
+    const key = comboKeyFor(row, format)
+    const seen = firstSeen.get(key)
+    if (seen !== undefined && seen !== index) {
+      validation.rowError = single
+        ? `Número repetido en la fila ${seen + 1}.`
+        : `Combinación repetida en la fila ${seen + 1}.`
+      validation.problem = 'duplicate'
+      return validation
+    }
+
+    if (existing.has(key)) {
+      validation.rowError = single
+        ? 'Ese número ya existe en esta rifa.'
+        : 'Esa combinación ya existe en esta rifa.'
       validation.problem = 'taken'
     }
 

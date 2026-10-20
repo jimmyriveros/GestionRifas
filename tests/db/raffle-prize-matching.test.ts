@@ -252,6 +252,12 @@ type BoletaInput = {
   estado?: 'pending_approval' | 'cancelled'
   anuladaEn?: string
   aprobadaEn?: string
+  /**
+   * Creada ANTES de la 0084 (D-261): fuera del formato de su rifa —«141» en una
+   * rifa de cuatro cifras—. Se siembra sin disparadores, que es la única forma
+   * de que exista; el motor tiene que seguir tratándola como siempre.
+   */
+  previa?: boolean
 }
 
 /** Crea las boletas y devuelve sus ids en el mismo orden. */
@@ -264,11 +270,22 @@ async function boletas(raffleId: string, filas: BoletaInput[]): Promise<string[]
       : fila.vendedor === 'seller2'
         ? ctx.ids.seller2
         : ctx.ids.seller1
+    if (fila.previa) {
+      await db.query('begin')
+      await db.query('set local session_replication_role = replica')
+    }
     const { rows } = await db.query<{ id: string }>(
-      `insert into tickets (organization_id, raffle_id, seller_id, created_by, daily_number,
-                            weekly_number, inventory_status, created_at, approved_at, approved_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, case when $9::timestamptz is null then null else $4::uuid end)
-       returning id`,
+      fila.previa
+        ? `insert into tickets (organization_id, raffle_id, seller_id, created_by, daily_number,
+                              weekly_number, inventory_status, created_at, approved_at, approved_by,
+                              internal_code, number_group_count)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, case when $9::timestamptz is null then null else $4::uuid end,
+                   'PREVIA-' || gen_random_uuid(), 2)
+           returning id`
+        : `insert into tickets (organization_id, raffle_id, seller_id, created_by, daily_number,
+                              weekly_number, inventory_status, created_at, approved_at, approved_by)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, case when $9::timestamptz is null then null else $4::uuid end)
+           returning id`,
       [
         control ? ctx.controlOrg.id : ctx.demoOrg.id,
         raffleId,
@@ -299,6 +316,7 @@ async function boletas(raffleId: string, filas: BoletaInput[]): Promise<string[]
         [id, fila.anuladaEn ?? VENDIDA],
       )
     }
+    if (fila.previa) await db.query('commit')
     ids.push(id)
   }
   return ids
@@ -561,7 +579,7 @@ describe('M1 — rifas heredadas: el comportamiento de siempre (1)', () => {
       { diario: '3141', semanal: '0001', cliente: ctx.clients.ana.id },
       { diario: '9141', semanal: '0002' },
       { diario: '0003', semanal: '3141' },
-      { diario: '141', semanal: '0004' },
+      { diario: '141', semanal: '0004', previa: true },
     ])
     const { resultId } = await sorteo('cundinamarca', diaDe(lunes, 'cundinamarca'), '3141')
 
@@ -824,7 +842,12 @@ describe('M2 — cuatro cifras y las tres últimas (BR-J06)', () => {
     const numeros = ['046', '1046', '0046', '9046', '46', '6', '0146', '0460']
     const ids = await boletas(
       rifa,
-      numeros.map((diario, i) => ({ diario, semanal: String(i + 1).padStart(4, '0') })),
+      numeros.map((diario, i) => ({
+        diario,
+        semanal: String(i + 1).padStart(4, '0'),
+        // D-261: los de menos de cuatro cifras solo existen de antes de la 0084.
+        previa: diario.length !== 4,
+      })),
     )
     const { resultId } = await sorteo('meta', diaDe(lunes, 'meta'), '0046')
     await buscarBien(resultId)
@@ -850,7 +873,8 @@ describe('M2 — cuatro cifras y las tres últimas (BR-J06)', () => {
       '0000',
     ]
     const ganador = '0046'
-    for (const cifras of ['four', 'last_three'] as const) {
+    // D-261: también las dos últimas, con los mismos números.
+    for (const cifras of ['four', 'last_three', 'last_two'] as const) {
       const { lunes, desde, hasta } = semanas()
       const rifa = await nuevaRifa(`tabla ${cifras}`, desde, hasta)
       await premio(owner, rifa, {
@@ -862,7 +886,11 @@ describe('M2 — cuatro cifras y las tres últimas (BR-J06)', () => {
       await activar(rifa)
       const ids = await boletas(
         rifa,
-        numeros.map((diario, i) => ({ diario, semanal: String(i + 1).padStart(4, '0') })),
+        numeros.map((diario, i) => ({
+          diario,
+          semanal: String(i + 1).padStart(4, '0'),
+          previa: diario.length !== 4,
+        })),
       )
       const { resultId } = await sorteo('bogota', diaDe(lunes, 'bogota'), ganador)
       await buscarBien(resultId)
@@ -1453,7 +1481,7 @@ describe('M5 — cuatro cifras mandan sobre tres, POR CLIENTE (BR-J07, D-203)', 
          select m.organization_id, m.raffle_id, $1, m.id, 'daily_number', $3, $4 from m`,
         [resultId, descartada, tres.prizeId, tres.versionId],
       ),
-    ).rejects.toThrow(/no puede conservar un premio de tres cifras/)
+    ).rejects.toThrow(/no puede conservar un premio de menos cifras cuando tiene uno de más cifras/)
 
     await expect(db.query(insertarFotografia, [resultId, descartada])).rejects.toThrow(
       /se guarda junto con el premio/,
@@ -2283,10 +2311,12 @@ describe('M11 — el 21 de diciembre, completo (30)', () => {
         { diario: '4818', semanal: '0001', cliente: ctx.clients.ana.id },
         { diario: '9818', semanal: '0002', cliente: ctx.clients.ana.id },
         { diario: '0818', semanal: '0003', cliente: ctx.clients.carlos.id },
-        { diario: '818', semanal: '0004', vendedor: 'seller2', cliente: ctx.clients.diego.id },
+        // D-261: «818» y «18» en una rifa de cuatro cifras solo existen de antes
+        // de la 0084; el motor las sigue tratando igual.
+        { diario: '818', semanal: '0004', vendedor: 'seller2', cliente: ctx.clients.diego.id, previa: true },
         { diario: '1111', semanal: '4818', cliente: ctx.clients.beatriz.id },
         { diario: '7818', semanal: '0005' },
-        { diario: '18', semanal: '0006' },
+        { diario: '18', semanal: '0006', previa: true },
       ])
     const { drawNumber } = await programacion('cundinamarca', fecha)
     const { data, error } = await ctx.svc.rpc('confirm_lottery_result', {

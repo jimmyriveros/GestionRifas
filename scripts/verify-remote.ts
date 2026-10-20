@@ -197,6 +197,20 @@ const CHECKS: Check[] = [
               'staff_settlement_prizes', 'staff_settlement_transfers',
               'seller_settlement_account', 'seller_settlement_team',
               'seller_settlement_prizes', 'seller_settlement_transfers',
+              -- 0081 (D-257): el inventario comun. Las del personal autorizan por
+              -- is_org_staff —la de ajustes, por raffles.holds.manage— y no
+              -- devuelven cartera; las del vendedor deciden con la fila bloqueada
+              -- y lo ajeno solo lo dicen como «no disponible»
+              'admin_assign_inventory_tickets', 'admin_process_ticket_generation',
+              'admin_recover_inventory_tickets', 'admin_start_ticket_generation',
+              'admin_ticket_generation_existing', 'admin_ticket_generation_preview',
+              'admin_ticket_generation_runs', 'extend_ticket_hold',
+              'raffle_hold_settings_for', 'return_ticket_hold', 'sell_ticket_hold',
+              'seller_inventory_summary', 'seller_inventory_tickets',
+              'seller_ticket_holds', 'set_raffle_hold_settings', 'take_ticket_hold',
+              -- 0084 (D-261): las boletas que no tienen el formato de su rifa.
+              -- Solo el personal obtiene filas y solo la lista blanca de D-198
+              'admin_raffle_nonconforming_tickets',
               -- Usadas por las POLITICAS de RLS: sin EXECUTE no se lee nada
               'current_org_ids', 'current_profile_id', 'current_profile_leads_team',
               'current_staff_org_ids', 'current_team_seller_ids', 'has_org_role',
@@ -265,6 +279,36 @@ const CHECKS: Check[] = [
             and has_function_privilege('authenticated', p.oid, 'EXECUTE')
             and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
     esperado: 7,
+  },
+  {
+    // La cara positiva de la lista blanca de 0081 (D-257): si estas dieciseis
+    // dejaran de ser ejecutables, ni el generador, ni los lotes, ni los
+    // apartados funcionarian, y ninguna otra comprobacion lo diria.
+    nombre: 'Las 16 RPC del inventario comun son ejecutables por authenticated y no por anon',
+    sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public'
+            and p.proname in ('admin_assign_inventory_tickets', 'admin_process_ticket_generation',
+                              'admin_recover_inventory_tickets', 'admin_start_ticket_generation',
+                              'admin_ticket_generation_existing', 'admin_ticket_generation_preview',
+                              'admin_ticket_generation_runs', 'extend_ticket_hold',
+                              'raffle_hold_settings_for', 'return_ticket_hold', 'sell_ticket_hold',
+                              'seller_inventory_summary', 'seller_inventory_tickets',
+                              'seller_ticket_holds', 'set_raffle_hold_settings', 'take_ticket_hold')
+            and p.prosecdef
+            and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
+    esperado: 16,
+  },
+  {
+    // D-257: las tablas del inventario comun no se leen ni se escriben desde una
+    // sesion; todo pasa por las funciones de arriba.
+    nombre: 'Tablas del inventario comun sin privilegios para authenticated ni anon (D-257)',
+    sql: `select c.relname as x from pg_class c join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'public'
+            and c.relname in ('ticket_holds', 'ticket_generation_runs', 'raffle_hold_settings')
+            and (has_table_privilege('authenticated', c.oid, 'SELECT, INSERT, UPDATE, DELETE')
+                 or has_table_privilege('anon', c.oid, 'SELECT, INSERT, UPDATE, DELETE'))`,
+    esperado: 0,
   },
   {
     // D-198: el personal lee la bitacora redactada por `admin_audit_log`; la
@@ -418,15 +462,57 @@ const CHECKS: Check[] = [
     esperado: 2,
   },
   {
-    // 0075 y 0076 (D-213, D-214): el orden pedido llega a la base. Las dos con
-    // su firma de diez parametros, y ninguna ejecutable por anon.
-    nombre: 'search_tickets y admin_list_tickets con la firma de orden (0075, 0076)',
+    // 0075 y 0076 (D-213, D-214): el orden pedido llega a la base. search_tickets
+    // con sus diez parametros y admin_list_tickets con once desde la 0081 (D-257
+    // le anade p_custody y retira la de diez). Una sola version de cada una —una
+    // sobrecarga vieja confundiria a PostgREST— y ninguna ejecutable por anon.
+    // Antes de la 0081 falla a proposito: admin_list_tickets tiene diez (D-259).
+    nombre: 'search_tickets y admin_list_tickets con la firma de orden (0075, 0076, 0081)',
     sql: `select p.proname as x from pg_proc p join pg_namespace n on n.oid = p.pronamespace
           where n.nspname = 'public'
-            and p.proname in ('search_tickets', 'admin_list_tickets')
-            and p.pronargs = 10
-            and not has_function_privilege('anon', p.oid, 'EXECUTE')`,
+            and ((p.proname = 'search_tickets' and p.pronargs = 10)
+                 or (p.proname = 'admin_list_tickets' and p.pronargs = 11))
+            and not has_function_privilege('anon', p.oid, 'EXECUTE')
+            and (select count(*) from pg_proc q
+                  where q.pronamespace = p.pronamespace and q.proname = p.proname) = 1`,
     esperado: 2,
+  },
+  {
+    // 0084 (D-261): los numeros de la boleta los define su rifa. Las dos
+    // guardas existen, la unicidad de un solo numero es un indice UNICO parcial
+    // —no una regla que dejaria pasar nulos— y ninguna de las funciones puras de
+    // la regla es ejecutable desde una sesion. Antes de la 0084 falla a proposito.
+    nombre: 'Los grupos de numeros de cada rifa y su formato exacto (0084)',
+    sql: `select x from (
+            select 'disparador ' || t.tgname as x
+              from pg_trigger t join pg_class c on c.oid = t.tgrelid
+             where c.relname in ('raffles', 'tickets')
+               and t.tgname in ('raffles_guard_number_groups', 'tickets_enforce_number_format')
+               and not t.tgisinternal
+            union all
+            select 'indice ' || i.indexname
+              from pg_indexes i
+             where i.schemaname = 'public' and i.tablename = 'tickets'
+               and i.indexname = 'tickets_single_group_unique'
+               and i.indexdef like 'CREATE UNIQUE INDEX%WHERE (number_group_count = 1)%'
+            union all
+            select 'funciones puras cerradas'
+             where not exists (
+               select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                where n.nspname = 'public'
+                  and p.proname in ('ticket_numbers_problem', 'raffle_number_groups_problem',
+                                    'raffle_ticket_numbers_problem', 'raffle_prize_digits_count',
+                                    'ticket_generation_group_range_problem',
+                                    'ticket_generation_padded_ranges',
+                                    'tickets_enforce_number_format', 'raffles_guard_number_groups')
+                  and (has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                       or has_function_privilege('anon', p.oid, 'EXECUTE'))
+             )
+            union all
+            select 'last_two'
+             where 'last_two' = any (enum_range(null::raffle_prize_digits)::text[])
+          ) s`,
+    esperado: 5,
   },
   {
     // 0077 (D-220, I-157): R999 -> R1000, sin recortar. Y la funcion del

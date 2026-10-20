@@ -59,9 +59,18 @@ const ALIASES: Record<TicketColumn, readonly string[]> = {
   abono: ['abono', 'abonado', 'abono realizado', 'valor abonado', 'pago', 'pagado', 'payment'],
 }
 
+/**
+ * Los nombres que el dueño dio a los números de la rifa (D-261): una columna
+ * que se llame como un número se reconoce como ese número, antes que los alias
+ * de siempre. «Mayor» y «Seco» entran solos en una rifa con esos números.
+ */
+export type GroupNames = { daily?: string; weekly?: string }
+
 /** Que columna representa este encabezado, o `null` si no se reconoce. */
-export function matchColumn(header: string): TicketColumn | null {
+export function matchColumn(header: string, names: GroupNames = {}): TicketColumn | null {
   const normalized = normalizeHeader(header)
+  if (names.daily && normalized === normalizeHeader(names.daily)) return 'daily'
+  if (names.weekly && normalized === normalizeHeader(names.weekly)) return 'weekly'
   for (const [column, aliases] of Object.entries(ALIASES) as [TicketColumn, string[]][]) {
     if (aliases.includes(normalized)) return column
   }
@@ -80,8 +89,8 @@ export function matchColumn(header: string): TicketColumn | null {
  * `normalizeHeader` ya convierte los guiones bajos en espacios; lo unico que
  * hay que anadir es partir el camelCase antes de normalizar.
  */
-export function matchJsonKey(key: string): TicketColumn | null {
-  return matchColumn(key) ?? matchColumn(key.replace(/([a-z0-9])([A-Z])/g, '$1 $2'))
+export function matchJsonKey(key: string, names: GroupNames = {}): TicketColumn | null {
+  return matchColumn(key, names) ?? matchColumn(key.replace(/([a-z0-9])([A-Z])/g, '$1 $2'), names)
 }
 
 /** Indice de cada columna dentro del encabezado. `-1` si no se reconocio. */
@@ -101,7 +110,10 @@ export type ColumnMapping = {
  * Las columnas que no se reconocen —la numeracion «#», notas, cualquier otra—
  * simplemente no entran en el mapeo, que es la forma de ignorarlas.
  */
-export function detectMapping(headers: readonly string[]): ColumnMapping {
+export function detectMapping(
+  headers: readonly string[],
+  names: GroupNames = {},
+): ColumnMapping {
   const mapping: ColumnMapping = {
     daily: -1,
     weekly: -1,
@@ -110,15 +122,18 @@ export function detectMapping(headers: readonly string[]): ColumnMapping {
     abono: -1,
   }
   headers.forEach((header, index) => {
-    const column = matchColumn(header)
+    const column = matchColumn(header, names)
     if (column && mapping[column] === -1) mapping[column] = index
   })
   return mapping
 }
 
-/** `true` si ya se sabe de que columna sale cada numero. */
-export function isMappingComplete(mapping: ColumnMapping): boolean {
-  return mapping.daily >= 0 && mapping.weekly >= 0
+/**
+ * `true` si ya se sabe de que columna sale cada numero. Con un solo número en
+ * la rifa (D-261), basta el primero.
+ */
+export function isMappingComplete(mapping: ColumnMapping, groupCount: 1 | 2 = 2): boolean {
+  return mapping.daily >= 0 && (groupCount === 1 || mapping.weekly >= 0)
 }
 
 /** `true` si el archivo reconocio solo una de las dos columnas del cliente. */

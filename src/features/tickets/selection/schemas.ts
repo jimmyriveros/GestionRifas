@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { TICKET_CUSTODY_VALUES } from '@/features/inventory/rules'
 import { BULK_SELECTION_MAX } from '@/lib/constants'
 
 import { inventoryStatusSchema, paymentStatusSchema } from '../schemas'
@@ -55,5 +56,7 @@ export const ticketSelectionFiltersSchema = z.object({
   inventoryStatus: inventoryStatusSchema.optional(),
   paymentStatus: paymentStatusSchema.optional(),
   search: z.string().trim().max(50).optional(),
+  /** Solo lo usa el personal: el inventario comun, las apartadas o con vendedor (D-257). */
+  custody: z.enum(TICKET_CUSTODY_VALUES).optional(),
 })
 export type TicketSelectionFiltersInput = z.infer<typeof ticketSelectionFiltersSchema>

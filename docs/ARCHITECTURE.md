@@ -1,6 +1,12 @@
 # ARQUITECTURA
 
-- **Versión:** 1.53 · **Estado:** implementado · **Actualizado:** 2026-10-02, 17:45 UTC (**EN PRODUCCIÓN** con
+- **Versión:** 1.56 · **Estado:** implementado · **Actualizado:** 2026-10-20 (**§8.34 nueva**: los números de cada
+  rifa —`lib/ticket-number-format.ts`, el mapa de formatos que cada página carga una vez y lo que cambia en las
+  pantallas—, D-261, **solo en local**). Antes, 2026-10-19, más tarde (§8.33: liberar lo vendido
+  desde un apartado lo devuelve al inventario común y la pantalla sale a «Mis boletas» —D-258, **solo en local**—).
+  Antes, ese mismo día (§5, §6 y **§8.33 nueva**: el módulo
+  `features/inventory/`, las rutas `/owner/tickets/generate`, `/owner/tickets/generate/[runId]` y `/seller/inventory`
+  —D-257, **solo en local**—). Antes, 2026-10-02, 17:45 UTC (**EN PRODUCCIÓN** con
   `0490d69`: §8.31 y `MembershipCheckError` están publicados, `DEPLOYMENT` §3.2.x). Antes, ese mismo día (§8.31:
   `MembershipCheckError`, un fallo
   al leer la membresía no cierra la sesión —I-115, D-248—, **solo en local**). Antes, 2026-10-01 (**EN PRODUCCIÓN** con
@@ -227,6 +233,7 @@ importa desde un componente cliente.
     │   │                         # parse/pdf.ts y parse/acta-cundinamarca.ts: acta oficial (D-153)
     │   ├── search/               # Búsqueda híbrida compartida
     │   ├── settlements/          # Cierre de cuentas: lecturas, escrituras, frases y pantallas (D-241)
+    │   ├── inventory/            # Inventario común: generador, apartados, catálogo interno y frases (D-257)
     │   ├── whatsapp/               # Invitación al grupo del vendedor: config, diálogo y textos (D-176)
     │   └── tour/                 # Recorridos guiados
     ├── lib/
@@ -290,7 +297,9 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/owner/sellers/[sellerId]` | owner, admin | **3 ✅** · post-9 | Detalle del vendedor: contacto, inventario, su equipo y con qué regla se le paga (BR-E08). Sin lo vendido ni lo ganado desde D-198. Desde D-208, sus **premios ganados** —cuatro indicadores, sin un dato de cliente— y «Ver sus premios», también de un vendedor desactivado (§8.28) |
 | `/owner/tickets` | owner, admin | **3 ✅** · post-9 | Tabla global de boletas por `admin_list_tickets`: sin cliente ni dinero, búsqueda solo por número y pago en dos estados (D-198) |
 | `/owner/tickets/new` | owner, admin | **3 ✅** | Creación individual |
-| `/owner/tickets/bulk` | owner, admin | **3 ✅** | Creación masiva (1–1.000) |
+| `/owner/tickets/bulk` | owner, admin | **3 ✅** · post-9 | Creación masiva (1–1.000). Desde D-257 abre con dos modos, «Escribir los números» y «Generar por rangos», que son enlaces a sus dos rutas |
+| `/owner/tickets/generate` | owner, admin | post-9 (local) | **Generar por rangos** (D-257, §8.33): rifa en `?raffleId=`, dos rangos, vista previa con muestra y la creación por bloques con su avance; debajo, las generaciones recientes |
+| `/owner/tickets/generate/[runId]` | owner, admin | post-9 (local) | Una generación: sus recuentos, «Continuar generación» si quedó a medias y las combinaciones que ya existían, paginadas (BR-N17) |
 | `/owner/tickets/[ticketId]` | owner, admin | **3 ✅** · post-9 | Detalle por `admin_ticket_detail`, edición de números, aprobación y anulación de las no vendidas (D-198). Cuatro tarjetas desde D-234 (§8.7) |
 | ~~`/owner/clients`~~ | — | 3 → **retirada post-9** | La cartera es del vendedor (D-198): la ruta ya no existe |
 | ~~`/owner/clients/[clientId]`~~ | — | 3 → **retirada post-9** | Ídem |
@@ -300,7 +309,8 @@ Grupo `(protected)` — exige sesión y membresía activa.
 | `/owner/settlements/[sellerId]` | owner, admin **con la capacidad** | post-9 | La cuenta de un vendedor directo con su equipo dentro: el saldo, el cálculo línea a línea, los premios y las entregas. Cifras agregadas, **sin un solo cliente** (BR-Z13) |
 | `/owner/reports` | owner, admin | **6 ✅** · post-9 | Tres reportes de recuentos —por vendedor, por estado y por rifa— con filtros y CSV; sin dinero ni clientes (D-198) |
 | `/seller/dashboard` | seller | 1 → 4 → **6 ✅** | Métricas propias (`CLAUDE.md` §23 completo) |
-| `/seller/tickets` | seller | **4 ✅** | Boletas propias |
+| `/seller/tickets` | seller | **4 ✅** · post-9 | Boletas propias. Desde D-257, si hay boletas libres en el inventario común, un aviso con «Buscar y apartar» |
+| `/seller/inventory` | seller | post-9 (local) | **Inventario común** (D-257, §8.33): «Tus apartados» con su cuenta atrás y sus tres acciones, y el buscador por número diario, semanal o los dos; `?raffleId=`, `?daily=`, `?weekly=`, `?show=all` y la página en la URL. En el menú, no en la barra inferior |
 | `/seller/tickets/new` | seller | **4 ✅** | Crear boletas (si la rifa lo permite) |
 | `/seller/tickets/[ticketId]` | seller | **4 ✅** | Detalle y asignación |
 | `/seller/clients` | seller | **4 ✅** | Clientes propios |
@@ -2499,6 +2509,63 @@ las cuatro rutas: los contadores del listado salen de lo confirmado, no de lo qu
 
 **El menú.** «Cierre de cuentas» (`HandCoins`) aparece en el portal administrativo solo con la capacidad, y «Mi cierre
 de cuentas» en el del vendedor, para todos: uno sin boletas pagadas ve su estado vacío.
+
+### 8.33 Inventario común: la base decide, la pantalla pregunta y se refresca (D-257)
+
+> 🟡 **Solo en local**, con la migración `0081` (`DATA_MODEL` §4.27, `SECURITY` §4.28).
+
+**El módulo.** `src/features/inventory/`: `rules.ts` (constantes, rangos, muestra y recuentos, el espejo de lo que hace
+la base), `copy.ts` (todos los textos), `schemas.ts`, `queries.ts` (lecturas de servidor), `actions.ts` (las Server
+Actions) y `components/`. Las listas, los lotes y el detalle del personal siguen en `features/tickets/`, ampliados con la
+custodia: `admin-queries.ts`, `selection/` (dos acciones de lote más, `BulkAssignToSellerDialog` y
+`BulkRecoverDialog`), `TicketFilters` (el filtro «Inventario») y `TicketActions`.
+
+| Pieza | Qué hace |
+|---|---|
+| `TicketGenerator` + `use-generation-runner` | Calcula la muestra en el navegador, pide los recuentos a la base y crea **un bloque por petición**, desde el último avance confirmado; si algo falla, se detiene y ofrece continuar. La generación es una fila: recargar la pantalla no la pierde (`GenerationRunContinue`) |
+| `CreationModeSwitch` | Los dos modos de «Crear en lote», como enlaces con `aria-current` |
+| `RaffleInventorySection` + `HoldSettingsDialog` | En la ficha de la rifa: libres, apartadas y con vendedores sin vender, y la duración y el cupo; «Cambiar» solo si la base dice que quien mira puede (`can_manage`) |
+| `SellerHoldsPanel` | «Tus apartados»: vender con el mismo `AssignTicketsForm` de siempre y un `holdId`, pedir los 30 minutos y devolver |
+| `TakeHoldButton` | Apartar, con la confirmación que nombra los dos números. Su `requestId` solo se renueva cuando la base respondió |
+| `InventorySearchForm` + `InventoryResults` | El buscador va por la URL (un formulario `GET`): atrás, adelante y un enlace guardado funcionan |
+| `use-now` | Un solo temporizador de 15 s para todas las cuentas atrás, ajustado a la hora de la base con `server_now`. Solo informa |
+
+**El refresco.** La página del vendedor monta `CatalogRefreshOnFocus` —el del catálogo, ampliado con un intervalo y una
+lista de horas—: se refresca al volver a la pestaña, cada 30 s y en el vencimiento de cada apartado. Eso es solo para
+la vista: **la validación es de la base** en cada operación, y una pantalla vieja recibe su frase. Las pantallas del
+personal no se refrescan solas, como antes de D-257: se actualizan al navegar.
+
+**El menú.** «Inventario común» (`Boxes`) va en el menú del vendedor sin ser `primary`: la barra inferior sigue con
+sus cuatro (D-106). En el teléfono se llega desde el menú de usuario y desde el aviso de «Mis boletas».
+
+**Liberar lo vendido desde un apartado (D-258, `0082`).** El detalle de la boleta lee `sold_from_hold` y
+`ReleaseTicketDialog` lo usa solo para el texto que se lee antes de confirmar. Lo que pasó lo dice la base:
+`releaseTicket` vuelve a leer la boleta **después** de la RPC, con la misma sesión, y devuelve `toCommonInventory`
+—`tickets_select` solo enseña las propias, así que si ya no aparece, volvió al inventario común—. Entonces el diálogo
+sale a «Mis boletas» en vez de refrescar un detalle que ya no se podría abrir; si esa lectura falla (`null`), usa lo
+que sabía al abrirse.
+
+### 8.34 Los números de cada rifa: una ranura, un nombre y un mapa por página (D-261)
+
+**La identidad es la ranura.** El primer número vive en `tickets.daily_number` y el segundo en `weekly_number`, las
+mismas ranuras de `lottery_match_field`, del motor y de los premios. El nombre que el dueño eligió solo se pinta: nada
+decide por él. Por eso no se renombró ninguna columna ni ninguna función.
+
+| Pieza | Qué hace | Quién la usa |
+|---|---|---|
+| `src/lib/ticket-number-format.ts` | El tipo `RaffleNumberFormat`, `LEGACY_NUMBER_FORMAT` (Diario 4 + Semanal 4), `numberFormatFromRow` y las reglas puras con las MISMAS frases que la base: `numberGroupsProblem` y `ticketNumbersProblem`. Y cómo se nombra un número: `numberGroupTitle`, `numberGroupPhrase`, `numberGroupDescription`, `numberFormatLegend` | Formularios, acciones, listas, catálogo, premios, generador, importador. Puro: lo importa también el navegador |
+| `src/features/raffles/number-formats.ts` (`server-only`) | `listRaffleNumberFormats`: el mapa rifa → formato de la organización, **una consulta por petición** (`cache` de React), y `withNumberFormat`, que lo adjunta a cada fila | Las páginas y consultas que listan boletas de varias rifas. Sin consultas por fila (§10) |
+| `src/features/raffles/number-groups.ts` | El formulario de la rifa: valores por omisión, de formulario a fila y a formato, y todos sus textos | `RaffleForm` y `RaffleNumberGroupsField` |
+| `ticketLabel(numbers, groupCount?)` (`lib/tickets.ts`) | Con un número, solo ese; con dos, «d / w». Sin `groupCount`, una boleta sin segundo número se nombra por el primero | Toda pantalla que nombra una boleta |
+| `TicketNumberFields` (`features/tickets/components/`) | Un campo por número, con su título y su tope de cifras | Corregir números (los dos portales) |
+
+**La base es la frontera.** El formato exacto lo valida `tickets_enforce_number_format` en la tabla, y las acciones lo
+comprueban antes para dar la frase en el campo; la estructura de la rifa la protege `raffles_guard_number_groups`. La
+pantalla de editar la rifa enseña los números en solo lectura y ni siquiera manda esos campos.
+
+**Lo que no se adapta a propósito**: el comparador fijo de las rifas `legacy` y la transición de D-204, que solo existen
+para rifas de dos números de cuatro cifras; y la plantilla del importador de la rifa de siempre, que conserva las
+columnas de su Excel (`importColumns`, `UX_COPY_GUIDELINES` Anexo B).
 
 ## 9. Configuración regional
 

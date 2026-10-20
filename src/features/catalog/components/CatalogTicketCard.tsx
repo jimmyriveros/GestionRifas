@@ -1,5 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { LEGACY_NUMBER_FORMAT, type RaffleNumberFormat } from '@/lib/ticket-number-format'
+import { ticketLabel } from '@/lib/tickets'
 
 import type { PublicCatalogTicket } from '../queries'
 import { catalogWhatsappMessage, whatsappUrl } from '../whatsapp'
@@ -55,13 +57,17 @@ export function CatalogTicketCard({
   ticket,
   sellerShortName,
   whatsappNumber,
+  numberFormat = LEGACY_NUMBER_FORMAT,
 }: {
   ticket: PublicCatalogTicket
   sellerShortName: string
   whatsappNumber: string
+  /** D-261: cómo se llama cada número de la boleta; con uno solo, una cifra. */
+  numberFormat?: RaffleNumberFormat
 }) {
   const { dailyNumber, weeklyNumber } = ticket
-  const message = catalogWhatsappMessage({ sellerShortName, dailyNumber, weeklyNumber })
+  const [firstGroup, secondGroup] = numberFormat.groups
+  const message = catalogWhatsappMessage({ sellerShortName, dailyNumber, weeklyNumber, numberFormat })
 
   return (
     <li className="border-primary/45 bg-primary/[0.07] hover:border-primary/70 hover:bg-primary/[0.12] relative flex flex-col gap-1.5 rounded-xl border p-3 shadow-[inset_0_1px_0_var(--ds-surface-glass-default)] transition-colors">
@@ -73,7 +79,7 @@ export function CatalogTicketCard({
       */}
       <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
         <p className="text-foreground font-mono text-2xl leading-none font-semibold tabular-nums">
-          <span className="sr-only">Número diario </span>
+          <span className="sr-only">{`${firstGroup.name} `}</span>
           {dailyNumber}
         </p>
         {/*
@@ -111,11 +117,14 @@ export function CatalogTicketCard({
         </Badge>
       </div>
 
-      {/* Partido en dos lineas parecia otro dato distinto. */}
-      <p className="text-xs whitespace-nowrap">
-        <span className="text-muted-foreground">Semanal </span>
-        <span className="font-mono tabular-nums">{weeklyNumber}</span>
-      </p>
+      {/* Partido en dos lineas parecia otro dato distinto. Una boleta de un
+          solo número no lleva segunda línea (D-261). */}
+      {secondGroup && weeklyNumber !== null ? (
+        <p className="text-xs whitespace-nowrap">
+          <span className="text-muted-foreground">{`${secondGroup.name} `}</span>
+          <span className="font-mono tabular-nums">{weeklyNumber}</span>
+        </p>
+      ) : null}
 
       <Button asChild size="touch" className="mt-1 w-full">
         {/*
@@ -127,7 +136,7 @@ export function CatalogTicketCard({
           href={whatsappUrl(whatsappNumber, message)}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`Solicitar por WhatsApp la boleta ${dailyNumber} / ${weeklyNumber}`}
+          aria-label={`Solicitar por WhatsApp la boleta ${ticketLabel({ dailyNumber, weeklyNumber }, numberFormat.groups.length)}`}
         >
           <WhatsappIcon className="size-4" />
           Solicitar

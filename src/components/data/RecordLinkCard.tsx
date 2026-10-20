@@ -31,7 +31,12 @@ export function RecordLinkCard({
   action,
   wrap = false,
 }: {
-  href: string
+  /**
+   * A donde lleva. Sin el, la fila se pinta igual pero QUIETA, sin flecha y sin
+   * enlace: es lo que necesita una boleta del inventario comun, que no tiene
+   * vendedor al que ir (D-257). Con el, el HTML es el de siempre.
+   */
+  href?: string | null
   /** Icono de 20 px para el circulo. Es decorativo: el circulo ya va `aria-hidden`. */
   icon: ReactNode
   /** Que es el registro, en mayusculas pequeñas encima del nombre: «Cliente», «Rifa». */
@@ -56,6 +61,52 @@ export function RecordLinkCard({
    */
   wrap?: boolean
 }) {
+  const body = (
+    <div className="flex min-w-0 items-center gap-3">
+      <span
+        aria-hidden
+        className="bg-background text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full border"
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
+        <p className={wrap ? 'font-medium break-words' : 'truncate font-medium'}>{title}</p>
+        {detail ? (
+          <p
+            className={
+              wrap
+                ? 'text-muted-foreground text-sm break-words'
+                : 'text-muted-foreground truncate text-sm'
+            }
+          >
+            {detail}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
+
+  if (!href) {
+    const still = (
+      <div
+        className={cn(
+          'bg-muted/40 flex items-center gap-3 rounded-lg border p-3',
+          action ? 'flex-1' : 'h-full',
+        )}
+      >
+        {body}
+      </div>
+    )
+    if (!action) return still
+    return (
+      <div className="flex h-full flex-col gap-2">
+        {still}
+        {action}
+      </div>
+    )
+  }
+
   const row = (
     <Link
       href={href}
@@ -67,31 +118,7 @@ export function RecordLinkCard({
         action ? 'flex-1' : 'h-full',
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <span
-          aria-hidden
-          className="bg-background text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full border"
-        >
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            {label}
-          </p>
-          <p className={wrap ? 'font-medium break-words' : 'truncate font-medium'}>{title}</p>
-          {detail ? (
-            <p
-              className={
-                wrap
-                  ? 'text-muted-foreground text-sm break-words'
-                  : 'text-muted-foreground truncate text-sm'
-              }
-            >
-              {detail}
-            </p>
-          ) : null}
-        </div>
-      </div>
+      {body}
       <ChevronRightIcon className="text-muted-foreground size-5 shrink-0" aria-hidden />
     </Link>
   )

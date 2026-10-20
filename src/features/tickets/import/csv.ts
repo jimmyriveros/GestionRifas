@@ -163,11 +163,6 @@ export function parseCsv(content: string): CsvTable {
   if (!headers) {
     throw new ImportParseError('El archivo no tiene ninguna fila.')
   }
-  if (headers.length < 2) {
-    throw new ImportParseError(
-      'El archivo necesita dos columnas: una con el número diario y otra con el semanal.',
-    )
-  }
 
   return { headers, rows: all.slice(1), delimiter }
 }

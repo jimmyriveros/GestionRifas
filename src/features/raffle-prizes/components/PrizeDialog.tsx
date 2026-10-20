@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { groupForSlot, numberGroupTitle, type RaffleNumberFormat } from '@/lib/ticket-number-format'
 
 import { createPrize, publishPrizeVersion } from '../actions'
 import {
@@ -41,15 +42,29 @@ import {
   PRIZE_COPY,
   PRIZE_DIGITS_FULL_LABELS,
   PRIZE_FORM_COPY,
-  PRIZE_NUMBER_FIELD_LABELS,
   PRIZE_PANEL_COPY,
 } from '../copy'
+import { PRIZE_DIGITS_COUNT, PRIZE_DIGITS_VALUES, type PrizeDigits } from '../matching'
 import { singleDateRule } from '../schedule'
 import { prizeFormDefaults, prizeFormSchema, type PrizeFormInput } from '../schemas'
 import { PrizeRewardField } from './PrizeRewardField'
 import { PrizeScheduleField } from './PrizeScheduleField'
 
 import type { PrizeListItem } from '../queries'
+
+type PrizeDialogRaffle = {
+  id: string
+  startDate: string
+  endDate: string
+  /** D-261: con qué números puede jugar el premio y cuántas cifras tiene cada uno. */
+  numberFormat: RaffleNumberFormat
+}
+
+/** Las cifras que caben en un número: nunca más que las suyas (D-261). */
+function digitsFor(format: RaffleNumberFormat, field: PrizeListItem['numberField']): PrizeDigits[] {
+  const group = groupForSlot(format, field) ?? format.groups[0]
+  return PRIZE_DIGITS_VALUES.filter((digits) => PRIZE_DIGITS_COUNT[digits] <= group.digits)
+}
 
 /**
  * Agregar o corregir un premio (BR-J01, BR-J09, D-202).
@@ -72,7 +87,7 @@ export function PrizeDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  raffle: { id: string; startDate: string; endDate: string }
+  raffle: PrizeDialogRaffle
   prize?: PrizeListItem
 }) {
   const isEdit = prize !== undefined
@@ -100,7 +115,7 @@ function PrizeForm({
   prize,
   onDone,
 }: {
-  raffle: { id: string; startDate: string; endDate: string }
+  raffle: PrizeDialogRaffle
   prize?: PrizeListItem
   onDone: () => void
 }) {
@@ -122,9 +137,23 @@ function PrizeForm({
           rules: prize.rules,
         }
       : // Un premio nuevo arranca con UN periodo —el primer dia de la rifa—: sin
-        // el, el boton diria «Agregar otro periodo» sin haber ninguno.
-        { ...prizeFormDefaults, rules: [singleDateRule(raffle.startDate)] },
+        // el, el boton diria «Agregar otro periodo» sin haber ninguno. Y juega
+        // con el primer numero de la rifa y TODAS sus cifras (D-261): cuatro si
+        // las tiene, si no las que tenga.
+        {
+          ...prizeFormDefaults,
+          numberField: raffle.numberFormat.groups[0].slot,
+          digits: digitsFor(raffle.numberFormat, raffle.numberFormat.groups[0].slot)[0] ?? 'four',
+          rules: [singleDateRule(raffle.startDate)],
+        },
   })
+
+  // D-261: solo se ofrecen los números que tiene la rifa y las cifras que caben
+  // en el elegido. La base vuelve a comprobarlo al guardar.
+  const numberField = useWatch({ control: form.control, name: 'numberField' })
+  const selectedGroup =
+    groupForSlot(raffle.numberFormat, numberField ?? 'daily_number') ?? raffle.numberFormat.groups[0]
+  const allowedDigits = digitsFor(raffle.numberFormat, selectedGroup.slot)
 
   function onSubmit(values: PrizeFormInput) {
     setServerError(null)
@@ -234,16 +263,32 @@ function PrizeForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{PRIZE_FORM_COPY.numberFieldLabel}</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isPending}>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => {
+                      field.onChange(value)
+                      // Las cifras elegidas pueden no caber en el número nuevo:
+                      // se quedan las mayores que sí caben, a la vista.
+                      const allowed = digitsFor(
+                        raffle.numberFormat,
+                        value as PrizeListItem['numberField'],
+                      )
+                      const current = form.getValues('digits')
+                      if (current === undefined || !allowed.includes(current)) {
+                        form.setValue('digits', allowed[0] ?? 'last_two')
+                      }
+                    }}
+                    disabled={isPending}
+                  >
                     <FormControl>
                       <SelectTrigger size="touch" className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(['daily_number', 'weekly_number'] as const).map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {PRIZE_NUMBER_FIELD_LABELS[value]}
+                      {raffle.numberFormat.groups.map((group) => (
+                        <SelectItem key={group.slot} value={group.slot}>
+                          {numberGroupTitle(group.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -266,14 +311,19 @@ function PrizeForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(['four', 'last_three'] as const).map((value) => (
+                      {allowedDigits.map((value) => (
                         <SelectItem key={value} value={value}>
                           {PRIZE_DIGITS_FULL_LABELS[value]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>{PRIZE_FORM_COPY.digitsHelp}</FormDescription>
+                  <FormDescription>
+                    {selectedGroup.digits < 4
+                      ? `${PRIZE_FORM_COPY.digitsLimited(selectedGroup.name, selectedGroup.digits)} `
+                      : null}
+                    {PRIZE_FORM_COPY.digitsHelp}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

@@ -38,6 +38,8 @@ export async function listSellersWithInventory(raffleId?: string): Promise<Selle
 
   const bySeller = new Map<string, InventoryCounts>()
   for (const row of rows) {
+    // La fila sin vendedor es el inventario comun (D-257): no es de nadie.
+    if (row.sellerId === null) continue
     bySeller.set(row.sellerId, addInventory(bySeller.get(row.sellerId) ?? ZERO_INVENTORY, row))
   }
 

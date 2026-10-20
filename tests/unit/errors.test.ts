@@ -83,7 +83,16 @@ describe('mapPgError', () => {
           code: '23505',
           message: 'duplicate key value violates unique constraint "tickets_combo_unique"',
         }),
-      ).toBe('Ya existe una boleta con esa combinación de número diario y semanal en esta rifa.')
+      ).toBe('Ya existe una boleta con esos números en esta rifa.')
+    })
+
+    it('D-261: traduce el número repetido de una rifa de un solo número', () => {
+      expect(
+        mapPgError({
+          code: '23505',
+          message: 'duplicate key value violates unique constraint "tickets_single_group_unique"',
+        }),
+      ).toBe('Ya existe una boleta con ese número en esta rifa.')
     })
 
     it('traduce el nombre de rifa repetido (BR-R11)', () => {

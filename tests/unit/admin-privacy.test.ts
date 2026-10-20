@@ -94,7 +94,7 @@ describe('D-198 — dos estados de pago para el personal (BR-Q04)', () => {
 
 describe('D-198 — el personal busca solo por numero (BR-Q05)', () => {
   it('un nombre o un codigo interno reciben la pista, no una busqueda', () => {
-    const soloNumeros = 'Escribe solo el número diario o el semanal de la boleta.'
+    const soloNumeros = 'Escribe solo uno de los números de la boleta.'
     expect(adminTicketSearchHint('Jimmy')).toBe(soloNumeros)
     expect(adminTicketSearchHint('R001-000019')).toBe(soloNumeros)
     expect(adminTicketSearchHint('300 123 4567')).toBe(soloNumeros)
@@ -136,6 +136,7 @@ describe('D-198 — por que el personal no puede, sin nombrar la cartera (BR-Q07
       weeklyNumber: '4992',
       inventoryStatus,
       sellerId: 'vendedor',
+      heldBy: null,
       raffleId: 'rifa',
       raffleActive: true,
       can: {
@@ -144,6 +145,8 @@ describe('D-198 — por que el personal no puede, sin nombrar la cartera (BR-Q07
         cancel: false,
         changeSeller: false,
         delete: false,
+        assignToSeller: false,
+        recover: false,
         ...can,
       },
     }
@@ -274,13 +277,21 @@ describe('D-198 — ninguna puerta nueva a la cartera (invariantes estructurales
       expect(bloque![1], tipo).not.toMatch(PROHIBIDOS)
     }
 
-    // La fila del personal es la base comun mas su publico, y nada mas.
+    // La fila del personal es la base comun, su publico y, desde D-257, quien la
+    // tiene apartada —inventario, no cartera—. Nada mas.
     const elegibilidad = leer('src/features/tickets/selection/eligibility.ts')
     const base = /type EligibilityBase = \{([\s\S]*?)\n\}/.exec(elegibilidad)
     expect(base, 'EligibilityBase').not.toBeNull()
     expect(base![1]).not.toMatch(PROHIBIDOS)
-    const staff = /export type AdminTicketEligibility = ([^\n]*)/.exec(elegibilidad)
-    expect(staff![1]).toBe("EligibilityBase & { audience: 'staff' }")
+    const staff = /export type AdminTicketEligibility = EligibilityBase & \{([\s\S]*?)\n\}/.exec(
+      elegibilidad,
+    )
+    expect(staff, 'AdminTicketEligibility').not.toBeNull()
+    const campos = staff![1]!
+      .split('\n')
+      .map((linea) => linea.trim())
+      .filter((linea) => linea !== '' && !linea.startsWith('/**') && !linea.startsWith('*'))
+    expect(campos).toEqual(["audience: 'staff'", 'heldBy: string | null'])
   })
 
   it('las Server Actions de la cartera solo autorizan al vendedor', () => {

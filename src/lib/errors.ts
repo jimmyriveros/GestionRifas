@@ -36,8 +36,9 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
  * se traduce por nombre de restriccion (D-044).
  */
 const CONSTRAINT_MESSAGES: Record<string, string> = {
-  tickets_combo_unique:
-    'Ya existe una boleta con esa combinación de número diario y semanal en esta rifa.',
+  tickets_combo_unique: 'Ya existe una boleta con esos números en esta rifa.',
+  // D-261: la unicidad de una rifa de UN solo número.
+  tickets_single_group_unique: 'Ya existe una boleta con ese número en esta rifa.',
   tickets_org_internal_code_key: 'Ya existe una boleta con ese código interno.',
   raffles_org_name_key: 'Ya existe una rifa con ese nombre en la organización.',
   raffles_org_short_code_key: 'Ya existe una rifa con ese código en la organización.',
@@ -45,7 +46,9 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   memberships_org_profile_key: 'Esa persona ya pertenece a la organización.',
   memberships_one_owner_per_org: 'La organización ya tiene un dueño activo.',
   tickets_numbers_required_unless_draft:
-    'Una boleta que no es borrador debe tener número diario y semanal.',
+    'Una boleta que no es borrador debe tener todos los números de su rifa.',
+  tickets_single_group_has_one_number:
+    'Esta rifa tiene un solo número por boleta: la boleta no lleva otro número.',
   tickets_paid_amount_range: 'El valor supera el saldo pendiente de la boleta.',
   alloc_payment_ticket_key: 'Ese pago ya tiene un valor aplicado a esa boleta.',
   clients_seller_org_fk: 'El vendedor indicado no pertenece a la organización.',

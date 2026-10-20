@@ -86,7 +86,7 @@ export function RaffleReview({
         </Notice>
       ) : null}
 
-      <PrizeList prizes={active} />
+      <PrizeList prizes={active} numberFormat={raffle.numberFormat} />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button
